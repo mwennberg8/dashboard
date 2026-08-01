@@ -904,7 +904,7 @@ body.tabprev.cmp-open{overflow:auto}
 .ic.flip{transform:rotate(180deg)}
 .dlg.edit .dlg-body{max-height:66vh;overflow-y:auto}
 .stat{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.foot{margin-top:24px;text-align:center;font-size:11px;color:var(--faint);font-weight:500}
+.foot{margin-top:10px;text-align:center;font-size:11px;color:var(--faint);font-weight:500}
 
 /* ===== v21: storlek, glow, status, väder, config ===== */
 body{--solar:#ffc21f;--glowmul:1}
@@ -8101,7 +8101,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v334';
+const APP_VERSION='v336';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -8187,7 +8187,9 @@ var CFG_SECS=[['utseende','Utseende','sun-dim','Storlek, layout och färger'],
               ['energi','Energi & pris','lightning','Mätning och spotpris'],
               ['homey','Homey & synk','cloud','Synk, variabler, årsdata'],
               ['uppd','Uppdatering','clock-counter-clockwise','Version och auto-uppdatering'],
-              ['system','System','gear','Version, rotation och återställning']];
+              /* 'wrench', inte 'gear' — den senare finns inte i ikonuppsättningen
+                 och gav en tom ruta i menyn. */
+              ['system','System','wrench','Version, rotation och återställning']];
 /* En rad i en installningsmeny. Samma kort som roten anvander - de har fyra oppnar
    hela undersidor och ska inte se ut som sma val-pillar bland tema-knapparna. */
 function cfgMi(fn,ic,titel,under){
@@ -8306,6 +8308,8 @@ function openConfig(){
   h+='<div class="cfg-row"><span class="cfg-row-l">Årsdata · Homey-variabel</span><input class="cfg-inp" style="width:150px;font-size:12px;text-align:left" type="text" autocomplete="off" value="'+esc(CFG.yearVar!=null?CFG.yearVar:'energi_arsdata')+'" placeholder="t.ex. energi_arsdata" onchange="cfgYearVar(this.value)"></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Lägg till / uppdatera</span><div class="cfg-step"><input id="yh-year" class="cfg-inp" style="width:56px" type="number" inputmode="numeric" placeholder="år"><input id="yh-total" class="cfg-inp" style="width:72px" type="number" inputmode="numeric" placeholder="total"><input id="yh-sol" class="cfg-inp" style="width:62px" type="number" inputmode="numeric" placeholder="sol"><button class="cfg-pm wide" onclick="yhSave()">Spara</button></div></div>';
   }else if(_cfgSec==='system'){
+    h+=cfgBack();
+    h+='<div class="cfg-sec">System</div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Version</span><span class="cfg-num">'+APP_VERSION+'</span></div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Läge</span><span class="cfg-num">'
       +(document.body.classList.contains('kiosk')?'platta':'mobil')+'</span></div>';
@@ -8753,12 +8757,22 @@ function candidates(){
   return list;}
 /* Fotnoten sager VAR datan kommer ifran, inte hela adressen. Det ar det enda
    man behover veta i drift: gar det via huset eller via molnet. */
+/* Kort källa, väg och version. Adressen och Homey-id hör hemma i inställningarna,
+   inte i en rad man ser hela tiden. */
+var _baseAt=0,_baseByte=0;
 function footVia(){
   var e=$('foot-via');if(!e)return;
-  if(!BASE||isDemo()){e.textContent='';return;}
+  var v=' · '+APP_VERSION;
+  if(!BASE||isDemo()){e.textContent=v;return;}
   var moln=BASE.indexOf('connect.athom.com')>0;
+  /* Kort markering när vägen nyss bytts, så man ser att det hänt. */
+  var nyss=(_baseByte&&Date.now()-_baseByte<30000)?' ⇄':'';
   e.innerHTML=' · <span style="color:'+(moln?'var(--gold)':'var(--ok)')+'">'
-    +(moln?'via molnet':'lokalt')+'</span>';}
+    +(moln?'molnet':'lokalt')+nyss+'</span>'+v;}
+/* SOURCE innehåller adressen ("Homey · 192.168.50.147"). Bara första ledet visas. */
+function footKalla(){
+  var s=String(SOURCE||'');
+  return s.split(' · ')[0].split(' — ')[0].trim()||s;}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 async function load(){
   credTillCONFIG();
@@ -8766,12 +8780,39 @@ async function load(){
   /* Utan uppgifter: visa rutan i stallet for en dashboard full av streck. */
   if(notConf&&!isDemo()&&!CONFIG.DATA_URL){try{setupVisa();}catch(e){}}
   if(CONFIG.DATA_URL){try{const r=await fetch(CONFIG.DATA_URL,{cache:'no-store'});if(r.ok){map=await r.json();SOURCE='lokal data.json';BASE=CONFIG.HOMEY_URL||'';}}catch(e){}}
-  if(!map&&!notConf){for(const base of candidates()){map=await fetchHomey(base);if(map){BASE=base;SOURCE='Homey · '+base.replace(/^https?:\/\//,'');break;}}}
+  if(!map&&!notConf){
+    /* Vägen väljs om högst en gång per minut. Tidigare valdes den bara vid
+       första laddningen, så gick man hemifrån stod indikatorn kvar på "lokalt"
+       medan anropen tyst misslyckades — och kom man hem fortsatte allt gå via
+       molnet i onödan.
+
+       Däremellan används den väg som redan fungerar. Först när DEN slutar
+       svara, eller när minuten gått, provas listan om från början. Alternativet
+       — att prova lokalt varje gång — skulle kosta ett anrop som måste hinna gå
+       i timeout var 15:e sekund när man är borta. */
+    var nu=Date.now();
+    var provaOm=(!BASE)||(nu-_baseAt>60000);
+    if(!provaOm){
+      map=await fetchHomey(BASE);
+      if(!map)provaOm=true;                 /* nuvarande väg svarar inte längre */
+    }
+    if(provaOm){
+      for(const base of candidates()){
+        map=await fetchHomey(base);
+        if(map){
+          if(base!==BASE)_baseByte=Date.now();
+          BASE=base;_baseAt=Date.now();
+          SOURCE='Homey · '+base.replace(/^https?:\/\//,'');
+          break;
+        }
+      }
+    }
+  }
   if(map){DATA=map;setStatus('live','LIVE');lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
   else{_online=false;const wasLive=(SOURCE.indexOf('Homey')===0||SOURCE==='lokal data.json')&&Object.keys(DATA).length>0;
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
-  render();tickRel();setT('foot-src',SOURCE);footVia();
+  render();tickRel();setT('foot-src',footKalla());footVia();
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
 }
 
