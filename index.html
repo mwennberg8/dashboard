@@ -38,7 +38,11 @@ window.pwaBuildManifest=function(){try{
     description:"Hemmets energi, väder och styrning",
     start_url:base, scope:dir, lang:"sv", dir:"ltr",
     display:"standalone", display_override:["standalone","minimal-ui"],
-    orientation:"any", prefer_related_applications:false,
+    /* "portrait" i stället för "any": en installerad webbapp följer manifestet,
+       inte telefonens rotationslås. Går att stänga av under System. */
+    orientation:(function(){try{var c=JSON.parse(localStorage.getItem("cfg_v1")||"{}");
+      return (c&&c.lasPortratt===false)?"any":"portrait";}catch(e){return "portrait";}})(),
+    prefer_related_applications:false,
     background_color:bg, theme_color:bg, icons:ic};
   if(window._pwaFile)return m;      /* en riktig manifestfil har tagit över */
   window._pwaManifest=m;
@@ -1590,7 +1594,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
     <div id="vdr-body"></div>
   </section>
 
-  <div class="foot"><span id="foot-src">demo-data</span> · <span id="foot-int">30</span> s · <span id="foot-dev">–</span> enheter · <span id="foot-theme">–</span> · <span id="foot-ver">–</span> · ikoner: Phosphor (MIT)</div>
+  <div class="foot"><span id="foot-src">demo-data</span><span id="foot-via"></span></div>
 </div>
 
   <div class="dlg-back" id="dlg-back" onclick="closeDetail(event)"><div class="dlg" id="dlg" role="dialog" aria-modal="true"><button class="dlg-x" onclick="closeDetail(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button><div class="dlg-h"><span class="dlg-ic ic-slot" id="dlg-ic"></span><span id="dlg-title">–</span></div><div class="dlg-body" id="dlg-body"></div></div></div>
@@ -1750,7 +1754,7 @@ function solar(date,lat,lon,tzMin){const rad=Math.PI/180,deg=180/Math.PI;
 function applyTheme(sc,h){let th=CONFIG.THEME;
   if(th==='auto')th=(sc.sunrise!=null&&sc.sunset!=null&&h>=sc.sunrise&&h<sc.sunset)?'light':'dark';
   const root=document.documentElement;if(root&&root.setAttribute&&th!==curTheme){root.setAttribute('data-theme',th);curTheme=th;}
-  setIcon('theme-ic',th==='light'?'sun':'moon');setT('foot-theme',th==='light'?'ljust (Latte)':'mörkt (Mocha)');
+  setIcon('theme-ic',th==='light'?'sun':'moon');
   try{syncThemeColor();}catch(e){}}
 
 /* ---- energiring ---- */
@@ -8097,7 +8101,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v333';
+const APP_VERSION='v334';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -8182,7 +8186,8 @@ var CFG_SECS=[['utseende','Utseende','sun-dim','Storlek, layout och färger'],
               ['skarm','Skärm & läge','moon','Nattklocka, skärmsläckare, kiosk'],
               ['energi','Energi & pris','lightning','Mätning och spotpris'],
               ['homey','Homey & synk','cloud','Synk, variabler, årsdata'],
-              ['uppd','Uppdatering','clock-counter-clockwise','Version och auto-uppdatering']];
+              ['uppd','Uppdatering','clock-counter-clockwise','Version och auto-uppdatering'],
+              ['system','System','gear','Version, rotation och återställning']];
 /* En rad i en installningsmeny. Samma kort som roten anvander - de har fyra oppnar
    hela undersidor och ska inte se ut som sma val-pillar bland tema-knapparna. */
 function cfgMi(fn,ic,titel,under){
@@ -8300,6 +8305,31 @@ function openConfig(){
     h+='<div class="cfg-sec">Homey-variabler</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Årsdata · Homey-variabel</span><input class="cfg-inp" style="width:150px;font-size:12px;text-align:left" type="text" autocomplete="off" value="'+esc(CFG.yearVar!=null?CFG.yearVar:'energi_arsdata')+'" placeholder="t.ex. energi_arsdata" onchange="cfgYearVar(this.value)"></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Lägg till / uppdatera</span><div class="cfg-step"><input id="yh-year" class="cfg-inp" style="width:56px" type="number" inputmode="numeric" placeholder="år"><input id="yh-total" class="cfg-inp" style="width:72px" type="number" inputmode="numeric" placeholder="total"><input id="yh-sol" class="cfg-inp" style="width:62px" type="number" inputmode="numeric" placeholder="sol"><button class="cfg-pm wide" onclick="yhSave()">Spara</button></div></div>';
+  }else if(_cfgSec==='system'){
+    h+='<div class="cfg-row"><span class="cfg-row-l">Version</span><span class="cfg-num">'+APP_VERSION+'</span></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Läge</span><span class="cfg-num">'
+      +(document.body.classList.contains('kiosk')?'platta':'mobil')+'</span></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Enheter</span><span class="cfg-num">'
+      +Object.keys(DATA||{}).length+'</span></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Uppdateringar</span><span class="cfg-num">var '
+      +(CONFIG.REFRESH_SECONDS||15)+' s</span></div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Ikoner: Phosphor Icons (MIT).</div>';
+
+    h+='<div class="cfg-sec" style="margin-top:16px">Rotation</div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Lås till stående</span><div class="cfg-btns">'
+      +'<button class="cfg-opt'+(CFG.lasPortratt!==false?' on':'')+'" onclick="cfgLas(1)">På</button>'
+      +'<button class="cfg-opt'+(CFG.lasPortratt===false?' on':'')+'" onclick="cfgLas(0)">Av</button>'
+      +'</div></div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Telefonens egen rotationslåsning gäller inte '
+      +'installerade webbappar — de följer manifestets inställning. Med detta på ligger sidan kvar '
+      +'i stående när du vrider telefonen.</div>';
+
+    h+='<div class="cfg-sec" style="margin-top:16px">Återställ</div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Alla inställningar</span>'
+      +'<button class="te-alt" onclick="cfgReset()">Återställ</button></div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Återställer allt till dashboardens standardläge. '
+      +'Anslutningen till Homey påverkas inte.</div>';
+
   }else if(_cfgSec==='uppd'){
     h+=cfgBack();
     h+='<div class="cfg-sec">Uppdatering</div>';
@@ -8314,7 +8344,7 @@ function openConfig(){
     h+='<div class="cfg-sec">Mer</div><div class="cfg-menu">';
     CFG_SECS.forEach(function(x){h+=cfgMi('cfgGo(\''+x[0]+'\')',x[2],x[1],x[3]);});
     h+='</div>';
-  h+='<div class="cfg-reset"><button class="te-alt" onclick="cfgReset()">Återställ till standard</button><div class="cfg-savedmsg">Återställer alla inställningar till dashboardens standardläge · '+APP_VERSION+'</div></div>';
+  ;
 
   }
   const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.add('wide');dlg.classList.add('edit');}
@@ -8348,7 +8378,7 @@ function cfgBatt(d){CFG.battkwh=Math.max(3,Math.min(40,(CFG.battkwh||10)+d));sav
 function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick();}
 function nclockOffLabel(){const m=(CFG&&CFG.nclockOffset)||0;if(m===0)return 'vid solnedgång';return (m>0?'+':'−')+Math.abs(m)+' min';}
 function cfgNclockOff(d){CFG.nclockOffset=Math.max(-120,Math.min(120,((CFG.nclockOffset||0)+d*15)));saveCfg();const n=$('cfgnum-nclockoff');if(n)n.textContent=nclockOffLabel();render();}
-function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;$('foot-int').textContent=CONFIG.REFRESH_SECONDS;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
+function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
 function cfgAutoReload(v){CFG.autoreload=(v!=='off');saveCfg();if(CFG.autoreload&&_selfSig==null)checkForUpdate();}
 function cfgKiosk(val){CONFIG.KIOSK=val;applyKiosk();}
 function cfgTabPrev(v){CFG.tabPrev=(v!=='off');saveCfg();applyKiosk();if(typeof setTimeout==='function')setTimeout(fitScreen,60);}
@@ -8471,7 +8501,7 @@ function render(){
       const b=capOf(d,'measure_battery');if(b!=null&&b<CONFIG.BATTERY_WARN&&isSensorBatt(d))battLow++;}
     const tile=(ic,acc,n,l)=>'<div class="ds-tile"><div class="'+acc+'">'+icon(ic)+'</div><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
     dsum.innerHTML=tile('house','acc-violet',total,'enheter')+tile('lightbulb','acc-gold',lightsOn+'<small style="font-size:14px;color:var(--dim)">/'+lights+'</small>','lampor på')+tile('gauge','acc-blue',sensors,'sensorer')+tile('plug','acc-green',sockets,'uttag')+tile('battery-high',battLow?'acc-hot':'acc-dim',battLow,'låga batt');
-    setT('foot-dev',total);}
+    }
 
   const sl=$('status-list');if(sl){sl.innerHTML='';
     const carRow=(id)=>{const b=cap(id,'measure_battery'),r=cap(id,'range_battery'),loc=cap(id,'location_human'),nm=(DATA[id]&&DATA[id].name)||'Bil';
@@ -8721,6 +8751,14 @@ function candidates(){
   var m=(lan||'').match(/(\d+)-(\d+)-(\d+)-(\d+)\.homey\.homeylocal\.com/);
   if(m)list.push('http://'+m.slice(1).join('.'));
   return list;}
+/* Fotnoten sager VAR datan kommer ifran, inte hela adressen. Det ar det enda
+   man behover veta i drift: gar det via huset eller via molnet. */
+function footVia(){
+  var e=$('foot-via');if(!e)return;
+  if(!BASE||isDemo()){e.textContent='';return;}
+  var moln=BASE.indexOf('connect.athom.com')>0;
+  e.innerHTML=' · <span style="color:'+(moln?'var(--gold)':'var(--ok)')+'">'
+    +(moln?'via molnet':'lokalt')+'</span>';}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 async function load(){
   credTillCONFIG();
@@ -8733,7 +8771,7 @@ async function load(){
   else{_online=false;const wasLive=(SOURCE.indexOf('Homey')===0||SOURCE==='lokal data.json')&&Object.keys(DATA).length>0;
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
-  render();tickRel();setT('foot-src',SOURCE);
+  render();tickRel();setT('foot-src',SOURCE);footVia();
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
 }
 
@@ -8808,7 +8846,7 @@ const DEMO_ZONES={"9919ee1e-ffbc-480b-bc4b-77fb047e9e68":{name:"Hem"},"2ab5a003-
 initIcons();applyKiosk();loadHist();
 try{document.addEventListener('fullscreenchange',fsSync);document.addEventListener('webkitfullscreenchange',fsSync);}catch(e){}
 try{if(CFG.autoFull)armAutoFull();}catch(e){}
-try{syncThemeColor();pwaMakeMaskable();stickyBars();applyMobGap();}catch(e){}
+try{syncThemeColor();pwaMakeMaskable();stickyBars();applyMobGap();lasPortratt();}catch(e){}
 /* App-läge: markera när dashboarden körs installerad (standalone) och fånga install-prompten. */
 var _deferredInstall=null;
 try{
@@ -8901,6 +8939,26 @@ function pwaStandalone(){try{
       || (window.matchMedia&&window.matchMedia('(display-mode:fullscreen)').matches)
       || window.navigator.standalone===true;}catch(e){return false;}}
 /* Headerns farg ska vara appens egen bakgrund, aven nar temat byts. */
+/* Telefonens egen rotationslåsning gäller INTE installerade webbappar — de
+   följer manifestets orientation. Därav att dashboarden vred sig trots att
+   låset var på. Två åtgärder behövs: manifestet ska säga "portrait", och
+   Screen Orientation API:t låser den flik som redan är öppen. Låset kräver
+   helskärm eller standalone, så det misslyckas tyst i en vanlig flik. */
+function lasPortratt(){
+  if(CFG&&CFG.lasPortratt===false)return;
+  try{
+    var o=screen&&screen.orientation;
+    if(o&&typeof o.lock==='function'){
+      var p=o.lock('portrait');
+      if(p&&p.catch)p.catch(function(){});   /* nekas utanför standalone */
+    }
+  }catch(e){}}
+function cfgLas(pa){
+  CFG.lasPortratt=!!pa;saveCfg();
+  if(pa)lasPortratt();
+  else{try{if(screen&&screen.orientation&&screen.orientation.unlock)screen.orientation.unlock();}catch(e){}}
+  try{if(window.pwaBuildManifest)window.pwaBuildManifest();}catch(e){}
+  openConfig();}
 function syncThemeColor(){try{
   var bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   if(!bg)return;
@@ -9179,7 +9237,7 @@ lpAttach($('stats-flode'));lpAttach($('stats-energy'));lpAttach($('weather-flow'
      ganger: en gang fran timern och en gang fran click som foljer pa pointerup. */
   hh.style.cursor='pointer';}});})();
 try{if(localStorage.getItem('yearhist_v1')==null){yearHistSave(SEED_YEARS.map(function(x){return Object.assign({},x);}));}}catch(e){}
-$('foot-int').textContent=CONFIG.REFRESH_SECONDS||15;try{var _fv=$('foot-ver');if(_fv)_fv.textContent=APP_VERSION+(MOBILE?' · mobil':'');}catch(e){}load();
+load();
 if(typeof bootSync==='function')bootSync();
 if(typeof fetchSmhiForecast==='function'){fetchSmhiForecast();setInterval(fetchSmhiForecast,25*60000);}
 if(typeof refreshFeeds==='function'){refreshFeeds();setInterval(refreshFeeds,30*60000);}
