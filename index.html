@@ -8104,7 +8104,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v337';
+const APP_VERSION='v338';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -8931,19 +8931,48 @@ function mobGapStep(d){
    En ram, inte en vanlig länk: navigerar man bort tappar dashboarden allt sitt
    tillstånd (historik, vald vy, timers) och måste läsa in allt på nytt. Med ramen
    ligger den kvar orörd bakom, och tillbaka-knappen är omedelbar. */
-var EXT_URL_DEF='http://192.168.50.147:8000/homey/vinkallare.html';
+/* Vinkällaren ligger på två ställen, och vilket som duger beror på var
+   dashboarden själv körs:
+
+     https (GitHub Pages) -> MÅSTE vara https. En https-sida får inte visa en
+       http-sida i en ram; webbläsaren blockerar det som blandat innehåll och
+       rutan blir tom utan felmeddelande.
+     http  (lokalt)       -> lokala filen, snabbare och fungerar utan internet.
+
+   Adressen går att skriva över i inställningarna; det här är bara startvärdet. */
+var EXT_URL_LOKAL='http://192.168.50.147:8000/homey/vinkallare/vinkallare.html';
+var EXT_URL_MOLN='https://mwennberg8.github.io/vinkallare/';
+function extStandard(){
+  try{return (location.protocol==='https:')?EXT_URL_MOLN:EXT_URL_LOKAL;}
+  catch(e){return EXT_URL_LOKAL;}}
+/* Kvar för bakåtkompatibilitet — pekar på det som gäller just nu. */
+var EXT_URL_DEF=extStandard();
 var _extFired=0;
 function cfgExtUrl(v){v=(v||'').trim();
   if(!v)delete CFG.extUrl; else CFG.extUrl=v;
   saveCfg();
   var f=document.getElementById('extfr-f');if(f&&extOppen())f.src=extUrl();}
-function extUrl(){var u=CFG&&CFG.extUrl;
-  return (typeof u==='string'&&u.trim())?u.trim():EXT_URL_DEF;}
+function extUrl(){
+  var u=CFG&&CFG.extUrl;
+  if(typeof u==='string'&&u.trim()){
+    u=u.trim();
+    /* En sparad http-adress duger inte när sidan körs över https. Hellre byta
+       till molnvarianten än att visa en tom ram. */
+    if(location.protocol==='https:'&&/^http:\/\//i.test(u))return EXT_URL_MOLN;
+    return u;
+  }
+  return extStandard();}
 /* Rubriken hämtas ur filnamnet, eftersom adressen går att byta i inställningarna.
    Filnamn kan inte innehålla å/ä/ö, så kända sidor får sin riktiga stavning här. */
 var EXT_NAMN={vinkallare:'Vinkällare',vinkallaren:'Vinkällaren'};
 function extTitel(){
-  var f='';try{f=new URL(extUrl(),location.href).pathname.split('/').pop().replace(/\.html?$/i,'');}catch(e){}
+  var f='';
+  try{
+    var p=new URL(extUrl(),location.href).pathname.replace(/\/+$/,'');
+    /* Slutar adressen på en katalog (…/vinkallare/) är det katalognamnet som
+       är titeln, inte ett filnamn som inte finns. */
+    f=p.split('/').pop().replace(/\.html?$/i,'');
+  }catch(e){}
   if(!f)return '';
   var k=f.toLowerCase();
   return EXT_NAMN[k]||(f.charAt(0).toUpperCase()+f.slice(1));}
