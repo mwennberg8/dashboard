@@ -38,10 +38,13 @@ window.pwaBuildManifest=function(){try{
     description:"Hemmets energi, väder och styrning",
     start_url:base, scope:dir, lang:"sv", dir:"ltr",
     display:"standalone", display_override:["standalone","minimal-ui"],
-    /* "portrait" i stället för "any": en installerad webbapp följer manifestet,
-       inte telefonens rotationslås. Går att stänga av under System. */
-    orientation:(function(){try{var c=JSON.parse(localStorage.getItem("cfg_v1")||"{}");
-      return (c&&c.lasPortratt===false)?"any":"portrait";}catch(e){return "portrait";}})(),
+    /* FAST värde. Tidigare lästes det ur localStorage, vilket gjorde manifestet
+       olika på olika enheter och vid olika tillfällen. Chrome kontrollerar
+       manifestet i bakgrunden och bygger om appen när något ändras — ett
+       manifest som skiftar av sig självt får den att bygga om i onödan.
+       Rotationen styrs i praktiken av Screen Orientation API:t; det här är bara
+       vad Chrome får veta vid installationen. */
+    orientation:"portrait",
     prefer_related_applications:false,
     background_color:bg, theme_color:bg, icons:ic};
   if(window._pwaFile)return m;      /* en riktig manifestfil har tagit över */
@@ -8101,7 +8104,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v336';
+const APP_VERSION='v337';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -8998,7 +9001,8 @@ function cfgLas(pa){
   CFG.lasPortratt=!!pa;saveCfg();
   if(pa)lasPortratt();
   else{try{if(screen&&screen.orientation&&screen.orientation.unlock)screen.orientation.unlock();}catch(e){}}
-  try{if(window.pwaBuildManifest)window.pwaBuildManifest();}catch(e){}
+  /* Manifestet byggs INTE om här. Att ändra det efter installationen får Chrome
+     att vilja bygga om appen, och det var så adressfältet kom tillbaka. */
   openConfig();}
 function syncThemeColor(){try{
   var bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
