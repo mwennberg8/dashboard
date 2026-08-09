@@ -648,6 +648,10 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-rap{font-size:13.5px;line-height:1.75;white-space:pre-line}
 .kr-rap::first-line{font-weight:800;font-size:15px}
 .kr-t.saknas{color:var(--faint);font-style:italic}
+/* Nyss skriven post. Notisen säger bara ATT den finns; markeringen visar VAR. */
+.kr-r.ny .kr-n::after{content:'NY';margin-left:7px;padding:1px 5px;border-radius:5px;
+  background:var(--gold);color:#1c1f24;font-size:8.5px;font-weight:850;
+  letter-spacing:.06em;vertical-align:1px}
 .prog-b{display:flex;align-items:stretch;gap:3px;height:96px;margin:10px 0 4px}
 .prog-c{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
 .prog-w{flex:1 1 auto;position:relative;border-top:0;border-bottom:0;
@@ -4965,7 +4969,20 @@ async function kronLista(force){
   try{
     var j=await appGet('/kronika');
     if(!j||!j.manader)throw new Error('tomt svar');
-    _kron=j;_kronAt=Date.now();_kronFel=null;return j;
+    _kron=j;_kronAt=Date.now();_kronFel=null;
+    /* Är den nyaste posten skriven det senaste dygnet, fäll ut den direkt.
+       Notisen har just sagt att den finns; då ska man inte behöva leta. */
+    if(_kronVald==null){
+      var nyast=null;
+      (j.ar||[]).concat(j.manader||[]).forEach(function(x){
+        if(x.raknad_at&&Date.now()-x.raknad_at<36*3600000
+          &&(!nyast||x.raknad_at>nyast.raknad_at))nyast=x;});
+      if(nyast){
+        _kronVald=nyast.period;
+        kronPost(nyast.period).then(function(){try{renderInsikter();}catch(e){}});
+      }
+    }
+    return j;
   }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
 async function kronPost(period){
   if(_kronPost[period])return _kronPost[period];
@@ -5057,8 +5074,9 @@ function kronHTML(){
   var rad=function(x,ar){
     var vald=(_kronVald===x.period);
     var o=vald?_kronPost[x.period]:null;
+    var ny=(x.raknad_at&&Date.now()-x.raknad_at<36*3600000);
     /* Rubriken i listan gör den läsbar utan att man behöver öppna varje post. */
-    var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+'" onclick="kronOppna(\''+x.period+'\')">'
+    var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+(ny?' ny':'')+'" onclick="kronOppna(\''+x.period+'\')">'
       +'<span class="kr-n">'+esc(kronNamn(x.period))
       +'</span>'
       +'<span class="kr-s">'+(x.sol!=null?num(x.sol,0)+' kWh':'')+'</span>'
@@ -8687,7 +8705,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v350';
+const APP_VERSION='v351';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
