@@ -4964,24 +4964,80 @@ function renderVader(){
    dessutom bara ha de dygn Insights fortfarande racker till, alltsa ge ett
    annat svar for samma manad beroende pa nar man tittar. */
 var _kron=null,_kronAt=0,_kronFel=null,_kronVald=null,_kronPost={};
+/* ===== NY-märket =====
+   Märket sitter tills posten öppnats, eller tills tre dygn gått. Det andra
+   villkoret finns för att märket annars skulle ligga kvar för alltid på en post
+   man aldrig bryr sig om att öppna — och då slutar det betyda något.
+
+   Läsningen sparas PER ENHET, i localStorage. Att den skulle synkas vore fel:
+   att du läst rapporten på plattan säger ingenting om att du sett den i
+   telefonen. */
+var KRON_LAST='kronlast_v1', KRON_NY_MAX=3*24*3600000;
+function kronLastGet(){
+  try{return JSON.parse(localStorage.getItem(KRON_LAST)||'{}')||{};}catch(e){return {};}}
+function kronLastSatt(p){
+  try{
+    var o=kronLastGet();
+    if(o[p])return false;
+    o[p]=Date.now();
+    /* Håll listan kort — bara perioder som fortfarande kan vara nya spelar roll. */
+    var k=Object.keys(o).sort();
+    while(k.length>60)delete o[k.shift()];
+    localStorage.setItem(KRON_LAST,JSON.stringify(o));
+    return true;
+  }catch(e){return false;}}
+function kronArNy(x){
+  if(!x||!x.raknad_at)return false;
+  if(Date.now()-x.raknad_at>KRON_NY_MAX)return false;   /* tre dygn räcker */
+  return !kronLastGet()[x.period];                      /* och oläst */
+}
+
+/* ===== Djuplänk =====
+   ?kronika=2026-07 öppnar Insikter med den posten utfälld. Notisen om att
+   krönikan skrivits kan då peka rakt på texten i stället för att bara säga att
+   den finns någonstans.
+
+   Perioden kontrolleras mot mönstret innan den används — den kommer utifrån,
+   och ska inte kunna bli vad som helst. */
+function kronDjupLank(){
+  var per=null;
+  try{
+    var q=new URLSearchParams(location.search||'');
+    per=q.get('kronika');
+  }catch(e){
+    var m=(location.search||'').match(/[?&]kronika=([^&]+)/);
+    if(m)per=decodeURIComponent(m[1]);
+  }
+  if(!per||!/^\d{4}(-\d{2})?$/.test(per))return false;
+  _kronVald=per;
+  _kronDjup=true;
+  kronLastSatt(per);      /* öppnad via notisen räknas som läst */
+  try{openInsikter();}catch(e){}
+  kronPost(per).then(function(){
+    try{renderInsikter();}catch(e){}
+    /* Rulla fram kortet — i en lång insiktssida ligger krönikan längst ned. */
+    setTimeout(function(){
+      try{
+        var el=document.querySelector('.kr-r.on');
+        if(el&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});
+      }catch(e){}
+    },260);
+  });
+  /* Rensa adressen så en omladdning inte hoppar dit igen. */
+  try{
+    if(history&&history.replaceState)history.replaceState(null,'',location.pathname);
+  }catch(e){}
+  return true;}
+var _kronDjup=false;
 async function kronLista(force){
   if(!force&&_kron&&Date.now()-_kronAt<10*60000)return _kron;
   try{
     var j=await appGet('/kronika');
     if(!j||!j.manader)throw new Error('tomt svar');
     _kron=j;_kronAt=Date.now();_kronFel=null;
-    /* Är den nyaste posten skriven det senaste dygnet, fäll ut den direkt.
-       Notisen har just sagt att den finns; då ska man inte behöva leta. */
-    if(_kronVald==null){
-      var nyast=null;
-      (j.ar||[]).concat(j.manader||[]).forEach(function(x){
-        if(x.raknad_at&&Date.now()-x.raknad_at<36*3600000
-          &&(!nyast||x.raknad_at>nyast.raknad_at))nyast=x;});
-      if(nyast){
-        _kronVald=nyast.period;
-        kronPost(nyast.period).then(function(){try{renderInsikter();}catch(e){}});
-      }
-    }
+    /* INGEN autoutfällning. Listan börjar hopfälld, och NY-märket räcker för
+       att visa var det nya finns. En post som fäller ut sig själv flyttar
+       resten av listan under fingret precis när man ska trycka. */
     return j;
   }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
 async function kronPost(period){
@@ -4992,6 +5048,8 @@ async function kronPost(period){
     _kronPost[period]=j;return j;
   }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
 function kronOppna(p){
+  /* Märket släcks när posten öppnas, inte när den stängs. */
+  if(_kronVald!==p)kronLastSatt(p);
   _kronVald=(_kronVald===p)?null:p;
   if(_kronVald&&!_kronPost[_kronVald]){
     kronPost(_kronVald).then(function(){renderInsikter();});
@@ -5074,7 +5132,7 @@ function kronHTML(){
   var rad=function(x,ar){
     var vald=(_kronVald===x.period);
     var o=vald?_kronPost[x.period]:null;
-    var ny=(x.raknad_at&&Date.now()-x.raknad_at<36*3600000);
+    var ny=kronArNy(x);
     /* Rubriken i listan gör den läsbar utan att man behöver öppna varje post. */
     var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+(ny?' ny':'')+'" onclick="kronOppna(\''+x.period+'\')">'
       +'<span class="kr-n">'+esc(kronNamn(x.period))
@@ -8705,7 +8763,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v351';
+const APP_VERSION='v353';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -9417,7 +9475,7 @@ async function load(){
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
   render();tickRel();setT('foot-src',footKalla());footVia();
-  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
+  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();try{kronDjupLank();}catch(e){}zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
 }
 
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.tab)));
