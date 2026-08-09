@@ -624,9 +624,14 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
   border-bottom:1px solid var(--line)}
 .kr-r.on{border-bottom-color:transparent}
-.kr-r.ar{background:linear-gradient(90deg,color-mix(in srgb,var(--gold) 9%,transparent),transparent);
-  border-radius:10px;padding-left:9px;padding-right:9px;margin-bottom:2px}
-.kr-r.ar .kr-n{font-weight:850}
+.kr-r.kr-y{background:linear-gradient(90deg,color-mix(in srgb,var(--gold) 9%,transparent),transparent);
+  border-radius:10px;padding-left:10px;padding-right:10px;margin-top:6px}
+.kr-r.kr-y .kr-n{font-weight:850;font-size:15px}
+.kr-r.kr-y.on{border-bottom-color:transparent;margin-bottom:0}
+/* Månaderna dras in under sitt år, så nivåerna syns utan streck och ramar. */
+.kr-yo{padding-left:11px;border-left:2px solid var(--line);margin:0 0 4px 4px}
+.kr-r.kr-at .kr-n{font-weight:800}
+.kr-mn{display:inline-block;margin-left:7px;font-size:10px;color:var(--faint);font-weight:650}
 .kr-n{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kr-s{flex:0 0 auto;font-size:12px;color:var(--dim);font-weight:650;white-space:nowrap}
@@ -5047,6 +5052,23 @@ async function kronPost(period){
     if(!j||!j.period)throw new Error('tomt svar');
     _kronPost[period]=j;return j;
   }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
+/* Vilka år som är utfällda. Innevarande år är öppet från början — det är där
+   det nya finns — men posterna i det är ändå stängda. */
+var _kronArState=null;
+function kronArOppen(y){
+  if(_kronArState===null){
+    _kronArState={};
+    _kronArState[String(new Date().getFullYear())]=1;
+  }
+  return !!_kronArState[String(y)];}
+function kronArTog(y){
+  kronArOppen(y);
+  y=String(y);
+  if(_kronArState[y])delete _kronArState[y];
+  else _kronArState[y]=1;
+  /* Fälls året ihop ska en öppen post inuti det inte ligga kvar dold. */
+  if(!_kronArState[y]&&_kronVald&&String(_kronVald).slice(0,4)===y)_kronVald=null;
+  try{renderInsikter();}catch(e){}}
 function kronOppna(p){
   /* Märket släcks när posten öppnas, inte när den stängs. */
   if(_kronVald!==p)kronLastSatt(p);
@@ -5128,51 +5150,97 @@ function kronJmf(o){
 
 function kronHTML(){
   if(!_kron)return '';
-  var h='<section class="panel"><div class="ww-h">Husets krönika</div>';
-  var rad=function(x,ar){
-    var vald=(_kronVald===x.period);
-    var o=vald?_kronPost[x.period]:null;
-    var ny=kronArNy(x);
-    /* Rubriken i listan gör den läsbar utan att man behöver öppna varje post. */
-    var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+(ny?' ny':'')+'" onclick="kronOppna(\''+x.period+'\')">'
-      +'<span class="kr-n">'+esc(kronNamn(x.period))
-      +'</span>'
+  /* cmpHeadHtml i stället för en naken ww-h: då får kortet exakt samma
+     rubrikutrymme som Zambretti och Medeleffekt, och en i-knapp på köpet. */
+  var h='<section class="panel">'+cmpHeadHtml('Husets krönika','månad för månad',
+    '<p style="margin:0 0 8px"><b>En text per månad och år.</b> Siffrorna räknas '
+    +'först ur Homey Insights, och Gemini skriver sedan av dem — aldrig av en '
+    +'tidigare text. Annars vore det en modell som sammanfattar en annan, och '
+    +'varje gissning skulle förstärkas utan att någon märkte det.</p>'
+    +'<p style="margin:0 0 8px">Månaden skrivs på morgonen sista dygnet och räknas '
+    +'om den 1:a med hela underlaget. Året skrivs 31 december, ur de tolv '
+    +'månadsposterna — inte ur en ny genomsökning.</p>'
+    +'<p style="margin:0"><b>NY</b> sitter tills posten öppnats, eller i tre dygn. '
+    +'Läsningen sparas i den här webbläsaren; att du läst på plattan säger '
+    +'ingenting om vad du sett i telefonen.</p>');
+
+  /* Textrutan för en post — samma oavsett om det är ett år eller en månad. */
+  var kropp=function(period){
+    var o=_kronPost[period];
+    if(!o)return '<div class="kr-o"><div class="ins-empty">Hämtar…</div></div>';
+    var s2='<div class="kr-o">'+kronRuta(o)+kronJmf(o);
+    if(o.text){
+      /* Rapporten är radbruten och har emoji som ankare — visas som den skickas. */
+      s2+='<div class="kr-t"><div class="kr-rap">'+esc(o.text)+'</div></div>';
+    }else{
+      s2+='<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
+        +'perioden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
+    }
+    return s2+'</div>';};
+
+  var manadsRad=function(x){
+    var vald=(_kronVald===x.period), ny=kronArNy(x);
+    var mn=KRON_MAN[+x.period.slice(5,7)-1]||x.period;
+    var s2='<div class="kr-r kr-m'+(vald?' on':'')+(ny?' ny':'')
+      +'" onclick="kronOppna(\''+x.period+'\')">'
+      +'<span class="kr-n">'+esc(kronVersal(mn))+'</span>'
       +'<span class="kr-s">'+(x.sol!=null?num(x.sol,0)+' kWh':'')+'</span>'
       +'<span class="kr-p">'+(vald?'▴':'▾')+'</span></div>';
-    if(vald){
-      s+='<div class="kr-o">';
-      if(o){
-        s+=kronRuta(o)+kronJmf(o);
-        if(o.text){
-          /* Rapporten är radbruten och har emoji som ankare — den ska visas
-             precis som den skickas i notisen, inte formateras om. */
-          s+='<div class="kr-t"><div class="kr-rap">'+esc(o.text)+'</div></div>';
-        }else{
-          s+='<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
-            +'månaden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
-        }
-      }else{
-        s+='<div class="ins-empty">Hämtar…</div>';
-      }
-      s+='</div>';
+    if(vald)s2+=kropp(x.period);
+    return s2;};
+
+  /* Månaderna hör till sitt år. Förut låg alla under varandra i en enda lista,
+     och med tre år blir det trettiosex rader att leta i. */
+  var perAr={};
+  (_kron.manader||[]).forEach(function(x){
+    var y=String(x.period).slice(0,4);
+    (perAr[y]=perAr[y]||[]).push(x);});
+  var arPost={};
+  (_kron.ar||[]).forEach(function(x){arPost[String(x.period)]=x;});
+
+  var alla={};
+  Object.keys(perAr).forEach(function(y){alla[y]=1;});
+  Object.keys(arPost).forEach(function(y){alla[y]=1;});
+  var arLista=Object.keys(alla).sort().reverse();
+  if(!arLista.length){
+    return h+'<div class="ins-empty">Inga poster ännu. Den första skrivs sista '
+      +'dagen i månaden.</div></section>';
+  }
+
+  arLista.forEach(function(y){
+    var oppen=kronArOppen(y);
+    var ap=arPost[y];
+    var man=(perAr[y]||[]).slice().sort(function(a,b){
+      return String(b.period).localeCompare(String(a.period));});
+    var kwh=0,harKwh=false;
+    man.forEach(function(m){if(m.sol!=null){kwh+=m.sol;harKwh=true;}});
+    var nyIAr=(ap&&kronArNy(ap))||man.some(kronArNy);
+
+    h+='<div class="kr-r kr-y'+(oppen?' on':'')+(nyIAr?' ny':'')
+      +'" onclick="kronArTog(\''+y+'\')">'
+      +'<span class="kr-n">'+esc(y)+'</span>'
+      +'<span class="kr-s">'+(harKwh?num(kwh,0)+' kWh':'')
+      +'<span class="kr-mn">'+man.length+' mån</span></span>'
+      +'<span class="kr-p">'+(oppen?'▴':'▾')+'</span></div>';
+
+    if(!oppen)return;
+    h+='<div class="kr-yo">';
+    /* Årstexten först, sedan månaderna — årets sammanfattning är ramen. */
+    if(ap){
+      var vald=(_kronVald===y);
+      h+='<div class="kr-r kr-at'+(vald?' on':'')+(kronArNy(ap)?' ny':'')
+        +'" onclick="kronOppna(\''+y+'\')">'
+        +'<span class="kr-n">Året '+esc(y)+'</span>'
+        +'<span class="kr-s">'+(ap.sol!=null?num(ap.sol,0)+' kWh':'')+'</span>'
+        +'<span class="kr-p">'+(vald?'▴':'▾')+'</span></div>';
+      if(vald)h+=kropp(y);
     }
-    return s;};
-  /* Aret overst i sin egen lista, sedan manaderna med den senaste forst.
-     Sorteringen MASTE ha en jamforare: .sort() pa objekt jamfor dem som
-     "[object Object]", alltsa alla lika, och da gjorde .reverse() bara att
-     listan hamnade bakvand. */
-  var nyast=function(a,b){return String(b.period).localeCompare(String(a.period));};
-  if(_kron.ar&&_kron.ar.length){
-    h+='<div class="kr-sec">År</div>';
-    _kron.ar.slice().sort(nyast).forEach(function(x){h+=rad(x,true);});
-  }
-  if(_kron.manader&&_kron.manader.length){
-    h+='<div class="kr-sec">Månader</div>';
-    _kron.manader.slice().sort(nyast).forEach(function(x){h+=rad(x,false);});
-  }else{
-    h+='<div class="ins-empty">Inga månader ännu. Den första skrivs den 1:a nästa månad.</div>';
-  }
+    if(man.length)man.forEach(function(m){h+=manadsRad(m);});
+    else h+='<div class="ins-empty">Inga månader för '+esc(y)+'.</div>';
+    h+='</div>';
+  });
   return h+'</section>';}
+
 /* ===== Medeleffekt =====
    Manadens forbrukning fordelad jamnt over dess timmar — vad huset skulle dra
    om det drog lika mycket dygnet runt. Rakningen sker i appen, ur samma
@@ -8763,7 +8831,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v353';
+const APP_VERSION='v354';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
