@@ -602,6 +602,23 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
 .chart-y.r{left:auto;right:0}
+.eff-top{display:flex;align-items:center;gap:10px;margin:10px 0 8px}
+.eff-sel{flex:0 0 auto;width:auto;min-width:96px}
+.eff-ar{flex:1 1 auto;text-align:right;min-width:0}
+.eff-arv{display:block;font-size:19px;font-weight:850;line-height:1.15}
+.eff-arl{display:block;font-size:10.5px;color:var(--faint);font-weight:650}
+.eff-l{display:flex;flex-direction:column}
+.eff-r{display:flex;align-items:center;gap:8px;padding:5px 0;
+  border-bottom:1px solid var(--line)}
+.eff-r:last-child{border-bottom:0}
+.eff-m{flex:0 0 68px;font-size:12px;font-weight:700;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.eff-b{flex:1 1 auto;height:7px;background:var(--inset);border-radius:99px;overflow:hidden;min-width:24px}
+.eff-r.inm .eff-b i{background:var(--faint)}
+.eff-i{font-style:normal;color:var(--faint);margin-left:3px;font-weight:800}
+.eff-b i{display:block;height:100%;background:var(--blue);border-radius:99px}
+.eff-w{flex:0 0 auto;font-size:13px;font-weight:800;white-space:nowrap;min-width:56px;text-align:right}
+.eff-k{flex:0 0 auto;font-size:10.5px;color:var(--faint);white-space:nowrap;min-width:56px;text-align:right}
 .kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:14px 0 4px}
 .kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
@@ -628,11 +645,8 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-j{white-space:nowrap;margin-right:6px}
 .kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
   border-top:1px solid var(--line);color:var(--ink)}
-.kr-rub{font-size:16.5px;font-weight:850;letter-spacing:-.01em;line-height:1.3;margin-bottom:5px}
-.kr-ing{font-size:13.5px;font-weight:700;color:var(--dim);line-height:1.55;margin-bottom:8px}
-.kr-brod{font-size:13.5px;line-height:1.7}
-.kr-rn{display:block;font-size:11px;font-weight:600;color:var(--faint);
-  text-transform:none;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kr-rap{font-size:13.5px;line-height:1.75;white-space:pre-line}
+.kr-rap::first-line{font-weight:800;font-size:15px}
 .kr-t.saknas{color:var(--faint);font-style:italic}
 .prog-b{display:flex;align-items:stretch;gap:3px;height:96px;margin:10px 0 4px}
 .prog-c{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
@@ -3360,6 +3374,10 @@ function cmpHead(title,sub,info){
 function renderCompare(){
   var el=$('cmp-body');if(!el)return;
   _diN=0;
+  /* Medeleffekten hör hemma här, bland de andra jämförelserna över tid — inte
+     bland insikterna, som handlar om nuläget. */
+  effHamta().then(function(j){var e3=$('cmp-body');
+    if(j&&e3&&!e3.dataset.eff){e3.dataset.eff='1';renderCompare();}});
   var P=(PAL&&PAL[curTheme])||{};
   var cy=new Date().getFullYear();
   var yc={};yc[cy]=(P.warm||'#d08770');yc[cy-1]=(P.green||'#a3be8c');yc[cy-2]=(P.blue||'#81a1c1');
@@ -3461,7 +3479,7 @@ function renderCompare(){
     h+='</div>';
   });
   h+='</section>';
-  el.innerHTML=h;
+  el.innerHTML=h+effHTML();
 }
 /* Kopt och salt i kronor per period. Bygger pa money_v1 - se kommentaren dar for
    vad som ar matt och vad som ar uppskattat. */
@@ -5042,7 +5060,7 @@ function kronHTML(){
     /* Rubriken i listan gör den läsbar utan att man behöver öppna varje post. */
     var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+'" onclick="kronOppna(\''+x.period+'\')">'
       +'<span class="kr-n">'+esc(kronNamn(x.period))
-      +(x.rubrik?('<span class="kr-rn">'+esc(kronVersal(x.rubrik))+'</span>'):'')+'</span>'
+      +'</span>'
       +'<span class="kr-s">'+(x.sol!=null?num(x.sol,0)+' kWh':'')+'</span>'
       +'<span class="kr-p">'+(vald?'▴':'▾')+'</span></div>';
     if(vald){
@@ -5050,12 +5068,9 @@ function kronHTML(){
       if(o){
         s+=kronRuta(o)+kronJmf(o);
         if(o.text){
-          /* Rubrik, ingress och brödtext — texten ska läsas som en liten
-             artikel, inte som en bildtext till rutnätet. */
-          s+='<div class="kr-t">';
-          if(o.rubrik)s+='<div class="kr-rub">'+esc(kronVersal(o.rubrik))+'</div>';
-          if(o.ingress)s+='<div class="kr-ing">'+esc(kronVersal(o.ingress))+'</div>';
-          s+='<div class="kr-brod">'+esc(kronVersal(o.text))+'</div></div>';
+          /* Rapporten är radbruten och har emoji som ankare — den ska visas
+             precis som den skickas i notisen, inte formateras om. */
+          s+='<div class="kr-t"><div class="kr-rap">'+esc(o.text)+'</div></div>';
         }else{
           s+='<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
             +'månaden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
@@ -5081,6 +5096,87 @@ function kronHTML(){
   }else{
     h+='<div class="ins-empty">Inga månader ännu. Den första skrivs den 1:a nästa månad.</div>';
   }
+  return h+'</section>';}
+/* ===== Medeleffekt =====
+   Manadens forbrukning fordelad jamnt over dess timmar — vad huset skulle dra
+   om det drog lika mycket dygnet runt. Rakningen sker i appen, ur samma
+   kronikeposter som allt annat; tva vagar till samma tal ar tva tal som kan
+   glida isar.
+
+   Aret valjs i en lista i stallet for att alla ar listas under varandra. Kortet
+   ska ligga bland de andra utan att svalja sidan. */
+var _eff=null,_effAt=0,_effFel=null,_effAr=null;
+async function effHamta(force){
+  if(!force&&_eff&&Date.now()-_effAt<10*60000)return _eff;
+  try{
+    var j=await appGet('/effekt');
+    if(!j||!j.ar)throw new Error('tomt svar');
+    _eff=j;_effAt=Date.now();_effFel=null;
+    var ar=Object.keys(j.ar).sort();
+    if(!_effAr||!j.ar[_effAr])_effAr=ar[ar.length-1]||null;   /* senaste aret */
+    return j;
+  }catch(e){_effFel=(e&&e.message)||String(e);return null;}}
+function effVal(v){_effAr=v;try{renderCompare();}catch(e){}}
+function effW(w){return w==null?'–':(w>=1000?(num(w/1000,2)+' kW'):(Math.round(w)+' W'));}
+
+function effHTML(){
+  if(!_eff)return '';
+  var ar=Object.keys(_eff.ar).sort().reverse();
+  if(!ar.length)return '';
+  var valt=(_effAr&&_eff.ar[_effAr])?_effAr:ar[0];
+  var lista=(_eff.ar[valt]||[]).slice().sort(function(a,b){
+    return b.period.localeCompare(a.period);});
+  var snitt=_eff.arSnitt&&_eff.arSnitt[valt];
+
+  var h='<section class="panel">'+cmpHeadHtml('Medeleffekt','förbrukning i snitt',
+    '<p style="margin:0 0 8px"><b>Vad huset drar i genomsnitt.</b> Månadens '
+    +'förbrukning fördelad jämnt över dess timmar — alltså vad det skulle dra om '
+    +'det drog lika mycket dygnet runt, natt som dag.</p>'
+    +'<p style="margin:0 0 8px">Förbrukningen härleds ur tre mätare: '
+    +'<b>produktion − såld + köpt</b>. Den räknar alltså med solel som aldrig '
+    +'passerade elmätaren, vilket är det man vill veta — inte bara vad som köptes.</p>'
+    +'<p style="margin:0 0 8px">Månadens längd spelar roll: 720 timmar i april mot '
+    +'744 i maj är 3 % skillnad. Därför används varje månads faktiska timmar, och '
+    +'årssnittet viktas på timmar i stället för att vara ett medelvärde av '
+    +'månadssnitten.</p>'
+    +'<p style="margin:0">Siffrorna kommer ur krönikans månadsposter, som går '
+    +'ungefär ett år bakåt. Längre tillbaka finns inte i Homey Insights.</p>');
+
+  h+='<div class="eff-top">';
+  h+='<select class="cfg-sel eff-sel" onchange="effVal(this.value)">';
+  ar.forEach(function(y){h+='<option value="'+y+'"'+(y===valt?' selected':'')+'>'+y+'</option>';});
+  h+='</select>';
+  if(snitt&&snitt.W!=null)h+='<div class="eff-ar"><span class="eff-arv">'+effW(snitt.W)+'</span>'
+    +'<span class="eff-arl">snitt '+valt+' · '+snitt.manader+' mån</span></div>';
+  h+='</div>';
+
+  if(!lista.length){
+    h+='<div class="ins-empty">Inga månader med fullständigt underlag för '+valt+'.</div>';
+    return h+'</section>';
+  }
+  /* Stapel bakom talet: en lista med tal gar inte att jamfora med blicken. */
+  var max=1;lista.forEach(function(m){if(m.W>max)max=m.W;});
+  h+='<div class="eff-l">';
+  lista.forEach(function(m){
+    var mn=KRON_MAN[+m.period.slice(5,7)-1]||m.period;
+    /* Inmatade månader markeras. En siffra som kommer utifrån ska aldrig se
+       likadan ut som en räknad — annars går de inte att skilja åt i efterhand. */
+    /* Allt som inte räknats ur Insights märks — oavsett om det matats in för
+       hand eller kommer ur en export. Källan står i verktygstipset. */
+    var inm=(m.kalla&&m.kalla!=='raknad');
+    h+='<div class="eff-r'+(inm?' inm':'')+'" title="'+(inm?esc(m.kalla):'räknad ur Insights')+'">'
+      +'<span class="eff-m">'+esc(kronVersal(mn))+(inm?'<i class="eff-i">·</i>':'')+'</span>'
+      +'<span class="eff-b"><i style="width:'+Math.round(m.W/max*100)+'%"></i></span>'
+      +'<span class="eff-w">'+effW(m.W)+'</span>'
+      +'<span class="eff-k">'+num(m.kwh,0)+' kWh</span></div>';
+  });
+  h+='</div>';
+  var kallor={};
+  lista.forEach(function(x){if(x.kalla&&x.kalla!=='raknad')kallor[x.kalla]=1;});
+  var kl=Object.keys(kallor);
+  if(kl.length)
+    h+='<div class="isub" style="margin-top:7px;opacity:.65">'
+      +'<b>·</b> = '+esc(kl.join(', '))+' — från tid som Insights inte längre täcker.</div>';
   return h+'</section>';}
 function renderInsikter(){
   var el=$('ins-body');if(!el)return;
@@ -8591,7 +8687,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v347';
+const APP_VERSION='v350';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
