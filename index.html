@@ -602,6 +602,14 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
 .chart-y.r{left:auto;right:0}
+.prog-b{display:flex;align-items:stretch;gap:3px;height:96px;margin:10px 0 4px}
+.prog-c{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
+.prog-w{flex:1 1 auto;position:relative;border-top:0;border-bottom:0;
+  background:linear-gradient(var(--line),var(--line)) center/100% 1px no-repeat}
+.prog-s{position:absolute;left:12%;right:12%;border-radius:3px}
+.prog-s.upp{bottom:50%;background:var(--ok)}
+.prog-s.ner{top:50%;background:var(--hot)}
+.prog-d{flex:0 0 auto;text-align:center;font-size:9px;color:var(--faint);padding-top:3px}
 /* Listen följer vinkällarens eget tema, inte dashboardens – annars möts två
    olika färgvärldar i samma bild. Värdena är hämtade ur vinkallare.html:s
    :root, och ligger som egna variabler så de går att rätta på ett ställe. */
@@ -2317,6 +2325,120 @@ function windInsKan(){
 /* Vind ur v2-appen. Den läser Insights i bakgrunden ändå, så dashboarden slipper
    göra om samma jobb vid varje sidladdning. Nuvarande väg är kvar som reserv. */
 var _appState=null,_appStateAt=0;
+/* ===== Produktionsprognos =====
+   Dashboarden STALLER ingen prognos — den visar bara appens. En prognos som
+   stalls i webblasaren finns bara de dygn nagon haft sidan oppen, och det
+   urvalet lutar mot soliga helger. Da ser prognosen battre ut an den ar.
+
+   Saknas appens svar utelamnas hela avsnittet. Ingen lokal reserv: en halv
+   prognos ar samre an ingen. */
+var _prog=null,_progAt=0,_progFel=null;
+async function progHamta(force){
+  if(!force&&_prog&&Date.now()-_progAt<5*60000)return _prog;
+  try{
+    var j=await appGet('/prognos');
+    if(!j||!j.dagar)throw new Error('tomt svar');
+    _prog=j;_progAt=Date.now();_progFel=null;
+    return j;
+  }catch(e){_progFel=(e&&e.message)||String(e);return null;}}
+function progIdag(){
+  if(!_prog||!_prog.dagar)return null;
+  var e=_prog.dagar[_prog.idag];
+  return (e&&e.summa_prognos!=null)?e:null;}
+
+/* Prognoskurvan som svag yta bakom dagens faktiska. Timvarden mot en
+   effektkurva: prognosen ar Wh per timme, den faktiska ar W vid en tidpunkt —
+   over en timme ar de samma tal, sa de gar att lagga i samma diagram. */
+function progKurvaSVG(){
+  var e=progIdag();if(!e||!e.timmar||e.timmar.length!==24)return '';
+  var W=1000,H=132,pT=10,pB=18;
+  var fakt=(HIST['solar']||[]).filter(function(p){return p&&p.t>=dayStart()&&p.v!=null&&isFinite(p.v);});
+  var max=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
+  max=max*1.1;
+  var t0=dayStart();
+  var X=function(ms){return ((ms-t0)/86400000)*W;};
+  var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
+  /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
+     ska inte se lika bestamd ut som den faktiska kurvan. */
+  var d='M0 '+Y(0).toFixed(1);
+  for(var h=0;h<24;h++)d+=' L'+X(t0+(h+0.5)*3600000).toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
+  d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L0 '+(H-pB)+' Z';
+  var b='<path d="'+d+'" fill="var(--gold)" opacity=".16"/>';
+  for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
+    b+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';}
+  if(fakt.length>1){
+    var fd='';
+    for(var i=0;i<fakt.length;i++)fd+=(i?'L':'M')+X(fakt[i].t).toFixed(1)+' '+Y(fakt[i].v).toFixed(1)+' ';
+    b+='<path d="'+fd+'" fill="none" stroke="var(--solar)" stroke-width="2.4" '
+      +'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+  }
+  return '<div class="chart-wrap" style="margin-top:8px">'
+    +'<div class="chart-y top">'+num(max/1000,1)+' kW</div><div class="chart-y bot">0</div>'
+    +'<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" '
+    +'aria-label="Prognos och faktisk produktion idag">'+b+'</svg>'
+    +'<div class="chart-x l">00</div><div class="chart-x r">24</div></div>'
+    +'<div class="isub" style="margin-top:5px;opacity:.7">'
+    +'<span style="color:var(--gold)">▬</span> prognos &nbsp; '
+    +'<span style="color:var(--solar)">▬</span> faktiskt</div>';}
+
+/* Staplar for de senaste 14 dygnen. Avvikelsen i procent sager mer an kWh:
+   ett fel pa 5 kWh betyder helt olika saker i juni och i december. */
+function progStaplarHTML(){
+  if(!_prog||!_prog.dagar)return '';
+  var k=Object.keys(_prog.dagar).sort().filter(function(d){
+    var e=_prog.dagar[d];return e&&e.summa_prognos!=null&&e.summa_utfall!=null;});
+  k=k.slice(-14);
+  if(!k.length)return '';
+  var maxA=1;
+  k.forEach(function(d){var a=_prog.dagar[d].avvikelse;
+    if(a!=null&&Math.abs(a)>maxA)maxA=Math.abs(a);});
+  maxA=Math.min(100,Math.max(20,maxA));
+  var h='<div class="prog-b">';
+  k.forEach(function(d){
+    var e=_prog.dagar[d],a=e.avvikelse;
+    var hpct=(a==null)?0:Math.min(50,Math.abs(a)/maxA*50);
+    var upp=(a!=null&&a>=0);
+    h+='<div class="prog-c" title="'+esc(d)+'">'
+      +'<div class="prog-w">'
+      +'<div class="prog-s'+(upp?' upp':' ner')+'" style="height:'+hpct.toFixed(1)+'%"></div>'
+      +'</div><div class="prog-d">'+esc(d.slice(8))+'</div></div>';
+  });
+  h+='</div>';
+  return h;}
+
+function progAvsnitt(){
+  if(!_prog)return '';
+  var e=progIdag();
+  var h='<div class="dsec">Prognos idag</div>';
+  if(e){
+    var fakt=cap(DEV.solar,'meter_power.day');
+    var pk=e.summa_prognos/1000;
+    h+=dRow('Prognos',num(pk,1)+' kWh')
+      +dRow('Hittills idag',fakt==null?'–':num(fakt,1)+' kWh');
+    if(fakt!=null&&pk>0){
+      var kvot=Math.round(fakt/pk*100);
+      h+=dRow('Andel av prognos',kvot+' %');
+    }
+    h+=progKurvaSVG();
+  }else{
+    h+='<div class="isub" style="opacity:.7">Ingen prognos ställd för idag'
+      +(_progFel?(' — '+esc(_progFel)):'')+'.</div>';
+  }
+  var st=progStaplarHTML();
+  if(st){
+    var m=_prog.medelfel||{};
+    h+='<div class="dsec">Träffsäkerhet · 14 dygn</div>'+st;
+    if(m.n){
+      h+=dRow('Medelfel',num(m.mae/1000,1)+' kWh'+(m.maePct!=null?(' · '+num(m.maePct,0)+' %'):''))
+        +dRow('Systematiskt',(m.bias>=0?'+':'')+num(m.bias/1000,1)+' kWh'
+          +(m.biasPct!=null?(' · '+(m.biasPct>=0?'+':'')+num(m.biasPct,0)+' %'):''));
+      h+='<div class="isub" style="margin-top:6px;opacity:.65">Medelfel är hur mycket prognosen '
+        +'missar i genomsnitt, oavsett håll. Systematiskt visar om den genomgående ligger för '
+        +'högt eller lågt — är det tydligt åt ett håll ska molnkoefficienten k justeras i appens '
+        +'inställningar. Nu: k='+num(_prog.k,2)+'.</div>';
+    }
+  }
+  return h;}
 async function appState(force){
   if(!force&&_appState&&Date.now()-_appStateAt<5*60000)return _appState;
   try{
@@ -4686,6 +4808,133 @@ function renderVader(){
   try{initIcons();}catch(e){}
 }
 
+/* ===== Husets kronika =====
+   Dashboarden RAKNAR ingenting har. Appen har redan gjort det, en gang, ur
+   Insights — och den posten ar bestandig. Skulle sidan rakna om skulle den
+   dessutom bara ha de dygn Insights fortfarande racker till, alltsa ge ett
+   annat svar for samma manad beroende pa nar man tittar. */
+var _kron=null,_kronAt=0,_kronFel=null,_kronVald=null,_kronPost={};
+async function kronLista(force){
+  if(!force&&_kron&&Date.now()-_kronAt<10*60000)return _kron;
+  try{
+    var j=await appGet('/kronika');
+    if(!j||!j.manader)throw new Error('tomt svar');
+    _kron=j;_kronAt=Date.now();_kronFel=null;return j;
+  }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
+async function kronPost(period){
+  if(_kronPost[period])return _kronPost[period];
+  try{
+    var j=await appGet('/kronika?period='+encodeURIComponent(period));
+    if(!j||!j.period)throw new Error('tomt svar');
+    _kronPost[period]=j;return j;
+  }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
+function kronOppna(p){
+  _kronVald=(_kronVald===p)?null:p;
+  if(_kronVald&&!_kronPost[_kronVald]){
+    kronPost(_kronVald).then(function(){renderInsikter();});
+  }
+  renderInsikter();}
+
+var KRON_MAN=['januari','februari','mars','april','maj','juni','juli',
+  'augusti','september','oktober','november','december'];
+function kronNamn(p){
+  if(!p)return '';
+  if(p.length===4)return p;
+  var d=p.split('-');
+  return (KRON_MAN[+d[1]-1]||p)+' '+d[0];}
+function kronKwh(v){return v==null?'–':num(v,0)+' kWh';}
+function kronKr(v){return v==null?'–':num(v,0)+' kr';}
+
+/* Siffrorna som kompakt rutnat. Bara det som finns visas — en rad med streck
+   ar brus, inte information. */
+function kronRuta(o){
+  var r=[];
+  var lagg=function(namn,varde,extra){
+    if(varde==null||varde==='–')return;
+    r.push('<div class="kr-c"><div class="kr-l">'+esc(namn)+'</div>'
+      +'<div class="kr-v">'+varde+'</div>'
+      +(extra?('<div class="kr-x">'+extra+'</div>'):'')+'</div>');};
+  if(o.sol){
+    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null);
+    if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100);
+  }
+  if(o.el){
+    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null);
+    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null);
+    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %');
+    if(o.el.dyrast)lagg('Dyraste timmen',num(o.el.dyrast.pris,2)+' kr',
+      o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme);
+    if(o.el.billigast)lagg('Billigaste',num(o.el.billigast.pris,2)+' kr',
+      o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme);
+  }
+  if(o.vader){
+    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)));
+    if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)));
+    if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25);
+    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm');
+    if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)));
+  }
+  if(o.pool){
+    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °');
+    if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26);
+  }
+  if(o.vin){
+    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut);
+    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde));
+  }
+  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh));
+  return r.length?('<div class="kr-grid">'+r.join('')+'</div>'):'';}
+
+/* Jamforelsen mot forra aret. Finns den inte visas ingenting alls. */
+function kronJmf(o){
+  if(!o.jmf)return '';
+  var namn={sol:'Sol',kopt:'Köpt el',salt:'Såld el',nederbord:'Nederbörd'};
+  var r=[];
+  for(var k in o.jmf){
+    var x=o.jmf[k],upp=x.pct>=0;
+    r.push('<span class="kr-j"><b>'+esc(namn[k]||k)+'</b> '
+      +'<span style="color:'+(upp?'var(--ok)':'var(--hot)')+'">'
+      +(upp?'+':'')+num(x.pct,0)+' %</span></span>');
+  }
+  return r.length?('<div class="kr-jmf">Mot samma månad i fjol: '+r.join(' · ')+'</div>'):'';}
+
+function kronHTML(){
+  if(!_kron)return '';
+  var h='<section class="panel"><div class="ww-h">Husets krönika</div>';
+  var rad=function(x,ar){
+    var vald=(_kronVald===x.period);
+    var o=vald?_kronPost[x.period]:null;
+    var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+'" onclick="kronOppna(\''+x.period+'\')">'
+      +'<span class="kr-n">'+esc(kronNamn(x.period))+'</span>'
+      +'<span class="kr-s">'+(x.sol!=null?num(x.sol,0)+' kWh':'')+'</span>'
+      +'<span class="kr-p">'+(vald?'▴':'▾')+'</span></div>';
+    if(vald){
+      s+='<div class="kr-o">';
+      if(o){
+        s+=kronRuta(o)+kronJmf(o);
+        if(o.text)s+='<div class="kr-t">'+esc(o.text)+'</div>';
+      }else{
+        s+='<div class="ins-empty">Hämtar…</div>';
+      }
+      s+='</div>';
+    }
+    return s;};
+  /* Aret overst i sin egen lista, sedan manaderna med den senaste forst.
+     Sorteringen MASTE ha en jamforare: .sort() pa objekt jamfor dem som
+     "[object Object]", alltsa alla lika, och da gjorde .reverse() bara att
+     listan hamnade bakvand. */
+  var nyast=function(a,b){return String(b.period).localeCompare(String(a.period));};
+  if(_kron.ar&&_kron.ar.length){
+    h+='<div class="kr-sec">År</div>';
+    _kron.ar.slice().sort(nyast).forEach(function(x){h+=rad(x,true);});
+  }
+  if(_kron.manader&&_kron.manader.length){
+    h+='<div class="kr-sec">Månader</div>';
+    _kron.manader.slice().sort(nyast).forEach(function(x){h+=rad(x,false);});
+  }else{
+    h+='<div class="ins-empty">Inga månader ännu. Den första skrivs den 1:a nästa månad.</div>';
+  }
+  return h+'</section>';}
 function renderInsikter(){
   var el=$('ins-body');if(!el)return;
   _diN=0;
@@ -4693,7 +4942,11 @@ function renderInsikter(){
   if(!s){el.innerHTML='<section class="panel"><div class="ins-empty">Insikter kräver enhetsdata – inväntar anslutning.</div></section>';return;}
   var out=[];
   for(var i=0;i<INS_GEN.length;i++){try{var r=INS_GEN[i](s);if(r&&r.big!=null&&(''+r.big).indexOf('null')<0)out.push(r);}catch(e){}}
-  if(!out.length){el.innerHTML='<section class="panel"><div class="ins-empty">Inga insikter att visa just nu.</div></section>';return;}
+  /* Krönikan hämtas i bakgrunden och ritas när svaret kommer. Svarar appen inte
+     visas ingen sektion alls — hellre ingenting än en tom rubrik. */
+  kronLista().then(function(j){var e2=$('ins-body');
+    if(j&&e2&&!e2.dataset.kron){e2.dataset.kron='1';renderInsikter();}});
+  if(!out.length){el.innerHTML='<section class="panel"><div class="ins-empty">Inga insikter att visa just nu.</div></section>'+kronHTML();return;}
   out.sort(function(a,b){return b.sc-a.sc;});
   /* Översta rutan är en highlight: rekord, extremer, avvikelser och kul fakta.
      Egen motor – de vanliga insikterna får ligga kvar i sina grupper nedanför. */
@@ -4732,7 +4985,7 @@ function renderInsikter(){
   try{h+=hinderKort();}catch(e){}
   try{h+=snoKort();}catch(e){}
   try{h+=zamKort();}catch(e){}
-  el.innerHTML=h;
+  el.innerHTML=h+kronHTML();
 }
 /* Skuggans arskostnad, per hinder, i kronor. */
 function hinderKort(){
@@ -5088,9 +5341,11 @@ function acModeSv(m,on){if(on===false)return 'Av';
   var t={off:'Av',heat:'Värme',cool:'Kyla',auto:'Auto',dry:'Avfuktning',fan:'Fläkt',fan_only:'Fläkt'}[m];
   return t||(m?String(m):(on===true?'På':'–'));}
 
+var _dlgWhich=null;
 function openDetail(which){
   if(_suppressClick){_suppressClick=false;_tapCfg=null;return;}
   let _dlgWide=false;
+  _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
   const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temprange:'cloud-sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
@@ -5099,7 +5354,9 @@ function openDetail(which){
       +(theo>=400?dRow('Möjligt just nu (klart)','~'+W(theo)):'')
       +(perf!=null?dRow('Prestanda',perf+' % av möjligt'):'')
       +dRow('Idag',num(cap(DEV.solar,'meter_power.day'),1)+' kWh')+dRow('Denna månad',num(cap(DEV.solar,'meter_power.month'),0)+' kWh')+dRow('I år',num(cap(DEV.solar,'meter_power.year'),0)+' kWh')
-      +dayBarsHTML('sol','kWh sol','sun');
+      +dayBarsHTML('sol','kWh sol','sun')
+      +progAvsnitt();
+    progHamta().then(function(j){if(j&&$('dlg-body')&&_dlgWhich==='sun')openDetail('sun');});
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     body=gridPowerSVG(HIST['grid']||[])
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
@@ -5222,7 +5479,8 @@ function openDetail(which){
     const bkb=$('dlg-back');if(bkb&&bkb.classList)bkb.classList.add('open');dlgTop();return;
   }else if(which==='weather'){title='Väder · Onsala';
     const wd=windDeg(),wab=windDirTxt(wd);
-    body=dRow('Läge',esc(cap(DEV.smhi,'measure_weather_situation_cp')||'–'))+dRow('Temperatur',num(cap(DEV.outdoor,'measure_temperature'),1)+' °C')+dRow('Känns som',num(cap(DEV.smhi,'air_temperature_feels_like_cp'),0)+' °C')+dRow('Vind',num(cap(DEV.windMs,'measure_wind_strength'),1)+' m/s'+(wab?' '+wab:''))+dRow('Byvind',num(cap(DEV.windMs,'measure_gust_strength'),1)+' m/s')+dRow('Luftfukt',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Regn 24h',num(cap(DEV.rain,'measure_rain.24h'),1)+' mm')+dRow('Lufttryck',num(cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),0)+' hPa');
+    body=dRow('Läge',esc(cap(DEV.smhi,'measure_weather_situation_cp')||'–'))+dRow('Temperatur',num(cap(DEV.outdoor,'measure_temperature'),1)+' °C')+dRow('Känns som',num(cap(DEV.smhi,'air_temperature_feels_like_cp'),0)+' °C')+dRow('Vind',num(cap(DEV.windMs,'measure_wind_strength'),1)+' m/s'+(wab?' '+wab:''))+dRow('Byvind',num(cap(DEV.windMs,'measure_gust_strength'),1)+' m/s')+dRow('Luftfukt',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Regn 24h',num(cap(DEV.rain,'measure_rain.24h'),1)+' mm')+dRow('Lufttryck',num(cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),0)+' hPa')
+      +smhiStatusRad();
   }else if(which==='humidity'){title='Luftfuktighet';
     body=dRow('Utomhus',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Inne · kök',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
   }else if(which==='rain'){title='Regn';
@@ -6056,10 +6314,45 @@ function parseSmhiForecast(j){const ts=j&&j.timeSeries;if(!Array.isArray(ts))ret
   ts.forEach(e=>{const t=new Date(e.time||e.validTime).getTime();if(isNaN(t))return;const d=e.data||{};
     out.push({t:t,temp:val(d,'air_temperature'),ws:val(d,'wind_speed'),wd:val(d,'wind_from_direction'),gust:val(d,'wind_speed_of_gust'),r:val(d,'relative_humidity'),msl:val(d,'air_pressure_at_mean_sea_level'),p:val(d,'precipitation_amount_mean'),tcc:val(d,'cloud_area_fraction')});});
   return out.length?out:null;}
+/* Utfallet av senaste hämtningen. Prognosen degraderar tyst — parsern ger null
+   i stället för att kasta om SMHI lägger om strukturen, och raderna blir bara
+   tomma. Utan den här noteringen kan felet gå obemärkt i månader.
+   SMHI har lagt om analys-API:et tre gånger på två år; prognos-API:et kan få
+   samma behandling. */
+var SMHI_ST={at:0,ok:null,fel:null,punkter:0,ms:0};
 async function fetchSmhiForecast(){const now=Date.now();if(FORECAST&&now-_fcLast<25*60000)return;_fcLast=now;
+  var t0=Date.now();
   try{const c=new AbortController(),id=setTimeout(()=>c.abort(),9000);
-    const r=await fetch(smhiUrl(),{signal:c.signal});clearTimeout(id);if(!r.ok)return;const j=await r.json();
-    const out=parseSmhiForecast(j);if(out){FORECAST=out;if(_timeActive)render();}}catch(e){}}
+    const r=await fetch(smhiUrl(),{signal:c.signal});clearTimeout(id);
+    if(!r.ok){SMHI_ST={at:Date.now(),ok:false,fel:r.status+' '+r.statusText,punkter:0,ms:Date.now()-t0};return;}
+    const j=await r.json();
+    const out=parseSmhiForecast(j);
+    if(out){FORECAST=out;SMHI_ST={at:Date.now(),ok:true,fel:null,punkter:out.length,ms:Date.now()-t0};
+      if(_timeActive)render();}
+    else{
+      /* Svaret kom fram men gick inte att tolka — nästan alltid en omlagd
+         datastruktur, inte ett nätverksfel. Skillnaden syns i texten. */
+      SMHI_ST={at:Date.now(),ok:false,punkter:0,ms:Date.now()-t0,
+        fel:'svaret kunde inte tolkas'+(j&&j.timeSeries?'':' (ingen timeSeries)')};
+    }
+  }catch(e){
+    var m=(e&&e.name==='AbortError')?'tog för lång tid':((e&&e.message)||String(e));
+    SMHI_ST={at:Date.now(),ok:false,fel:m,punkter:0,ms:Date.now()-t0};
+  }}
+/* En rad i klartext. Rött bara när det faktiskt är fel — en gammal men lyckad
+   hämtning är inte ett fel, den är bara gammal. */
+function smhiStatusRad(){
+  var s=SMHI_ST;
+  if(!s.at)return dRow('SMHI-prognos','<span style="opacity:.6">inte hämtad än</span>');
+  var alder=Math.round((Date.now()-s.at)/60000);
+  var nar=(alder<1)?'nyss':(alder<60?(alder+' min sedan'):(Math.round(alder/60)+' h sedan'));
+  if(s.ok){
+    var gammal=alder>90;
+    return dRow('SMHI-prognos','<span style="color:'+(gammal?'var(--gold)':'var(--ok)')+'">'
+      +s.punkter+' tidpunkter</span><span style="opacity:.55;font-weight:600"> · '+nar+'</span>');
+  }
+  return dRow('SMHI-prognos','<span style="color:var(--hot)">'+esc(s.fel||'okänt fel')
+    +'</span><span style="opacity:.55;font-weight:600"> · '+nar+'</span>');}
 function forecastAt(T){if(!FORECAST||!FORECAST.length)return null;let best=null,bd=Infinity;for(const f of FORECAST){const d=Math.abs(f.t-T);if(d<bd){bd=d;best=f;}}return (best&&bd<=3*3600000)?best:null;}
 function cloudFactorAt(h){const f=forecastAt(dayStart()+h*3600000);if(f&&f.tcc!=null&&isFinite(f.tcc))return Math.max(0,Math.min(1,f.tcc/8));return null;}
 
@@ -8104,7 +8397,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v338';
+const APP_VERSION='v341';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
