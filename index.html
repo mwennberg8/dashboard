@@ -610,7 +610,7 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-r.ar{background:linear-gradient(90deg,color-mix(in srgb,var(--gold) 9%,transparent),transparent);
   border-radius:10px;padding-left:9px;padding-right:9px;margin-bottom:2px}
 .kr-r.ar .kr-n{font-weight:850}
-.kr-n{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;text-transform:capitalize;
+.kr-n{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kr-s{flex:0 0 auto;font-size:12px;color:var(--dim);font-weight:650;white-space:nowrap}
 .kr-p{flex:0 0 auto;font-size:10px;color:var(--faint);width:12px;text-align:right}
@@ -628,6 +628,11 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-j{white-space:nowrap;margin-right:6px}
 .kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
   border-top:1px solid var(--line);color:var(--ink)}
+.kr-rub{font-size:16.5px;font-weight:850;letter-spacing:-.01em;line-height:1.3;margin-bottom:5px}
+.kr-ing{font-size:13.5px;font-weight:700;color:var(--dim);line-height:1.55;margin-bottom:8px}
+.kr-brod{font-size:13.5px;line-height:1.7}
+.kr-rn{display:block;font-size:11px;font-weight:600;color:var(--faint);
+  text-transform:none;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kr-t.saknas{color:var(--faint);font-style:italic}
 .prog-b{display:flex;align-items:stretch;gap:3px;height:96px;margin:10px 0 4px}
 .prog-c{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
@@ -2433,8 +2438,23 @@ function progStaplarHTML(){
   h+='</div>';
   return h;}
 
+/* Ritar om prognosdelen på plats när svaret kommer. */
+function progUppdatera(){try{
+  var e=document.getElementById('prog-sec');
+  if(e&&_dlgWhich==='sun')e.innerHTML=progAvsnitt();
+}catch(x){}}
 function progAvsnitt(){
-  if(!_prog)return '';
+  if(!_prog){
+    /* Tyst utelämnande gör det omöjligt att se om funktionen är trasig, avstängd
+       eller aldrig hämtad. En rad kostar ingenting och sparar en felsökning. */
+    if(!appKan())return '';
+    return '<div class="dsec">Prognos idag</div>'
+      +'<div class="isub" style="opacity:.7">'
+      +(_progFel?('Kunde inte läsa prognosen från appen: '+esc(_progFel)
+                  +'. Kräver Homey-appen 2.13.0 eller senare.')
+                :'Hämtar prognosen…')
+      +'</div>';
+  }
   var e=progIdag();
   var h='<div class="dsec">Prognos idag</div>';
   if(e){
@@ -3309,6 +3329,16 @@ var CMPM=[
   {mk:'sa',sk:'sald',  pk:'cyan', label:'Sålt',              col:'#88c0d0', hib:true,  info:INFO.sald}
 ];
 function iqBtn(info){var id='di'+(_diN++);return {btn:' <span class="di-q" onclick="diTog(\''+id+'\')">i</span>',box:(info?'<div class="drow-info" id="'+id+'">'+esc(info)+'</div>':'')};}
+/* Samma sak men UTAN esc(). Bara för innehåll som byggs här i koden — infotexten
+   för Zambretti rymmer knappar, och de kan inte bo bakom en escape. */
+function iqBtnHtml(html){var id='di'+(_diN++);
+  return {btn:' <span class="di-q" onclick="diTog(\''+id+'\')">i</span>',
+          box:(html?('<div class="drow-info" id="'+id+'">'+html+'</div>'):'')};}
+function cmpHeadHtml(title,sub,html){
+  var q=iqBtnHtml(html);
+  return '<div class="cmp-ph"><span class="cmp-ph-s">'+q.btn+'</span>'+
+    '<div class="ww-h">'+title+(sub?' <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0">· '+sub+'</span>':'')+'</div>'+
+    '<span class="cmp-ph-s"></span></div>'+q.box;}
 function donutSVG(segs,total,yearLbl,partial){
   var r=38,cx=50,cy=50,sw=13,gap=2.2;
   var tot=total||segs.reduce(function(a,s){return a+(s.val||0);},0)||1;
@@ -4935,11 +4965,14 @@ function kronOppna(p){
 
 var KRON_MAN=['januari','februari','mars','april','maj','juni','juli',
   'augusti','september','oktober','november','december'];
+/* Versal begynnelsebokstav i datan, inte bara via CSS. Det som kopieras eller
+   läses upp ska se likadant ut som det som visas. */
+function kronVersal(t){var x=String(t||'');return x?x.charAt(0).toUpperCase()+x.slice(1):x;}
 function kronNamn(p){
   if(!p)return '';
   if(p.length===4)return p;
   var d=p.split('-');
-  return (KRON_MAN[+d[1]-1]||p)+' '+d[0];}
+  return kronVersal((KRON_MAN[+d[1]-1]||p)+' '+d[0]);}
 function kronKwh(v){return v==null?'–':num(v,0)+' kWh';}
 function kronKr(v){return v==null?'–':num(v,0)+' kr';}
 
@@ -5006,18 +5039,27 @@ function kronHTML(){
   var rad=function(x,ar){
     var vald=(_kronVald===x.period);
     var o=vald?_kronPost[x.period]:null;
+    /* Rubriken i listan gör den läsbar utan att man behöver öppna varje post. */
     var s='<div class="kr-r'+(ar?' ar':'')+(vald?' on':'')+'" onclick="kronOppna(\''+x.period+'\')">'
-      +'<span class="kr-n">'+esc(kronNamn(x.period))+'</span>'
+      +'<span class="kr-n">'+esc(kronNamn(x.period))
+      +(x.rubrik?('<span class="kr-rn">'+esc(kronVersal(x.rubrik))+'</span>'):'')+'</span>'
       +'<span class="kr-s">'+(x.sol!=null?num(x.sol,0)+' kWh':'')+'</span>'
       +'<span class="kr-p">'+(vald?'▴':'▾')+'</span></div>';
     if(vald){
       s+='<div class="kr-o">';
       if(o){
         s+=kronRuta(o)+kronJmf(o);
-        s+=o.text
-          ? ('<div class="kr-t">'+esc(o.text)+'</div>')
-          : '<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
+        if(o.text){
+          /* Rubrik, ingress och brödtext — texten ska läsas som en liten
+             artikel, inte som en bildtext till rutnätet. */
+          s+='<div class="kr-t">';
+          if(o.rubrik)s+='<div class="kr-rub">'+esc(kronVersal(o.rubrik))+'</div>';
+          if(o.ingress)s+='<div class="kr-ing">'+esc(kronVersal(o.ingress))+'</div>';
+          s+='<div class="kr-brod">'+esc(kronVersal(o.text))+'</div></div>';
+        }else{
+          s+='<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
             +'månaden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
+        }
       }else{
         s+='<div class="ins-empty">Hämtar…</div>';
       }
@@ -5145,6 +5187,65 @@ function zamVantar(){
   if(!log.length)return 120;
   var oldest=log[0].t; log.forEach(function(x){if(x.t<oldest)oldest=x.t;});
   return Math.max(0,Math.round(120-(Date.now()-oldest)/60000));}
+/* Allt förklarande på ETT ställe, bakom i-knappen. Förut låg fem stycken
+   löptext utspridda under tabellerna, och kortet gick inte att läsa av med
+   blicken. Texten är också omskriven för att hänga ihop: vad det är, hur det
+   döms, vad siffrorna betyder, varför jämförelsen dröjer, var datan kommer
+   ifrån — i den ordningen. */
+var _zamDemo=false;
+function zamDemoTog(){_zamDemo=!_zamDemo;try{renderInsikter();}catch(e){}}
+function zamInfoHTML(G){
+  var h='';
+  h+='<p style="margin:0 0 8px"><b>En barometer från 1915.</b> Den gissar vädret ur fyra '
+    +'saker och inget mer: lufttrycket, hur trycket ändrats de senaste tre timmarna, '
+    +'vindriktningen och årstiden. Ingen satellit, ingen dator.</p>';
+  h+='<p style="margin:0 0 8px"><b>Ditt eget hus dömer.</b> Hur mycket el panelerna gav '
+    +'berättar hur soligt det blev, och regnmätaren om det regnade. Domen fälls kl 09 och '
+    +'kan inte ändras i efterhand — utfallet fylls i dagen därpå.</p>';
+  h+='<p style="margin:0 0 8px"><b>Lägre poäng är bättre.</b> Regnet mäts med Brier-poäng, '
+    +'soligheten med medelfel. <b>0,25</b> är vad man får genom att gissa femtio–femtio '
+    +'varje dag — allt under det är bättre än slumpen.</p>';
+  h+='<p style="margin:0 0 8px"><b>Jämförelsen mot SMHI dröjer.</b> Den kräver '+ZAM_MIN
+    +' dygn där båda lämnat en prognos, och SMHI publicerar bara den som gäller just nu. '
+    +'Deras kolumn går alltså inte att fylla i efterhand utan bara samla framåt'
+    +(G?(' — '+Math.max(G.hnb||0,G.hnk||0)+' klara hittills'):'')+'.</p>';
+  if(G&&G.bf)h+='<p style="margin:0 0 8px">'+G.bf+' av dygnen är <b>återskapade</b> ur '
+    +'tryck- och regnhistoriken i Homey Insights. Barometern behöver bara trycket kl 09, '
+    +'3-timmarstrenden och vindriktningen, och allt det finns kvar i efterhand.</p>';
+  h+='<p style="margin:0 0 8px">'
+    +(_zamKalla==='app'
+      ? ('Tavlan kommer från <b>Homey-appen</b>'+(_zamAppN?(' ('+_zamAppN+' dygn)'):'')+', som fäller '
+         +'domen och fyller i utfallet även när dashboarden är stängd. SMHI-kolumnen fylls här, '
+         +'eftersom deras prognos bara går att fånga samma dag.')
+      : (_zamKalla==='lokal'
+         ? ('Räknas <b>här i dashboarden</b>'+(_appFel?(' – appen svarade inte ('+esc(_appFel)+')'):'')+'.')
+         : 'Räknas här i dashboarden.'))
+    +'</p>';
+  if(!isDemo()&&typeof BASE!=='undefined'&&BASE&&!CONFIG.DATA_URL){
+    var bf=zamBfInfo(), sy=zamSyncInfo();
+    h+='<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<button class="wxm-b" onclick="zamBackfillClick(this)">Hämta historik</button>'
+      +'<button class="wxm-b'+(_zamDemo?' on':'')+'" onclick="zamDemoTog()">'
+      +(_zamDemo?'Dölj exempel':'Visa exempel')+'</button></div>';
+    h+='<p style="margin:6px 0 0;opacity:.75" id="zam-bf-msg">'
+      +(bf.t?('Historiken hämtades '+new Date(bf.t).toLocaleDateString('sv-SE')+' · '+(bf.lagt||0)+' dygn tillagda')
+            :'Hämta historik fyller på tavlan ur Homey Insights.')
+      +'</p>';
+    h+='<p style="margin:6px 0 0;opacity:.7">Tavlan sparas i Homey-variabeln <b>'+ZAM_VAR+'</b>'
+      +(sy.t?(' · senast '+new Date(sy.t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})+', '+sy.n+' dygn'):' (ännu inte skriven)')
+      +'. Den ligger utanför den vanliga backupen, så den aldrig offras när utrymmet tryter.</p>';
+  }else{
+    h+='<div style="margin-top:10px"><button class="wxm-b'+(_zamDemo?' on':'')+'" onclick="zamDemoTog()">'
+      +(_zamDemo?'Dölj exempel':'Visa exempel')+'</button></div>';
+  }
+  return h;}
+/* Hur tavlan kommer se ut när jämförelsen öppnat. Siffrorna är påhittade men
+   rimliga: barometern brukar hålla jämna steg med SMHI på regn och tappa på
+   solighet, där en molnfri morgon inte säger något om eftermiddagen. */
+function zamDemoPoang(){
+  return {n:24,nb:24,nk:24,nsb:22,nsk:22,bf:11,
+    zb:0.191,sb:0.148,zk:0.213,sk:0.166,
+    hnb:22,hnk:22,hzb:0.188,hsb:0.147,hzk:0.209,hsk:0.163};}
 function zamKort(){
   var Z=zambretti();
   if(!Z){
@@ -5154,23 +5255,28 @@ function zamKort(){
     var P=zamPress();
     if(P==null)return '';        /* ingen barometer alls - da finns inget att vanta pa */
     var kvar=zamVantar();
-    var h='<section class="panel"'+'>'+cmpHead('Zambretti 1915','barometern mot SMHI','En barometer från 1915. Den gissar vädret ur fyra saker och inget mer: lufttrycket, hur trycket ändrats de senaste tre timmarna, vindriktningen och årstiden. Ingen satellit, ingen dator. Här får den tävla mot SMHI:s prognos, och ditt eget tak dömer: hur mycket el panelerna gav berättar hur soligt det blev, och regnmätaren om det regnade. Lägre poäng är bättre. 0,25 är vad du får om du gissar femtio-femtio varje dag. Tavlan öppnar när barometern hunnit fälla tjugo domar.');
-    h+='<div class="ins-hero-lab">'+Math.round(P)+'&nbsp;hPa</div>';
-    h+='<div class="ins-hero-row"><div class="ins-hero-big" style="font-size:1.1em;opacity:.7">Samlar tryckhistorik</div></div>';
-    h+='<div class="isub" style="margin-top:8px;opacity:.8">Barometern läser, men domen kräver tryckets '
+    var h0='<section class="panel">'+cmpHeadHtml('Zambretti 1915','barometern mot SMHI',zamInfoHTML(null));
+    h0+='<div class="ins-hero-lab">'+Math.round(P)+'&nbsp;hPa</div>';
+    h0+='<div class="ins-hero-row"><div class="ins-hero-big" style="font-size:1.1em;opacity:.7">Samlar tryckhistorik</div></div>';
+    h0+='<div class="isub" style="margin-top:8px;opacity:.8">Domen kräver tryckets '
       +'<b>3-timmarstrend</b> – utan den vet 1915 års tabell inte om vädret är på väg upp eller ner. '
       +(kvar>0?('Cirka <b>'+(kvar>=60?(Math.floor(kvar/60)+' h '+(kvar%60)+' min'):(kvar+' min'))+'</b> kvar.')
               :'Trenden borde finnas – tryckloggen kan ha luckor.')
       +'</div>';
-    return h+'</section>';
+    return h0+'</section>';
   }
-  var G=zamPoang();
+  /* Exempelläget byter BARA ut poängen, inte domen. Dagens väder är verkligt även
+     när man tittar på hur tavlan kommer se ut. */
+  var G=_zamDemo?zamDemoPoang():zamPoang();
   var n2=function(v){return v==null?'–':v.toFixed(2).replace('.',',');};
   var pil=Z.tr>0.6?'stigande':(Z.tr<-0.6?'fallande':'stillastående');
-  var h='<section class="panel"'+'>'+cmpHead('Zambretti 1915','barometern mot SMHI','En barometer från 1915. Den gissar vädret ur fyra saker och inget mer: lufttrycket, hur trycket ändrats de senaste tre timmarna, vindriktningen och årstiden. Ingen satellit, ingen dator. Här får den tävla mot SMHI:s prognos, och ditt eget tak dömer: hur mycket el panelerna gav berättar hur soligt det blev, och regnmätaren om det regnade. Lägre poäng är bättre. 0,25 är vad du får om du gissar femtio-femtio varje dag. Tavlan öppnar när barometern hunnit fälla tjugo domar.');
+  var h='<section class="panel">'+cmpHeadHtml('Zambretti 1915','barometern mot SMHI',zamInfoHTML(G));
   h+='<div class="ins-hero-lab">'+Z.bok+' · '+Math.round(Z.hpa)+'&nbsp;hPa, '+pil
     +' '+(Z.tr>0?'+':'')+n2(Z.tr)+'&nbsp;hPa/3h</div>';
   h+='<div class="ins-hero-row"><div class="ins-hero-big" style="font-size:1.3em">'+esc(Z.txt)+'</div></div>';
+  if(_zamDemo)h+='<div class="isub" style="margin-top:8px;color:var(--gold);font-weight:700">'
+    +'Exempel · så här ser tavlan ut efter '+ZAM_MIN+' jämförbara dygn. Siffrorna nedan är påhittade.</div>';
+
   var vinn=function(a,b){return (a==null||b==null)?'' : (a<b?' style="color:var(--ok)"':'');};
   var rad=function(namn,n,v1,v2){
     return '<tr><td style="padding:4px 0">'+namn+'<span style="opacity:.55"> · '+n+' dygn</span></td>'
@@ -5198,32 +5304,8 @@ function zamKort(){
     h+=rad('Solighet (medelfel)',G.hnk,G.hzk,G.hsk);
     h+='</table>';
   }else{
-    h+='<div class="isub" style="margin-top:10px;opacity:.75">Jämförelsen mot SMHI öppnar efter '+ZAM_MIN
-      +' dygn där båda lämnat en prognos · '+Math.max(G.hnb,G.hnk)+' klara. '
-      +'SMHI publicerar bara prognosen som gäller nu, så de dygnen kan bara samlas framåt.</div>';
-  }
-  h+='<div class="isub" style="margin-top:6px;opacity:.65">'
-    +(_zamKalla==='app'
-      ? ('Tavlan kommer från Homey-appen ('+_zamAppN+' dygn), som fäller domen kl 09 och '
-         +'fyller i utfallet dagen efter — även när dashboarden är stängd. '
-         +'SMHI-kolumnen fylls här, eftersom deras prognos bara går att fånga samma dag.')
-      : (_zamKalla==='lokal'
-         ? ('Räknas här i dashboarden'+(_appFel?(' – appen svarade inte ('+_appFel+')'):'')+'.')
-         : 'Räknas här i dashboarden.'))
-    +'</div>';
-  if(G.bf)h+='<div class="isub" style="margin-top:6px;opacity:.65">'+G.bf
-    +' av dygnen är återskapade ur tryck- och regnhistoriken i Homey Insights. '
-    +'Zambretti behöver bara trycket kl 09, 3-timmarstrenden och vindriktningen – allt finns kvar i efterhand.</div>';
-  if(!isDemo()&&typeof BASE!=='undefined'&&BASE&&!CONFIG.DATA_URL){
-    var bf=zamBfInfo(), sy=zamSyncInfo();
-    h+='<div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-      +'<button class="wxm-b" onclick="zamBackfillClick(this)">Hämta historik</button>'
-      +'<span class="isub" id="zam-bf-msg" style="opacity:.7">'
-      +(bf.t?('Senast hämtad '+new Date(bf.t).toLocaleDateString('sv-SE')+' · '+(bf.lagt||0)+' dygn tillagda'):'Fyller på tavlan ur Homey Insights')
-      +'</span></div>';
-    h+='<div class="isub" style="margin-top:6px;opacity:.6">Tavlan sparas i Homey-variabeln <b>'+ZAM_VAR+'</b>'
-      +(sy.t?(' · senast '+new Date(sy.t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})+', '+sy.n+' dygn'):' (ännu inte skriven)')
-      +'. Den ligger utanför den vanliga backupen så den aldrig offras när utrymmet tryter.</div>';
+    h+='<div class="isub" style="margin-top:10px;opacity:.75">Mot SMHI öppnar efter '+ZAM_MIN
+      +' jämförbara dygn · '+Math.max(G.hnb,G.hnk)+' klara.</div>';
   }
   return h+'</section>';}
 
@@ -5463,8 +5545,12 @@ function openDetail(which){
       +(perf!=null?dRow('Prestanda',perf+' % av möjligt'):'')
       +dRow('Idag',num(cap(DEV.solar,'meter_power.day'),1)+' kWh')+dRow('Denna månad',num(cap(DEV.solar,'meter_power.month'),0)+' kWh')+dRow('I år',num(cap(DEV.solar,'meter_power.year'),0)+' kWh')
       +dayBarsHTML('sol','kWh sol','sun')
-      +progAvsnitt();
-    progHamta().then(function(j){if(j&&$('dlg-body')&&_dlgWhich==='sun')openDetail('sun');});
+      +'<div id="prog-sec">'+progAvsnitt()+'</div>';
+    /* RITA OM DELEN, inte hela rutan. Förut anropades openDetail('sun') härifrån,
+       som körde samma rad igen — och eftersom progHamta() svarar direkt ur cachen
+       löstes löftet omedelbart varje gång. Resultatet var en oändlig loop som
+       låste hela sidan; man kunde inte ens stänga popupen. */
+    if(!_prog)progHamta().then(function(){progUppdatera();});
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     body=gridPowerSVG(HIST['grid']||[])
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
@@ -8505,7 +8591,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v343';
+const APP_VERSION='v347';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
