@@ -3966,7 +3966,23 @@ function insHighlight(S){var out=[];
   out.sort(function(a,b){return b.sc-a.sc;});return out[0];}
 /* [grupp, rubrik, max rader] - taket gör att generatorerna konkurrerar om platserna */
 var INS_CAR_MAX=5;
-var _carIdx=0;
+/* ===== Karusellen =====
+   Tre fel satt ihop:
+
+   1. render() ritar om insikter var 15:e sekund, och `el.innerHTML=` nollställer
+      scrollLeft. Karusellen hoppade alltså tillbaka till första kortet vid varje
+      uppdatering — och tiden dit varierade beroende på var i uppdaterings-
+      cykeln man råkade svepa. Det såg slumpmässigt ut men var inte det.
+   2. Det fanns ingen automatisk växling alls. Korten stod still tills något
+      annat råkade rita om.
+   3. Prickarna följde scrollen men ingen visste vilket kort som var valt över
+      en omritning.
+
+   Positionen sparas nu i _carIdx och återställs efter varje omritning, och en
+   egen timer växlar var 6:e sekund. Egen interaktion nollställer timern — man
+   ska inte bläddra till ett kort och se det försvinna en halv sekund senare. */
+var CAR_MS=6000;
+var _carIdx=0,_carTimer=null,_carN=0,_carAuto=0;
 /* Karusellen i oversta rutan. Horisontell scroll med scroll-snap - det ger native
    svep pa touch utan en rad animationskod. Prickarna foljer med. */
 function insCarHTML(car){
@@ -3976,7 +3992,7 @@ function insCarHTML(car){
   h+='<div class="ins-car-track" id="ins-car" onscroll="insCarDot()">';
   car.forEach(function(x){
     var hid='ih'+(_diN++);
-    h+='<div class="ins-car-slide" data-hlc="'+(x.c||'var(--gold)')+'" onclick="diTog(\''+hid+'\')">';
+    h+='<div class="ins-car-slide" data-hlc="'+(x.c||'var(--gold)')+'" onclick="insCarNollstall();diTog(\''+hid+'\')">';
     if(x.k)h+='<div class="ins-hl-ic">'+icon(x.k)+'</div>';
     h+='<div class="ins-hero-lab">'+esc(x.lab)+(x.info?'<span class="di-q">i</span>':'')+'</div>';
     h+='<div class="ins-hero-row"><div class="ins-hero-big">'+x.big+'</div>'
@@ -3987,16 +4003,71 @@ function insCarHTML(car){
   h+='</div>';
   if(car.length>1){
     h+='<div class="ins-car-dots" id="ins-car-dots">';
-    for(var i=0;i<car.length;i++)h+='<i class="ins-car-dot'+(i===0?' on':'')+'" onclick="insCarGo('+i+')"></i>';
+    for(var i=0;i<car.length;i++)h+='<i class="ins-car-dot'+(i===_carIdx?' on':'')+'" onclick="insCarGo('+i+')"></i>';
     h+='</div>';}
   return h+'</section>';}
 function insCarDot(){
   var t=$('ins-car'),d=$('ins-car-dots'); if(!t||!d||!t.clientWidth)return;
   var i=Math.round(t.scrollLeft/t.clientWidth); _carIdx=i;
+  /* Scrollhändelsen kommer både från fingret och från vår egen scrollTo.
+     Bara den förra ska nollställa timern — annars skulle den automatiska
+     växlingen förlänga sig själv i all oändlighet. */
+  if(!_carAuto)insCarNollstall();
   var ds=d.children; for(var j=0;j<ds.length;j++)ds[j].classList.toggle('on',j===i);
   var sl=t.children[i];var panel=t.parentElement;if(sl&&panel&&sl.getAttribute){var c=sl.getAttribute('data-hlc');if(c&&panel.style)panel.style.setProperty('--hlc',c);}}
-function insCarGo(i){var t=$('ins-car'); if(!t)return;
+function insCarGo(i,auto){
+  var t=$('ins-car'); if(!t)return;
+  _carIdx=i;
+  if(auto){
+    _carAuto=Date.now();
+    /* Släpp flaggan när scrollen hunnit landa. En fast tid räcker; scrollend
+       stöds inte överallt och en missad händelse skulle låsa flaggan. */
+    setTimeout(function(){_carAuto=0;},900);
+  }else{
+    insCarNollstall();
+  }
   t.scrollTo({left:i*t.clientWidth,behavior:'smooth'});}
+
+/* Startar om nedräkningen. Anropas vid varje egen beröring av karusellen. */
+function insCarNollstall(){
+  if(_carTimer){clearInterval(_carTimer);_carTimer=null;}
+  if(_carN<2)return;
+  _carTimer=setInterval(function(){
+    var t=$('ins-car');
+    if(!t){clearInterval(_carTimer);_carTimer=null;return;}
+    /* Växla inte medan sidan ligger i bakgrunden eller en popup är öppen —
+       då hinner man aldrig läsa kortet man kom tillbaka till. */
+    if(document.hidden)return;
+    var bak=$('dlg-back');
+    if(bak&&bak.classList&&bak.classList.contains('open'))return;
+    insCarGo((_carIdx+1)%_carN,true);
+  },CAR_MS);}
+
+/* Återställer positionen efter en omritning. Utan behavior:smooth — det är en
+   återställning av något som redan var, inte en förflyttning. */
+function insCarAter(n){
+  _carN=n||0;
+  /* Klipp indexet FÖRE kontrollen av elementet. Görs det efter blir ett gammalt
+     index kvar när karusellen just försvunnit, och nästa omritning börjar på
+     ett kort som inte finns. */
+  if(_carIdx>=_carN)_carIdx=0;
+  var t=$('ins-car');
+  if(!t){if(_carTimer){clearInterval(_carTimer);_carTimer=null;}return;}
+  if(_carIdx>0&&t.clientWidth){
+    _carAuto=Date.now();
+    t.scrollLeft=_carIdx*t.clientWidth;
+    setTimeout(function(){_carAuto=0;},50);
+  }
+  insCarMarkera();
+  if(!_carTimer)insCarNollstall();}
+
+/* Prickarna och färgen, utan att röra timern. */
+function insCarMarkera(){
+  var t=$('ins-car'),d=$('ins-car-dots'); if(!t)return;
+  if(d){var ds=d.children;for(var j=0;j<ds.length;j++)ds[j].classList.toggle('on',j===_carIdx);}
+  var sl=t.children[_carIdx],panel=t.parentElement;
+  if(sl&&panel&&sl.getAttribute){var c=sl.getAttribute('data-hlc');
+    if(c&&panel.style)panel.style.setProperty('--hlc',c);}}
 var INS_GROUPS=[['rekord','Årets rekord',4],['jamf','Jämförelser',4],['extrem','Extremer & spann',4],['kul','Kul att veta',4]];
 
 function insSpark(vals,col){
@@ -4986,6 +5057,9 @@ function renderInsikter(){
   try{h+=snoKort();}catch(e){}
   try{h+=zamKort();}catch(e){}
   el.innerHTML=h+kronHTML();
+  /* Positionen ska överleva omritningen — annars börjar karusellen om var
+     15:e sekund, vilket var precis det som gjorde den oanvändbar. */
+  try{insCarAter(car.length);}catch(e){}
 }
 /* Skuggans arskostnad, per hinder, i kronor. */
 function hinderKort(){
@@ -8397,7 +8471,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v341';
+const APP_VERSION='v342';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
