@@ -602,6 +602,33 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
 .chart-y.r{left:auto;right:0}
+.kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);padding:14px 0 4px}
+.kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
+  border-bottom:1px solid var(--line)}
+.kr-r.on{border-bottom-color:transparent}
+.kr-r.ar{background:linear-gradient(90deg,color-mix(in srgb,var(--gold) 9%,transparent),transparent);
+  border-radius:10px;padding-left:9px;padding-right:9px;margin-bottom:2px}
+.kr-r.ar .kr-n{font-weight:850}
+.kr-n{flex:1 1 auto;min-width:0;font-size:13.5px;font-weight:700;text-transform:capitalize;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kr-s{flex:0 0 auto;font-size:12px;color:var(--dim);font-weight:650;white-space:nowrap}
+.kr-p{flex:0 0 auto;font-size:10px;color:var(--faint);width:12px;text-align:right}
+.kr-o{padding:4px 2px 16px;border-bottom:1px solid var(--line)}
+.kr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
+.kr-c{background:var(--inset);border:1px solid var(--line);border-radius:11px;padding:9px 10px;min-width:0}
+.kr-l{display:flex;align-items:center;gap:5px;font-size:9.5px;color:var(--faint);font-weight:750;
+  text-transform:uppercase;letter-spacing:.04em}
+.kr-l .ic{width:12px;height:12px;flex:0 0 auto}
+.kr-v{font-size:15.5px;font-weight:850;margin-top:3px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.kr-x{font-size:10.5px;color:var(--dim);margin-top:1px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.kr-jmf{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.7}
+.kr-j{white-space:nowrap;margin-right:6px}
+.kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--line);color:var(--ink)}
+.kr-t.saknas{color:var(--faint);font-style:italic}
 .prog-b{display:flex;align-items:stretch;gap:3px;height:96px;margin:10px 0 4px}
 .prog-c{flex:1 1 0;display:flex;flex-direction:column;min-width:0}
 .prog-w{flex:1 1 auto;position:relative;border-top:0;border-bottom:0;
@@ -4920,40 +4947,44 @@ function kronKr(v){return v==null?'–':num(v,0)+' kr';}
    ar brus, inte information. */
 function kronRuta(o){
   var r=[];
-  var lagg=function(namn,varde,extra){
+  /* Ikonen bär gruppen, texten bär talet. Utan ikon blir rutnätet en vägg av
+     versaler där ingenting går att hitta med blicken. */
+  var lagg=function(namn,varde,extra,ik,farg){
     if(varde==null||varde==='–')return;
-    r.push('<div class="kr-c"><div class="kr-l">'+esc(namn)+'</div>'
+    r.push('<div class="kr-c"><div class="kr-l">'
+      +(ik?('<span class="ic" style="color:'+(farg||'var(--faint)')+'">'+icon(ik)+'</span>'):'')
+      +esc(namn)+'</div>'
       +'<div class="kr-v">'+varde+'</div>'
       +(extra?('<div class="kr-x">'+extra+'</div>'):'')+'</div>');};
   if(o.sol){
-    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null);
-    if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100);
+    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)');
+    if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100,null,'sun','var(--solar)');
   }
   if(o.el){
-    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null);
-    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null);
-    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %');
+    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null,'lightning','var(--hot)');
+    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null,'lightning','var(--ok)');
+    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %',null,'house','var(--ok)');
     if(o.el.dyrast)lagg('Dyraste timmen',num(o.el.dyrast.pris,2)+' kr',
-      o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme);
+      o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme,'lightning','var(--hot)');
     if(o.el.billigast)lagg('Billigaste',num(o.el.billigast.pris,2)+' kr',
-      o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme);
+      o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme,'lightning','var(--ok)');
   }
   if(o.vader){
-    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)));
-    if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)));
-    if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25);
-    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm');
-    if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)));
+    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)),'thermometer-simple','var(--hot)');
+    if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)),'thermometer-simple','var(--blue)');
+    if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25,null,'sun','var(--gold)');
+    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm',null,'drop','var(--rain)');
+    if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)),'wind','var(--blue)');
   }
   if(o.pool){
-    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °');
-    if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26);
+    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °',null,'drop','var(--cyan)');
+    if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26,null,'drop','var(--cyan)');
   }
   if(o.vin){
-    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut);
-    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde));
+    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut,null,'wine','var(--hot)');
+    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde),null,'wine','var(--hot)');
   }
-  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh));
+  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh),null,'car','var(--blue)');
   return r.length?('<div class="kr-grid">'+r.join('')+'</div>'):'';}
 
 /* Jamforelsen mot forra aret. Finns den inte visas ingenting alls. */
@@ -4983,7 +5014,10 @@ function kronHTML(){
       s+='<div class="kr-o">';
       if(o){
         s+=kronRuta(o)+kronJmf(o);
-        if(o.text)s+='<div class="kr-t">'+esc(o.text)+'</div>';
+        s+=o.text
+          ? ('<div class="kr-t">'+esc(o.text)+'</div>')
+          : '<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
+            +'månaden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
       }else{
         s+='<div class="ins-empty">Hämtar…</div>';
       }
@@ -8471,7 +8505,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v342';
+const APP_VERSION='v343';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
