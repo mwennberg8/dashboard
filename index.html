@@ -8281,11 +8281,31 @@ function syncStatusText(){if(!_syncMeta)return 'Inte synkat än på den här enh
 function cfgSync(v){CFG.sync=(v!=='off');saveCfg();}
 function cfgShare(v){CFG.shareLayout=(v!=='off');saveCfg();var el=$('sync-status');if(el)el.textContent=CFG.shareLayout?'Delad layout på — spara nu så får andra enheter samma.':'Egen layout per enhet.';}
 async function doSaveSync(){const el=$('sync-status');if(el)el.textContent='Sparar till Homey…';
+  /* APPEN FÖRST. Knappen gick rakt på logikvariabeln, som har ett utrymmestak
+     och offrar loggar när det tryter — därav "för mycket data". Appen sparar
+     varje nyckel för sig och har inget tak alls; det var hela skälet till att
+     den vägen byggdes, men den manuella knappen kopplades aldrig om. */
+  try{
+    if(appKan()){
+      var r=await appBackupSpara();
+      if(r&&r.ok){
+        try{var o=bkpGet();o.last=dayKey();o.len=bkpLen();o.t=Date.now();o.kalla='app';
+          localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
+        if(el)el.textContent='Sparat ✓ · '+(r.bytes||0).toLocaleString('sv-SE')+' tecken i '
+          +(r.sparade||0)+' nycklar i Homey-appen'
+          +((r.fel&&r.fel.length)?(' · '+r.fel.length+' vägrade'):'');
+        return;
+      }
+    }
+  }catch(e){
+    /* Faller appen är logikvariabeln fortfarande bättre än ingenting. */
+    if(el)el.textContent='Appen svarade inte, provar logikvariabeln…';
+  }
   try{const m=await saveToHomey();if(el)el.textContent='Sparat ✓ · '+(m.len)+' tecken i '+m.n+' variabler'+(m.wrote!=null?' ('+m.wrote+' ändrade)':'')+(m.dropped?' · hoppade över '+m.dropped+' loggar som återskapas':'')+'.';}
   catch(e){var msg=(e&&e.message)||String(e);var hint='';
     if(isAbort(e)||/tidsgränsen/i.test(msg)){
       msg='anslutningen till Homey var för långsam';hint=' — försök igen, gärna närmare wifi-routern';}
-    else if(e&&e.tooBig)hint='';
+    else if(e&&e.tooBig)hint=' — installera Homey-appen com.mawe.dashboard, den sparar utan tak';
     else if(/40[13]/.test(msg))hint=' — token saknar skrivrättighet (skapa en Homey-token med write-scope)';
     else hint=' — kontrollera token och nätverk';
     if(el)el.textContent='Kunde inte spara: '+msg+hint;}}
@@ -8887,7 +8907,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v359';
+const APP_VERSION='v360';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
