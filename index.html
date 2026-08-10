@@ -652,15 +652,27 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-s{flex:0 0 auto;font-size:12px;color:var(--dim);font-weight:650;white-space:nowrap}
 .kr-p{flex:0 0 auto;font-size:10px;color:var(--faint);width:12px;text-align:right}
 .kr-o{padding:4px 2px 16px;border-bottom:1px solid var(--line)}
-.kr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
-.kr-c{background:var(--inset);border:1px solid var(--line);border-radius:11px;padding:9px 10px;min-width:0}
-.kr-l{display:flex;align-items:center;gap:5px;font-size:9.5px;color:var(--faint);font-weight:750;
-  text-transform:uppercase;letter-spacing:.04em}
-.kr-l .ic{width:12px;height:12px;flex:0 0 auto}
-.kr-v{font-size:15.5px;font-weight:850;margin-top:3px;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.kr-x{font-size:10.5px;color:var(--dim);margin-top:1px;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
+.kr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(126px,1fr));gap:7px;
+  /* Fast radhöjd: rutor med och utan underrad ska vara lika höga, annars blir
+     rutnätet ojämnt så fort en siffra saknar datum. */
+  grid-auto-rows:58px}
+.kr-c{background:var(--inset);border:1px solid var(--line);border-radius:11px;
+  padding:8px 10px;min-width:0;display:flex;align-items:center;gap:9px;overflow:hidden;
+  /* Höjden sätts på rutan SJÄLV, inte bara via grid-auto-rows. En ruta utan
+     underrad blir annars lägre än sina grannar, och rutnätet ojämnt så fort en
+     siffra saknar datum. */
+  height:58px;box-sizing:border-box}
+.kr-ic{flex:0 0 auto;width:17px;height:17px;display:inline-flex}
+.kr-ic .ic{width:100%;height:100%}
+/* min-width:0 på både behållare och barn — utan det vägrar flexbox krympa och
+   texten svämmar över kanten i stället för att kortas av. */
+.kr-tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.kr-l{font-size:9px;color:var(--faint);font-weight:750;text-transform:uppercase;
+  letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kr-v{font-size:15px;font-weight:850;line-height:1.15;margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.kr-x{font-size:10px;color:var(--dim);line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .kr-jmf{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.7}
 .kr-j{white-space:nowrap;margin-right:6px}
 .kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
@@ -5077,12 +5089,11 @@ async function kronPost(period){
   }catch(e){_kronFel=(e&&e.message)||String(e);return null;}}
 /* Vilka år som är utfällda. Innevarande år är öppet från början — det är där
    det nya finns — men posterna i det är ändå stängda. */
+/* Allt stängt från början, även innevarande år. NY-märket på årsraden visar var
+   det nya finns — då behöver inget stå öppet i förväg. */
 var _kronArState=null;
 function kronArOppen(y){
-  if(_kronArState===null){
-    _kronArState={};
-    _kronArState[String(new Date().getFullYear())]=1;
-  }
+  if(_kronArState===null)_kronArState={};
   return !!_kronArState[String(y)];}
 function kronArTog(y){
   kronArOppen(y);
@@ -5116,17 +5127,31 @@ function kronKr(v){return v==null?'–':num(v,0)+' kr';}
 
 /* Siffrorna som kompakt rutnat. Bara det som finns visas — en rad med streck
    ar brus, inte information. */
+/* Förkortningar. En etikett som inte får plats klipps annars mitt i ordet, och
+   "Självförsörj…" säger mindre än "Självförs.". Listan är kort med flit: bara
+   de som faktiskt är för långa. */
+var KR_KORT={'Självförsörjning':'Självförs.','Dyraste timmen':'Dyrast',
+  'Billigaste':'Billigast','Kraftigaste by':'Kraftigast by','Poolen varmast':'Pool max',
+  'Pooldygn >26°':'Pooldygn >26','Källarens värde':'Källarvärde',
+  'Dygn >100 kWh':'Dygn >100','Vin in / ut':'Vin in/ut'};
+function krKort(t){return KR_KORT[t]||t;}
+
 function kronRuta(o){
   var r=[];
-  /* Ikonen bär gruppen, texten bär talet. Utan ikon blir rutnätet en vägg av
-     versaler där ingenting går att hitta med blicken. */
+  /* Samma uppställning som rutorna på startsidan: ikon till vänster, texten i
+     en egen kolumn till höger. Varje ruta har ALLTID en ikon — utan den blir
+     rutnätet en vägg av versaler där ingenting går att hitta med blicken.
+     Stilen är krönikans egen, bara layouten är gemensam. */
   var lagg=function(namn,varde,extra,ik,farg){
     if(varde==null||varde==='–')return;
-    r.push('<div class="kr-c"><div class="kr-l">'
-      +(ik?('<span class="ic" style="color:'+(farg||'var(--faint)')+'">'+icon(ik)+'</span>'):'')
-      +esc(namn)+'</div>'
-      +'<div class="kr-v">'+varde+'</div>'
-      +(extra?('<div class="kr-x">'+extra+'</div>'):'')+'</div>');};
+    r.push('<div class="kr-c">'
+      +'<span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
+      +icon(ik||'circle')+'</span>'
+      +'<span class="kr-tx">'
+      +'<span class="kr-l">'+esc(krKort(namn))+'</span>'
+      +'<span class="kr-v">'+varde+'</span>'
+      +(extra?('<span class="kr-x">'+extra+'</span>'):'')
+      +'</span></div>');};
   if(o.sol){
     lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)');
     if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100,null,'sun','var(--solar)');
@@ -6056,13 +6081,21 @@ function renderEnergy(){
 /* ---- render ---- */
 /* ===== anpassningsbara + flyttbara tiles ===== */
 const GRIDS={
+  /* glow:false genomgående. Glowet är till för att fånga blicken vid en
+     händelse; ligger det på överallt fångar det ingenting. Väderrutorna får
+     trendpil i stället — där är riktningen det intressanta, inte larmet. */
   flode:{el:'stats-flode',style:'stat',store:'tilesFlode_v5',def:[
-    {type:'sensor',device:'d6e3c81b-e500-4124-a068-16d8bda43a9e',cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
-    {type:'computed',key:'car2'},{type:'computed',key:'solday'},{type:'computed',key:'cost'},{type:'computed',key:'solyear'},{type:'computed',key:'bought'}]},
+    {type:'sensor',device:'d6e3c81b-e500-4124-a068-16d8bda43a9e',cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1,glow:false},
+    {type:'computed',key:'car2',glow:false},{type:'computed',key:'solday',glow:false},
+    {type:'computed',key:'cost',glow:false},{type:'computed',key:'solyear',glow:false},
+    {type:'computed',key:'bought',glow:false}]},
   energy:{el:'stats-energy',style:'stat',store:'tilesEnergy_v1',def:[
-    {type:'computed',key:'solnow'},{type:'computed',key:'battnow'},{type:'computed',key:'gridnow'}]},
+    {type:'computed',key:'solnow',glow:false},{type:'computed',key:'battnow',glow:false},
+    {type:'computed',key:'gridnow',glow:false}]},
   weather:{el:'stats-weather',style:'stat',store:'tilesWeather_v1',def:[
-    {type:'computed',key:'humidity'},{type:'computed',key:'rain'},{type:'computed',key:'pressure'}]}
+    {type:'computed',key:'humidity',glow:false,trend:true},
+    {type:'computed',key:'rain',glow:false,trend:true},
+    {type:'computed',key:'pressure',glow:false,trend:true}]}
 };
 const TILESTATE={};
 /* Kopt mot salt som en tvafargad stapel - brickan SJALV ar stapeln. Storst varde
@@ -8854,10 +8887,13 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v357';
+const APP_VERSION='v359';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
-  spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
+  /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
+     "orört". En ny enhet ska se ut som den inarbetade från början. */
+  spot:{num:-5,slide:-3,scale:-5,box:-3,end:2,endWhite:false},
+  ks:{num:-5,slide:-3,scale:-5,box:-3,per:'month'},
   chip:{ic:5,v:5,name:5,desc:5,gap:11},tile:{ic:5,v:2,name:2,desc:2,gap:12}};
 let CFG=JSON.parse(JSON.stringify(CFG_DEF)),curScenario=0;
 function mergeGrp(dst,src,def){['chip','tile'].forEach(k=>{dst[k]=Object.assign({},def[k],(src&&src[k])||{});});
