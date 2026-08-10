@@ -634,6 +634,17 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .eff-b i{display:block;height:100%;background:var(--blue);border-radius:99px}
 .eff-w{flex:0 0 auto;font-size:13px;font-weight:800;white-space:nowrap;min-width:56px;text-align:right}
 .eff-k{flex:0 0 auto;font-size:10.5px;color:var(--faint);white-space:nowrap;min-width:56px;text-align:right}
+.en-notis{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;
+  padding:5px 9px;margin-right:7px;border:1px solid var(--line);border-radius:999px;
+  background:var(--inset);color:var(--gold);cursor:pointer;line-height:1}
+.en-notis .ic{width:15px;height:15px}
+.en-notis-n{font-size:10.5px;font-weight:850;color:var(--gold)}
+.en-notis[hidden]{display:none}
+/* Pulsen drar blicken en gång i minuten i stället för att blinka — en ikon som
+   blinkar oavbrutet blir en sak man slutar se. */
+.en-notis.puls{animation:notispuls 4s ease-in-out infinite}
+@keyframes notispuls{0%,88%,100%{box-shadow:0 0 0 0 transparent}
+  92%{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 26%,transparent)}}
 .kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:14px 0 4px}
 .kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
@@ -677,8 +688,19 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-j{white-space:nowrap;margin-right:6px}
 .kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
   border-top:1px solid var(--line);color:var(--ink)}
-.kr-rap{font-size:13.5px;line-height:1.75;white-space:pre-line}
-.kr-rap::first-line{font-weight:800;font-size:15px}
+.kr-rap{font-size:13.5px}
+/* Rubrikraden: större, med sin emoji intill i stället för hopklistrad. */
+.kr-rh{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:850;
+  letter-spacing:-.01em;line-height:1.3;margin:0 0 10px;padding-bottom:9px;
+  border-bottom:1px solid var(--line)}
+.kr-rhi{font-size:19px;line-height:1;flex:0 0 auto}
+/* En rad per ämne. Emojin i egen kolumn med fast bredd — annars börjar raderna
+   på olika ställen beroende på om tecknet är brett eller smalt. */
+.kr-rr{display:flex;align-items:baseline;gap:9px;padding:4px 0;line-height:1.6}
+.kr-rr+.kr-rr{border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.kr-rri{flex:0 0 20px;text-align:center;font-size:14px;line-height:1.5}
+.kr-rrt{flex:1 1 auto;min-width:0}
+.kr-n2{font-weight:800;color:var(--ink)}
 .kr-t.saknas{color:var(--faint);font-style:italic}
 /* Nyss skriven post. Notisen säger bara ATT den finns; markeringen visar VAR. */
 .kr-r.ny .kr-n::after{content:'NY';margin-left:7px;padding:1px 5px;border-radius:5px;
@@ -1622,7 +1644,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   <section class="view" id="view-flode">
 
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-notis" id="en-notis" onclick="krNotisTryck()" title="Ny krönika att läsa" hidden></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -5032,6 +5054,48 @@ function kronArNy(x){
   return !kronLastGet()[x.period];                      /* och oläst */
 }
 
+/* ===== Notisikon i toppraden =====
+   Visas när det finns en oläst krönika. Tryck går direkt till den äldsta
+   olästa — inte den nyaste, för läser man uppifrån hoppar man över det som
+   legat längst och är på väg att försvinna.
+
+   Läsningen är per enhet, precis som NY-märket: att du läst på plattan säger
+   ingenting om vad du sett i telefonen. */
+function krOlasta(){
+  if(!_kron)return [];
+  var alla=(_kron.ar||[]).concat(_kron.manader||[]);
+  return alla.filter(kronArNy).sort(function(a,b){
+    return (a.raknad_at||0)-(b.raknad_at||0);});}
+function krNotisUppdatera(){
+  var b=$('en-notis');if(!b)return;
+  var o=krOlasta();
+  if(!o.length){b.hidden=true;b.classList.remove('puls');return;}
+  b.hidden=false;
+  b.innerHTML='<span class="ic">'+icon('bell')+'</span>'
+    +(o.length>1?('<span class="en-notis-n">'+o.length+'</span>'):'');
+  b.title=o.length===1
+    ? ('Ny krönika: '+kronNamn(o[0].period))
+    : (o.length+' olästa krönikor — äldsta: '+kronNamn(o[0].period));
+  /* Plattan sitter på väggen och ingen står framför den när texten skrivs.
+     Där räcker det att ikonen finns; den behöver inte dra blicken till sig. */
+  b.classList.toggle('puls',!IS_SAMSUNG_TABLET);}
+function krNotisTryck(){
+  var o=krOlasta();
+  if(!o.length)return;
+  _kronVald=o[0].period;
+  _kronArState=_kronArState||{};
+  _kronArState[String(o[0].period).slice(0,4)]=1;   /* året måste vara öppet */
+  kronLastSatt(o[0].period);
+  try{openInsikter();}catch(e){}
+  kronPost(o[0].period).then(function(){
+    try{renderInsikter();}catch(e){}
+    krNotisUppdatera();
+    setTimeout(function(){
+      try{var el=document.querySelector('.kr-r.on');
+        if(el&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+    },260);
+  });}
+
 /* ===== Djuplänk =====
    ?kronika=2026-07 öppnar Insikter med den posten utfälld. Notisen om att
    krönikan skrivits kan då peka rakt på texten i stället för att bara säga att
@@ -5075,6 +5139,7 @@ async function kronLista(force){
     var j=await appGet('/kronika');
     if(!j||!j.manader)throw new Error('tomt svar');
     _kron=j;_kronAt=Date.now();_kronFel=null;
+    try{krNotisUppdatera();}catch(e){}
     /* INGEN autoutfällning. Listan börjar hopfälld, och NY-märket räcker för
        att visa var det nya finns. En post som fäller ut sig själv flyttar
        resten av listan under fingret precis när man ska trycka. */
@@ -5105,7 +5170,7 @@ function kronArTog(y){
   try{renderInsikter();}catch(e){}}
 function kronOppna(p){
   /* Märket släcks när posten öppnas, inte när den stängs. */
-  if(_kronVald!==p)kronLastSatt(p);
+  if(_kronVald!==p){kronLastSatt(p);try{krNotisUppdatera();}catch(e){}}
   _kronVald=(_kronVald===p)?null:p;
   if(_kronVald&&!_kronPost[_kronVald]){
     kronPost(_kronVald).then(function(){renderInsikter();});
@@ -5135,6 +5200,42 @@ var KR_KORT={'Självförsörjning':'Självförs.','Dyraste timmen':'Dyrast',
   'Pooldygn >26°':'Pooldygn >26','Källarens värde':'Källarvärde',
   'Dygn >100 kWh':'Dygn >100','Vin in / ut':'Vin in/ut'};
 function krKort(t){return KR_KORT[t]||t;}
+
+/* Rapporten kommer som ren text: en rubrikrad först, sedan en rad per ämne med
+   en emoji som ledtecken. Att bara sätta white-space:pre-line ger en klump.
+
+   Här delas den i sina beståndsdelar i stället: rubriken blir rubrik, emojin
+   flyttas ut i en egen kolumn så att alla rader börjar på samma ställe, och
+   siffror med enhet får svagt tyngre stil så att blicken hittar dem. Inget
+   innehåll ändras — bara hur det sätts. */
+function kronRapport(txt){
+  var rader=String(txt||'').split('\n').map(function(r){return r.trim();})
+    .filter(function(r){return r.length;});
+  if(!rader.length)return '';
+  var h='<div class="kr-rap">';
+  rader.forEach(function(r,i){
+    /* Leta ledande emoji. Regexen tar bildtecken och symboler, inte bokstäver —
+       en rad som börjar med "Produktion" ska inte få sitt P utflyttat. */
+    var m=r.match(/^([\u203C-\u3299\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F\u2190-\u21FF]+)\s*(.*)$/);
+    var ik=m?m[1]:'', txt2=m?m[2]:r;
+    if(i===0){
+      h+='<div class="kr-rh">'+(ik?('<span class="kr-rhi">'+esc(ik)+'</span>'):'')
+        +'<span>'+esc(txt2)+'</span></div>';
+      return;
+    }
+    h+='<div class="kr-rr">'
+      +'<span class="kr-rri">'+esc(ik)+'</span>'
+      +'<span class="kr-rrt">'+kronTal(esc(txt2))+'</span></div>';
+  });
+  return h+'</div>';}
+
+/* Framhäv tal med enhet. Bara siffergrupper som följs av en enhet eller ett
+   procenttecken — annars skulle datum och klockslag också bli feta, och då är
+   ingenting framhävt. */
+function kronTal(t){
+  return String(t).replace(
+    /(\d[\d\s\u00a0]*(?:[.,]\d+)?)\s?(kWh|kW|W|kr|öre|mm|m\/s|°C|°|%|h\b|st\b)/g,
+    function(hel,tal,enh){return '<b class="kr-n2">'+tal.trim()+' '+enh+'</b>';});}
 
 function kronRuta(o){
   var r=[];
@@ -5219,7 +5320,7 @@ function kronHTML(){
     var s2='<div class="kr-o">'+kronRuta(o)+kronJmf(o);
     if(o.text){
       /* Rapporten är radbruten och har emoji som ankare — visas som den skickas. */
-      s2+='<div class="kr-t"><div class="kr-rap">'+esc(o.text)+'</div></div>';
+      s2+='<div class="kr-t">'+kronRapport(o.text)+'</div>';
     }else{
       s2+='<div class="kr-t saknas">Ingen text skriven. Appen skriver den när '
         +'perioden räknas — saknas Gemini-nyckeln blir posten bara siffror.</div>';
@@ -5408,12 +5509,17 @@ function renderInsikter(){
       var sv=shmSVG();
       if(sv){
         var cv=shmCoverage();
-        h+='<section class="panel"><div class="ww-h" style="margin-top:0">Horisonten från taket</div>'
-          +sv
-          +'<div class="isub" style="margin-top:8px;opacity:.75">Den mörka formen är vad som skymmer solen – '
-          +'träd, hus, skorsten – sedd från panelerna, uppmätt ur '+cv.mogna+' mogna celler i skuggkartan. '
-          +'Guldlinjen är solens bana idag med hela timmar utsatta: <b>heldragen</b> där solen är fri, '
-          +'<b>streckad</b> där den står bakom något. Den stora pricken visar var solen är just nu.</div></section>';
+        /* Förklaringen bakom i-knappen. Den är fyra rader lång och står under
+           en bild som talar för sig själv — den behöver inte läsas varje gång. */
+        h+='<section class="panel">'+cmpHeadHtml('Horisonten från taket','sedd från panelerna',
+            '<p style="margin:0 0 8px">Den mörka formen är vad som skymmer solen — träd, hus, '
+            +'skorsten — sedd från panelerna. Den är uppmätt ur <b>'+cv.mogna+' mogna celler</b> '
+            +'i skuggkartan, alltså celler där tillräckligt många observationer samlats för att '
+            +'formen ska vara att lita på.</p>'
+            +'<p style="margin:0">Guldlinjen är solens bana idag, med hela timmar utsatta. '
+            +'<b>Heldragen</b> där solen är fri, <b>streckad</b> där den står bakom något. '
+            +'Den stora pricken visar var solen är just nu.</p>')
+          +sv+'</section>';
       }
     }
   }catch(e){}
@@ -8310,6 +8416,27 @@ async function doSaveSync(){const el=$('sync-status');if(el)el.textContent='Spar
     else hint=' — kontrollera token och nätverk';
     if(el)el.textContent='Kunde inte spara: '+msg+hint;}}
 async function doFetchSync(){const el=$('sync-status');if(el)el.textContent='Hämtar från Homey…';
+  /* APPEN FÖRST, av samma skäl som vid sparandet: dess kopia är fullständig,
+     medan logikvariabeln kan ha offrat loggar när utrymmet tröt. Hämtar man
+     från den senare får man tillbaka en beskuren version av sina egna
+     inställningar utan att något säger det. */
+  try{
+    if(appKan()){
+      var n=await appBackupLas();
+      if(n>0){
+        loadCfg();applyCfg();
+        var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+        applySecOrder();
+        try{render();}catch(e){}
+        var e2=$('sync-status');
+        if(e2)e2.textContent='Hämtat ✓ · '+n+' nycklar ur Homey-appen';
+        return;
+      }
+    }
+  }catch(e){
+    var e3=$('sync-status');
+    if(e3)e3.textContent='Appen svarade inte, provar logikvariabeln…';
+  }
   try{const r=await fetchFromHomey();const el2=$('sync-status');if(el2)el2.textContent=r.applied?('Hämtat ✓ · '+syncStatusText()):('Inget hämtat: '+r.reason);}
   catch(e){const el2=$('sync-status');if(el2)el2.textContent='Kunde inte hämta: '+((e&&e.message)||e);}}
 function backupString(){const obj={};SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)obj[k]=v;});return JSON.stringify(obj);}
@@ -8907,7 +9034,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v360';
+const APP_VERSION='v362';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
