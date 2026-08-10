@@ -8831,7 +8831,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v354';
+const APP_VERSION='v355';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -9389,10 +9389,32 @@ function credFinns(){var c=credGet();return !!(c.token&&c.homeyId);}
 /* Molnadressen ar alltid tillganglig, aven hemifran. Den lokala bara pa LAN. */
 function credMoln(){var c=credGet();
   return c.homeyId?('https://'+c.homeyId+'.connect.athom.com'):'';}
-function credLan(){var c=credGet();
+/* Homeys lokala HTTPS-namn. Punkterna i IP-numret byts mot bindestreck under
+   homeylocal.com, och Athom har ett giltigt certifikat för det. Adressen pekar
+   på samma maskin i samma nät — det är alltså fortfarande LOKALT, bara över
+   https. */
+function homeyLokalHttps(ip){
+  var m=String(ip||'').match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  return m?('https://'+m.slice(1).join('-')+'.homey.homeylocal.com'):'';}
+
+function credLan(){
+  var c=credGet();
   if(!c.lan)return '';
   var u=c.lan.trim().replace(/\/+$/,'');
-  return /^https?:\/\//i.test(u)?u:('http://'+u);}
+  if(!/^https?:\/\//i.test(u))u='http://'+u;
+  /* En https-sida får inte anropa http. Webbläsaren blockerar det som blandat
+     innehåll INNAN anropet går ut, så det misslyckas alltid och dashboarden
+     faller tillbaka på molnet — även när man står i samma rum som Homey.
+     Därför byts adressen mot Homeys eget https-namn för samma IP. */
+  try{
+    if(location.protocol==='https:'&&/^http:\/\//i.test(u)){
+      var ip=u.replace(/^http:\/\//i,'').split(':')[0].replace(/\/.*$/,'');
+      var sak=homeyLokalHttps(ip);
+      if(sak)return sak;
+      return '';        /* inget IP att bygga av: hellre inget än ett dött anrop */
+    }
+  }catch(e){}
+  return u;}
 /* ===== Forsta uppstarten =====
    Utan token gar ingenting att hamta, sa i stallet for en tom dashboard med
    streck overallt visas en ruta som ber om det som behovs. Den provar
