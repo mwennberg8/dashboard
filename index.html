@@ -5040,7 +5040,6 @@ function kronLastGet(){
 function kronLastSatt(p){
   try{
     var o=kronLastGet();
-    if(o[p])return false;
     o[p]=Date.now();
     /* Håll listan kort — bara perioder som fortfarande kan vara nya spelar roll. */
     var k=Object.keys(o).sort();
@@ -5048,11 +5047,21 @@ function kronLastSatt(p){
     localStorage.setItem(KRON_LAST,JSON.stringify(o));
     return true;
   }catch(e){return false;}}
+/* När hände något med posten senast? Den SENARE av när siffrorna räknades och
+   när texten skrevs. Skriver man om texten på en gammal månad är det lika mycket
+   en nyhet som en ny post — förut byggde märket bara på räkningen, och en
+   omskriven text gav ingenting. */
+function kronTid(x){
+  if(!x)return 0;
+  return Math.max(Number(x.raknad_at)||0, Number(x.text_at)||0);}
 function kronArNy(x){
-  if(!x||!x.raknad_at)return false;
-  if(Date.now()-x.raknad_at>KRON_NY_MAX)return false;   /* tre dygn räcker */
-  return !kronLastGet()[x.period];                      /* och oläst */
-}
+  var t=kronTid(x);
+  if(!t)return false;
+  if(Date.now()-t>KRON_NY_MAX)return false;             /* tre dygn räcker */
+  /* Jämför läsningen mot posten, inte bara "har öppnats någon gång". En post
+     man läst i förrgår och som fått ny text idag ska bli oläst igen. */
+  var last=Number(kronLastGet()[x.period])||0;
+  return last<t;}
 
 /* ===== Notisikon i toppraden =====
    Visas när det finns en oläst krönika. Tryck går direkt till den äldsta
@@ -9034,7 +9043,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v362';
+const APP_VERSION='v363';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
