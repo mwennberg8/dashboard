@@ -1655,7 +1655,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   <section class="view" id="view-flode">
 
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="krNotisTryck()" title="Krönikan"></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -5089,19 +5089,29 @@ function krOlasta(){
 function krNotisUppdatera(){
   var b=$('en-notis');if(!b)return;
   var o=krOlasta();
+  /* icon() ger tom sträng innan ikonuppsättningen initierats. Skrivs knappen
+     över DÅ försvinner klockan, och den kommer inte tillbaka förrän något ritar
+     om — precis det som gav en tom ring på startsidan. Behåll det som redan
+     står där i så fall. */
+  var kl=icon('bell');
+  if(!kl){
+    var fanns=b.querySelector('.en-cmp-ic');
+    kl=fanns?fanns.innerHTML:'';
+    if(!kl){b.classList.toggle('har',!!o.length);return;}
+  }
   /* Klockan finns ALLTID. Utan olästa är den bara en väg in till krönikan;
      en knapp som försvinner och dyker upp gör toppraden rastlös, och man
      lär sig aldrig var den sitter. */
   if(!o.length){
     b.classList.remove('har','puls');
-    b.innerHTML='<span class="en-cmp-ic">'+icon('bell')+'</span>';
+    b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>';
     b.title='Husets krönika';
     return;
   }
   b.classList.add('har');
   /* 'bell' även här — 'bell-ringing' finns inte i ikonuppsättningen och hade
      gett en tom ruta. Färgen och siffran bär tillståndet i stället. */
-  b.innerHTML='<span class="en-cmp-ic">'+icon('bell')+'</span>'
+  b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>'
     +'<span class="en-notis-n">'+o.length+'</span>';
   b.title=o.length===1
     ? ('Ny krönika: '+kronNamn(o[0].period))
@@ -9073,7 +9083,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v365';
+const APP_VERSION='v366';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -9815,7 +9825,12 @@ async function load(){
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
   render();tickRel();setT('foot-src',footKalla());footVia();
-  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();try{kronDjupLank();}catch(e){}zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
+  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
+    /* Krönikelistan hämtas HÄR, inte bara när Insikter ritas. Notisknappen sitter
+       i toppraden på startsidan, och utan det här stod den tom tills man råkat
+       öppna Insikter en gång. */
+    try{kronLista().then(function(){try{krNotisUppdatera();}catch(e){}});}catch(e){}
+    try{kronDjupLank();}catch(e){}zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
 }
 
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.tab)));
