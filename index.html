@@ -5182,6 +5182,29 @@ function kronDjupLank(){
   }catch(e){}
   return true;}
 var _kronDjup=false;
+/* Ser efter om något nytt skrivits. Krönikan ändras normalt två gånger i
+   månaden, men "Skriv om" kan köras när som helst — och då ska knappen
+   uppdateras utan att man startar om.
+
+   Fem minuter i bakgrunden, och genast när man tar upp telefonen igen: det är
+   då man faktiskt tittar, och ett anrop per uppvaknande är billigt. */
+var KRON_KOLL=5*60000;
+async function kronKoll(force){
+  if(!appKan())return;
+  if(document.hidden&&!force)return;
+  if(!force&&_kron&&Date.now()-_kronAt<KRON_KOLL)return;
+  var fore=_kron?JSON.stringify(_kron.manader||[])+JSON.stringify(_kron.ar||[]):'';
+  var j=await kronLista(true);
+  if(!j)return;
+  var efter=JSON.stringify(j.manader||[])+JSON.stringify(j.ar||[]);
+  /* Rita om Insikter bara när något faktiskt ändrats — annars rycker vyn till
+     var femte minut medan man läser. */
+  if(efter!==fore){
+    try{
+      var v=$('view-insikter');
+      if(v&&v.classList&&!v.classList.contains('hidden'))renderInsikter();
+    }catch(e){}
+  }}
 async function kronLista(force){
   if(!force&&_kron&&Date.now()-_kronAt<10*60000)return _kron;
   try{
@@ -9083,7 +9106,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v366';
+const APP_VERSION='v367';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10358,6 +10381,18 @@ if(typeof refreshFeeds==='function'){refreshFeeds();setInterval(refreshFeeds,30*
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',applyKiosk);
 if(typeof window!=='undefined'&&window.visualViewport&&window.visualViewport.addEventListener)window.visualViewport.addEventListener('resize',function(){try{fitScreen();}catch(e){}});
 _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);setInterval(tickRel,1000);
+/* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
+   sekund och det vore fyrtio gånger fler anrop än nödvändigt. */
+setInterval(function(){try{kronKoll();}catch(e){}},60000);
+try{
+  document.addEventListener('visibilitychange',function(){
+    if(!document.hidden){
+      /* Tillbaka i förgrunden: kolla direkt, men inte oftare än en gång i
+         minuten om man växlar app fram och tillbaka. */
+      if(!_kron||Date.now()-_kronAt>60000)try{kronKoll(true);}catch(e){}
+    }
+  });
+}catch(e){}
 /* ===== Auto-omladdning när filen bytts på USB ===== */
 let _selfSig=null;
 function fileSig(txt){let h=5381;for(let i=0;i<txt.length;i+=751){h=((h<<5)+h+txt.charCodeAt(i))|0;}return txt.length+':'+((h>>>0).toString(36));}
