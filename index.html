@@ -420,10 +420,12 @@ body.mobile:not(.kiosk) .view>.panel.statusbar.stuck{
    gap:8 för att stämma med de andra reglerna — 10 här och 8 där gav olika
    mellanrum beroende på vilken vy man tittade i. */
 .statusbar .en-top{margin-left:0;width:100%;align-self:center;flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-start}
-/* margin-left:auto flyttat till notisknappen. Låg det här delades överskottet
-   mellan notisen och live, och det uppstod en lucka mellan dem. */
-.statusbar .en-top #en-notis{margin-left:auto}
-.statusbar .en-top #en-status,.statusbar .en-top #en-status-c,.statusbar .en-top #en-status-i{margin-left:0}
+/* margin-left:auto på NOTISKNAPPEN, inte på live. Låg det på live delades
+   överskottet mellan de två och det uppstod en lucka mitt emellan.
+   Klassväljare i stället för id: varje vy har sin egen uppsättning knappar, och
+   en lista med id:n glöms bort så fort en vy tillkommer. */
+.statusbar .en-top .en-notis{margin-left:auto}
+.statusbar .en-top .en-status{margin-left:0}
 /* spotpris + rekommendation, längst till höger i förbrukning-nu-rutan */
 .en-spot{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .en-spot{gap:8px}
@@ -1319,15 +1321,11 @@ body.tabprev{padding:0;overflow:hidden}
    notisen och live hade 8. Nu bär gap allt, så alla mellanrum är lika. */
 .en-top .en-cmp{margin-left:0}
 /* Notisen och live hålls ihop till höger; luften hamnar till vänster om dem. */
-.en-top #en-notis{margin-left:auto}
-/* margin-left:auto sitter redan på #en-status (och dess syskon i de andra
-   vyerna). Med auto på BÅDE notisen och live delas överskottet mellan dem, och
-   det blev en lucka mitt emellan. Notisen ska bära luften; live följer direkt
-   efter. */
-.en-top #en-status,
-.en-top #en-status-c,
-.en-top #en-status-i,
-.en-top #en-status-v{flex:0 0 auto;margin-left:0}
+
+/* Notisen bär luften; live följer direkt efter. Klassväljare så att alla fyra
+   vyerna beter sig lika utan att någon lista behöver hållas i synk. */
+.en-top .en-notis{margin-left:auto}
+.en-top .en-status{flex:0 0 auto;margin-left:0}
 .en-chip{gap:var(--ch-gap,11px)}
 .kiosk .en-chip{gap:var(--ch-gap,9px)}
 .wx-hl{align-self:center}
@@ -1386,7 +1384,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     display:inline-flex;align-items:center;justify-content:center}
   body:not(.kiosk) .en-hem .en-cmp-ic{width:18px;height:18px;margin:0}
   /* Live-läget: bara en prick, grön när det är live och röd/gul annars */
-  body:not(.kiosk) .statusbar #en-notis{margin-left:auto!important}
+  body:not(.kiosk) .statusbar .en-notis{margin-left:auto!important}
   body:not(.kiosk) .statusbar .en-status{margin-left:0!important;flex:0 0 auto;padding:0;border:0;background:none;
     width:24px;height:34px;display:inline-flex;align-items:center;justify-content:center}
   body:not(.kiosk) .statusbar .en-status>button,
@@ -1752,21 +1750,21 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 
   <section class="view hidden" id="view-jamfor">
     <section class="panel statusbar" data-sec="status" id="cmp-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-c" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp active" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><div class="en-status en-cmp en-status-btn" id="en-status-c"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-c"></span><span id="status-text-c">live</span><span class="rel" id="rel-c"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-c" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp active" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-c" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-c"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-c"></span><span id="status-text-c">live</span><span class="rel" id="rel-c"></span></div></div>
     </section>
     <div id="cmp-body"></div>
   </section>
 
   <section class="view hidden" id="view-insikter">
     <section class="panel statusbar" data-sec="status" id="ins-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-i" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp active" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><div class="en-status en-cmp en-status-btn" id="en-status-i"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-i"></span><span id="status-text-i">live</span><span class="rel" id="rel-i"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-i" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp active" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-i" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-i"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-i"></span><span id="status-text-i">live</span><span class="rel" id="rel-i"></span></div></div>
     </section>
     <div id="ins-body"></div>
   </section>
 
   <section class="view hidden" id="view-vader">
     <section class="panel statusbar" data-sec="status" id="vdr-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-v" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp active" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><div class="en-status en-cmp en-status-btn" id="en-status-v"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-v">live</span><span class="rel" id="rel-v"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-v" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp active" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-v" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-v"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-v">live</span><span class="rel" id="rel-v"></span></div></div>
     </section>
     <div id="vdr-body"></div>
   </section>
@@ -5129,9 +5127,15 @@ function krOlasta(){
   var alla=(_kron.ar||[]).concat(_kron.manader||[]);
   return alla.filter(kronArNy).sort(function(a,b){
     return (a.raknad_at||0)-(b.raknad_at||0);});}
+/* Fyra vyer, fyra toppar. Varje vy har sin egen uppsättning knappar i
+   uppmärkningen, så knappen måste uppdateras i alla — annars stämmer antalet
+   bara på den sida man råkade vara på när texten kom. */
+var KRON_KNAPPAR=['en-notis','en-notis-c','en-notis-i','en-notis-v'];
 function krNotisUppdatera(){
-  var b=$('en-notis');if(!b)return;
   var o=krOlasta();
+  KRON_KNAPPAR.forEach(function(id){krNotisEn($(id),o);});}
+function krNotisEn(b,o){
+  if(!b)return;
   /* icon() ger tom sträng innan ikonuppsättningen initierats. Skrivs knappen
      över DÅ försvinner klockan, och den kommer inte tillbaka förrän något ritar
      om — precis det som gav en tom ring på startsidan. Behåll det som redan
@@ -9158,7 +9162,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v370';
+const APP_VERSION='v371';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
