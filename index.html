@@ -266,11 +266,26 @@ body.kiosk{--pg-gap:7px}
 .price-now .unit{font-size:13px;color:var(--dim);font-weight:600}
 .verdict{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid transparent}
 .verdict .ic{width:15px;height:15px}
-.v-good{background:rgba(166,227,161,.14);color:var(--ok-t);border-color:rgba(166,227,161,.32)}
-.v-mid{background:rgba(250,179,135,.14);color:var(--warm-t);border-color:rgba(250,179,135,.32)}
-.v-bad{background:rgba(243,139,168,.14);color:var(--hot-t);border-color:rgba(243,139,168,.34)}
+/* Brickorna låg i Catppuccin-toner medan resten av sidan är Nord. Skillnaden
+   syntes tydligast bredvid skalorna, som de sitter intill. */
+.v-good{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok-t);
+  border-color:color-mix(in srgb,var(--ok) 34%,transparent)}
+.v-mid{background:color-mix(in srgb,var(--gold) 14%,transparent);color:var(--warm-t);
+  border-color:color-mix(in srgb,var(--gold) 34%,transparent)}
+.v-bad{background:color-mix(in srgb,var(--hot) 14%,transparent);color:var(--hot-t);
+  border-color:color-mix(in srgb,var(--hot) 36%,transparent)}
 .tide{margin-top:18px}
-.tide-track{position:relative;height:10px;border-radius:6px;background:linear-gradient(90deg,#3fb950 0%,#8bc34a 28%,#e6c020 52%,#e8983a 74%,#e0524e 100%);opacity:.95}
+/* Spotprisets skala. Färgerna var hårdkodade i en helt annan palett — GitHubs
+   gröna och en tegelröd — och skrek mot Nord-tonerna i resten av sidan. Nu
+   byggs den av temats egna variabler, vilket också gör att den följer med när
+   man byter mellan mörkt och ljust i stället för att sitta kvar. */
+.tide-track{position:relative;height:10px;border-radius:6px;opacity:.95;
+  background:linear-gradient(90deg,
+    var(--ok) 0%,
+    color-mix(in srgb,var(--ok) 55%,var(--gold)) 28%,
+    var(--gold) 52%,
+    color-mix(in srgb,var(--gold) 45%,var(--hot)) 74%,
+    var(--hot) 100%)}
 .tide-marker{position:absolute;top:50%;width:3px;height:24px;background:var(--ink);border-radius:2px;transform:translate(-50%,-50%);box-shadow:0 0 0 4px var(--marker-ring),0 0 14px 2px rgba(120,120,160,.4);transition:left .8s cubic-bezier(.2,.7,.2,1)}
 .tide-scale{display:flex;justify-content:space-between;margin-top:9px;font-size:11.5px;color:var(--dim);font-weight:500}
 .tide-scale b{color:var(--ink);font-weight:700}
@@ -1154,7 +1169,15 @@ body{--tl-ic-b:34px;--tl-v-b:27px;--tl-name-b:11px;--tl-desc-b:11px;--ch-ic-b:28
 .tide-price .big,.tide-price #price{font-size:calc(15px*var(--spnum,1));font-weight:850;letter-spacing:-.02em;line-height:1;color:var(--pc,var(--ink))}
 /* Köpt/sålt-slide: spåret delas köpt|sålt vid proportionen; beloppen rider på var sin sida. */
 .ks-track{position:relative;width:100%;height:calc(8px*var(--ksscale,1));border-radius:6px;
-  background:linear-gradient(90deg,#e8843a 0%,#e0a24a 30%,#c9b84a 50%,#8bc34a 72%,#3fb950 100%);opacity:.95}
+  opacity:.95;
+  /* Köpt till vänster, sålt till höger — alltså omvänd riktning mot spotpriset.
+     Samma tre färger, så de två skalorna läses med samma ögon. */
+  background:linear-gradient(90deg,
+    var(--hot) 0%,
+    color-mix(in srgb,var(--hot) 45%,var(--gold)) 30%,
+    var(--gold) 50%,
+    color-mix(in srgb,var(--gold) 45%,var(--ok)) 72%,
+    var(--ok) 100%)}
 .ks-split{position:absolute;top:50%;width:2.5px;height:calc(16px*var(--ksscale,1));background:var(--ink);border-radius:2px;
   transform:translate(-50%,-50%);box-shadow:0 0 0 3px var(--marker-ring),0 0 10px 1px rgba(120,120,160,.35);transition:left .8s cubic-bezier(.2,.7,.2,1)}
 .ks-chip{position:absolute;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:baseline;gap:3px;
@@ -8831,7 +8854,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v356';
+const APP_VERSION='v357';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -10007,7 +10030,11 @@ applySecOrder();
 
 (function(){const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;})();
 function lpAttach(el){if(!el)return;el.addEventListener('pointerdown',lpDown);el.addEventListener('pointermove',lpMove);el.addEventListener('pointerup',lpUp);el.addEventListener('pointerleave',lpUp);el.addEventListener('pointercancel',lpUp);}
-lpAttach($('stats-flode'));lpAttach($('stats-energy'));lpAttach($('weather-flow'));lpAttach($('controls'));
+/* stats-weather saknades här. Rutorna ritades som alla andra och redigeringen
+   fanns, men långtrycket kopplades aldrig — de tre väderrutorna gick alltså
+   inte att komma åt, och glowet inte att stänga av. */
+lpAttach($('stats-flode'));lpAttach($('stats-energy'));lpAttach($('stats-weather'));
+lpAttach($('weather-flow'));lpAttach($('controls'));
 (function(){const wf=$('weather-flow');if(!wf||!wf.addEventListener)return;let t=null,sx=0,sy=0,blk=null;
   const dn=e=>{const tt=e.target&&e.target.closest&&e.target.closest('[data-wxedit]');if(!tt)return;blk=tt.getAttribute('data-wxedit');
     const p=(e.touches&&e.touches[0])||e;sx=p.clientX||0;sy=p.clientY||0;clearTimeout(t);
