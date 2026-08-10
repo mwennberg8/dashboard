@@ -8831,7 +8831,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v355';
+const APP_VERSION='v356';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   spot:{num:0,slide:0,scale:0,box:0,end:0,endWhite:false},ks:{num:0,slide:0,scale:0,box:0,per:'month'},
@@ -9045,6 +9045,11 @@ function openConfig(){
       +(document.body.classList.contains('kiosk')?'platta':'mobil')+'</span></div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Enheter</span><span class="cfg-num">'
       +Object.keys(DATA||{}).length+'</span></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Offlinestöd</span><span class="cfg-num">'
+      +esc(swLage())+'</span></div>';
+    if(swLage()!=='aktiv')h+='<div class="cfg-hint" style="margin-top:6px">'
+      +'Utan offlinestöd måste sidan hämtas från nätet varje gång. Kräver att '
+      +'<code>sw.js</code> ligger bredvid <code>index.html</code>, och https.</div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Uppdateringar</span><span class="cfg-num">var '
       +(CONFIG.REFRESH_SECONDS||15)+' s</span></div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Ikoner: Phosphor Icons (MIT).</div>';
@@ -9640,6 +9645,9 @@ initIcons();applyKiosk();loadHist();
 try{document.addEventListener('fullscreenchange',fsSync);document.addEventListener('webkitfullscreenchange',fsSync);}catch(e){}
 try{if(CFG.autoFull)armAutoFull();}catch(e){}
 try{syncThemeColor();pwaMakeMaskable();stickyBars();applyMobGap();lasPortratt();}catch(e){}
+/* Eget try-block: låg den med de andra hoppades den över så fort någon av dem
+   föll, och offlinestödet uteblev utan att något sade varför. */
+try{swStarta();}catch(e){_swLage='fel vid start: '+((e&&e.message)||e);}
 /* App-läge: markera när dashboarden körs installerad (standalone) och fånga install-prompten. */
 var _deferredInstall=null;
 try{
@@ -10081,6 +10089,40 @@ _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);setInterval(ti
 /* ===== Auto-omladdning när filen bytts på USB ===== */
 let _selfSig=null;
 function fileSig(txt){let h=5381;for(let i=0;i<txt.length;i+=751){h=((h<<5)+h+txt.charCodeAt(i))|0;}return txt.length+':'+((h>>>0).toString(36));}
+/* ===== Service worker =====
+   Registreras bara där den kan göra nytta: på https, utanför demoläget och
+   utanför en iframe. Misslyckas den händer ingenting — sidan fungerar precis
+   som förut, bara utan offlinestöd. Därför inget larm om den uteblir.
+
+   sw.js hämtas alltid färskt (updateViaCache:'none'). Annars kan en gammal
+   service worker ligga kvar i webbläsarens egen cache i timmar och fortsätta
+   servera det den tycker. */
+/* Ingen initial tilldelning här: den här raden ligger EFTER startanropet i
+   filen, och `var` hoistar deklarationen men inte värdet. En tilldelning skulle
+   alltså köras efteråt och skriva över det swStarta() just satt — läget såg då
+   alltid ut att vara "inte försökt". */
+var _swLage;
+function swLage(){return _swLage||'inte försökt';}
+function swStarta(){
+  try{
+    /* Protokollet först. Chrome exponerar navigator.serviceWorker även på http
+       och låter registreringen falla — "stöds inte" hade då varit fel svar på
+       rätt fråga. Det är https som saknas, inte stödet. */
+    if(location.protocol!=='https:'&&location.hostname!=='localhost')
+      {_swLage='kräver https – sidan körs över '+location.protocol.replace(':','');return;}
+    if(!('serviceWorker' in navigator))
+      {_swLage='stöds inte i den här webbläsaren';return;}
+    if(window.self!==window.top)
+      {_swLage='körs i en ram';return;}
+    _swLage='registrerar…';
+    navigator.serviceWorker.register('sw.js',{scope:'./',updateViaCache:'none'})
+      .then(function(r){
+        _swLage='aktiv';
+        /* Leta efter en ny version varje gång sidan öppnas. */
+        try{r.update();}catch(e){}
+      })
+      .catch(function(e){_swLage='misslyckades: '+((e&&e.message)||e);});
+  }catch(e){_swLage='fel: '+((e&&e.message)||e);}}
 async function checkForUpdate(){try{
   if(CFG.autoreload===false)return;
   if(typeof location==='undefined'||!location.href||location.href.indexOf('http')!==0)return;
