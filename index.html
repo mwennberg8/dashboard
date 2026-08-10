@@ -1053,18 +1053,6 @@ body{--solar:#ffc21f;--glowmul:1}
 .chip-st{position:absolute;top:7px;right:9px;width:14px;height:14px;display:inline-flex}.chip-st .ic{width:100%;height:100%}
 /* status i energi-rutan */
 .en-status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);flex:0 0 auto}
-/* Smal skärm: knapparna krymper till ikoner i stället för att live-indikatorn
-   kastas ner på egen rad. Fyra knappar plus notis och live ryms inte med text
-   på 412 px, och en rad som bryts läser man som två olika saker. */
-@media (max-width:560px){
-  .en-top .en-cmp{padding:6px 9px;gap:4px}
-  .en-top .en-cmp.en-hem,
-  .en-top .en-cmp:not(.en-notis):not(.en-hem){font-size:0;padding:6px 8px}
-  .en-top .en-cmp .en-cmp-ic{font-size:12px}
-  .en-top .en-notis{font-size:11px}
-  .en-top #ds-livebtn{font-size:0;padding:0;margin:0}
-  .en-top #status-text{font-size:10px}
-}
 /* live-indikatorn i samma pill-stil som Insikter/Jämför */
 .en-status-btn{position:relative;border:1px solid rgba(129,161,193,.28);background:rgba(129,161,193,.16);padding:6px 11px;border-radius:999px;gap:6px}
 .en-hem{cursor:pointer}
@@ -1679,6 +1667,29 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .syn-hl{font-size:32px;font-weight:900;letter-spacing:-.02em}
 .syn-hlv{font-size:11px;font-weight:850;letter-spacing:.02em}
 .syn-hlp{font-size:12px;font-weight:850;fill:#1b2733;paint-order:stroke;stroke:#fff;stroke-width:3.5px;stroke-linejoin:round}
+
+/* SIST i stilmallen med flit: mediefrågor ger ingen extra specificitet, så
+   en senare regel med samma specificitet vinner ändå. Låg det här högre upp
+   skrevs det över av body.mobile .en-top längre ner. */
+/* Smal skärm: dra ihop mellanrum och innerkanter i stället för att dölja
+   knappnamnen. Uppmätt på riktigt — med de här måtten ryms hela raden med text
+   ner till 360 px, och namnen är mer värda än några pixlars luft. */
+@media (max-width:480px){
+  .en-top,.statusbar .en-top,body.mobile .en-top{gap:5px}
+  .en-top .en-cmp{padding:6px 9px;gap:4px;font-size:11.5px}
+  .en-top .en-status-btn{padding:6px 9px;gap:5px}
+  .en-top #status-text{letter-spacing:.03em}
+}
+/* Under 380 px räcker inte utrymmet ens med minsta luft. Då klipps texten
+   INNE i sin egen pill i stället för att lägga sig över grannen — det såg ut
+   som att knapparna satt i varandra. */
+@media (max-width:380px){
+  .en-top .en-cmp{overflow:hidden;text-overflow:ellipsis}
+  .en-top,.statusbar .en-top,body.mobile .en-top{gap:4px}
+  .en-top .en-cmp{padding:5px 7px;gap:3px;font-size:11px}
+  .en-top .en-cmp-ic{width:13px;height:13px}
+  .en-top .en-status-btn{padding:5px 8px}
+}
 </style>
 </head>
 <body>
@@ -9147,7 +9158,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v369';
+const APP_VERSION='v370';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
