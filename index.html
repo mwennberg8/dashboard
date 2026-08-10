@@ -634,15 +634,22 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .eff-b i{display:block;height:100%;background:var(--blue);border-radius:99px}
 .eff-w{flex:0 0 auto;font-size:13px;font-weight:800;white-space:nowrap;min-width:56px;text-align:right}
 .eff-k{flex:0 0 auto;font-size:10.5px;color:var(--faint);white-space:nowrap;min-width:56px;text-align:right}
-.en-notis{flex:0 0 auto;display:inline-flex;align-items:center;gap:4px;
-  padding:5px 9px;margin-right:7px;border:1px solid var(--line);border-radius:999px;
-  background:var(--inset);color:var(--gold);cursor:pointer;line-height:1}
-.en-notis .ic{width:15px;height:15px}
-.en-notis-n{font-size:10.5px;font-weight:850;color:var(--gold)}
-.en-notis[hidden]{display:none}
+/* Ärver en-cmp: samma pillform, kantfärg och storlek som Insikter, Jämför och
+   live-indikatorn. Bara innehållet och tillståndsfärgen skiljer. */
+.en-notis{padding:6px 10px;gap:5px}
+.en-notis .en-cmp-ic{width:15px;height:15px}
+/* Med olästa byter den till guld — samma sätt som resten av dashboarden
+   markerar "något att göra". */
+/* Fast rgba, inte color-mix — grannknapparna (.en-cmp, .en-status-btn) använder
+   samma mönster med rgba(129,161,193,…), och det här är samma sak i guld.
+   Dessutom tolkas color-mix inte av alla verktyg, vilket gör regeln svår att
+   kontrollera. */
+.en-notis.har{border-color:rgba(235,203,139,.42);
+  background:rgba(235,203,139,.16);color:var(--gold)}
+.en-notis-n{font-size:11px;font-weight:850;line-height:1;font-variant-numeric:tabular-nums}
 /* Pulsen drar blicken en gång i minuten i stället för att blinka — en ikon som
    blinkar oavbrutet blir en sak man slutar se. */
-.en-notis.puls{animation:notispuls 4s ease-in-out infinite}
+.en-notis.har.puls{animation:notispuls 4s ease-in-out infinite}
 @keyframes notispuls{0%,88%,100%{box-shadow:0 0 0 0 transparent}
   92%{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 26%,transparent)}}
 .kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
@@ -1274,7 +1281,11 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .wx{gap:9px}
 .kiosk .wx-temp{font-size:25px}
 .kiosk .wx-compass{width:64px;height:64px}.kiosk .wx-arrow{width:38px;height:38px}.kiosk .wx-hl-v{font-size:16px}
-.kiosk .pband{flex:0 0 auto;padding:10px 15px 8px;margin:0;min-height:64px;display:flex;flex-direction:column;justify-content:center}
+/* min-height är BORTTAGET. Det låste rutan vid 64 px och gjorde att inget hände
+   när man drog storleken under noll — höjden räknades ut men golvet vann.
+   Höjden styrs av --spbox, och overflow:hidden håller innehållet innanför. */
+.kiosk .pband{flex:0 0 auto;padding:10px 15px 8px;margin:0;display:flex;flex-direction:column;justify-content:center}
+.kiosk .pband-slim{padding:0 15px}
 .kiosk .pband .price-now .big{font-size:24px}
 .kiosk .pband .tide{margin-top:0}
 .kiosk .stats{flex:0 0 auto;margin:0;gap:var(--pg-gap)}
@@ -1644,7 +1655,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   <section class="view" id="view-flode">
 
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-notis" id="en-notis" onclick="krNotisTryck()" title="Ny krönika att läsa" hidden></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="krNotisTryck()" title="Krönikan"></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -5078,19 +5089,38 @@ function krOlasta(){
 function krNotisUppdatera(){
   var b=$('en-notis');if(!b)return;
   var o=krOlasta();
-  if(!o.length){b.hidden=true;b.classList.remove('puls');return;}
-  b.hidden=false;
-  b.innerHTML='<span class="ic">'+icon('bell')+'</span>'
-    +(o.length>1?('<span class="en-notis-n">'+o.length+'</span>'):'');
+  /* Klockan finns ALLTID. Utan olästa är den bara en väg in till krönikan;
+     en knapp som försvinner och dyker upp gör toppraden rastlös, och man
+     lär sig aldrig var den sitter. */
+  if(!o.length){
+    b.classList.remove('har','puls');
+    b.innerHTML='<span class="en-cmp-ic">'+icon('bell')+'</span>';
+    b.title='Husets krönika';
+    return;
+  }
+  b.classList.add('har');
+  /* 'bell' även här — 'bell-ringing' finns inte i ikonuppsättningen och hade
+     gett en tom ruta. Färgen och siffran bär tillståndet i stället. */
+  b.innerHTML='<span class="en-cmp-ic">'+icon('bell')+'</span>'
+    +'<span class="en-notis-n">'+o.length+'</span>';
   b.title=o.length===1
     ? ('Ny krönika: '+kronNamn(o[0].period))
     : (o.length+' olästa krönikor — äldsta: '+kronNamn(o[0].period));
   /* Plattan sitter på väggen och ingen står framför den när texten skrivs.
-     Där räcker det att ikonen finns; den behöver inte dra blicken till sig. */
+     Där räcker det att märket syns; det behöver inte dra blicken till sig. */
   b.classList.toggle('puls',!IS_SAMSUNG_TABLET);}
 function krNotisTryck(){
   var o=krOlasta();
-  if(!o.length)return;
+  /* Utan olästa: öppna krönikan ändå. Knappen finns alltid, och en knapp som
+     inte gör något när man trycker känns trasig. */
+  if(!o.length){
+    try{openInsikter();}catch(e){}
+    setTimeout(function(){
+      try{var el=document.querySelector('.kr-r.kr-y');
+        if(el&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+    },260);
+    return;
+  }
   _kronVald=o[0].period;
   _kronArState=_kronArState||{};
   _kronArState[String(o[0].period).slice(0,4)]=1;   /* året måste vara öppet */
@@ -9043,7 +9073,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v363';
+const APP_VERSION='v365';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10215,7 +10245,15 @@ function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;
        stanger vinkallaren ligger "Ordna avsnitt" oppen bakom. */
     if(tgt.closest('[data-slot]')||tgt.closest('.ctl')||tgt.closest('#house-hero')||tgt.closest('#daystrip')||tgt.closest('#en-status')||tgt.closest('[data-wxedit]'))return;
     const se=tgt.closest('[data-sec]');if(!se)return;sec=se.getAttribute('data-sec');
-    t=setTimeout(()=>{t=null;_suppressClick=true;if(typeof setTimeout==='function')setTimeout(()=>{_suppressClick=false;},700);if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}openSecMove(sec);},600);};
+    t=setTimeout(()=>{t=null;_suppressClick=true;
+      if(typeof setTimeout==='function')setTimeout(()=>{_suppressClick=false;},700);
+      if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+      /* Spotpris och köpt/sålt har egna storleksrutor. Håller man inne DÄR vill
+         man justera just den rutan — inte flytta hela avsnittet. "Ordna avsnitt"
+         nås i stället via Hem-knappens inställningar, där den hör hemma. */
+      if(sec==='spot'){openSpotEdit();return;}
+      if(sec==='kopt-salt'){openKsEdit();return;}
+      openSecMove(sec);},600);};
   const cancel=()=>{if(t){clearTimeout(t);t=null;}};
   view.addEventListener('pointerdown',dn);view.addEventListener('pointerup',cancel);view.addEventListener('pointermove',cancel);view.addEventListener('pointerleave',cancel);view.addEventListener('pointercancel',cancel);})();
 applySecOrder();
