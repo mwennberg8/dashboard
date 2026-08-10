@@ -416,8 +416,14 @@ body.mobile:not(.kiosk) .view>.panel.statusbar.stuck{
   padding-left:max(16px,env(safe-area-inset-left));
   padding-right:max(16px,env(safe-area-inset-right));
   box-shadow:inset 0 1px 0 var(--panel-inset),0 8px 20px -6px rgba(0,0,0,.45)}
-.statusbar .en-top{margin-left:0;width:100%;align-self:center;flex-direction:row;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-start}
-.statusbar .en-top #en-status,.statusbar .en-top #en-status-c,.statusbar .en-top #en-status-i{margin-left:auto}
+/* nowrap: live-indikatorn ska aldrig hamna på egen rad under knapparna.
+   gap:8 för att stämma med de andra reglerna — 10 här och 8 där gav olika
+   mellanrum beroende på vilken vy man tittade i. */
+.statusbar .en-top{margin-left:0;width:100%;align-self:center;flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-start}
+/* margin-left:auto flyttat till notisknappen. Låg det här delades överskottet
+   mellan notisen och live, och det uppstod en lucka mellan dem. */
+.statusbar .en-top #en-notis{margin-left:auto}
+.statusbar .en-top #en-status,.statusbar .en-top #en-status-c,.statusbar .en-top #en-status-i{margin-left:0}
 /* spotpris + rekommendation, längst till höger i förbrukning-nu-rutan */
 .en-spot{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
 .en-spot{gap:8px}
@@ -1046,7 +1052,19 @@ body{--solar:#ffc21f;--glowmul:1}
 .en-chip{position:relative;transition:all .16s,box-shadow .8s ease}
 .chip-st{position:absolute;top:7px;right:9px;width:14px;height:14px;display:inline-flex}.chip-st .ic{width:100%;height:100%}
 /* status i energi-rutan */
-.en-status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dim)}
+.en-status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);flex:0 0 auto}
+/* Smal skärm: knapparna krymper till ikoner i stället för att live-indikatorn
+   kastas ner på egen rad. Fyra knappar plus notis och live ryms inte med text
+   på 412 px, och en rad som bryts läser man som två olika saker. */
+@media (max-width:560px){
+  .en-top .en-cmp{padding:6px 9px;gap:4px}
+  .en-top .en-cmp.en-hem,
+  .en-top .en-cmp:not(.en-notis):not(.en-hem){font-size:0;padding:6px 8px}
+  .en-top .en-cmp .en-cmp-ic{font-size:12px}
+  .en-top .en-notis{font-size:11px}
+  .en-top #ds-livebtn{font-size:0;padding:0;margin:0}
+  .en-top #status-text{font-size:10px}
+}
 /* live-indikatorn i samma pill-stil som Insikter/Jämför */
 .en-status-btn{position:relative;border:1px solid rgba(129,161,193,.28);background:rgba(129,161,193,.16);padding:6px 11px;border-radius:999px;gap:6px}
 .en-hem{cursor:pointer}
@@ -1308,7 +1326,20 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .warns.tick .wi{width:21px;height:21px}
 .kiosk .warns.tick .lvl{font-size:13px}
 /* ===== v38 ===== */
-.en-top{flex-direction:row;align-items:center;gap:10px}
+.en-top{flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap}
+/* margin-left LÄGGS TILL gap:et — knapparna fick 8+8 px mellan sig medan
+   notisen och live hade 8. Nu bär gap allt, så alla mellanrum är lika. */
+.en-top .en-cmp{margin-left:0}
+/* Notisen och live hålls ihop till höger; luften hamnar till vänster om dem. */
+.en-top #en-notis{margin-left:auto}
+/* margin-left:auto sitter redan på #en-status (och dess syskon i de andra
+   vyerna). Med auto på BÅDE notisen och live delas överskottet mellan dem, och
+   det blev en lucka mitt emellan. Notisen ska bära luften; live följer direkt
+   efter. */
+.en-top #en-status,
+.en-top #en-status-c,
+.en-top #en-status-i,
+.en-top #en-status-v{flex:0 0 auto;margin-left:0}
 .en-chip{gap:var(--ch-gap,11px)}
 .kiosk .en-chip{gap:var(--ch-gap,9px)}
 .wx-hl{align-self:center}
@@ -1339,7 +1370,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   body:not(.kiosk) .en-chip-txt{min-width:0}
   body:not(.kiosk) .en-chip-l,body:not(.kiosk) .en-chip-w,body:not(.kiosk) .en-chip-s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
   body:not(.kiosk) .en-kw{font-size:23px}
-  body:not(.kiosk) .en-top{flex-wrap:wrap;justify-content:flex-end}
+  body:not(.kiosk) .en-top{flex-wrap:nowrap;justify-content:flex-end}
   body:not(.kiosk) .wx-temp{font-size:21px}
   body:not(.kiosk) .wx-hl-v{font-size:14px}
   body:not(.kiosk) .wx-now,body:not(.kiosk) .wx-windblock{gap:8px}
@@ -1367,7 +1398,8 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
     display:inline-flex;align-items:center;justify-content:center}
   body:not(.kiosk) .en-hem .en-cmp-ic{width:18px;height:18px;margin:0}
   /* Live-läget: bara en prick, grön när det är live och röd/gul annars */
-  body:not(.kiosk) .statusbar .en-status{margin-left:auto!important;flex:0 0 auto;padding:0;border:0;background:none;
+  body:not(.kiosk) .statusbar #en-notis{margin-left:auto!important}
+  body:not(.kiosk) .statusbar .en-status{margin-left:0!important;flex:0 0 auto;padding:0;border:0;background:none;
     width:24px;height:34px;display:inline-flex;align-items:center;justify-content:center}
   body:not(.kiosk) .statusbar .en-status>button,
   body:not(.kiosk) .statusbar .en-status>span:not(.dot){display:none!important}
@@ -1457,7 +1489,7 @@ body.mobile .en-hero-main{flex:1 1 auto;min-width:0}
 body.mobile .en-house-ic{width:30px;height:30px}
 body.mobile .en-kw{white-space:nowrap;line-height:1.05}
 body.mobile .en-sub{white-space:nowrap;margin-top:2px}
-body.mobile .en-top{width:100%;margin-left:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px;flex-wrap:wrap}
+body.mobile .en-top{width:100%;margin-left:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:nowrap}
 body.mobile .daystrip{padding:12px 16px}
 body.mobile .st3{grid-template-columns:repeat(2,minmax(0,1fr))}
 body.mobile .two{grid-template-columns:1fr}
@@ -5099,6 +5131,17 @@ function krNotisUppdatera(){
     kl=fanns?fanns.innerHTML:'';
     if(!kl){b.classList.toggle('har',!!o.length);return;}
   }
+  /* Väggplattan visar ALDRIG antal eller markering — bara en klocka att trycka
+     på. Den sitter uppsatt i hallen och ingen står framför den när texten
+     skrivs; en markering där blir en påminnelse som aldrig kvitteras av rätt
+     person, och som dessutom lyser mot alla som går förbi.
+     Andra plattor beter sig som telefonen. */
+  if(IS_SAMSUNG_TABLET){
+    b.classList.remove('har','puls');
+    b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>';
+    b.title=o.length?('Husets krönika — '+o.length+' oläst'+(o.length>1?'a':'')):'Husets krönika';
+    return;
+  }
   /* Klockan finns ALLTID. Utan olästa är den bara en väg in till krönikan;
      en knapp som försvinner och dyker upp gör toppraden rastlös, och man
      lär sig aldrig var den sitter. */
@@ -5116,9 +5159,7 @@ function krNotisUppdatera(){
   b.title=o.length===1
     ? ('Ny krönika: '+kronNamn(o[0].period))
     : (o.length+' olästa krönikor — äldsta: '+kronNamn(o[0].period));
-  /* Plattan sitter på väggen och ingen står framför den när texten skrivs.
-     Där räcker det att märket syns; det behöver inte dra blicken till sig. */
-  b.classList.toggle('puls',!IS_SAMSUNG_TABLET);}
+  b.classList.add('puls');}
 function krNotisTryck(){
   var o=krOlasta();
   /* Utan olästa: öppna krönikan ändå. Knappen finns alltid, och en knapp som
@@ -9106,7 +9147,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v367';
+const APP_VERSION='v369';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
