@@ -691,7 +691,16 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .krpop-r b{color:var(--ink);font-weight:800;text-align:right}
 .krpop-t{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
   font-size:11.5px;line-height:1.55;color:var(--faint)}
-.kul{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+/* Underrubrik inne i artikeln — samma familj som rubriken, mindre. */
+.kr-h2{font-size:13px;font-weight:850;letter-spacing:-.005em;margin:2px 0 9px;
+  color:var(--ink)}
+/* Stycke som inleds med en emoji. Samma grepp som höjdpunkterna: tecknet hänger
+   i vänsterkanten och texten linjerar med resten av artikeln. */
+.kr-emo{position:relative;padding-left:27px}
+.kr-emi{position:absolute;left:0;top:1px;width:19px;font-size:14px;
+  color:var(--gold);display:inline-flex}
+.kr-emi .ic{width:16px;height:16px}
+.kul{margin-top:16px;padding-top:13px;border-top:1px solid var(--line)}
 .kul-h{font-size:10px;font-weight:800;color:var(--faint);text-transform:uppercase;
   letter-spacing:.07em;margin-bottom:7px}
 .kul-r{display:flex;align-items:flex-start;gap:9px;padding:5px 0;font-size:12.5px;
@@ -707,13 +716,25 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .not-in{display:flex;align-items:center;gap:11px;padding:11px 2px;cursor:pointer}
 .not-ic{flex:0 0 auto;width:19px;height:19px;color:var(--faint);display:inline-flex}
 .not-ic .ic{width:100%;height:100%}
+/* Oläst syns på FYRA sätt, inte bara på en prick: guldton i bakgrunden, en
+   guldstapel i vänsterkanten, guldfärgad ikon och tjockare rubrik. En 8 px
+   prick längst till höger räckte inte — den försvann bland chevronerna, och på
+   en lång lista var skillnaden mellan fet 700 och 850 knappt synlig. */
+.not-r.ny{background:rgba(235,203,139,.09)}
+.not-r.ny .not-in{border-left:3px solid var(--gold);padding-left:9px;margin-left:-2px}
+.not-r:not(.ny) .not-in{border-left:3px solid transparent;padding-left:9px;margin-left:-2px}
 .not-r.ny .not-ic{color:var(--gold)}
 .not-tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
 .not-h{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.not-r.ny .not-h{font-weight:850}
+.not-r.ny .not-h{font-weight:850;color:var(--ink)}
 .not-s{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .not-p{flex:0 0 auto;display:flex;align-items:center;gap:7px;color:var(--faint);font-size:15px}
-.not-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block}
+.not-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);display:inline-block;
+  box-shadow:0 0 0 3px rgba(235,203,139,.18)}
+/* Läst tonas ned i stället för att bara sakna markering — kontrasten mot de
+   olästa är det som gör dem lätta att hitta. */
+.not-r:not(.ny) .not-h{color:var(--dim)}
+.not-r:not(.ny) .not-ic{opacity:.55}
 .kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:14px 0 4px}
 .kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
@@ -770,15 +791,18 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 /* Brödtext i stycken, som i en artikel. */
 .kr-p{margin:0 0 11px;font-size:13.5px;line-height:1.68;color:var(--dim)}
 .kr-p:last-child{margin-bottom:0}
-/* Höjdpunkt: indragen, med en svag list till vänster så den skiljer sig från
-   brödtexten utan att skrika. */
-.kr-rr{display:flex;align-items:baseline;gap:9px;padding:7px 0 7px 11px;
-  margin:0 0 11px;line-height:1.55;
-  /* rgba, inte color-mix: den senare tolkas inte av alla verktyg och gjorde
-     regeln omöjlig att kontrollera. Samma guldton som resten. */
-  border-left:2px solid rgba(235,203,139,.45)}
-.kr-rri{flex:0 0 20px;text-align:center;font-size:14px;line-height:1.5}
-.kr-rrt{flex:1 1 auto;min-width:0}
+/* Höjdpunkt. Ingen list, ingen ram — den skiljer sig genom att vara något
+   mörkare i tonen och ha sin emoji hängande i vänsterkanten. En rad med streck
+   framför läses som en punktlista, och det var precis vad texten inte skulle
+   vara. */
+.kr-rr{display:block;position:relative;padding:2px 0 2px 27px;margin:0 0 11px;
+  font-size:13.5px;line-height:1.68;color:var(--ink);font-weight:600}
+.kr-rri{position:absolute;left:0;top:2px;width:19px;text-align:left;
+  font-size:14px;line-height:1.55}
+.kr-rrt{display:inline}
+/* Den gamla flex-varianten borttagen. Den låg SENARE i filen och vann över den
+   nya, så emojin fortsatte sitta i en centrerad kolumn — och raden såg ut som
+   en punktlista trots att stilen bytts. */
 .kr-n2{font-weight:800;color:var(--ink)}
 .kr-t.saknas{color:var(--faint);font-style:italic}
 /* Nyss skriven post. Notisen säger bara ATT den finns; markeringen visar VAR. */
@@ -5541,9 +5565,13 @@ function kronKul(o,ar){
 function kronKulHTML(o,ar){
   var l=kronKul(o,ar);
   if(!l.length)return '';
-  var h='<div class="kul"><div class="kul-h">Att sätta i sammanhang</div>';
+  /* Samma uppmärkning som artikelns höjdpunkter, inte ett eget block med ram
+     omkring. Blocket ska läsas som artikelns sista avsnitt — det är där en
+     tidningsartikel brukar sätta talen i perspektiv — och inte som en faktaruta
+     hängd bredvid. */
+  var h='<div class="kul"><div class="kr-h2">Kul fakta</div>';
   l.forEach(function(x){
-    h+='<div class="kul-r"><span class="kul-i">'+icon(x.ik)+'</span><span>'+x.t+'</span></div>';});
+    h+='<p class="kr-p kr-emo"><span class="kr-emi">'+icon(x.ik)+'</span>'+x.t+'</p>';});
   return h+'</div>';}
 /* ===== Popup pa en notisruta =====
    Tryck pa en ruta ger det som ligger bakom talet: hur det raknats fram,
@@ -9712,7 +9740,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v379';
+const APP_VERSION='v380';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
