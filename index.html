@@ -788,9 +788,10 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
    på olika ställen beroende på om tecknet är brett eller smalt. */
 /* Ingressen bär tonen — större, ljusare, lite luft under. */
 .kr-ing{margin:0 0 12px;font-size:14.5px;line-height:1.6;color:var(--ink);font-weight:650}
-/* Brödtext i stycken, som i en artikel. */
-.kr-p{margin:0 0 11px;font-size:13.5px;line-height:1.68;color:var(--dim)}
-.kr-p:last-child{margin-bottom:0}
+/* Brödtext i stycken, som i en artikel. Heter kr-txt eftersom kr-p redan var
+   upptagen av listans chevron — en namnkrock som gav 12 px breda stycken. */
+.kr-txt{margin:0 0 11px;font-size:13.5px;line-height:1.68;color:var(--dim)}
+.kr-txt:last-child{margin-bottom:0}
 /* Höjdpunkt. Ingen list, ingen ram — den skiljer sig genom att vara något
    mörkare i tonen och ha sin emoji hängande i vänsterkanten. En rad med streck
    framför läses som en punktlista, och det var precis vad texten inte skulle
@@ -5476,7 +5477,10 @@ function kronRapport(txt){
         +'<span class="kr-rrt">'+kronTal(esc(txt2))+'</span></div>';
       return;
     }
-    h+='<p class="kr-p">'+kronTal(esc(txt2))+'</p>';
+    /* kr-txt, INTE kr-p: den klassen var redan tagen av chevronen i
+       krönikelistan, som är 12 px bred. Stycket ärvde bredden och bröt ett ord
+       per rad. */
+    h+='<p class="kr-txt">'+kronTal(esc(txt2))+'</p>';
   });
   return h+'</div>';}
 
@@ -5571,7 +5575,7 @@ function kronKulHTML(o,ar){
      hängd bredvid. */
   var h='<div class="kul"><div class="kr-h2">Kul fakta</div>';
   l.forEach(function(x){
-    h+='<p class="kr-p kr-emo"><span class="kr-emi">'+icon(x.ik)+'</span>'+x.t+'</p>';});
+    h+='<p class="kr-txt kr-emo"><span class="kr-emi">'+icon(x.ik)+'</span>'+x.t+'</p>';});
   return h+'</div>';}
 /* ===== Popup pa en notisruta =====
    Tryck pa en ruta ger det som ligger bakom talet: hur det raknats fram,
@@ -6938,6 +6942,149 @@ function selfData(){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw
   const si=Math.max(0,Math.min(sW,(hW||0)-gi-bi)); /* taket: aldrig mer sol än panelerna ger */
   const of=(hW&&hW>0)?((si+bi)/hW):(pw!=null&&pw<0?1:0);return {of:Math.max(0,Math.min(1,of)),si,bi,gi,hW};}
 
+/* ===== Nar batteriet tog slut =====
+   Hall koll pa nar husbatteriet natt sitt golv och hur lange det stod dar innan
+   det borjade ladda igen. Talet sager nagot om anlaggningens marginal: ett
+   batteri som star tomt i tolv timmar en januarinatt ar en annan sak an ett som
+   nuddar botten i tjugo minuter.
+
+   INSPELAT LOKALT, inte hamtat: Homey Insights sparar laddningsniva men att
+   leta episoder i efterhand kraver hela serien, och den racker inte bakat.
+   Darfor byggs historiken upp framat fran den dag funktionen slas pa.
+
+   Trosklarna: 'tomt' nar niva <= BT_GOLV, och episoden slutar forst nar den
+   stigit over BT_GOLV+BT_HYST. Hysteresen finns for att en niva som studsar
+   mellan 5 och 6 procent annars hade gett dussintals falska episoder. */
+var BT_KEY='battom_v1', BT_GOLV=6, BT_HYST=3, BT_MAX=200;
+/* SLÅS IHOP vid hämtning i stället för att skrivas över. Väggplattan står på
+   dygnet runt och ser allt; telefonen ser bara det som händer medan den är
+   öppen. Hämtade man plattans kopia rakt av på telefonen — eller värre, sparade
+   telefonens tunna historik tillbaka — försvann episoder utan att någon märkte
+   det. Sammanslagning på starttidpunkt gör ordningen likgiltig. */
+function btSlaIhop(inkommande){
+  try{
+    var ny=JSON.parse(inkommande||'{}');
+    if(!ny||!Array.isArray(ny.ep))return inkommande;
+    var min=btGet();
+    var karta={};
+    min.ep.concat(ny.ep).forEach(function(e){
+      if(!e||!e.start)return;
+      var f=karta[e.start];
+      /* Vid dubbletter vinner den som VET mest: en avslutad episod framför en
+         öppen, och den lägsta uppmätta nivån. */
+      if(!f){karta[e.start]=e;return;}
+      if(e.slut&&!f.slut)f.slut=e.slut;
+      if(e.min!=null&&(f.min==null||e.min<f.min))f.min=e.min;
+    });
+    var ep=Object.keys(karta).map(function(k){return karta[k];})
+      .sort(function(a,b){return a.start-b.start;});
+    var pa=min.pa||ny.pa||null;
+    return JSON.stringify({ep:ep.slice(-BT_MAX),pa:pa});
+  }catch(e){return inkommande;}}
+
+function btGet(){
+  try{var o=JSON.parse(localStorage.getItem(BT_KEY)||'{}');
+    return {ep:Array.isArray(o.ep)?o.ep:[],pa:o.pa||null};}catch(e){return {ep:[],pa:null};}}
+function btSet(o){
+  try{
+    if(o.ep.length>BT_MAX)o.ep=o.ep.slice(-BT_MAX);
+    localStorage.setItem(BT_KEY,JSON.stringify(o));
+  }catch(e){}}
+
+/* Kallas vid varje uppdatering. Gor ingenting om nivan saknas — ett bortfall ar
+   inte samma sak som ett tomt batteri, och att rakna det som det hade gett en
+   falsk episod varje gang Homey tappade kontakten. */
+function btTick(){
+  var n=cap(DEV.battery,'measure_battery');
+  if(n==null||isNaN(n))return;
+  var o=btGet(), nu=Date.now(), andrat=false;
+  if(o.pa){
+    /* Sätt andrat när minvärdet faktiskt sjunker — annars räknades det ut men
+       sparades aldrig, och episoden mindes bara sin första nivå. */
+    if(n<o.pa.min){o.pa.min=n;andrat=true;}
+    if(n>BT_GOLV+BT_HYST){
+      o.pa.slut=nu;
+      o.ep.push(o.pa);
+      o.pa=null;
+      andrat=true;
+    }else if(nu-o.pa.sett>15*60000){o.pa.sett=nu;andrat=true;}
+  }else if(n<=BT_GOLV){
+    o.pa={start:nu,sett:nu,min:n,slut:null};
+    andrat=true;
+  }
+  if(andrat)btSet(o);}
+
+/* Sammanstallning. tim = timmar, inte millisekunder — det ar sa man tanker om
+   det har. */
+function btSum(){
+  var o=btGet(), nu=Date.now();
+  var alla=o.ep.slice();
+  if(o.pa)alla.push({start:o.pa.start,slut:null,min:o.pa.min});
+  var langd=function(e){return ((e.slut||nu)-e.start)/3600000;};
+  var m30=alla.filter(function(e){return (e.slut||nu)>nu-30*86400000;});
+  var tot=0,langst=null;
+  m30.forEach(function(e){var t=langd(e);tot+=t;
+    if(!langst||t>langd(langst))langst=e;});
+  var senast=alla.length?alla[alla.length-1]:null;
+  return {
+    pagar:!!o.pa,
+    nu:o.pa?langd(o.pa):null,
+    senast:senast,
+    senastLangd:senast?langd(senast):null,
+    antal30:m30.length,
+    timmar30:tot,
+    langst:langst,
+    langstLangd:langst?langd(langst):null,
+    alla:alla};}
+
+function btTid(h){
+  if(h==null)return '–';
+  if(h<1)return Math.round(h*60)+' min';
+  if(h<24)return num(h,1)+' h';
+  return num(h/24,1)+' dygn';}
+function btNar(t){
+  if(!t)return '';
+  var d=Math.floor((Date.now()-t)/86400000);
+  if(d<=0)return 'idag';
+  if(d===1)return 'igår';
+  if(d<30)return d+' dagar sedan';
+  try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
+
+/* Popupen. Samma form som notisrutornas — kryss uppe till hoger, stangs vid
+   tryck utanfor. */
+function btPop(){
+  var S=btSum();
+  krPopStang();
+  var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
+    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>Batteriet tomt</div>'
+    +'<div class="krpop-v">'+(S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'))+'</div>'
+    +'<div class="krpop-l">';
+  h+='<div class="krpop-r"><span>Läge</span><b>'+(S.pagar?'Tomt just nu':'Har laddat sedan dess')+'</b></div>';
+  if(S.senast)h+='<div class="krpop-r"><span>'+(S.pagar?'Tomt sedan':'Senast tomt')+'</span><b>'
+    +esc(btNar(S.senast.start))+'</b></div>';
+  h+='<div class="krpop-r"><span>Gånger senaste 30 dygn</span><b>'+S.antal30+'</b></div>';
+  h+='<div class="krpop-r"><span>Total tid tom</span><b>'+btTid(S.timmar30)+'</b></div>';
+  if(S.langst)h+='<div class="krpop-r"><span>Längsta</span><b>'+btTid(S.langstLangd)
+    +' · '+esc(btNar(S.langst.start))+'</b></div>';
+  h+='</div>';
+  if(S.alla.length>1){
+    h+='<div class="krpop-t" style="border-bottom:1px solid var(--line);padding-bottom:9px">'
+      +'<b>Senaste tillfällena</b></div><div class="krpop-l">';
+    S.alla.slice(-5).reverse().forEach(function(e){
+      var t=((e.slut||Date.now())-e.start)/3600000;
+      h+='<div class="krpop-r"><span>'+esc(btNar(e.start))+'</span><b>'+btTid(t)
+        +(e.slut?'':' · pågår')+'</b></div>';});
+    h+='</div>';
+  }
+  h+='<div class="krpop-t">Räknas som tomt vid <b>'+BT_GOLV+' %</b> eller lägre, och som '
+    +'laddat först över <b>'+(BT_GOLV+BT_HYST)+' %</b>. Marginalen finns för att en nivå '
+    +'som studsar kring gränsen annars hade gett dussintals falska tillfällen.<br><br>'
+    +'Historiken byggs upp framåt från den dag dashboarden först såg batteriet — '
+    +'Insights räcker inte bakåt för att leta episoder i efterhand.</div>';
+  h+='</div></div>';
+  var w=document.createElement('div');w.innerHTML=h;
+  document.body.appendChild(w.firstChild);}
 function computeMetric(cfg){
   if(!cfg)return{label:'–',icon:'gauge',v:'–',meta:'',det:null};
   if(cfg.type==='sensor'){const v=cap(cfg.device,cfg.cap),dev=DATA[cfg.device];
@@ -7003,6 +7150,12 @@ function computeMetric(cfg){
     case 'battpow':{const pw=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),bb=cap(DEV.battery,'measure_battery');return {label:'Batterieffekt',icon:battIcon(bb),icc:battIcc(bb,bs),v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),meta:bb==null?'':Math.round(bb)+'%',det:'batt'};}
     case 'battnow':{const pw=cap(DEV.battery,'measure_power'),b=cap(DEV.battery,'measure_battery'),bs=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
       return {label:'Batteri',icon:bs==='charging'?'battery-charging':battIcon(b),icc:battIcc(b,bs),v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt'};}
+    case 'batttom':{const S=btSum();
+      return {label:'Batteriet tomt',icon:'battery-low',
+        icc:S.pagar?'var(--hot)':'var(--faint)',
+        v:S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'),
+        meta:S.pagar?'pågår nu':(S.senast?btNar(S.senast.start):'aldrig sett'),
+        det:'batttom'};}
     case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');return {label:'Elnät',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
     case 'humidity':{const hum=cap(DEV.outdoor,'measure_humidity');return {label:'Luftfuktighet',icon:'drop-half-bottom',v:hum==null?'–':Math.round(hum)+' <small>%</small>',meta:'utomhus',det:'humidity'};}
     case 'seatemp':{const t=(typeof FEED!=='undefined')?FEED.sea:null;return {label:'Badtemp',icon:'waves',v:(t==null?'–':num(t,1)+' <small>°C</small>'),meta:CONFIG.BATH_NAME||'havet',det:'seatemp'};}
@@ -7027,7 +7180,8 @@ const CAT=[
   {type:'computed',key:'krcmp',g:'Pengar'},{type:'computed',key:'krcmp2',g:'Pengar'},
   {type:'computed',key:'cars',g:'Bil & batteri'},{type:'computed',key:'car2',g:'Bil & batteri'},{type:'computed',key:'battpct',g:'Bil & batteri'},{type:'computed',key:'battpow',g:'Bil & batteri'},
   {type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
-  {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'gridnow',g:'Nät'},
+  {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
+  {type:'computed',key:'gridnow',g:'Nät'},
   {type:'sensor',g:'Hus',device:DEV.pooltemp,cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_temperature',label:'Utetemp',icon:'thermometer-simple',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_humidity',label:'Utefukt',icon:'drop-half-bottom',unit:'%',dec:0},
@@ -7918,7 +8072,7 @@ async function homeyTriggerFlow(type,id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOK
   t.clear();if(!r.ok)throw new Error('HTTP '+r.status);return true;}
 
 /* ===== Synk via Homey-logikvariabler (chunkat) ===== */
-const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
+const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','battom_v1','bkp_v1'];
 const SYNC_CHUNK=3500;let _syncMeta=null;
 function apiBase(){return (BASE||(candidates()[0])||CONFIG.HOMEY_URL||'').replace(/\/$/,'');}
 async function logicList(){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
@@ -8924,7 +9078,7 @@ async function appBackupLas(){
     if(SYNC_KEYS.indexOf(k)<0)continue;      /* bara kända nycklar tillbaka */
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(k));
-      if(typeof v==='string'&&v.length){localStorage.setItem(k,v);n++;}
+      if(typeof v==='string'&&v.length){localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(v):v));n++;}
     }catch(e){}
   }
   return n;}
@@ -8969,7 +9123,7 @@ async function fetchFromHomey(){
   let meta;try{meta=JSON.parse(metaRaw);}catch(e){return {applied:false,reason:'trasig meta'};}
   let str='';for(let i=0;i<meta.n;i++){const c=byName[srcVar+'_'+i];if(c==null)return {applied:false,reason:'saknar del '+(i+1)+'/'+meta.n};str+=c;}
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
-  Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);}catch(e){}}});
+  Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(obj[k]):obj[k]));}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
@@ -9074,7 +9228,7 @@ function bkCopy(){const t=$('bk-out');if(t&&t.select)t.select();let ok=false;try
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(backupString());ok=true;}catch(e){}
   const s=$('bk-status');if(s)s.textContent=ok?'Kopierat ✓':'Markera texten och kopiera manuellt.';}
 function doImport(){const t=$('bk-in'),s=$('bk-status');if(!t)return;let obj;try{obj=JSON.parse(t.value);}catch(e){if(s)s.textContent='Ogiltig sträng – kontrollera att du klistrat in hela.';return;}
-  let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);n++;}catch(e){}}});
+  let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(obj[k]):obj[k]));n++;}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;applySecOrder();render();
   if(s)s.textContent='Importerat ✓ ('+n+' nycklar). Layouten är uppdaterad.';}
@@ -9249,6 +9403,7 @@ function lpMove(e){if(!_lp.timer)return;const p=(e.touches&&e.touches[0])||e;if(
 function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
 function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=gridTiles(g)[i];if(!cfg)return;const m=computeMetric(cfg);
+  if(m&&m.det==='batttom'){try{btPop();}catch(e){}return;}
   _tapCfg=cfg;
   if(cfg.type==='computed'){if(m.det)openDetail(m.det);else _tapCfg=null;}
   else if(cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature')openDetail('pool');
@@ -9740,7 +9895,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v380';
+const APP_VERSION='v382';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10076,6 +10231,9 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{yearDataMaybe();}catch(e){}
+  /* Spelas in vid varje uppdatering. Egen try: faller den ska resten av sidan
+     ändå ritas — en insikt är inte värd en tom skärm. */
+  try{if(SOURCE!=='demo-data')btTick();}catch(e){}
   const now=new Date(),tz=-now.getTimezoneOffset(),sc=solar(now,CONFIG.LAT,CONFIG.LON,tz);
   const h=now.getHours()+now.getMinutes()/60;
   applyTheme(sc,h);
