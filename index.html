@@ -660,6 +660,21 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .en-notis.har.puls{animation:notispuls 4s ease-in-out infinite}
 @keyframes notispuls{0%,88%,100%{box-shadow:0 0 0 0 transparent}
   92%{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 26%,transparent)}}
+.not-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:10px 0 4px;font-size:12px;font-weight:750;color:var(--gold)}
+.not-l{display:flex;flex-direction:column}
+.not-r{border-bottom:1px solid var(--line);touch-action:pan-y;will-change:transform}
+.not-r:last-child{border-bottom:0}
+.not-in{display:flex;align-items:center;gap:11px;padding:11px 2px;cursor:pointer}
+.not-ic{flex:0 0 auto;width:19px;height:19px;color:var(--faint);display:inline-flex}
+.not-ic .ic{width:100%;height:100%}
+.not-r.ny .not-ic{color:var(--gold)}
+.not-tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.not-h{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.not-r.ny .not-h{font-weight:850}
+.not-s{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.not-p{flex:0 0 auto;display:flex;align-items:center;gap:7px;color:var(--faint);font-size:15px}
+.not-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block}
 .kr-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:14px 0 4px}
 .kr-r{display:flex;align-items:center;gap:10px;padding:11px 2px;cursor:pointer;
@@ -1276,7 +1291,11 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .daystrip{padding:15px 16px;flex:0 0 auto;margin:0}
 .kiosk .daystrip.scrubbing{padding:12px 16px 30px}
 .kiosk .insight{display:none!important}
-.kiosk .warnwrap{flex:0 0 auto;min-height:0;display:flex;margin:0}
+/* flex-grow 1: krymper man spotpris eller köpt/sålt måste den frigjorda höjden
+   tas upp av något, annars blir det en lucka mot skärmens underkant. Rapporten
+   ligger sist och är den enda ruta som tål att bli högre utan att se konstig ut.
+   --repgrow låter en styra det: 0 = som förr, ligger kvar i sin storlek. */
+.kiosk .warnwrap{flex:var(--repgrow,1) 0 auto;min-height:0;display:flex;margin:0}
 .kiosk .warns.tick{flex:1 1 auto;width:100%;align-items:center}
 .kiosk .warns.tick .wt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .kiosk #view-flode>.panel,.kiosk #view-flode>.grid{flex:0 0 auto}
@@ -1767,6 +1786,13 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
       <div class="en-top"><button class="en-cmp en-hem" id="house-hero-v" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp active" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-v" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-v"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-v">live</span><span class="rel" id="rel-v"></span></div></div>
     </section>
     <div id="vdr-body"></div>
+  </section>
+
+  <section class="view hidden" id="view-notiser">
+    <section class="panel statusbar" data-sec="status" id="not-headpanel">
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-n" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-n2" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-n"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-n">live</span><span class="rel" id="rel-n"></span></div></div>
+    </section>
+    <div id="not-body"></div>
   </section>
 
   <div class="foot"><span id="foot-src">demo-data</span><span id="foot-via"></span></div>
@@ -5127,13 +5153,13 @@ function krOlasta(){
   var alla=(_kron.ar||[]).concat(_kron.manader||[]);
   return alla.filter(kronArNy).sort(function(a,b){
     return (a.raknad_at||0)-(b.raknad_at||0);});}
-/* Fyra vyer, fyra toppar. Varje vy har sin egen uppsättning knappar i
-   uppmärkningen, så knappen måste uppdateras i alla — annars stämmer antalet
-   bara på den sida man råkade vara på när texten kom. */
-var KRON_KNAPPAR=['en-notis','en-notis-c','en-notis-i','en-notis-v'];
+/* Varje vy har sin egen topprad, alltså sin egen notisknapp. Sök upp dem på
+   KLASS i stället för en lista med id:n — den listan missade den femte knappen
+   så fort notisvyn tillkom, och samma sak hade hänt nästa gång. */
 function krNotisUppdatera(){
   var o=krOlasta();
-  KRON_KNAPPAR.forEach(function(id){krNotisEn($(id),o);});}
+  var alla=document.querySelectorAll('.en-notis');
+  Array.prototype.forEach.call(alla,function(b){krNotisEn(b,o);});}
 function krNotisEn(b,o){
   if(!b)return;
   /* icon() ger tom sträng innan ikonuppsättningen initierats. Skrivs knappen
@@ -5176,30 +5202,10 @@ function krNotisEn(b,o){
     : (o.length+' olästa krönikor — äldsta: '+kronNamn(o[0].period));
   b.classList.add('puls');}
 function krNotisTryck(){
-  var o=krOlasta();
-  /* Utan olästa: öppna krönikan ändå. Knappen finns alltid, och en knapp som
-     inte gör något när man trycker känns trasig. */
-  if(!o.length){
-    try{openInsikter();}catch(e){}
-    setTimeout(function(){
-      try{var el=document.querySelector('.kr-r.kr-y');
-        if(el&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
-    },260);
-    return;
-  }
-  _kronVald=o[0].period;
-  _kronArState=_kronArState||{};
-  _kronArState[String(o[0].period).slice(0,4)]=1;   /* året måste vara öppet */
-  kronLastSatt(o[0].period);
-  try{openInsikter();}catch(e){}
-  kronPost(o[0].period).then(function(){
-    try{renderInsikter();}catch(e){}
-    krNotisUppdatera();
-    setTimeout(function(){
-      try{var el=document.querySelector('.kr-r.on');
-        if(el&&el.scrollIntoView)el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
-    },260);
-  });}
+  /* Alltid till listan. Förut hoppade den rakt till den äldsta olästa, vilket
+     var bekvämt med en post men obegripligt med fem — man visste inte vad man
+     hoppat förbi. */
+  try{openNotiser();}catch(e){}}
 
 /* ===== Djuplänk =====
    ?kronika=2026-07 öppnar Insikter med den posten utfälld. Notisen om att
@@ -5218,12 +5224,13 @@ function kronDjupLank(){
     if(m)per=decodeURIComponent(m[1]);
   }
   if(!per||!/^\d{4}(-\d{2})?$/.test(per))return false;
-  _kronVald=per;
   _kronDjup=true;
-  kronLastSatt(per);      /* öppnad via notisen räknas som läst */
-  try{openInsikter();}catch(e){}
+  /* Länken i pushen pekar på en bestämd period — öppna den i notisvyn, som är
+     där man läser dem numera. */
+  try{openNotiser();}catch(e){}
+  try{notOppna(per);}catch(e){}
   kronPost(per).then(function(){
-    try{renderInsikter();}catch(e){}
+    try{renderNotiser();}catch(e){}
     /* Rulla fram kortet — i en lång insiktssida ligger krönikan längst ned. */
     setTimeout(function(){
       try{
@@ -5365,52 +5372,61 @@ function kronTal(t){
     /(\d[\d\s\u00a0]*(?:[.,]\d+)?)\s?(kWh|kW|W|kr|öre|mm|m\/s|°C|°|%|h\b|st\b)/g,
     function(hel,tal,enh){return '<b class="kr-n2">'+tal.trim()+' '+enh+'</b>';});}
 
-function kronRuta(o){
+/* max = hur många rutor som ska visas. Ordningen nedan ÄR prioriteringen:
+   de mest talande värdena först, så att sex rutor alltid ger de sex mest
+   intressanta och inte de sex som råkade komma först i objektet. */
+function kronRuta(o,max){
   var r=[];
   /* Samma uppställning som rutorna på startsidan: ikon till vänster, texten i
      en egen kolumn till höger. Varje ruta har ALLTID en ikon — utan den blir
      rutnätet en vägg av versaler där ingenting går att hitta med blicken.
      Stilen är krönikans egen, bara layouten är gemensam. */
-  var lagg=function(namn,varde,extra,ik,farg){
+  /* Ordningen i koden är inte prioriteringen — den följer datastrukturen.
+     Med ett uttryckligt prio-tal ger sex rutor de sex MEST TALANDE värdena
+     och inte de sex som råkar komma först i objektet. */
+  var lagg=function(namn,varde,extra,ik,farg,prio){
     if(varde==null||varde==='–')return;
-    r.push('<div class="kr-c">'
+    r.push({p:(prio||99),h:'<div class="kr-c">'
       +'<span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
       +icon(ik||'circle')+'</span>'
       +'<span class="kr-tx">'
       +'<span class="kr-l">'+esc(krKort(namn))+'</span>'
       +'<span class="kr-v">'+varde+'</span>'
       +(extra?('<span class="kr-x">'+extra+'</span>'):'')
-      +'</span></div>');};
+      +'</span></div>'});};
   if(o.sol){
-    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)');
-    if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100,null,'sun','var(--solar)');
+    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)',1);
+    if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100,null,'sun','var(--solar)',7);
   }
   if(o.el){
-    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null,'lightning','var(--hot)');
-    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null,'lightning','var(--ok)');
-    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %',null,'house','var(--ok)');
+    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null,'lightning','var(--hot)',2);
+    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null,'lightning','var(--ok)',3);
+    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %',null,'house','var(--ok)',4);
     if(o.el.dyrast)lagg('Dyraste timmen',num(o.el.dyrast.pris,2)+' kr',
-      o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme,'lightning','var(--hot)');
+      o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme,'lightning','var(--hot)',8);
     if(o.el.billigast)lagg('Billigaste',num(o.el.billigast.pris,2)+' kr',
-      o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme,'lightning','var(--ok)');
+      o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme,'lightning','var(--ok)',9);
   }
   if(o.vader){
-    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)),'thermometer-simple','var(--hot)');
-    if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)),'thermometer-simple','var(--blue)');
-    if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25,null,'sun','var(--gold)');
-    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm',null,'drop','var(--rain)');
-    if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)),'wind','var(--blue)');
+    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)),'thermometer-simple','var(--hot)',5);
+    if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)),'thermometer-simple','var(--blue)',10);
+    if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25,null,'sun','var(--gold)',14);
+    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm',null,'drop','var(--rain)',6);
+    if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)),'wind','var(--blue)',11);
   }
   if(o.pool){
-    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °',null,'drop','var(--cyan)');
-    if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26,null,'drop','var(--cyan)');
+    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °',null,'drop','var(--cyan)',13);
+    if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26,null,'drop','var(--cyan)',15);
   }
   if(o.vin){
-    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut,null,'wine','var(--hot)');
-    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde),null,'wine','var(--hot)');
+    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut,null,'wine','var(--hot)',16);
+    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde),null,'wine','var(--hot)',17);
   }
-  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh),null,'car','var(--blue)');
-  return r.length?('<div class="kr-grid">'+r.join('')+'</div>'):'';}
+  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh),null,'car','var(--blue)',12);
+  r.sort(function(a,b){return a.p-b.p;});
+  if(max&&r.length>max)r=r.slice(0,max);
+  var ut=r.map(function(x){return x.h;});
+  return ut.length?('<div class="kr-grid">'+ut.join('')+'</div>'):'';}
 
 /* Jamforelsen mot forra aret. Finns den inte visas ingenting alls. */
 function kronJmf(o){
@@ -5429,8 +5445,10 @@ function kronHTML(){
   if(!_kron)return '';
   /* cmpHeadHtml i stället för en naken ww-h: då får kortet exakt samma
      rubrikutrymme som Zambretti och Medeleffekt, och en i-knapp på köpet. */
-  var h='<section class="panel">'+cmpHeadHtml('Husets krönika','månad för månad',
-    '<p style="margin:0 0 8px"><b>En text per månad och år.</b> Siffrorna räknas '
+  var h='<section class="panel">'+cmpHeadHtml('Krönikans arkiv','månad för månad',
+    '<p style="margin:0 0 8px"><b>Arkivet.</b> Nya texter läses under notisklockan '
+    +'i toppraden; här ligger alla kvar, även de du sopat undan därifrån.</p>'
+    +'<p style="margin:0 0 8px"><b>En text per månad och år.</b> Siffrorna räknas '
     +'först ur Homey Insights, och Gemini skriver sedan av dem — aldrig av en '
     +'tidigare text. Annars vore det en modell som sammanfattar en annan, och '
     +'varje gissning skulle förstärkas utan att någon märkte det.</p>'
@@ -5599,6 +5617,170 @@ function effHTML(){
     h+='<div class="isub" style="margin-top:7px;opacity:.65">'
       +'<b>·</b> = '+esc(kl.join(', '))+' — från tid som Insights inte längre täcker.</div>';
   return h+'</section>';}
+/* ===== Notisvy =====
+   En egen sida for notiser, med samma topprad som ovriga vyer. Krönikan blir en
+   sorts notis bland andra — datastrukturen har en `typ` fran borjan sa att
+   annat kan tillkomma utan att listan skrivs om.
+
+   Last/oledt och borttagning ar PER ENHET. Att du last pa plattan sager
+   ingenting om vad du sett i telefonen, och att du sopat undan en notis dar
+   betyder inte att den ska forsvinna har. */
+var KRON_BORT='kronbort_v1';
+function notBortGet(){
+  try{return JSON.parse(localStorage.getItem(KRON_BORT)||'{}')||{};}catch(e){return {};}}
+function notBort(p){
+  try{var o=notBortGet();o[p]=Date.now();
+    var k=Object.keys(o).sort();while(k.length>120)delete o[k.shift()];
+    localStorage.setItem(KRON_BORT,JSON.stringify(o));}catch(e){}}
+function notAterstall(){try{localStorage.removeItem(KRON_BORT);}catch(e){}}
+
+/* Alla notiser, nyast forst. Krönikeposter blir notiser med typ 'kronika'. */
+function notLista(){
+  if(!_kron)return [];
+  var bort=notBortGet();
+  var ut=[];
+  /* Väggplattan markerar aldrig oläst — varken på klockan eller i listan.
+     Ingen står framför den när texten skrivs, och en markering där blir en
+     påminnelse som aldrig kvitteras av rätt person. */
+  var visaNy=!IS_SAMSUNG_TABLET;
+  (_kron.ar||[]).forEach(function(x){ut.push({typ:'kronika',ar:true,period:x.period,
+    tid:kronTid(x),rubrik:'Årskrönikan '+x.period,sol:x.sol,ny:visaNy&&kronArNy(x)});});
+  (_kron.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
+    tid:kronTid(x),rubrik:'Krönikan för '+kronNamn(x.period),sol:x.sol,ny:visaNy&&kronArNy(x)});});
+  return ut.filter(function(x){return !bort[x.period];})
+    .sort(function(a,b){return (b.tid||0)-(a.tid||0);});}
+
+function notOlasta(){return notLista().filter(function(x){return x.ny;});}
+
+function notMarkAlla(){
+  notLista().forEach(function(x){kronLastSatt(x.period);});
+  try{krNotisUppdatera();}catch(e){}
+  renderNotiser();}
+
+/* ---- vyn ---- */
+var _notOppen=null;
+function openNotiser(){
+  if(_suppressClick){_suppressClick=false;return;}
+  try{document.body.classList.add('cmp-open');}catch(e){}
+  try{showView('notiser');}catch(e){}
+  renderNotiser();
+  try{syncCmpHeader();}catch(e){}
+  try{cmpIdleReset();}catch(e){}
+  if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}}
+
+function notOppna(p){
+  _notOppen=p;
+  kronLastSatt(p);
+  try{krNotisUppdatera();}catch(e){}
+  if(!_kronPost[p]){
+    renderNotiser();
+    kronPost(p).then(function(){renderNotiser();});
+    return;
+  }
+  renderNotiser();}
+function notTillbaka(){_notOppen=null;renderNotiser();}
+
+function renderNotiser(){
+  var el=$('not-body');if(!el)return;
+  _diN=0;
+  if(_notOppen){el.innerHTML=notDetaljHTML(_notOppen);return;}
+  el.innerHTML=notListaHTML();
+  try{notSvep();}catch(e){}}
+
+function notListaHTML(){
+  var l=notLista();
+  var h='<section class="panel">'+cmpHeadHtml('Notiser',
+    l.length?(l.length+' st'):null,
+    '<p style="margin:0 0 8px">Här samlas det som skrivits om huset. Just nu bara '
+    +'krönikan; fler slag kan tillkomma.</p>'
+    +'<p style="margin:0 0 8px"><b>Läst och bortsopat gäller den här enheten.</b> Att du '
+    +'läst på plattan säger ingenting om vad du sett i telefonen, och en notis du '
+    +'sopat undan här finns kvar där.</p>'
+    +'<p style="margin:0">Dra en notis åt sidan för att ta bort den. '
+    +'<button class="wxm-b" onclick="notAterstall();renderNotiser()">Återställ borttagna</button></p>');
+
+  if(!l.length){
+    h+='<div class="ins-empty">Inga notiser. Krönikan skrivs sista dagen i månaden.</div>';
+    return h+'</section>';
+  }
+  var olasta=l.filter(function(x){return x.ny;}).length;
+  if(olasta)h+='<div class="not-bar"><span>'+olasta+' oläst'+(olasta>1?'a':'')+'</span>'
+    +'<button class="wxm-b" onclick="notMarkAlla()">Markera alla som lästa</button></div>';
+
+  h+='<div class="not-l">';
+  l.forEach(function(x){
+    h+='<div class="not-r'+(x.ny?' ny':'')+'" data-per="'+esc(x.period)+'">'
+      +'<div class="not-in" onclick="notOppna(\''+x.period+'\')">'
+      +'<span class="not-ic">'+icon(x.ar?'clock-counter-clockwise':'house')+'</span>'
+      +'<span class="not-tx">'
+      +'<span class="not-h">'+esc(x.rubrik)+'</span>'
+      +'<span class="not-s">'+(x.sol!=null?(num(x.sol,0)+' kWh sol · '):'')
+      +(x.tid?esc(notNar(x.tid)):'')+'</span>'
+      +'</span>'
+      +'<span class="not-p">'+(x.ny?'<i class="not-dot"></i>':'')+'›</span>'
+      +'</div></div>';
+  });
+  return h+'</div></section>';}
+
+function notNar(t){
+  var d=Math.floor((Date.now()-t)/86400000);
+  if(d<=0)return 'idag';
+  if(d===1)return 'igår';
+  if(d<30)return d+' dagar sedan';
+  try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
+
+function notDetaljHTML(p){
+  var o=_kronPost[p];
+  var ar=(String(p).length===4);
+  var h='<section class="panel">';
+  h+='<div class="cfg-back-row"><button class="te-alt" onclick="notTillbaka()">‹ Notiser</button></div>';
+  if(!o)return h+'<div class="ins-empty">Hämtar…</div></section>';
+  /* Sex rutor for en manad, tolv for ett ar — alltid samma antal, sa sidan ser
+     likadan ut varje gang och man vet var man ska titta. */
+  h+=kronRuta(o,ar?12:6);
+  h+=kronJmf(o);
+  if(o.text)h+='<div class="kr-t">'+kronRapport(o.text)+'</div>';
+  else h+='<div class="kr-t saknas">Ingen text skriven för den här perioden.</div>';
+  return h+'</section>';}
+
+/* Svep at sidan tar bort. Ren pointer-hantering: inga bibliotek, och den far
+   inte stjala vanliga tryck. */
+function notSvep(){
+  var rader=document.querySelectorAll('#not-body .not-r');
+  Array.prototype.forEach.call(rader,function(r){
+    var x0=0,y0=0,dx=0,drar=false,id=null;
+    r.addEventListener('pointerdown',function(e){
+      x0=e.clientX;y0=e.clientY;dx=0;drar=false;id=e.pointerId;
+      r.style.transition='';});
+    r.addEventListener('pointermove',function(e){
+      if(id===null||e.pointerId!==id)return;
+      var ax=e.clientX-x0, ay=e.clientY-y0;
+      /* Vagrat svep bara nar rorelsen ar tydligt vagrat — annars kan man inte
+         rulla listan med fingret. */
+      if(!drar&&Math.abs(ax)>12&&Math.abs(ax)>Math.abs(ay)*1.5)drar=true;
+      if(!drar)return;
+      dx=ax;
+      r.style.transform='translateX('+dx+'px)';
+      r.style.opacity=String(Math.max(0.25,1-Math.abs(dx)/220));
+      try{e.preventDefault();}catch(_){}});
+    var slut=function(){
+      if(id===null)return;
+      id=null;
+      if(!drar){r.style.transform='';r.style.opacity='';return;}
+      r.style.transition='transform .18s ease,opacity .18s ease';
+      if(Math.abs(dx)>90){
+        r.style.transform='translateX('+(dx>0?400:-400)+'px)';
+        r.style.opacity='0';
+        var per=r.getAttribute('data-per');
+        setTimeout(function(){notBort(per);try{krNotisUppdatera();}catch(e){}renderNotiser();},170);
+      }else{
+        r.style.transform='';r.style.opacity='';
+      }
+      drar=false;};
+    r.addEventListener('pointerup',slut);
+    r.addEventListener('pointercancel',slut);
+    r.addEventListener('pointerleave',slut);
+  });}
 function renderInsikter(){
   var el=$('ins-body');if(!el)return;
   _diN=0;
@@ -8892,6 +9074,33 @@ function renderKsBand(){
   var kc=$('ks-kop'),sc=$('ks-sal');
   if(kc){var kb=kc.querySelector('b');if(kb)kb.textContent=r.st?(kInt(rk)+' kr'):'–';if(kc.style)kc.style.left=Math.max(10,Math.min(90,pk*50))+'%';}
   if(sc){var sb=sc.querySelector('b');if(sb)sb.textContent=r.st?(kInt(rs)+' kr'):'–';if(sc.style)sc.style.left=Math.max(10,Math.min(90,pk*100+ps*50))+'%';}}
+/* Rapportrutans höjd. Samma stegknappar som de andra rutorna, plus ett val för
+   om den ska svälja överbliven höjd i kioskläget. */
+function openRepEdit(){
+  _diN=0;
+  var f=secScaleOf('report');
+  var vaxer=(CFG.repGrow!==false);
+  var h='<div class="te"><div class="te-sec">Rapportrutan</div>';
+  h+=stepRow('Höjd','repnum-h',Math.round(f*100)+' %','repHojd');
+  h+='<div class="cfg-row"><span class="cfg-row-l">Fyll ut nedåt</span><div class="cfg-btns">'
+    +'<button class="cfg-opt'+(vaxer?' on':'')+'" onclick="repGrow(1)">På</button>'
+    +'<button class="cfg-opt'+(vaxer?'':' on')+'" onclick="repGrow(0)">Av</button>'
+    +'</div></div>';
+  h+='<div class="cfg-hint" style="margin-top:6px">Med <b>Fyll ut nedåt</b> tar rapporten '
+    +'upp den höjd som blir över när du krympt spotpris eller köpt/sålt — annars uppstår '
+    +'en lucka mot skärmens underkant i kioskläget.</div>';
+  h+='</div>';
+  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
+  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
+  setT('dlg-title','Rapport');setIcon('dlg-ic','warning');
+  /* Samma sätt att visa rutan som de andra — openDlg() finns inte. */
+  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
+function repHojd(d){
+  secHeightSet('report',d);
+  var n=$('repnum-h');if(n)n.textContent=Math.round(secScaleOf('report')*100)+' %';}
+function repGrow(pa){
+  CFG.repGrow=!!pa;saveCfg();applyCfg();
+  try{openRepEdit();}catch(e){}}
 function openKsEdit(){
   var sp=szRead('ks'); var per=sp.per||'month';
   var h='<div class="te"><div class="te-sec">Köpt / sålt · period</div>';
@@ -9162,7 +9371,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v371';
+const APP_VERSION='v373';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -9187,7 +9396,10 @@ function saveCfg(){try{localStorage.setItem('cfg_v1',JSON.stringify(CFG));}catch
 function cfgSaveDefault(){try{localStorage.setItem('cfg_base_v1',JSON.stringify(CFG));}catch(e){}const b=$('cfg-savedmsg');if(b)b.textContent='Sparat som standard ✓';}
 function scl(v){return (1+(v||0)*0.06).toFixed(3);}
 function applyGrpVars(el,pre,grp){if(!el||!el.style)return;el.style.setProperty(pre+'-ic',scl(grp.ic));el.style.setProperty(pre+'-v',scl(grp.v));el.style.setProperty(pre+'-name',scl(grp.name));el.style.setProperty(pre+'-desc',scl(grp.desc));}
-function applyCfg(){const r=document.body;if(!r||!r.style)return;
+function applyCfg(){
+  /* Rapportens tillväxt sätts på body, inte på elementet: elementet ritas om
+     vid varje render och en inline-stil där skulle försvinna. */
+  try{document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');}catch(e){}const r=document.body;if(!r||!r.style)return;
   try{applyMobGap();}catch(e){}
   const ee=$('stats-energy'),we=$('stats-weather'),te=$('stats-flode');
   applyGrpVars(ee,'--tl',CFG.chip);if(ee&&ee.style)ee.style.setProperty('--tl-gap',(CFG.chip.gap==null?11:CFG.chip.gap)+'px');
@@ -10313,7 +10525,17 @@ function secScaleOf(sec){const s=secScaleGet();const v=s[sec];return (typeof v==
 function applySecScale(){const view=$('view-flode');if(!view||!view.querySelector)return;
   SEC_DEF.forEach(sec=>{const el=view.querySelector('[data-sec="'+sec+'"]');if(!el||!el.style)return;const f=secScaleOf(sec);el.style.zoom=(Math.abs(f-1)<0.001)?'':String(f);});
   if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
-function secHeight(sec,dir){const s=secScaleGet();let f=secScaleOf(sec)+dir*0.1;f=Math.max(0.6,Math.min(1.6,Math.round(f*10)/10));if(Math.abs(f-1)<0.001)delete s[sec];else s[sec]=f;try{localStorage.setItem('secScale_v1',JSON.stringify(s));}catch(e){}applySecScale();openSecMove(sec);}
+/* Räkningen skild från omritningen. Förut ritade den ALLTID om "Ordna avsnitt",
+   vilket slog sönder varje annan dialog som ville använda samma stegknappar. */
+function secHeightSet(sec,dir){
+  const s=secScaleGet();
+  let f=secScaleOf(sec)+dir*0.1;
+  f=Math.max(0.6,Math.min(1.6,Math.round(f*10)/10));
+  if(Math.abs(f-1)<0.001)delete s[sec];else s[sec]=f;
+  try{localStorage.setItem('secScale_v1',JSON.stringify(s));}catch(e){}
+  applySecScale();
+  return f;}
+function secHeight(sec,dir){secHeightSet(sec,dir);openSecMove(sec);}
 function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)return;const o=secOrderGet();
   o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;if(el)view.appendChild(el);});
   applySecScale();
@@ -10347,6 +10569,7 @@ function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;
          nås i stället via Hem-knappens inställningar, där den hör hemma. */
       if(sec==='spot'){openSpotEdit();return;}
       if(sec==='kopt-salt'){openKsEdit();return;}
+      if(sec==='report'){openRepEdit();return;}
       openSecMove(sec);},600);};
   const cancel=()=>{if(t){clearTimeout(t);t=null;}};
   view.addEventListener('pointerdown',dn);view.addEventListener('pointerup',cancel);view.addEventListener('pointermove',cancel);view.addEventListener('pointerleave',cancel);view.addEventListener('pointercancel',cancel);})();
