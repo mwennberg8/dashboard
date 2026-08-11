@@ -5240,11 +5240,16 @@ function kronArNy(x){
 
    Läsningen är per enhet, precis som NY-märket: att du läst på plattan säger
    ingenting om vad du sett i telefonen. */
+/* Klockans räknare måste bygga på SAMMA lista som notisvyn. Förut räknade den
+   ur _kron direkt och tog därför med poster man sopat undan: klockan visade
+   "1 oläst" medan listan såg tom ut, och märket satt kvar i arkivet.
+
+   notLista() filtrerar bort borttagna och tar hänsyn till väggplattan; genom
+   att gå via den kan de två inte glida isär igen. */
 function krOlasta(){
   if(!_kron)return [];
-  var alla=(_kron.ar||[]).concat(_kron.manader||[]);
-  return alla.filter(kronArNy).sort(function(a,b){
-    return (a.raknad_at||0)-(b.raknad_at||0);});}
+  return notLista().filter(function(x){return x.ny;})
+    .sort(function(a,b){return (a.tid||0)-(b.tid||0);});}
 /* Varje vy har sin egen topprad, alltså sin egen notisknapp. Sök upp dem på
    KLASS i stället för en lista med id:n — den listan missade den femte knappen
    så fort notisvyn tillkom, och samma sak hade hänt nästa gång. */
@@ -5280,7 +5285,7 @@ function krNotisEn(b,o){
      skrivs; en markering där blir en påminnelse som aldrig kvitteras av rätt
      person, och som dessutom lyser mot alla som går förbi.
      Andra plattor beter sig som telefonen. */
-  if(IS_SAMSUNG_TABLET){
+  if(!notVisaNy()){
     b.classList.remove('har','puls');
     b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>';
     b.title=o.length?('Sammanfattningar — '+o.length+' oläst'+(o.length>1?'a':'')):'Sammanfattningar';
@@ -5932,6 +5937,9 @@ var KRON_BORT='kronbort_v1';
 function notBortGet(){
   try{return JSON.parse(localStorage.getItem(KRON_BORT)||'{}')||{};}catch(e){return {};}}
 function notBort(p){
+  /* Att sopa undan är också att ha tagit ställning. Utan det här satt NY kvar i
+     arkivet på en post man aktivt gjort sig av med. */
+  try{kronLastSatt(p);}catch(e){}
   try{var o=notBortGet();o[p]=Date.now();
     var k=Object.keys(o).sort();while(k.length>120)delete o[k.shift()];
     localStorage.setItem(KRON_BORT,JSON.stringify(o));}catch(e){}}
@@ -5942,18 +5950,18 @@ function notLista(){
   if(!_kron)return [];
   var bort=notBortGet();
   var ut=[];
-  /* Väggplattan markerar aldrig oläst — varken på klockan eller i listan.
-     Ingen står framför den när texten skrivs, och en markering där blir en
-     påminnelse som aldrig kvitteras av rätt person. */
-  var visaNy=!IS_SAMSUNG_TABLET;
+  /* Listan säger vad som ÄR oläst. Att väggplattan inte ska visa det är ett
+     beslut för vyn, inte för datan — annars tappar den även räkningen, och
+     verktygstipset kunde inte säga hur många som väntar. */
   (_kron.ar||[]).forEach(function(x){ut.push({typ:'kronika',ar:true,period:x.period,
-    tid:kronTid(x),rubrik:'Sammanfattning för '+x.period,sol:x.sol,ny:visaNy&&kronArNy(x)});});
+    tid:kronTid(x),rubrik:'Sammanfattning för '+x.period,sol:x.sol,ny:kronArNy(x)});});
   (_kron.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
-    tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:visaNy&&kronArNy(x)});});
+    tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:kronArNy(x)});});
   return ut.filter(function(x){return !bort[x.period];})
     .sort(function(a,b){return (b.tid||0)-(a.tid||0);});}
 
-function notOlasta(){return notLista().filter(function(x){return x.ny;});}
+/* Kvar som namn; räkningen ligger i krOlasta så det bara finns en väg. */
+function notOlasta(){return krOlasta();}
 
 function notMarkAlla(){
   notLista().forEach(function(x){kronLastSatt(x.period);});
@@ -5999,8 +6007,12 @@ function renderNotiser(){
   el.innerHTML=notListaHTML();
   try{notSvep();}catch(e){}}
 
+/* Ska oläst SYNAS på den här enheten? Väggplattan sitter i hallen; en
+   markering där blir en påminnelse som aldrig kvitteras av rätt person. */
+function notVisaNy(){return !IS_SAMSUNG_TABLET;}
 function notListaHTML(){
   var l=notLista();
+  if(!notVisaNy())l=l.map(function(x){var y={};for(var k in x)y[k]=x[k];y.ny=false;return y;});
   var h='<section class="panel">'+cmpHeadHtml('Notiser',
     l.length?(l.length+' st'):null,
     '<p style="margin:0 0 8px">Här samlas det som skrivits om huset. Just nu bara '
@@ -9895,7 +9907,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v382';
+const APP_VERSION='v383';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
