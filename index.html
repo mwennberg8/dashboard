@@ -660,6 +660,8 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .en-notis.har.puls{animation:notispuls 4s ease-in-out infinite}
 @keyframes notispuls{0%,88%,100%{box-shadow:0 0 0 0 transparent}
   92%{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 26%,transparent)}}
+.not-back{margin:0 0 12px}
+.not-back .te-alt{padding:7px 12px;font-size:12.5px}
 .not-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin:10px 0 4px;font-size:12px;font-weight:750;color:var(--gold)}
 .not-l{display:flex;flex-direction:column}
@@ -860,11 +862,14 @@ body.tabprev.cmp-open{overflow:auto}
 .kiosk.cmp-open .wrap{height:auto;overflow:visible}
 .kiosk.cmp-open .view{overflow:visible;height:auto;min-height:0}
 .kiosk.cmp-open #view-jamfor,.kiosk.cmp-open #view-insikter{height:auto;overflow:visible}
-#view-jamfor>.panel,#view-insikter>.panel,#view-vader>.panel{margin-bottom:var(--pg-gap-y)}
-#cmp-body>.panel,#ins-body>.panel{margin-bottom:var(--pg-gap-y);padding:clamp(16px,2vw,21px)}
-.kiosk #cmp-body>.panel,.kiosk #ins-body>.panel{padding:11px 13px}
+/* Notisvyn räknades inte in någonstans — den fick varken mellanrum efter
+   toppraden eller innerkant i sina kort, så rubriken låg i kanten. Alla vyer
+   räknas upp här, och en ny vy måste läggas till på samma ställen. */
+#view-jamfor>.panel,#view-insikter>.panel,#view-vader>.panel,#view-notiser>.panel{margin-bottom:var(--pg-gap-y)}
+#cmp-body>.panel,#ins-body>.panel,#vdr-body>.panel,#not-body>.panel{margin-bottom:var(--pg-gap-y);padding:clamp(16px,2vw,21px)}
+.kiosk #cmp-body>.panel,.kiosk #ins-body>.panel,.kiosk #vdr-body>.panel,.kiosk #not-body>.panel{padding:11px 13px}
 .kiosk #view-jamfor>.panel,.kiosk #view-insikter>.panel{padding:11px 13px}
-#cmp-body>.panel:last-child,#ins-body>.panel:last-child,#vdr-body>.panel:last-child{margin-bottom:0}
+#cmp-body>.panel:last-child,#ins-body>.panel:last-child,#vdr-body>.panel:last-child,#not-body>.panel:last-child{margin-bottom:0}
 /* ---- Insikter ---- */
 .ins-hero-lab{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold)}
 /* ===== Highlight-rutan: typografisk – siffran bär, ikonen kliver undan ===== */
@@ -1508,9 +1513,8 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 :focus-visible{outline:2px solid var(--ok);outline-offset:2px;border-radius:8px}
 
 /* ---- Väder-sida ---- */
-#vdr-body>.panel{margin-bottom:var(--pg-gap-y);padding:clamp(16px,2vw,21px)}
-#vdr-body>.panel:last-child{margin-bottom:0}
-.kiosk #vdr-body>.panel{padding:11px 13px}
+/* Väderns egna dubbletter borttagna — de täcks av den gemensamma regeln ovan,
+   och två uppsättningar som ska hållas i synk är en som glöms bort. */
 .vdr-sec{font-size:10.5px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin-bottom:13px}
 .vdr-hero{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .vdr-hero-l{display:flex;align-items:center;gap:14px}
@@ -5733,7 +5737,7 @@ function notDetaljHTML(p){
   var o=_kronPost[p];
   var ar=(String(p).length===4);
   var h='<section class="panel">';
-  h+='<div class="cfg-back-row"><button class="te-alt" onclick="notTillbaka()">‹ Notiser</button></div>';
+  h+='<div class="not-back"><button class="te-alt" onclick="notTillbaka()">‹ Notiser</button></div>';
   if(!o)return h+'<div class="ins-empty">Hämtar…</div></section>';
   /* Sex rutor for en manad, tolv for ett ar — alltid samma antal, sa sidan ser
      likadan ut varje gang och man vet var man ska titta. */
@@ -9371,7 +9375,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v373';
+const APP_VERSION='v374';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
