@@ -765,8 +765,18 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kr-rhi{font-size:19px;line-height:1;flex:0 0 auto}
 /* En rad per ämne. Emojin i egen kolumn med fast bredd — annars börjar raderna
    på olika ställen beroende på om tecknet är brett eller smalt. */
-.kr-rr{display:flex;align-items:baseline;gap:9px;padding:4px 0;line-height:1.6}
-.kr-rr+.kr-rr{border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+/* Ingressen bär tonen — större, ljusare, lite luft under. */
+.kr-ing{margin:0 0 12px;font-size:14.5px;line-height:1.6;color:var(--ink);font-weight:650}
+/* Brödtext i stycken, som i en artikel. */
+.kr-p{margin:0 0 11px;font-size:13.5px;line-height:1.68;color:var(--dim)}
+.kr-p:last-child{margin-bottom:0}
+/* Höjdpunkt: indragen, med en svag list till vänster så den skiljer sig från
+   brödtexten utan att skrika. */
+.kr-rr{display:flex;align-items:baseline;gap:9px;padding:7px 0 7px 11px;
+  margin:0 0 11px;line-height:1.55;
+  /* rgba, inte color-mix: den senare tolkas inte av alla verktyg och gjorde
+     regeln omöjlig att kontrollera. Samma guldton som resten. */
+  border-left:2px solid rgba(235,203,139,.45)}
 .kr-rri{flex:0 0 20px;text-align:center;font-size:14px;line-height:1.5}
 .kr-rrt{flex:1 1 auto;min-width:0}
 .kr-n2{font-weight:800;color:var(--ink)}
@@ -1370,9 +1380,10 @@ body.tabprev{padding:0;overflow:hidden}
    eget block högre upp: den här raden kommer sist i filen och hade annars
    skrivit över det. */
 .kiosk .ctl{min-height:calc(48px*var(--knhojd,1));padding:calc(6px*var(--knhojd,1));gap:3px}
-.kiosk .ctl-ic{width:calc(17px*var(--knhojd,1));height:calc(17px*var(--knhojd,1))}
-.kiosk .ctl-l{font-size:calc(11px*var(--knhojd,1))}
-.kiosk .ctl-s{font-size:calc(8.5px*var(--knhojd,1))}
+.kiosk .ctl-ic{width:calc(17px*var(--knhojd,1)*var(--knikon,1));
+  height:calc(17px*var(--knhojd,1)*var(--knikon,1))}
+.kiosk .ctl-l{font-size:calc(11px*var(--knhojd,1)*var(--kntext,1))}
+.kiosk .ctl-s{font-size:calc(8.5px*var(--knhojd,1)*var(--kntext,1))}
 .kiosk .foot{margin-top:0}
 /* ===== v37 ===== */
 .en-hero{align-items:center}
@@ -3802,9 +3813,11 @@ function cmpIdleReset(){
   var jOpen=(jv&&jv.classList&&!jv.classList.contains('hidden')),iOpen=(iv&&iv.classList&&!iv.classList.contains('hidden'));
   if((jOpen||iOpen)&&typeof setTimeout==='function'){_cmpIdle=setTimeout(function(){try{if(iOpen)closeInsikter();else closeCompare();}catch(e){}},IDLE_CLOSE_MS);}
 }
-function openCompare(){if(_suppressClick){_suppressClick=false;return;}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('jamfor');}catch(e){}renderCompare();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var jv=$('view-jamfor');if(jv&&jv.scrollTop!=null)jv.scrollTop=0;}catch(e){}}
+function openCompare(){if(_suppressClick){_suppressClick=false;return;}try{notStang();}catch(e){}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('jamfor');}catch(e){}renderCompare();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var jv=$('view-jamfor');if(jv&&jv.scrollTop!=null)jv.scrollTop=0;}catch(e){}}
 function closeCompare(){if(_cmpIdle){clearTimeout(_cmpIdle);_cmpIdle=null;}try{document.body.classList.remove('cmp-open');}catch(e){}try{showView('flode');}catch(e){}if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}}
-function goHome(){if(_suppressClick){_suppressClick=false;return;}closeCompare();}
+function goHome(){if(_suppressClick){_suppressClick=false;return;}
+  try{notStang();}catch(e){}
+  closeCompare();}
 
 /* ===================== INSIKTER ===================== */
 /* Läser riktiga capabilities; varje generator returnerar null om data saknas. */
@@ -5413,10 +5426,15 @@ function kronRapport(txt){
   var rader=String(txt||'').split('\n').map(function(r){return r.trim();})
     .filter(function(r){return r.length;});
   if(!rader.length)return '';
+  /* Tre slags rader, och skillnaden är hela läsupplevelsen:
+       rad 1          → rubrik
+       rad 2          → ingress, större och ljusare
+       emoji först    → höjdpunkt, indragen med sitt tecken i egen kolumn
+       övrigt         → brödtext i löpande stycken
+     Förut behandlades allt som höjdpunkter, och texten läste sig som en
+     kvittorulle: varje rad sann, ingen sammanhängande. */
   var h='<div class="kr-rap">';
   rader.forEach(function(r,i){
-    /* Leta ledande emoji. Regexen tar bildtecken och symboler, inte bokstäver —
-       en rad som börjar med "Produktion" ska inte få sitt P utflyttat. */
     var m=r.match(/^([\u203C-\u3299\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F\u2190-\u21FF]+)\s*(.*)$/);
     var ik=m?m[1]:'', txt2=m?m[2]:r;
     if(i===0){
@@ -5424,9 +5442,17 @@ function kronRapport(txt){
         +'<span>'+esc(txt2)+'</span></div>';
       return;
     }
-    h+='<div class="kr-rr">'
-      +'<span class="kr-rri">'+esc(ik)+'</span>'
-      +'<span class="kr-rrt">'+kronTal(esc(txt2))+'</span></div>';
+    if(i===1&&!ik){
+      h+='<p class="kr-ing">'+kronTal(esc(txt2))+'</p>';
+      return;
+    }
+    if(ik){
+      h+='<div class="kr-rr">'
+        +'<span class="kr-rri">'+esc(ik)+'</span>'
+        +'<span class="kr-rrt">'+kronTal(esc(txt2))+'</span></div>';
+      return;
+    }
+    h+='<p class="kr-p">'+kronTal(esc(txt2))+'</p>';
   });
   return h+'</div>';}
 
@@ -5448,47 +5474,74 @@ function kronTal(t){
    samma manad alltid ger samma rader. */
 function kronKul(o,ar){
   if(!o)return [];
-  var r=[],n2=function(v,d){return num(v,d==null?0:d);};
+  /* num() ger "1453" och "5.0" — rå toFixed utan svensk formatering. I en
+     mening som ska läsas högt måste det stå "1 453" och "5,0". */
+  var r=[],n2=function(v,d){
+    var t=num(v,d==null?0:d);
+    if(t==='–')return t;
+    var p=t.split('.');
+    p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
+    return p.join(',');};
   var sol=o.sol&&o.sol.kwh, el=o.el||{}, v=o.vader||{};
 
+  /* Hela meningar som säger något, inte lösryckta tal. Varje rad ska gå att
+     läsa högt och landa — "1 453 mil" betyder ingenting, "räckt till 1 453 mil,
+     ungefär Göteborg–Neapel" betyder något. Alla jämförelser är räknade ur
+     postens egna siffror; inget är påhittat. */
   if(sol>0){
-    /* En elbil drar grovt 0,18 kWh/km — den siffran ar val etablerad och
-       stammer med bada bilarna har inom nagra procent. */
-    r.push({ik:'car-profile',t:'Solen räckte till ungefär <b>'+n2(sol/0.18/10)+' mil</b> i elbil.'});
-    /* En kopp kaffe: ~0,02 kWh i bryggare. */
-    r.push({ik:'coins',t:'Eller <b>'+n2(sol/0.02)+'</b> koppar kaffe.'});
+    var mil=sol/0.18/10;
+    var vart=mil>4000?'motsvarande ett varv runt Medelhavet och lite till'
+      :mil>1200?'ungefär Göteborg–Neapel'
+      :mil>400?'ungefär Göteborg–Stockholm och tillbaka'
+      :'ungefär Göteborg–Malmö';
+    r.push({ik:'car-profile',t:'Solen som föll på taket hade räckt till <b>'
+      +n2(mil)+' mil</b> i elbil — '+vart+'.'});
+    r.push({ik:'coins',t:'Samma el hade kokat <b>'+n2(sol/0.02)
+      +'</b> koppar kaffe, eller hållit en gammal glödlampa tänd i '
+      +n2(sol/0.06/24/365,1)+' år.'});
   }
   if(o.sol&&o.sol.perKwp)
-    r.push({ik:'sun',t:'<b>'+n2(o.sol.perKwp)+' kWh per installerad kW</b> — det tal som gör anläggningen jämförbar med andras.'});
+    r.push({ik:'sun',t:'Anläggningen gav <b>'+n2(o.sol.perKwp)
+      +' kWh per installerad kilowatt</b> — det tal som gör den jämförbar med '
+      +'andras, oavsett hur många paneler de har.'});
   if(o.sol&&o.sol.basta&&o.sol.samsta&&o.sol.samsta.kwh>0){
     var kvot=o.sol.basta.kwh/o.sol.samsta.kwh;
-    if(kvot>1.5)r.push({ik:'chart-line',t:'Bästa dygnet gav <b>'+n2(kvot,1)+' gånger</b> så mycket som det sämsta.'});
+    if(kvot>1.5)r.push({ik:'chart-line',t:'Mellan bästa och sämsta dygnet skiljde det <b>'
+      +n2(kvot,1)+' gånger</b>. Så mycket kan ett moln betyda.'});
   }
   if(el.saltKwh>0&&el.koptKwh>0){
     var kv=el.saltKwh/el.koptKwh;
-    r.push({ik:'lightning',t:'Du sålde <b>'+n2(kv,1)+' gånger</b> så mycket el som du köpte.'});
+    r.push({ik:'lightning',t:'För varje kilowattimme du köpte sålde du <b>'
+      +n2(kv,1)+'</b> tillbaka.'});
   }
-  if(el.koptKr!=null&&el.saltKr!=null&&el.netto!=null&&el.netto>0)
-    r.push({ik:'coins',t:'Elräkningen blev en <b>intäkt</b> på '+n2(el.netto)+' kr.'});
+  if(el.netto!=null&&el.netto>0)
+    r.push({ik:'coins',t:'Elräkningen blev en <b>intäkt på '+n2(el.netto)
+      +' kr</b> — nätet betalade dig för att ha huset här.'});
   if(v.nederbord>0){
-    /* 1 mm regn = 1 liter per kvadratmeter. Taket ar ca 100 m² panelyta. */
-    r.push({ik:'drop',t:'<b>'+n2(v.nederbord*100)+' liter</b> regn föll på takets panelyta — ungefär '
-      +n2(v.nederbord*100/150)+' badkar.'});
+    var lit=v.nederbord*100;
+    r.push({ik:'drop',t:'<b>'+n2(lit)+' liter</b> regn föll på panelytan, ungefär '
+      +n2(lit/150)+' badkar. Gratis fönsterputs.'});
   }
   if(v.max&&v.min&&v.max.temp!=null&&v.min.temp!=null)
-    r.push({ik:'thermometer',t:'Mellan kallast och varmast skilde <b>'+n2(v.max.temp-v.min.temp,1)+' grader</b>.'});
+    r.push({ik:'thermometer',t:'Termometern rörde sig <b>'+n2(v.max.temp-v.min.temp,1)
+      +' grader</b> mellan kallast och varmast.'});
   if(o.bil&&o.bil.kwh>0)
-    r.push({ik:'car-profile',t:'Bilarna laddade <b>'+n2(o.bil.kwh)+' kWh</b> — ungefär '+n2(o.bil.kwh/0.18/10)+' mil.'});
+    r.push({ik:'car-profile',t:'Bilarna drack <b>'+n2(o.bil.kwh)+' kWh</b>, vilket räcker '
+      +n2(o.bil.kwh/0.18/10)+' mil'
+      +(sol>0?(' — '+Math.round(Math.min(100,o.bil.kwh/sol*100))+' % av vad taket gav.'):'.')});
   if(o.vin&&o.vin.in!=null&&o.vin.ut!=null){
-    var d=o.vin.in-o.vin.ut;
-    r.push({ik:'drop-half-bottom',t:'Vinkällaren '+(d>=0?'växte med <b>':'krympte med <b>')+Math.abs(d)+' flaskor</b>.'});
+    var dd=o.vin.in-o.vin.ut;
+    r.push({ik:'drop-half-bottom',t:dd>0
+      ? ('Källaren växte med <b>'+dd+' flaskor</b> — fler in än ut, som vanligt.')
+      : (dd<0 ? ('Källaren krympte med <b>'+Math.abs(dd)+' flaskor</b>. Det har druckits.')
+              : 'Källaren står stilla: lika många in som ut.')});
   }
   return r.slice(0,ar?5:4);}
 
 function kronKulHTML(o,ar){
   var l=kronKul(o,ar);
   if(!l.length)return '';
-  var h='<div class="kul"><div class="kul-h">Kul att veta</div>';
+  var h='<div class="kul"><div class="kul-h">Att sätta i sammanhang</div>';
   l.forEach(function(x){
     h+='<div class="kul-r"><span class="kul-i">'+icon(x.ik)+'</span><span>'+x.t+'</span></div>';});
   return h+'</div>';}
@@ -5877,6 +5930,15 @@ function notMarkAlla(){
 
 /* ---- vyn ---- */
 var _notOppen=null;
+/* Stänger den öppna notisen. Anropas när man lämnar notisvyn — annars sitter
+   klockan kvar som tillbaka-knapp på startsidan, där det inte finns något att
+   gå tillbaka till, och notisvyn öppnas mitt inne i en post nästa gång. */
+function notStang(){
+  if(_notOppen===null)return;
+  _notOppen=null;
+  try{renderNotiser();}catch(e){}
+  try{krNotisUppdatera();}catch(e){}}
+
 function openNotiser(){
   if(_suppressClick){_suppressClick=false;return;}
   try{document.body.classList.add('cmp-open');}catch(e){}
@@ -6248,8 +6310,8 @@ function havKort(){
   else txt='Havet är varmare än poolen. Det händer på hösten: havet har en sommars värme lagrad och släpper den långsamt.';
   h+='<div class="isub" style="margin-top:8px">'+txt+'</div>';
   return h+'</section>';}
-function openInsikter(){if(_suppressClick){_suppressClick=false;return;}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('insikter');}catch(e){}renderInsikter();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var iv=$('view-insikter');if(iv&&iv.scrollTop!=null)iv.scrollTop=0;}catch(e){}}
-function openVader(){if(_suppressClick){_suppressClick=false;return;}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('vader');}catch(e){}renderVader();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var vv=$('view-vader');if(vv&&vv.scrollTop!=null)vv.scrollTop=0;}catch(e){}}
+function openInsikter(){if(_suppressClick){_suppressClick=false;return;}try{notStang();}catch(e){}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('insikter');}catch(e){}renderInsikter();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var iv=$('view-insikter');if(iv&&iv.scrollTop!=null)iv.scrollTop=0;}catch(e){}}
+function openVader(){if(_suppressClick){_suppressClick=false;return;}try{notStang();}catch(e){}try{document.body.classList.add('cmp-open');}catch(e){}try{showView('vader');}catch(e){}renderVader();try{syncCmpHeader();}catch(e){}cmpIdleReset();if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}try{if(document.scrollingElement)document.scrollingElement.scrollTop=0;var vv=$('view-vader');if(vv&&vv.scrollTop!=null)vv.scrollTop=0;}catch(e){}}
 function closeInsikter(){if(_cmpIdle){clearTimeout(_cmpIdle);_cmpIdle=null;}try{document.body.classList.remove('cmp-open');}catch(e){}try{showView('flode');}catch(e){}if(typeof fitScreen==='function')try{setTimeout(fitScreen,40);}catch(e){}}
 function buildBoughtYear(){
   _diN=0;
@@ -9297,12 +9359,13 @@ function renderKsBand(){
    rutan lägre ska knapparna bli lägre, inte bara få mer luft omkring sig. */
 function openKnEdit(){
   _diN=0;
-  var f=knHojd();
   var h='<div class="te"><div class="te-sec">Knapparna</div>';
-  h+=stepRow('Höjd','knnum-h',Math.round(f*100)+' %','knHojdSteg');
-  h+='<div class="cfg-hint" style="margin-top:6px">Höjden gäller knapparna i '
-    +'kioskläget. Texten och ikonerna följer med, så en lägre rad ger mindre '
-    +'knappar och inte bara mer luft omkring dem.</div>';
+  h+=stepRow('Höjd','knnum-h',Math.round(knMatt('h')*100)+' %','knSteg_h');
+  h+=stepRow('Text','knnum-t',Math.round(knMatt('t')*100)+' %','knSteg_t');
+  h+=stepRow('Ikon','knnum-i',Math.round(knMatt('i')*100)+' %','knSteg_i');
+  h+='<div class="cfg-hint" style="margin-top:6px">Höjden styr knappens storlek. '
+    +'Text och ikon skalas <b>ovanpå</b> höjden, så en lägre rad med större text '
+    +'går att ställa in — de tre måtten är oberoende av varandra.</div>';
   h+='<div class="te-sec" style="margin-top:14px">Ordning och innehåll</div>';
   h+='<div class="cfg-hint" style="margin-top:0">Håll inne på en enskild knapp '
     +'för att byta vad den gör.</div>';
@@ -9311,13 +9374,25 @@ function openKnEdit(){
   var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
   setT('dlg-title','Knappar');setIcon('dlg-ic','power');
   var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
+/* Tre oberoende mått: höjd, textstorlek och ikonstorlek. Text och ikon skalas
+   OVANPÅ höjden — annars går det inte att ha en låg rad med stor text, vilket
+   är precis vad man vill när knapparna ska synas på håll. */
+var KN_STD={h:1,t:1,i:1};
+function knMatt(k){
+  var v=(CFG&&CFG.kn&&CFG.kn[k]);
+  return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):(KN_STD[k]||1);}
+function knSteg(k,d){
+  var f=Math.max(0.6,Math.min(1.8,Math.round((knMatt(k)+d*0.1)*10)/10));
+  CFG.kn=CFG.kn||{};CFG.kn[k]=f;saveCfg();applyCfg();
+  var n=$('knnum-'+k);if(n)n.textContent=Math.round(f*100)+' %';}
+function knSteg_h(d){knSteg('h',d);}
+function knSteg_t(d){knSteg('t',d);}
+function knSteg_i(d){knSteg('i',d);}
+/* Kvar för bakåtkompatibilitet: en tidigare version sparade CFG.knHojd. */
 function knHojd(){
+  if(CFG&&CFG.kn&&typeof CFG.kn.h==='number')return knMatt('h');
   var v=(CFG&&CFG.knHojd);
   return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):1;}
-function knHojdSteg(d){
-  var f=Math.max(0.6,Math.min(1.8,Math.round((knHojd()+d*0.1)*10)/10));
-  CFG.knHojd=f;saveCfg();applyCfg();
-  var n=$('knnum-h');if(n)n.textContent=Math.round(f*100)+' %';}
 
 /* Rapportrutans höjd. Samma stegknappar som de andra rutorna, plus ett val för
    om den ska svälja överbliven höjd i kioskläget. */
@@ -9637,7 +9712,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v378';
+const APP_VERSION='v379';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -9668,6 +9743,8 @@ function applyCfg(){
   try{
     document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');
     document.body.style.setProperty('--knhojd',String(knHojd()));
+    document.body.style.setProperty('--kntext',String(knMatt('t')));
+    document.body.style.setProperty('--knikon',String(knMatt('i')));
   }catch(e){}
   try{document.body.style.setProperty('--ewh',String((CFG&&CFG.ewh!=null)?CFG.ewh:1));}catch(e){}const r=document.body;if(!r||!r.style)return;
   try{applyMobGap();}catch(e){}
