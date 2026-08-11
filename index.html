@@ -361,7 +361,10 @@ body.kiosk{--pg-gap:7px}
 
 .two{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);align-items:start}
 @media (max-width:760px){.two{grid-template-columns:1fr}}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);padding:13px;margin-bottom:var(--pg-gap-y)}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);
+  /* Samma innerkant som mellanrummet mellan knapparna. */
+  padding:var(--pg-gap);margin-bottom:var(--pg-gap-y)}
 .ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);font-family:var(--sans);font-weight:650;font-size:13px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s;min-height:84px;justify-content:center}
 .ctl:hover{border-color:var(--svg-stroke)}
 .ctl-ic{width:24px;height:24px;color:var(--dim);display:inline-flex}.ctl-ic .ic{width:100%;height:100%}
@@ -394,7 +397,10 @@ body.kiosk{padding:10px}
 .en-hero{display:flex;align-items:center;gap:12px}
 /* egen topp-ruta: hus + Insikter/Jämför + självförsörjning + live.
    Samma padding/marginal/stil som övriga avsnitt (enpanel/wx-card). */
-.statusbar{padding:clamp(16px,2vw,21px);display:flex;align-items:center;gap:12px;margin:0}
+/* Innerkanten är SAMMA variabel som mellanrummet mellan knapparna, så luften
+   runt raden och luften mellan knapparna alltid stämmer överens — och följer
+   dashboardens övriga avstånd i stället för att vara ett eget tal. */
+.statusbar{padding:var(--pg-gap-y);display:flex;align-items:center;gap:12px;margin:0}
 /* Mobil: knappraden foljer med nedat i stallet for att rulla bort. Panelen har
    ogenomskinlig bakgrund redan, sa innehallet kan rulla under den. Markoren
    .sticky-sentinel ar en 1px-rad precis ovanfor som talar om nar raden faktiskt
@@ -419,7 +425,7 @@ body.mobile:not(.kiosk) .view>.panel.statusbar.stuck{
 /* nowrap: live-indikatorn ska aldrig hamna på egen rad under knapparna.
    gap:8 för att stämma med de andra reglerna — 10 här och 8 där gav olika
    mellanrum beroende på vilken vy man tittade i. */
-.statusbar .en-top{margin-left:0;width:100%;align-self:center;flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap;justify-content:flex-start}
+.statusbar .en-top{margin-left:0;width:100%;align-self:center;flex-direction:row;align-items:center;gap:var(--pg-gap-y);flex-wrap:nowrap;justify-content:flex-start}
 /* margin-left:auto på NOTISKNAPPEN, inte på live. Låg det på live delades
    överskottet mellan de två och det uppstod en lucka mitt emellan.
    Klassväljare i stället för id: varje vy har sin egen uppsättning knappar, och
@@ -660,8 +666,39 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .en-notis.har.puls{animation:notispuls 4s ease-in-out infinite}
 @keyframes notispuls{0%,88%,100%{box-shadow:0 0 0 0 transparent}
   92%{box-shadow:0 0 0 4px color-mix(in srgb,var(--gold) 26%,transparent)}}
-.not-back{margin:0 0 12px}
-.not-back .te-alt{padding:7px 12px;font-size:12.5px}
+/* Klockan i tillbaka-läge: samma pill, men blå som de andra knapparna så att
+   den läses som navigering och inte som en notis. */
+.en-notis.bak{color:var(--blue);border-color:rgba(129,161,193,.28);
+  background:rgba(129,161,193,.16)}
+.kr-c.kan{cursor:pointer}
+.kr-c.kan:active{background:var(--line)}
+.krpop-bak{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;padding:20px}
+.krpop{position:relative;background:var(--panel-a);border:1px solid var(--line);
+  border-radius:16px;padding:18px 18px 16px;max-width:360px;width:100%;
+  box-shadow:0 18px 50px rgba(0,0,0,.4)}
+.krpop-x{position:absolute;top:9px;right:11px;background:none;border:0;color:var(--faint);
+  font-size:21px;line-height:1;cursor:pointer;padding:2px 5px}
+.krpop-h{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;
+  color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
+.krpop-i{width:16px;height:16px;color:var(--gold);display:inline-flex}
+.krpop-i .ic{width:100%;height:100%}
+.krpop-v{font-size:27px;font-weight:850;margin:7px 0 12px;line-height:1.1}
+.krpop-l{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.krpop-r{display:flex;justify-content:space-between;gap:12px;padding:6px 0;
+  font-size:12.5px;color:var(--dim);border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
+.krpop-r:last-child{border-bottom:0}
+.krpop-r b{color:var(--ink);font-weight:800;text-align:right}
+.krpop-t{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
+  font-size:11.5px;line-height:1.55;color:var(--faint)}
+.kul{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.kul-h{font-size:10px;font-weight:800;color:var(--faint);text-transform:uppercase;
+  letter-spacing:.07em;margin-bottom:7px}
+.kul-r{display:flex;align-items:flex-start;gap:9px;padding:5px 0;font-size:12.5px;
+  line-height:1.5;color:var(--dim)}
+.kul-i{flex:0 0 17px;height:17px;color:var(--gold);display:inline-flex;margin-top:1px}
+.kul-i .ic{width:100%;height:100%}
+.kul-r b{color:var(--ink);font-weight:800}
 .not-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin:10px 0 4px;font-size:12px;font-weight:750;color:var(--gold)}
 .not-l{display:flex;flex-direction:column}
@@ -1287,7 +1324,7 @@ body.kiosk{height:100vh;height:100svh;overflow:hidden;padding:9px 14px}
 body.tabprev{padding:0;overflow:hidden}
 .kiosk .wrap{height:100%;display:flex;flex-direction:column}
 .kiosk .topbar{flex:0 0 auto;margin-bottom:7px}
-.kiosk .statusbar{padding:11px 13px}
+.kiosk .statusbar{padding:var(--pg-gap-y)}
 .kiosk .view{flex:1 1 auto;min-height:0;overflow:visible;display:flex;flex-direction:column;gap:var(--pg-gap);padding-bottom:var(--pg-gap)}
 .kiosk .view.hidden{display:none}
 .kiosk .foot{display:none}
@@ -1304,7 +1341,11 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .warns.tick{flex:1 1 auto;width:100%;align-items:center}
 .kiosk .warns.tick .wt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .kiosk #view-flode>.panel,.kiosk #view-flode>.grid{flex:0 0 auto}
-.kiosk .ew-row{flex:1 1 auto;min-height:0;margin:0}
+/* Fast höjd, styrd av --ewh. Förut svalde den här raden allt överblivet
+   utrymme, vilket gjorde det omöjligt att sätta dess höjd själv — och lämnade
+   rapporten med en lucka under sig när spotpris krympts. Nu är rapporten den
+   enda som växer. */
+.kiosk .ew-row{flex:0 0 auto;min-height:0;margin:0;height:calc(var(--ewh,1)*38vh)}
 .kiosk .ew-row>.panel{min-height:0;padding:11px 13px}
 .kiosk .enpanel .rc-head,.kiosk .wx-card .rc-head{margin-bottom:8px}
 .kiosk .en-body{gap:10px}
@@ -1322,8 +1363,16 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .pband .tide{margin-top:0}
 .kiosk .stats{flex:0 0 auto;margin:0;gap:var(--pg-gap)}
 .kiosk .stat .v{margin:1px 0 0}.kiosk .stat-st{width:13px;height:13px}
-.kiosk .controls{flex:0 0 auto;margin:0;padding:7px;gap:var(--pg-gap)}
-.kiosk .ctl{min-height:48px;padding:6px;gap:3px}.kiosk .ctl-ic{width:17px;height:17px}.kiosk .ctl-l{font-size:11px}.kiosk .ctl-s{font-size:8.5px}
+/* Knapprutans innerkant är samma mått som mellanrummet mellan knapparna —
+   7 px runt och 15 px emellan såg ut som ett misstag. */
+.kiosk .controls{flex:0 0 auto;margin:0;padding:var(--pg-gap);gap:var(--pg-gap)}
+/* Knapparna skalas med --knhojd (1 = som förut). Måtten står HÄR och inte i ett
+   eget block högre upp: den här raden kommer sist i filen och hade annars
+   skrivit över det. */
+.kiosk .ctl{min-height:calc(48px*var(--knhojd,1));padding:calc(6px*var(--knhojd,1));gap:3px}
+.kiosk .ctl-ic{width:calc(17px*var(--knhojd,1));height:calc(17px*var(--knhojd,1))}
+.kiosk .ctl-l{font-size:calc(11px*var(--knhojd,1))}
+.kiosk .ctl-s{font-size:calc(8.5px*var(--knhojd,1))}
 .kiosk .foot{margin-top:0}
 /* ===== v37 ===== */
 .en-hero{align-items:center}
@@ -1340,7 +1389,7 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .warns.tick .wi{width:21px;height:21px}
 .kiosk .warns.tick .lvl{font-size:13px}
 /* ===== v38 ===== */
-.en-top{flex-direction:row;align-items:center;gap:8px;flex-wrap:nowrap}
+.en-top{flex-direction:row;align-items:center;gap:var(--pg-gap-y);flex-wrap:nowrap}
 /* margin-left LÄGGS TILL gap:et — knapparna fick 8+8 px mellan sig medan
    notisen och live hade 8. Nu bär gap allt, så alla mellanrum är lika. */
 .en-top .en-cmp{margin-left:0}
@@ -1499,7 +1548,7 @@ body.mobile .en-hero-main{flex:1 1 auto;min-width:0}
 body.mobile .en-house-ic{width:30px;height:30px}
 body.mobile .en-kw{white-space:nowrap;line-height:1.05}
 body.mobile .en-sub{white-space:nowrap;margin-top:2px}
-body.mobile .en-top{width:100%;margin-left:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:nowrap}
+body.mobile .en-top{width:100%;margin-left:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:var(--pg-gap-y);flex-wrap:nowrap}
 body.mobile .daystrip{padding:12px 16px}
 body.mobile .st3{grid-template-columns:repeat(2,minmax(0,1fr))}
 body.mobile .two{grid-template-columns:1fr}
@@ -1665,6 +1714,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .setup-i{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line);
   border-radius:11px;font:inherit;font-size:14px;background:var(--inset);color:var(--ink)}
 .setup-t{font-size:11px;color:var(--faint);margin-top:4px;line-height:1.45}
+.setup-demo{background:transparent;border:1px solid var(--line);color:var(--dim);margin-top:9px}
 .setup-b{width:100%;margin-top:18px;padding:13px;border:0;border-radius:12px;
   background:var(--blue);color:#fff;font:inherit;font-weight:750;font-size:14px;cursor:pointer}
 .setup-b:disabled{opacity:.6}
@@ -1719,7 +1769,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   <section class="view" id="view-flode">
 
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="krNotisTryck()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -1773,28 +1823,28 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 
   <section class="view hidden" id="view-jamfor">
     <section class="panel statusbar" data-sec="status" id="cmp-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-c" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp active" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-c" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-c"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-c"></span><span id="status-text-c">live</span><span class="rel" id="rel-c"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-c" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp active" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-c" onclick="krNotisTryck()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-c"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-c"></span><span id="status-text-c">live</span><span class="rel" id="rel-c"></span></div></div>
     </section>
     <div id="cmp-body"></div>
   </section>
 
   <section class="view hidden" id="view-insikter">
     <section class="panel statusbar" data-sec="status" id="ins-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-i" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp active" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-i" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-i"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-i"></span><span id="status-text-i">live</span><span class="rel" id="rel-i"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-i" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp active" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-i" onclick="krNotisTryck()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-i"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-i"></span><span id="status-text-i">live</span><span class="rel" id="rel-i"></span></div></div>
     </section>
     <div id="ins-body"></div>
   </section>
 
   <section class="view hidden" id="view-vader">
     <section class="panel statusbar" data-sec="status" id="vdr-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-v" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp active" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-v" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-v"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-v">live</span><span class="rel" id="rel-v"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-v" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp active" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-v" onclick="krNotisTryck()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-v"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-v">live</span><span class="rel" id="rel-v"></span></div></div>
     </section>
     <div id="vdr-body"></div>
   </section>
 
   <section class="view hidden" id="view-notiser">
     <section class="panel statusbar" data-sec="status" id="not-headpanel">
-      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-n" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-n2" onclick="krNotisTryck()" title="Husets krönika"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-n"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-n">live</span><span class="rel" id="rel-n"></span></div></div>
+      <div class="en-top"><button class="en-cmp en-hem" id="house-hero-n" onclick="goHome()" title="Till startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><button class="en-cmp" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis-n2" onclick="krNotisTryck()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status-n"><button class="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot-v"></span><span id="status-text-n">live</span><span class="rel" id="rel-n"></span></div></div>
     </section>
     <div id="not-body"></div>
   </section>
@@ -5166,6 +5216,17 @@ function krNotisUppdatera(){
   Array.prototype.forEach.call(alla,function(b){krNotisEn(b,o);});}
 function krNotisEn(b,o){
   if(!b)return;
+  /* Är en notis öppen blir klockan en tillbaka-knapp. Toppraden är ändå den
+     enda fasta punkten på sidan, och en knapp inne i innehållet flyttar sig
+     beroende på hur lång texten är. */
+  if(_notOppen){
+    b.classList.remove('har','puls');
+    b.classList.add('bak');
+    b.innerHTML='<span class="en-cmp-ic">'+icon('arrow-left')+'</span>Tillbaka';
+    b.title='Tillbaka till notiserna';
+    return;
+  }
+  b.classList.remove('bak');
   /* icon() ger tom sträng innan ikonuppsättningen initierats. Skrivs knappen
      över DÅ försvinner klockan, och den kommer inte tillbaka förrän något ritar
      om — precis det som gav en tom ring på startsidan. Behåll det som redan
@@ -5184,7 +5245,7 @@ function krNotisEn(b,o){
   if(IS_SAMSUNG_TABLET){
     b.classList.remove('har','puls');
     b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>';
-    b.title=o.length?('Husets krönika — '+o.length+' oläst'+(o.length>1?'a':'')):'Husets krönika';
+    b.title=o.length?('Sammanfattningar — '+o.length+' oläst'+(o.length>1?'a':'')):'Sammanfattningar';
     return;
   }
   /* Klockan finns ALLTID. Utan olästa är den bara en väg in till krönikan;
@@ -5193,7 +5254,7 @@ function krNotisEn(b,o){
   if(!o.length){
     b.classList.remove('har','puls');
     b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>';
-    b.title='Husets krönika';
+    b.title='Sammanfattningar';
     return;
   }
   b.classList.add('har');
@@ -5202,13 +5263,14 @@ function krNotisEn(b,o){
   b.innerHTML='<span class="en-cmp-ic">'+kl+'</span>'
     +'<span class="en-notis-n">'+o.length+'</span>';
   b.title=o.length===1
-    ? ('Ny krönika: '+kronNamn(o[0].period))
-    : (o.length+' olästa krönikor — äldsta: '+kronNamn(o[0].period));
+    ? ('Ny sammanfattning: '+kronNamn(o[0].period))
+    : (o.length+' olästa sammanfattningar — äldsta: '+kronNamn(o[0].period));
   b.classList.add('puls');}
 function krNotisTryck(){
-  /* Alltid till listan. Förut hoppade den rakt till den äldsta olästa, vilket
-     var bekvämt med en post men obegripligt med fem — man visste inte vad man
-     hoppat förbi. */
+  /* Öppen notis: knappen är en tillbaka-knapp. Annars till listan — förut
+     hoppade den rakt till den äldsta olästa, vilket var bekvämt med en post men
+     obegripligt med fem: man visste inte vad man hoppat förbi. */
+  if(_notOppen){try{notTillbaka();}catch(e){}return;}
   try{openNotiser();}catch(e){}}
 
 /* ===== Djuplänk =====
@@ -5379,6 +5441,156 @@ function kronTal(t){
 /* max = hur många rutor som ska visas. Ordningen nedan ÄR prioriteringen:
    de mest talande värdena först, så att sex rutor alltid ger de sex mest
    intressanta och inte de sex som råkade komma först i objektet. */
+/* ===== Kul att veta =====
+   Rakt av ur postens egna siffror — inga pahittade fakta. Jamforelserna ar
+   sadana man kan kanna igen: mil i bilen, koppar kaffe, badkar vatten. Bara
+   de som faktiskt gar att rakna ut visas, och de valjs deterministiskt sa att
+   samma manad alltid ger samma rader. */
+function kronKul(o,ar){
+  if(!o)return [];
+  var r=[],n2=function(v,d){return num(v,d==null?0:d);};
+  var sol=o.sol&&o.sol.kwh, el=o.el||{}, v=o.vader||{};
+
+  if(sol>0){
+    /* En elbil drar grovt 0,18 kWh/km — den siffran ar val etablerad och
+       stammer med bada bilarna har inom nagra procent. */
+    r.push({ik:'car-profile',t:'Solen räckte till ungefär <b>'+n2(sol/0.18/10)+' mil</b> i elbil.'});
+    /* En kopp kaffe: ~0,02 kWh i bryggare. */
+    r.push({ik:'coins',t:'Eller <b>'+n2(sol/0.02)+'</b> koppar kaffe.'});
+  }
+  if(o.sol&&o.sol.perKwp)
+    r.push({ik:'sun',t:'<b>'+n2(o.sol.perKwp)+' kWh per installerad kW</b> — det tal som gör anläggningen jämförbar med andras.'});
+  if(o.sol&&o.sol.basta&&o.sol.samsta&&o.sol.samsta.kwh>0){
+    var kvot=o.sol.basta.kwh/o.sol.samsta.kwh;
+    if(kvot>1.5)r.push({ik:'chart-line',t:'Bästa dygnet gav <b>'+n2(kvot,1)+' gånger</b> så mycket som det sämsta.'});
+  }
+  if(el.saltKwh>0&&el.koptKwh>0){
+    var kv=el.saltKwh/el.koptKwh;
+    r.push({ik:'lightning',t:'Du sålde <b>'+n2(kv,1)+' gånger</b> så mycket el som du köpte.'});
+  }
+  if(el.koptKr!=null&&el.saltKr!=null&&el.netto!=null&&el.netto>0)
+    r.push({ik:'coins',t:'Elräkningen blev en <b>intäkt</b> på '+n2(el.netto)+' kr.'});
+  if(v.nederbord>0){
+    /* 1 mm regn = 1 liter per kvadratmeter. Taket ar ca 100 m² panelyta. */
+    r.push({ik:'drop',t:'<b>'+n2(v.nederbord*100)+' liter</b> regn föll på takets panelyta — ungefär '
+      +n2(v.nederbord*100/150)+' badkar.'});
+  }
+  if(v.max&&v.min&&v.max.temp!=null&&v.min.temp!=null)
+    r.push({ik:'thermometer',t:'Mellan kallast och varmast skilde <b>'+n2(v.max.temp-v.min.temp,1)+' grader</b>.'});
+  if(o.bil&&o.bil.kwh>0)
+    r.push({ik:'car-profile',t:'Bilarna laddade <b>'+n2(o.bil.kwh)+' kWh</b> — ungefär '+n2(o.bil.kwh/0.18/10)+' mil.'});
+  if(o.vin&&o.vin.in!=null&&o.vin.ut!=null){
+    var d=o.vin.in-o.vin.ut;
+    r.push({ik:'drop-half-bottom',t:'Vinkällaren '+(d>=0?'växte med <b>':'krympte med <b>')+Math.abs(d)+' flaskor</b>.'});
+  }
+  return r.slice(0,ar?5:4);}
+
+function kronKulHTML(o,ar){
+  var l=kronKul(o,ar);
+  if(!l.length)return '';
+  var h='<div class="kul"><div class="kul-h">Kul att veta</div>';
+  l.forEach(function(x){
+    h+='<div class="kul-r"><span class="kul-i">'+icon(x.ik)+'</span><span>'+x.t+'</span></div>';});
+  return h+'</div>';}
+/* ===== Popup pa en notisruta =====
+   Tryck pa en ruta ger det som ligger bakom talet: hur det raknats fram,
+   detaljerna som inte far plats i rutan, och jamforelsen mot foregaende period
+   dar den finns.
+
+   Nagon graf over manaden gar INTE att rita: posterna innehaller sammanfattade
+   varden, inte dygnsserier, och Insights racker inte bakat for att hamta dem i
+   efterhand. Att rita en kurva av fyra punkter vore att latsas veta mer an vi
+   gor. */
+var _krPop=null;
+function krPopStang(){
+  _krPop=null;
+  var e=$('krpop');if(e&&e.parentNode)e.parentNode.removeChild(e);}
+function krPop(nyckel,period){
+  var o=_kronPost[period];if(!o)return;
+  var d=krPopData(nyckel,o,String(period).length===4);
+  if(!d)return;
+  krPopStang();
+  var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
+    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop-h"><span class="krpop-i">'+icon(d.ik||'circle')+'</span>'+esc(d.rubrik)+'</div>'
+    +'<div class="krpop-v">'+d.varde+'</div>';
+  if(d.rader&&d.rader.length){
+    h+='<div class="krpop-l">';
+    d.rader.forEach(function(r){
+      h+='<div class="krpop-r"><span>'+esc(r[0])+'</span><b>'+r[1]+'</b></div>';});
+    h+='</div>';
+  }
+  if(d.info)h+='<div class="krpop-t">'+d.info+'</div>';
+  h+='</div></div>';
+  var w=document.createElement('div');w.innerHTML=h;
+  document.body.appendChild(w.firstChild);
+  _krPop=nyckel;}
+
+function krPopData(k,o,ar){
+  var n=function(v,d){return v==null?'–':num(v,d==null?0:d);};
+  var dat=function(x){return x&&x.datum?kronDat(x.datum):'';};
+  var el=o.el||{},v=o.vader||{},sol=o.sol||{};
+  var P={
+    sol:{rubrik:'Solproduktion',ik:'sun',varde:n(sol.kwh)+' kWh',
+      rader:[['Bästa dygnet',sol.basta?(n(sol.basta.kwh)+' kWh '+dat(sol.basta)):'–'],
+             ['Sämsta dygnet',sol.samsta?(n(sol.samsta.kwh)+' kWh '+dat(sol.samsta)):'–'],
+             ['Dygn över 100 kWh',sol.dygnOver100!=null?sol.dygnOver100:'–'],
+             ['Per installerad kW',sol.perKwp!=null?(n(sol.perKwp)+' kWh/kW'):'–']],
+      info:'Summan av dygnsmaxen ur Insights, inte av vad dashboarden råkat se. '
+        +'<b>Per installerad kW</b> delar med anläggningens 19,44 kWp och är det tal '
+        +'som gör den jämförbar med andras.'},
+    kopt:{rubrik:'Köpt el',ik:'lightning',varde:n(el.koptKwh)+' kWh',
+      rader:[['Kostnad',el.koptKr!=null?(n(el.koptKr)+' kr'):'–'],
+             ['Dyraste timmen',el.dyrast?(num(el.dyrast.pris,2)+' kr '+dat(el.dyrast)+' kl '+el.dyrast.timme):'–'],
+             ['Billigaste timmen',el.billigast?(num(el.billigast.pris,2)+' kr '+dat(el.billigast)+' kl '+el.billigast.timme):'–']],
+      info:'Mätarställningens ökning under perioden. Priserna kommer från Tibber och '
+        +'är vad du faktiskt betalade, inte en uppskattning.'},
+    salt:{rubrik:'Såld el',ik:'lightning',varde:n(el.saltKwh)+' kWh',
+      rader:[['Ersättning',el.saltKr!=null?(n(el.saltKr)+' kr'):'–'],
+             ['Netto',el.netto!=null?((el.netto>=0?'+':'')+n(el.netto)+' kr'):'–']],
+      info:'Netto är ersättningen minus elkostnaden. Ett plustal betyder att '
+        +'elräkningen blev en intäkt för perioden.'},
+    sjalv:{rubrik:'Självförsörjning',ik:'house',varde:(el.sjalv!=null?n(el.sjalv):'–')+' %',
+      rader:[['Producerat',n(sol.kwh)+' kWh'],['Köpt',n(el.koptKwh)+' kWh'],
+             ['Sålt',n(el.saltKwh)+' kWh']],
+      info:'Hur stor del av husets förbrukning som var egen el. Förbrukningen '
+        +'härleds som <b>produktion − såld + köpt</b>. Skilj den från '
+        +'<b>egenanvändning</b>, som är hur stor del av produktionen som stannade i huset.'},
+    varm:{rubrik:'Varmast',ik:'thermometer-hot',varde:(v.max?num(v.max.temp,1):'–')+' °C',
+      rader:[['Datum',v.max?dat(v.max):'–'],
+             ['Kallast',v.min?(num(v.min.temp,1)+' °C '+dat(v.min)):'–'],
+             ['Medel',v.medel!=null?(num(v.medel,1)+' °C'):'–'],
+             ['Dygn över 25°',v.dygnOver25!=null?v.dygnOver25:'–']],
+      info:'Dygnsmax ur utomhusgivaren. Medelvärdet är över alla mätpunkter i '
+        +'perioden, inte över dygnsmaxen — annars hade det legat för högt.'},
+    regn:{rubrik:'Nederbörd',ik:'drop',varde:(v.nederbord!=null?num(v.nederbord,1):'–')+' mm',
+      rader:[['På takets panelyta',v.nederbord!=null?(n(v.nederbord*100)+' liter'):'–'],
+             ['Kraftigaste by',v.by?(num(v.by.ms,1)+' m/s '+dat(v.by)):'–']],
+      info:'1 mm regn är 1 liter per kvadratmeter. Panelytan är ungefär 100 m².'},
+    bil:{rubrik:'Bilarna',ik:'car-profile',varde:(o.bil?n(o.bil.kwh):'–')+' kWh',
+      rader:[['Ungefär',o.bil?(n(o.bil.kwh/0.18/10)+' mil'):'–']],
+      info:'Summan av laddboxens mätare. Sträckan är räknad på 0,18 kWh/km, vilket '
+        +'stämmer med båda bilarna inom några procent.'},
+    pool:{rubrik:'Poolen',ik:'swimming-pool',varde:(o.pool&&o.pool.varmast?num(o.pool.varmast.temp,1):'–')+' °C',
+      rader:[['Varmast',o.pool&&o.pool.varmast?dat(o.pool.varmast):'–'],
+             ['Dygn över 26°',o.pool&&o.pool.dygnOver26!=null?o.pool.dygnOver26:'–']],
+      info:'Dygnsmax ur pooltemperaturen.'},
+    vin:{rubrik:'Vinkällaren',ik:'drop-half-bottom',
+      varde:(o.vin?(o.vin.in+' in / '+o.vin.ut+' ut'):'–'),
+      rader:[['Värde',o.vin&&o.vin.varde!=null?(n(o.vin.varde)+' kr'):'–'],
+             ['Förändring',o.vin?((o.vin.in-o.vin.ut>=0?'+':'')+(o.vin.in-o.vin.ut)+' flaskor'):'–']],
+      info:'Ur vinkällarappens register.'}
+  };
+  return P[k]||null;}
+
+/* Datum ur en post. Årsposter har hela datum (2025-07-14) medan demodata och
+   vissa månadsposter bara har period+dag (2026-07-14 respektive 2025-14).
+   Utan den här kontrollen blev det "NaN/14". */
+function kronDat(d){
+  var p=String(d||'').split('-');
+  if(p.length>=3&&p[1]&&p[2])return Number(p[2])+'/'+Number(p[1]);
+  if(p.length===2&&p[1])return 'den '+Number(p[1]);
+  return String(d||'');}
 function kronRuta(o,max){
   var r=[];
   /* Samma uppställning som rutorna på startsidan: ikon till vänster, texten i
@@ -5388,9 +5600,11 @@ function kronRuta(o,max){
   /* Ordningen i koden är inte prioriteringen — den följer datastrukturen.
      Med ett uttryckligt prio-tal ger sex rutor de sex MEST TALANDE värdena
      och inte de sex som råkar komma först i objektet. */
-  var lagg=function(namn,varde,extra,ik,farg,prio){
+  /* pop = vilken popup rutan öppnar. Utan nyckel är rutan bara en siffra. */
+  var lagg=function(namn,varde,extra,ik,farg,prio,pop){
     if(varde==null||varde==='–')return;
-    r.push({p:(prio||99),h:'<div class="kr-c">'
+    r.push({p:(prio||99),h:'<div class="kr-c'+(pop?' kan':'')+'"'
+      +(pop?(' onclick="krPop(\''+pop+'\',\''+esc(o.period)+'\')"'):'')+'>'
       +'<span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
       +icon(ik||'circle')+'</span>'
       +'<span class="kr-tx">'
@@ -5399,34 +5613,34 @@ function kronRuta(o,max){
       +(extra?('<span class="kr-x">'+extra+'</span>'):'')
       +'</span></div>'});};
   if(o.sol){
-    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)',1);
+    lagg('Sol',kronKwh(o.sol.kwh),o.sol.basta?('bäst '+num(o.sol.basta.kwh,0)+' kWh '+o.sol.basta.datum.slice(8)+'/'+(+o.sol.basta.datum.slice(5,7))):null,'sun','var(--solar)',1,'sol');
     if(o.sol.dygnOver100)lagg('Dygn >100 kWh',o.sol.dygnOver100,null,'sun','var(--solar)',7);
   }
   if(o.el){
-    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null,'lightning','var(--hot)',2);
-    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null,'lightning','var(--ok)',3);
-    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %',null,'house','var(--ok)',4);
+    lagg('Köpt',kronKwh(o.el.koptKwh),o.el.koptKr!=null?kronKr(o.el.koptKr):null,'lightning','var(--hot)',2,'kopt');
+    lagg('Sålt',kronKwh(o.el.saltKwh),o.el.saltKr!=null?kronKr(o.el.saltKr):null,'lightning','var(--ok)',3,'salt');
+    if(o.el.sjalv!=null)lagg('Självförsörjning',o.el.sjalv+' %',null,'house','var(--ok)',4,'sjalv');
     if(o.el.dyrast)lagg('Dyraste timmen',num(o.el.dyrast.pris,2)+' kr',
       o.el.dyrast.datum.slice(8)+'/'+(+o.el.dyrast.datum.slice(5,7))+' kl '+o.el.dyrast.timme,'lightning','var(--hot)',8);
     if(o.el.billigast)lagg('Billigaste',num(o.el.billigast.pris,2)+' kr',
       o.el.billigast.datum.slice(8)+'/'+(+o.el.billigast.datum.slice(5,7))+' kl '+o.el.billigast.timme,'lightning','var(--ok)',9);
   }
   if(o.vader){
-    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)),'thermometer-simple','var(--hot)',5);
+    if(o.vader.max)lagg('Varmast',num(o.vader.max.temp,1)+' °',o.vader.max.datum.slice(8)+'/'+(+o.vader.max.datum.slice(5,7)),'thermometer-simple','var(--hot)',5,'varm');
     if(o.vader.min)lagg('Kallast',num(o.vader.min.temp,1)+' °',o.vader.min.datum.slice(8)+'/'+(+o.vader.min.datum.slice(5,7)),'thermometer-simple','var(--blue)',10);
     if(o.vader.dygnOver25!=null&&o.vader.dygnOver25>0)lagg('Dygn >25°',o.vader.dygnOver25,null,'sun','var(--gold)',14);
-    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm',null,'drop','var(--rain)',6);
+    if(o.vader.nederbord!=null)lagg('Nederbörd',num(o.vader.nederbord,1)+' mm',null,'drop','var(--rain)',6,'regn');
     if(o.vader.by)lagg('Kraftigaste by',num(o.vader.by.ms,1)+' m/s',o.vader.by.datum.slice(8)+'/'+(+o.vader.by.datum.slice(5,7)),'wind','var(--blue)',11);
   }
   if(o.pool){
-    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °',null,'drop','var(--cyan)',13);
+    if(o.pool.varmast)lagg('Poolen varmast',num(o.pool.varmast.temp,1)+' °',null,'drop','var(--cyan)',13,'pool');
     if(o.pool.dygnOver26)lagg('Pooldygn >26°',o.pool.dygnOver26,null,'drop','var(--cyan)',15);
   }
   if(o.vin){
-    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut,null,'wine','var(--hot)',16);
-    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde),null,'wine','var(--hot)',17);
+    if(o.vin.in||o.vin.ut)lagg('Vin in / ut',o.vin.in+' / '+o.vin.ut,null,'drop-half-bottom','var(--hot)',16,'vin');
+    if(o.vin.varde!=null)lagg('Källarens värde',kronKr(o.vin.varde),null,'drop-half-bottom','var(--hot)',17);
   }
-  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh),null,'car','var(--blue)',12);
+  if(o.bil&&o.bil.kwh)lagg('Bilarna',kronKwh(o.bil.kwh),null,'car','var(--blue)',12,'bil');
   r.sort(function(a,b){return a.p-b.p;});
   if(max&&r.length>max)r=r.slice(0,max);
   var ut=r.map(function(x){return x.h;});
@@ -5449,7 +5663,7 @@ function kronHTML(){
   if(!_kron)return '';
   /* cmpHeadHtml i stället för en naken ww-h: då får kortet exakt samma
      rubrikutrymme som Zambretti och Medeleffekt, och en i-knapp på köpet. */
-  var h='<section class="panel">'+cmpHeadHtml('Krönikans arkiv','månad för månad',
+  var h='<section class="panel">'+cmpHeadHtml('Sammanfattningar','arkiv, månad för månad',
     '<p style="margin:0 0 8px"><b>Arkivet.</b> Nya texter läses under notisklockan '
     +'i toppraden; här ligger alla kvar, även de du sopat undan därifrån.</p>'
     +'<p style="margin:0 0 8px"><b>En text per månad och år.</b> Siffrorna räknas '
@@ -5648,9 +5862,9 @@ function notLista(){
      påminnelse som aldrig kvitteras av rätt person. */
   var visaNy=!IS_SAMSUNG_TABLET;
   (_kron.ar||[]).forEach(function(x){ut.push({typ:'kronika',ar:true,period:x.period,
-    tid:kronTid(x),rubrik:'Årskrönikan '+x.period,sol:x.sol,ny:visaNy&&kronArNy(x)});});
+    tid:kronTid(x),rubrik:'Sammanfattning för '+x.period,sol:x.sol,ny:visaNy&&kronArNy(x)});});
   (_kron.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
-    tid:kronTid(x),rubrik:'Krönikan för '+kronNamn(x.period),sol:x.sol,ny:visaNy&&kronArNy(x)});});
+    tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:visaNy&&kronArNy(x)});});
   return ut.filter(function(x){return !bort[x.period];})
     .sort(function(a,b){return (b.tid||0)-(a.tid||0);});}
 
@@ -5675,14 +5889,14 @@ function openNotiser(){
 function notOppna(p){
   _notOppen=p;
   kronLastSatt(p);
-  try{krNotisUppdatera();}catch(e){}
+  try{krNotisUppdatera();}catch(e){}   /* klockan blir tillbaka-knapp */
   if(!_kronPost[p]){
     renderNotiser();
     kronPost(p).then(function(){renderNotiser();});
     return;
   }
   renderNotiser();}
-function notTillbaka(){_notOppen=null;renderNotiser();}
+function notTillbaka(){_notOppen=null;renderNotiser();try{krNotisUppdatera();}catch(e){}}
 
 function renderNotiser(){
   var el=$('not-body');if(!el)return;
@@ -5696,7 +5910,7 @@ function notListaHTML(){
   var h='<section class="panel">'+cmpHeadHtml('Notiser',
     l.length?(l.length+' st'):null,
     '<p style="margin:0 0 8px">Här samlas det som skrivits om huset. Just nu bara '
-    +'krönikan; fler slag kan tillkomma.</p>'
+    +'månads- och årssammanfattningar; fler slag kan tillkomma.</p>'
     +'<p style="margin:0 0 8px"><b>Läst och bortsopat gäller den här enheten.</b> Att du '
     +'läst på plattan säger ingenting om vad du sett i telefonen, och en notis du '
     +'sopat undan här finns kvar där.</p>'
@@ -5704,7 +5918,7 @@ function notListaHTML(){
     +'<button class="wxm-b" onclick="notAterstall();renderNotiser()">Återställ borttagna</button></p>');
 
   if(!l.length){
-    h+='<div class="ins-empty">Inga notiser. Krönikan skrivs sista dagen i månaden.</div>';
+    h+='<div class="ins-empty">Inga notiser. Sammanfattningen skrivs sista dagen i månaden.</div>';
     return h+'</section>';
   }
   var olasta=l.filter(function(x){return x.ny;}).length;
@@ -5737,14 +5951,15 @@ function notDetaljHTML(p){
   var o=_kronPost[p];
   var ar=(String(p).length===4);
   var h='<section class="panel">';
-  h+='<div class="not-back"><button class="te-alt" onclick="notTillbaka()">‹ Notiser</button></div>';
+
   if(!o)return h+'<div class="ins-empty">Hämtar…</div></section>';
   /* Sex rutor for en manad, tolv for ett ar — alltid samma antal, sa sidan ser
      likadan ut varje gang och man vet var man ska titta. */
-  h+=kronRuta(o,ar?12:6);
+  h+=kronRuta(o,ar?12:8);
   h+=kronJmf(o);
   if(o.text)h+='<div class="kr-t">'+kronRapport(o.text)+'</div>';
   else h+='<div class="kr-t saknas">Ingen text skriven för den här perioden.</div>';
+  h+=kronKulHTML(o,ar);
   return h+'</section>';}
 
 /* Svep at sidan tar bort. Ren pointer-hantering: inga bibliotek, och den far
@@ -9078,8 +9293,55 @@ function renderKsBand(){
   var kc=$('ks-kop'),sc=$('ks-sal');
   if(kc){var kb=kc.querySelector('b');if(kb)kb.textContent=r.st?(kInt(rk)+' kr'):'–';if(kc.style)kc.style.left=Math.max(10,Math.min(90,pk*50))+'%';}
   if(sc){var sb=sc.querySelector('b');if(sb)sb.textContent=r.st?(kInt(rs)+' kr'):'–';if(sc.style)sc.style.left=Math.max(10,Math.min(90,pk*100+ps*50))+'%';}}
+/* Knapprutans höjd. Knapparna följer med — det är hela poängen: sätter man
+   rutan lägre ska knapparna bli lägre, inte bara få mer luft omkring sig. */
+function openKnEdit(){
+  _diN=0;
+  var f=knHojd();
+  var h='<div class="te"><div class="te-sec">Knapparna</div>';
+  h+=stepRow('Höjd','knnum-h',Math.round(f*100)+' %','knHojdSteg');
+  h+='<div class="cfg-hint" style="margin-top:6px">Höjden gäller knapparna i '
+    +'kioskläget. Texten och ikonerna följer med, så en lägre rad ger mindre '
+    +'knappar och inte bara mer luft omkring dem.</div>';
+  h+='<div class="te-sec" style="margin-top:14px">Ordning och innehåll</div>';
+  h+='<div class="cfg-hint" style="margin-top:0">Håll inne på en enskild knapp '
+    +'för att byta vad den gör.</div>';
+  h+='</div>';
+  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
+  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
+  setT('dlg-title','Knappar');setIcon('dlg-ic','power');
+  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
+function knHojd(){
+  var v=(CFG&&CFG.knHojd);
+  return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):1;}
+function knHojdSteg(d){
+  var f=Math.max(0.6,Math.min(1.8,Math.round((knHojd()+d*0.1)*10)/10));
+  CFG.knHojd=f;saveCfg();applyCfg();
+  var n=$('knnum-h');if(n)n.textContent=Math.round(f*100)+' %';}
+
 /* Rapportrutans höjd. Samma stegknappar som de andra rutorna, plus ett val för
    om den ska svälja överbliven höjd i kioskläget. */
+/* Energi- och väderraden: fast höjd som ställs för hand. Rapporten under tar
+   sedan det som blir över, så sidan alltid fyller skärmen. */
+function openEwEdit(){
+  _diN=0;
+  var f=(CFG.ewh!=null?CFG.ewh:1);
+  var h='<div class="te"><div class="te-sec">Energi & väder · höjd</div>';
+  h+=stepRow('Höjd','ewnum-h',Math.round(f*100)+' %','ewHojd');
+  h+='<div class="cfg-hint" style="margin-top:6px">Raden har fast höjd. '
+    +'<b>Rapportrutan</b> under tar det som blir över, så skärmen alltid fylls — '
+    +'krymper du den här blir rapporten högre, och tvärtom.</div>';
+  h+='</div>';
+  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
+  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
+  setT('dlg-title','Energi & väder');setIcon('dlg-ic','sun');
+  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
+function ewHojd(d){
+  var f=(CFG.ewh!=null?CFG.ewh:1)+d*0.05;
+  f=Math.max(0.5,Math.min(1.8,Math.round(f*100)/100));
+  CFG.ewh=f;saveCfg();applyCfg();
+  var n=$('ewnum-h');if(n)n.textContent=Math.round(f*100)+' %';}
+
 function openRepEdit(){
   _diN=0;
   var f=secScaleOf('report');
@@ -9375,7 +9637,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v374';
+const APP_VERSION='v378';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -9401,9 +9663,13 @@ function cfgSaveDefault(){try{localStorage.setItem('cfg_base_v1',JSON.stringify(
 function scl(v){return (1+(v||0)*0.06).toFixed(3);}
 function applyGrpVars(el,pre,grp){if(!el||!el.style)return;el.style.setProperty(pre+'-ic',scl(grp.ic));el.style.setProperty(pre+'-v',scl(grp.v));el.style.setProperty(pre+'-name',scl(grp.name));el.style.setProperty(pre+'-desc',scl(grp.desc));}
 function applyCfg(){
-  /* Rapportens tillväxt sätts på body, inte på elementet: elementet ritas om
-     vid varje render och en inline-stil där skulle försvinna. */
-  try{document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');}catch(e){}const r=document.body;if(!r||!r.style)return;
+  /* Sätts på body, inte på elementen: de ritas om vid varje uppdatering och en
+     inline-stil där skulle försvinna var femtonde sekund. */
+  try{
+    document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');
+    document.body.style.setProperty('--knhojd',String(knHojd()));
+  }catch(e){}
+  try{document.body.style.setProperty('--ewh',String((CFG&&CFG.ewh!=null)?CFG.ewh:1));}catch(e){}const r=document.body;if(!r||!r.style)return;
   try{applyMobGap();}catch(e){}
   const ee=$('stats-energy'),we=$('stats-weather'),te=$('stats-flode');
   applyGrpVars(ee,'--tl',CFG.chip);if(ee&&ee.style)ee.style.setProperty('--tl-gap',(CFG.chip.gap==null?11:CFG.chip.gap)+'px');
@@ -9994,6 +10260,13 @@ function setupHTML(){
     +'placeholder="http://192.168.50.147" value="'+esc(c.lan)+'">'
     +'<div class="setup-t">Snabbare nar du ar hemma. Utan den gar allt via molnet.</div>'
     +'<button class="setup-b" id="su-ok">Anslut</button>'
+    /* Demoläge utan uppgifter: hela dashboarden med påhittade siffror. Gör det
+       möjligt att prova en ny version utan att lägga upp den någonstans eller
+       skriva in token igen. Uppgifterna sparas inte, så nästa gång är rutan
+       tillbaka. */
+    +'<button class="setup-b setup-demo" id="su-demo">Visa demo utan att ansluta</button>'
+    +'<div class="setup-t" style="margin-top:6px">Allt fungerar, men siffrorna är '
+    +'påhittade. Inget sparas — rutan är tillbaka nästa gång du öppnar sidan.</div>'
     +'<div class="setup-m" id="su-msg"></div>'
     +'</div></div>';}
 function setupVisa(){
@@ -10003,6 +10276,8 @@ function setupVisa(){
   document.body.appendChild(d.firstChild);
   var k=document.getElementById('su-ok');
   if(k)k.addEventListener('click',setupProva);
+  var dm=document.getElementById('su-demo');
+  if(dm)dm.addEventListener('click',setupDemo);
   ['su-id','su-tok','su-lan'].forEach(function(id){
     var e=document.getElementById(id);
     if(e)e.addEventListener('keydown',function(ev){if(ev.key==='Enter')setupProva();});
@@ -10010,6 +10285,54 @@ function setupVisa(){
 function setupDolj(){
   var e=document.getElementById('setup-bak');
   if(e&&e.parentNode)e.parentNode.removeChild(e);}
+/* Startar demoläget. Ingen token sparas och inget nätverk används — samma väg
+   som dashboarden redan tar när den saknar Homey, men vald med flit. */
+function setupDemo(){
+  try{
+    setupDolj();
+    SOURCE='demo-data';
+    BASE='';CONFIG.TOKEN='';
+    DATA=applyScenario(0);
+    if(typeof seedHistory==='function')try{seedHistory();}catch(e){}
+    /* Krönikan finns inte i demoläget — lägg in några poster så notisvyn går
+       att prova, annars ser den bara tom ut. */
+    try{demoKronika();}catch(e){}
+    render();
+    try{krNotisUppdatera();}catch(e){}
+    try{goHome();}catch(e){}
+  }catch(e){}}
+
+/* Påhittade krönikeposter, så notislistan och notisvyn går att prova. */
+function demoKronika(){
+  var nu=Date.now(), D=86400000;
+  var idag=new Date();
+  var ym=function(m){var d=new Date(idag.getFullYear(),idag.getMonth()-m,1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');};
+  _kron={ar:[{period:String(idag.getFullYear()-1),sol:19800,raknad_at:nu-5*D,text_at:nu-5*D}],
+    manader:[{period:ym(1),sol:2615,raknad_at:nu-2*3600000,text_at:nu-2*3600000},
+             {period:ym(2),sol:2640,raknad_at:nu-2*D,text_at:nu-2*D},
+             {period:ym(3),sol:2210,raknad_at:nu-33*D,text_at:nu-33*D}]};
+  _kronAt=Date.now();
+  var post=function(p,ar){
+    return {period:p,ar:!!ar,
+      sol:{kwh:ar?19800:2615,basta:{datum:p+'-14',kwh:118},samsta:{datum:p+'-03',kwh:21},dygnOver100:9,perKwp:ar?1018:135},
+      el:{koptKwh:245,saltKwh:965,koptKr:312,saltKr:1140,netto:828,sjalv:78,
+          dyrast:{datum:p+'-22',timme:18,pris:1.84},billigast:{datum:p+'-14',timme:3,pris:0.08}},
+      vader:{max:{datum:p+'-04',temp:28.4},min:{datum:p+'-12',temp:9.1},medel:19.2,
+             dygnOver25:7,nederbord:26.9,by:{datum:p+'-11',ms:21.7}},
+      pool:{varmast:{datum:p+'-15',temp:28.9},dygnOver26:14},
+      vin:{in:17,ut:6,varde:48250},bil:{kwh:310},
+      text:(ar?'🏡 Husets år ':'🏡 Husets ')+(ar?p:kronNamn(p))+'\n'
+        +'Produktion 2 615 kWh — 6 % under föregående månad, men 12 % över samma månad i fjol.\n'
+        +'💰 Elkostnad 312 kr, ersättning 1 140 kr → netto +828 kr.\n'
+        +'🔋 Batteriet cyklade 118 kWh, snittdjup 62 %.\n'
+        +'🚗 Laddat 310 kWh, varav 71 % egen sol.\n'
+        +'🏊 Poolvärme 84 h, 96 % på solöverskott, snitt 27,4 °C.\n'
+        +'🌡️ Ute 19,2 °C i snitt — 2,1 °C varmare än i fjol.\n'
+        +'🏆 Bästa dag: den 14:e, 118 kWh.'};};
+  _kron.manader.forEach(function(x){_kronPost[x.period]=post(x.period,false);});
+  _kron.ar.forEach(function(x){_kronPost[x.period]=post(x.period,true);});}
+
 async function setupProva(){
   var id=(document.getElementById('su-id')||{}).value||'';
   var tok=(document.getElementById('su-tok')||{}).value||'';
@@ -10574,6 +10897,8 @@ function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;
       if(sec==='spot'){openSpotEdit();return;}
       if(sec==='kopt-salt'){openKsEdit();return;}
       if(sec==='report'){openRepEdit();return;}
+      if(sec==='buttons'){openKnEdit();return;}
+      if(sec==='energy'||sec==='weather'){openEwEdit();return;}
       openSecMove(sec);},600);};
   const cancel=()=>{if(t){clearTimeout(t);t=null;}};
   view.addEventListener('pointerdown',dn);view.addEventListener('pointerup',cancel);view.addEventListener('pointermove',cancel);view.addEventListener('pointerleave',cancel);view.addEventListener('pointercancel',cancel);})();
