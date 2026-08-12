@@ -6955,99 +6955,45 @@ function selfData(){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw
   const of=(hW&&hW>0)?((si+bi)/hW):(pw!=null&&pw<0?1:0);return {of:Math.max(0,Math.min(1,of)),si,bi,gi,hW};}
 
 /* ===== Nar batteriet tog slut =====
-   Hall koll pa nar husbatteriet natt sitt golv och hur lange det stod dar innan
-   det borjade ladda igen. Talet sager nagot om anlaggningens marginal: ett
-   batteri som star tomt i tolv timmar en januarinatt ar en annan sak an ett som
-   nuddar botten i tjugo minuter.
+   RAKNINGEN LIGGER I APPEN sedan 2.34.0. Har lag den forut, och fangade darfor
+   bara episoder medan en skarm var pasatt — startade vaggplattan om mitt i en
+   tomning missades den helt. Appen kor dygnet runt.
 
-   INSPELAT LOKALT, inte hamtat: Homey Insights sparar laddningsniva men att
-   leta episoder i efterhand kraver hela serien, och den racker inte bakat.
-   Darfor byggs historiken upp framat fran den dag funktionen slas pa.
+   Dashboarden laser bara. Den gamla lokala historiken skickas EN gang till
+   appen sa inget gar forlorat. */
+var BT_KEY='battom_v1';
+var _bt=null,_btAt=0,_btFel=null,_btSkickat=false;
 
-   Trosklarna: 'tomt' nar niva <= BT_GOLV, och episoden slutar forst nar den
-   stigit over BT_GOLV+BT_HYST. Hysteresen finns for att en niva som studsar
-   mellan 5 och 6 procent annars hade gett dussintals falska episoder. */
-var BT_KEY='battom_v1', BT_GOLV=6, BT_HYST=3, BT_MAX=200;
-/* SLÅS IHOP vid hämtning i stället för att skrivas över. Väggplattan står på
-   dygnet runt och ser allt; telefonen ser bara det som händer medan den är
-   öppen. Hämtade man plattans kopia rakt av på telefonen — eller värre, sparade
-   telefonens tunna historik tillbaka — försvann episoder utan att någon märkte
-   det. Sammanslagning på starttidpunkt gör ordningen likgiltig. */
-function btSlaIhop(inkommande){
+async function btHamta(force){
+  if(!appKan())return null;
+  if(!force&&_bt&&Date.now()-_btAt<5*60000)return _bt;
   try{
-    var ny=JSON.parse(inkommande||'{}');
-    if(!ny||!Array.isArray(ny.ep))return inkommande;
-    var min=btGet();
-    var karta={};
-    min.ep.concat(ny.ep).forEach(function(e){
-      if(!e||!e.start)return;
-      var f=karta[e.start];
-      /* Vid dubbletter vinner den som VET mest: en avslutad episod framför en
-         öppen, och den lägsta uppmätta nivån. */
-      if(!f){karta[e.start]=e;return;}
-      if(e.slut&&!f.slut)f.slut=e.slut;
-      if(e.min!=null&&(f.min==null||e.min<f.min))f.min=e.min;
-    });
-    var ep=Object.keys(karta).map(function(k){return karta[k];})
-      .sort(function(a,b){return a.start-b.start;});
-    var pa=min.pa||ny.pa||null;
-    return JSON.stringify({ep:ep.slice(-BT_MAX),pa:pa});
-  }catch(e){return inkommande;}}
+    var j=await appGet('/battom');
+    if(!j||typeof j.antal30!=='number')throw new Error('tomt svar');
+    _bt=j;_btAt=Date.now();_btFel=null;
+    try{btFlytta();}catch(e){}
+    return j;
+  }catch(e){_btFel=(e&&e.message)||String(e);return null;}}
 
-function btGet(){
-  try{var o=JSON.parse(localStorage.getItem(BT_KEY)||'{}');
-    return {ep:Array.isArray(o.ep)?o.ep:[],pa:o.pa||null};}catch(e){return {ep:[],pa:null};}}
-function btSet(o){
-  try{
-    if(o.ep.length>BT_MAX)o.ep=o.ep.slice(-BT_MAX);
-    localStorage.setItem(BT_KEY,JSON.stringify(o));
-  }catch(e){}}
+/* Skickar den gamla lokala historiken en gang och rensar den sedan. Flaggan
+   ligger i localStorage: en omladdning ska inte skicka om alltihop. */
+function btFlytta(){
+  if(_btSkickat)return;
+  var rad=null;
+  try{rad=localStorage.getItem(BT_KEY);}catch(e){}
+  if(!rad||rad.length<10){_btSkickat=true;return;}
+  _btSkickat=true;
+  appPost('/battom',{data:rad}).then(function(r){
+    if(r&&r.ok){
+      try{localStorage.removeItem(BT_KEY);}catch(e){}
+      _bt=null;_btAt=0;
+      try{btHamta(true);}catch(e){}
+    }
+  }).catch(function(){_btSkickat=false;});}
 
-/* Kallas vid varje uppdatering. Gor ingenting om nivan saknas — ett bortfall ar
-   inte samma sak som ett tomt batteri, och att rakna det som det hade gett en
-   falsk episod varje gang Homey tappade kontakten. */
-function btTick(){
-  var n=cap(DEV.battery,'measure_battery');
-  if(n==null||isNaN(n))return;
-  var o=btGet(), nu=Date.now(), andrat=false;
-  if(o.pa){
-    /* Sätt andrat när minvärdet faktiskt sjunker — annars räknades det ut men
-       sparades aldrig, och episoden mindes bara sin första nivå. */
-    if(n<o.pa.min){o.pa.min=n;andrat=true;}
-    if(n>BT_GOLV+BT_HYST){
-      o.pa.slut=nu;
-      o.ep.push(o.pa);
-      o.pa=null;
-      andrat=true;
-    }else if(nu-o.pa.sett>15*60000){o.pa.sett=nu;andrat=true;}
-  }else if(n<=BT_GOLV){
-    o.pa={start:nu,sett:nu,min:n,slut:null};
-    andrat=true;
-  }
-  if(andrat)btSet(o);}
-
-/* Sammanstallning. tim = timmar, inte millisekunder — det ar sa man tanker om
-   det har. */
 function btSum(){
-  var o=btGet(), nu=Date.now();
-  var alla=o.ep.slice();
-  if(o.pa)alla.push({start:o.pa.start,slut:null,min:o.pa.min});
-  var langd=function(e){return ((e.slut||nu)-e.start)/3600000;};
-  var m30=alla.filter(function(e){return (e.slut||nu)>nu-30*86400000;});
-  var tot=0,langst=null;
-  m30.forEach(function(e){var t=langd(e);tot+=t;
-    if(!langst||t>langd(langst))langst=e;});
-  var senast=alla.length?alla[alla.length-1]:null;
-  return {
-    pagar:!!o.pa,
-    nu:o.pa?langd(o.pa):null,
-    senast:senast,
-    senastLangd:senast?langd(senast):null,
-    antal30:m30.length,
-    timmar30:tot,
-    langst:langst,
-    langstLangd:langst?langd(langst):null,
-    alla:alla};}
+  return _bt||{pagar:false,nu:null,senast:null,senastLangd:null,
+    antal30:0,timmar30:0,langst:null,langstLangd:null,golv:6,hyst:3,alla:[]};}
 
 function btTid(h){
   if(h==null)return '–';
@@ -7062,16 +7008,19 @@ function btNar(t){
   if(d<30)return d+' dagar sedan';
   try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
 
-/* Popupen. Samma form som notisrutornas — kryss uppe till hoger, stangs vid
-   tryck utanfor. */
 function btPop(){
   var S=btSum();
   krPopStang();
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
     +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
     +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>Batteriet tomt</div>'
-    +'<div class="krpop-v">'+(S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'))+'</div>'
-    +'<div class="krpop-l">';
+    +'<div class="krpop-v">'+(S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'))+'</div>';
+  if(_btFel){
+    h+='<div class="krpop-t">Kunde inte läsa från Homey-appen: '+esc(_btFel)
+      +'.<br>Kräver appen 2.34.0 eller senare.</div></div></div>';
+    var w0=document.createElement('div');w0.innerHTML=h;document.body.appendChild(w0.firstChild);return;
+  }
+  h+='<div class="krpop-l">';
   h+='<div class="krpop-r"><span>Läge</span><b>'+(S.pagar?'Tomt just nu':'Har laddat sedan dess')+'</b></div>';
   if(S.senast)h+='<div class="krpop-r"><span>'+(S.pagar?'Tomt sedan':'Senast tomt')+'</span><b>'
     +esc(btNar(S.senast.start))+'</b></div>';
@@ -7080,7 +7029,7 @@ function btPop(){
   if(S.langst)h+='<div class="krpop-r"><span>Längsta</span><b>'+btTid(S.langstLangd)
     +' · '+esc(btNar(S.langst.start))+'</b></div>';
   h+='</div>';
-  if(S.alla.length>1){
+  if(S.alla&&S.alla.length>1){
     h+='<div class="krpop-t" style="border-bottom:1px solid var(--line);padding-bottom:9px">'
       +'<b>Senaste tillfällena</b></div><div class="krpop-l">';
     S.alla.slice(-5).reverse().forEach(function(e){
@@ -7089,11 +7038,11 @@ function btPop(){
         +(e.slut?'':' · pågår')+'</b></div>';});
     h+='</div>';
   }
-  h+='<div class="krpop-t">Räknas som tomt vid <b>'+BT_GOLV+' %</b> eller lägre, och som '
-    +'laddat först över <b>'+(BT_GOLV+BT_HYST)+' %</b>. Marginalen finns för att en nivå '
+  h+='<div class="krpop-t">Räknas som tomt vid <b>'+(S.golv||6)+' %</b> eller lägre, och som '
+    +'laddat först över <b>'+((S.golv||6)+(S.hyst||3))+' %</b>. Marginalen finns för att en nivå '
     +'som studsar kring gränsen annars hade gett dussintals falska tillfällen.<br><br>'
-    +'Historiken byggs upp framåt från den dag dashboarden först såg batteriet — '
-    +'Insights räcker inte bakåt för att leta episoder i efterhand.</div>';
+    +'Räknas i <b>Homey-appen</b> var femtonde minut, dygnet runt — inte i webbläsaren. '
+    +'Historiken byggs framåt; Insights räcker inte bakåt för att leta episoder i efterhand.</div>';
   h+='</div></div>';
   var w=document.createElement('div');w.innerHTML=h;
   document.body.appendChild(w.firstChild);}
@@ -8084,7 +8033,7 @@ async function homeyTriggerFlow(type,id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOK
   t.clear();if(!r.ok)throw new Error('HTTP '+r.status);return true;}
 
 /* ===== Synk via Homey-logikvariabler (chunkat) ===== */
-const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','battom_v1','bkp_v1'];
+const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
 const SYNC_CHUNK=3500;let _syncMeta=null;
 function apiBase(){return (BASE||(candidates()[0])||CONFIG.HOMEY_URL||'').replace(/\/$/,'');}
 async function logicList(){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
@@ -8914,6 +8863,20 @@ var _appFel=null, _appOk=0;
 function appKan(){try{
   return !!(apiBase()&&CONFIG.TOKEN&&CONFIG.TOKEN.indexOf('DIN_API')<0&&!CONFIG.DATA_URL&&!isDemo());
 }catch(e){return false;}}
+/* POST mot appen. Samma inlindning i {result:…} som appGet hanterar. */
+async function appPost(vag,kropp){
+  if(!appKan())throw new Error('ingen direktkoppling till Homey');
+  var t=withTimeout(12000);
+  var r=await fetch(apiBase()+'/api/app/'+APP_ID+vag,
+    {method:'POST',headers:{Authorization:'Bearer '+(CONFIG.TOKEN||''),
+      'Content-Type':'application/json'},
+     body:JSON.stringify(kropp||{}),cache:'no-store',signal:t.signal});
+  t.clear();
+  if(!r.ok)throw new Error(r.status+' '+r.statusText);
+  var j=await r.json();
+  if(j&&typeof j==='object'&&!Array.isArray(j)&&'result'in j&&Object.keys(j).length===1)j=j.result;
+  return j;}
+
 async function appGet(vag){
   if(!appKan())throw new Error('ingen direktkoppling till Homey');
   var t=withTimeout(8000);
@@ -9090,7 +9053,7 @@ async function appBackupLas(){
     if(SYNC_KEYS.indexOf(k)<0)continue;      /* bara kända nycklar tillbaka */
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(k));
-      if(typeof v==='string'&&v.length){localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(v):v));n++;}
+      if(typeof v==='string'&&v.length){localStorage.setItem(k,v);n++;}
     }catch(e){}
   }
   return n;}
@@ -9135,7 +9098,7 @@ async function fetchFromHomey(){
   let meta;try{meta=JSON.parse(metaRaw);}catch(e){return {applied:false,reason:'trasig meta'};}
   let str='';for(let i=0;i<meta.n;i++){const c=byName[srcVar+'_'+i];if(c==null)return {applied:false,reason:'saknar del '+(i+1)+'/'+meta.n};str+=c;}
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
-  Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(obj[k]):obj[k]));}catch(e){}}});
+  Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
@@ -9240,7 +9203,7 @@ function bkCopy(){const t=$('bk-out');if(t&&t.select)t.select();let ok=false;try
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(backupString());ok=true;}catch(e){}
   const s=$('bk-status');if(s)s.textContent=ok?'Kopierat ✓':'Markera texten och kopiera manuellt.';}
 function doImport(){const t=$('bk-in'),s=$('bk-status');if(!t)return;let obj;try{obj=JSON.parse(t.value);}catch(e){if(s)s.textContent='Ogiltig sträng – kontrollera att du klistrat in hela.';return;}
-  let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,(k==='battom_v1'?btSlaIhop(obj[k]):obj[k]));n++;}catch(e){}}});
+  let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);n++;}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;applySecOrder();render();
   if(s)s.textContent='Importerat ✓ ('+n+' nycklar). Layouten är uppdaterad.';}
@@ -9907,7 +9870,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v383';
+const APP_VERSION='v385';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10135,6 +10098,19 @@ function openConfig(){
       +Object.keys(DATA||{}).length+'</span></div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Offlinestöd</span><span class="cfg-num">'
       +esc(swLage())+'</span></div>';
+    /* Push-raden. Läget hämtas asynkront och fylls i när svaret kommer — att
+       vänta på det hade fördröjt hela inställningssidan. */
+    h+='<div class="cfg-row"><span class="cfg-row-l">Notiser till telefonen</span>'
+      +'<span class="cfg-num" id="push-lage">'+esc(_pushLage)+'</span></div>';
+    h+='<div class="cfg-btns" id="push-knappar" style="margin-top:6px">'
+      +'<button class="cfg-opt" onclick="pushPa().then(cfgPushRita)">Slå på</button>'
+      +'<button class="cfg-opt" onclick="pushAv().then(cfgPushRita)">Stäng av</button>'
+      +'<button class="cfg-opt" onclick="pushProv().then(cfgPushRita)">Prov</button>'
+      +'</div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Chrome visar notisen även med '
+      +'skärmen släckt, och trycket öppnar sammanfattningen direkt. Kräver att '
+      +'Homey-appen 2.33.0 eller senare är installerad. Väggplattan prenumererar inte.</div>';
+    setTimeout(cfgPushRita,60);
     if(swLage()!=='aktiv')h+='<div class="cfg-hint" style="margin-top:6px">'
       +'Utan offlinestöd måste sidan hämtas från nätet varje gång. Kräver att '
       +'<code>sw.js</code> ligger bredvid <code>index.html</code>, och https.</div>';
@@ -10243,9 +10219,9 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{yearDataMaybe();}catch(e){}
-  /* Spelas in vid varje uppdatering. Egen try: faller den ska resten av sidan
-     ändå ritas — en insikt är inte värd en tom skärm. */
-  try{if(SOURCE!=='demo-data')btTick();}catch(e){}
+  /* Hämtas från appen, som räknar. Cachad i fem minuter — en episod som varat
+     i timmar behöver inte läsas var femtonde sekund. */
+  try{if(SOURCE!=='demo-data')btHamta();}catch(e){}
   const now=new Date(),tz=-now.getTimezoneOffset(),sc=solar(now,CONFIG.LAT,CONFIG.LON,tz);
   const h=now.getHours()+now.getMinutes()/60;
   applyTheme(sc,h);
@@ -11313,6 +11289,64 @@ function swStarta(){
       })
       .catch(function(e){_swLage='misslyckades: '+((e&&e.message)||e);});
   }catch(e){_swLage='fel: '+((e&&e.message)||e);}}
+/* ===== Push =====
+   Prenumererar hos Chrome och lämnar endpointen till Homey-appen, som skickar.
+   Väggplattan hoppas över: den står i hallen och ska inte pipa. */
+var _pushLage='inte försökt';
+function pushKan(){
+  return !!(typeof navigator!=='undefined'&&'serviceWorker' in navigator
+    &&'PushManager' in window&&typeof Notification!=='undefined'
+    &&location.protocol==='https:'&&!IS_SAMSUNG_TABLET);}
+function b64(s2){
+  var pad='='.repeat((4-s2.length%4)%4);
+  var b=(s2+pad).replace(/-/g,'+').replace(/_/g,'/');
+  var raw=atob(b),arr=new Uint8Array(raw.length);
+  for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+  return arr;}
+async function pushPa(){
+  try{
+    if(!pushKan()){_pushLage=IS_SAMSUNG_TABLET?'avstängt på väggplattan':'stöds inte här';return false;}
+    var lov=await Notification.requestPermission();
+    if(lov!=='granted'){_pushLage='nekad i webbläsaren';return false;}
+    var reg=await navigator.serviceWorker.ready;
+    var j=await appGet('/push');
+    if(!j||!j.publicKey)throw new Error('appen gav ingen nyckel');
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,
+      applicationServerKey:b64(j.publicKey)});
+    var namn=(IS_SAMSUNG_TABLET?'Väggplattan':(MOBILE?'Telefon':'Platta'));
+    var r=await appPost('/push',{sub:sub.toJSON?sub.toJSON():sub,namn:namn});
+    _pushLage=(r&&r.ok)?('på · '+r.antal+' enhet'+(r.antal>1?'er':'')):'appen svarade inte';
+    return !!(r&&r.ok);
+  }catch(e){_pushLage='fel: '+((e&&e.message)||e);return false;}}
+async function pushAv(){
+  try{
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    if(sub){await appPost('/push',{avreg:sub.endpoint});await sub.unsubscribe();}
+    _pushLage='av';return true;
+  }catch(e){_pushLage='fel: '+((e&&e.message)||e);return false;}}
+async function pushProv(){
+  try{var r=await appPost('/push',{prov:true});
+    _pushLage=(r&&r.skickade)?('prov skickat till '+r.skickade):'ingen mottagare';
+  }catch(e){_pushLage='fel: '+((e&&e.message)||e);}}
+function cfgPushRita(){
+  var e=$('push-lage');if(!e)return;
+  e.textContent=_pushLage;
+  pushStatus().then(function(st){
+    var e2=$('push-lage');if(!e2)return;
+    if(!st.kan){e2.textContent=IS_SAMSUNG_TABLET?'av på väggplattan':'stöds inte här';return;}
+    if(_pushLage.indexOf('fel')===0||_pushLage.indexOf('prov')===0)return;
+    e2.textContent=st.pa?'på':(st.lov==='denied'?'nekad i webbläsaren':'av');
+  });}
+async function pushStatus(){
+  try{
+    if(!pushKan())return {kan:false,pa:false};
+    var reg=await navigator.serviceWorker.ready;
+    var sub=await reg.pushManager.getSubscription();
+    return {kan:true,pa:!!sub,lov:Notification.permission};
+  }catch(e){return {kan:false,pa:false};}}
+
 async function checkForUpdate(){try{
   if(CFG.autoreload===false)return;
   if(typeof location==='undefined'||!location.href||location.href.indexOf('http')!==0)return;

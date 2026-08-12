@@ -103,3 +103,45 @@ self.addEventListener('fetch', (e) => {
     }
   })());
 });
+
+/*  ===== Push =====
+ *  Chrome levererar även med skärmen släckt och fliken stängd. Nyttolasten
+ *  kommer från Homey-appen och innehåller bara det som behövs: rubrik och
+ *  vilken period notisen gäller.
+ */
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { titel: e.data ? e.data.text() : '' }; }
+  const titel = d.titel || 'Ny sammanfattning';
+  const bas = self.location.pathname.replace(/[^/]*$/, '');
+  const url = d.period ? `${bas}?kronika=${encodeURIComponent(d.period)}` : bas;
+  e.waitUntil(self.registration.showNotification(titel, {
+    body: d.prov ? 'Provnotis — allt fungerar.' : 'Tryck för att läsa.',
+    icon: `${bas}icon-192.png`,
+    badge: `${bas}icon-192.png`,
+    /* Guldtonen från dashboarden, så notisen känns igen. */
+    tag: d.period ? `kronika-${d.period}` : 'kronika',
+    renotify: true,
+    data: { url },
+    actions: [{ action: 'las', title: 'Läs' }],
+  }));
+});
+
+/* Klick: fokusera en flik som redan står på dashboarden i stället för att
+   öppna en till. Att sluta med fem flikar är ett irritationsmoment som gör att
+   man stänger av notiserna. */
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || './';
+  e.waitUntil((async () => {
+    const lista = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const bas = self.location.pathname.replace(/[^/]*$/, '');
+    for (const c of lista) {
+      if (c.url.indexOf(self.location.origin + bas) === 0) {
+        try { await c.navigate(url); } catch (x) { /* äldre Chrome tillåter inte navigate */ }
+        return c.focus();
+      }
+    }
+    return self.clients.openWindow(url);
+  })());
+});
