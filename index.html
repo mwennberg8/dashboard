@@ -6024,9 +6024,16 @@ function notLista(){
     tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:kronArNy(x)});});
   /* Dagsnotiserna. De har eget id i stället för period — en morgon och en kväll
      samma dygn är två olika notiser. */
+  /* Dagsnotiser åldras vid midnatt, PÅ ALLA ENHETER. Har man inte läst
+     gårdagens morgonrapport är den inte längre olöst utan gammal — dagens är
+     på väg. Det avgörs av klockan och inte av lokal lagring, så det behöver
+     inte synkas mellan telefon och platta. */
+  var dagStart=(function(){var d=new Date();d.setHours(0,0,0,0);return d.getTime();})();
   if(_dag&&_dag.notiser)_dag.notiser.forEach(function(x){
+    var fardsk=(x.at||0)>=dagStart;
     ut.push({typ:'dag',ar:false,period:x.id,tid:x.at,rubrik:x.rubrik,
-      sol:null,kort:x.kort,kvall:x.nar==='kvall',ny:kronArNy({period:x.id,raknad_at:x.at})});});
+      sol:null,kort:x.kort,kvall:x.nar==='kvall',
+      ny:fardsk&&kronArNy({period:x.id,raknad_at:x.at})});});
   return ut.filter(function(x){return !bort[x.period];})
     .sort(function(a,b){return (b.tid||0)-(a.tid||0);});}
 
@@ -6158,11 +6165,11 @@ function notDagHTML(n){
         +'</span></div>';});
     h+='<div class="kr-grid">'+r.join('')+'</div>';
   }
-  if(n.rader&&n.rader.length){
-    h+='<div class="kr-t"><div class="kr-rap">';
-    n.rader.forEach(function(t,i){
-      h+='<p class="'+(i===0?'kr-ing':'kr-txt')+'">'+kronTal(esc(t))+'</p>';});
-    h+='</div></div>';
+  /* Texten sätts som sammanfattningarnas ingress — samma stil, kortare text. */
+  var txt=n.text||(n.rader&&n.rader.join(' '));
+  if(txt){
+    h+='<div class="kr-t"><div class="kr-rap"><p class="kr-ing">'
+      +kronTal(esc(txt))+'</p></div></div>';
   }
   return h+'</section>';}
 
@@ -10045,7 +10052,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v388';
+const APP_VERSION='v389';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
