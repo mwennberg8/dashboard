@@ -2241,6 +2241,10 @@ async function appSerierSynka(){
   _serCfgSkickad=true;
   return true;}
 var _serAppN=0,_serAppAt=0;
+/* Hur långt bakåt appens serier räcker. Används för att säga varifrån en kurva
+   är mätt — och för att veta om dashboardens egen inspelning fortfarande
+   behövs. */
+var _serKalla={};
 async function appSerierHamta(){
   try{
     if(!appKan())return 0;
@@ -2255,6 +2259,12 @@ async function appSerierHamta(){
         if(Array.isArray(p)&&p.length){
           /* Samma sammanslagning som seedHistory: appens punkter och våra egna
              läggs ihop och glesas ut, ingen källa skriver över den andra. */
+          /* Appen först, den egna inspelningen som reserv. Appen kör dygnet
+             runt; webbläsaren bara när sidan är öppen. Sammanslagning i stället
+             för överskrivning betyder att ingen källa tappas — men vi noterar
+             VILKEN som når längst bakåt, så kurvorna kan säga det. */
+          var tidigast=p.length?Math.min.apply(null,p.map(function(x){return x.t;})):null;
+          _serKalla[k]={app:p.length,fran:tidigast};
           HIST[k]=histMerge(HIST[k],p,cut);
           n++;
         }
@@ -2660,7 +2670,13 @@ function progIdag(){
 function progKurvaSVG(){
   var e=progIdag();if(!e||!e.timmar||e.timmar.length!==24)return '';
   var W=1000,H=132,pT=10,pB=18;
-  var fakt=(HIST['solar']||[]).filter(function(p){return p&&p.t>=dayStart()&&p.v!=null&&isFinite(p.v);});
+  /* Sortera OCH avvisa orimliga punkter. En serie som slagits ihop från två
+     källor kan ligga i fel ordning, och en enda punkt med mätarställning i
+     stället för effekt drar kurvan rakt upp. 25 kW är långt över vad 19,44 kWp
+     kan ge. */
+  var fakt=(HIST['solar']||[]).filter(function(p){
+      return p&&p.t>=dayStart()&&p.v!=null&&isFinite(p.v)&&p.v>=0&&p.v<25000;})
+    .sort(function(a,b){return a.t-b.t;});
   var max=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
   max=max*1.1;
   var t0=dayStart();
@@ -2687,7 +2703,20 @@ function progKurvaSVG(){
     +'<div class="chart-x l">00</div><div class="chart-x r">24</div></div>'
     +'<div class="isub" style="margin-top:5px;opacity:.7">'
     +'<span style="color:var(--gold)">▬</span> prognos &nbsp; '
-    +'<span style="color:var(--solar)">▬</span> faktiskt</div>';}
+    +'<span style="color:var(--solar)">▬</span> faktiskt'
+    /* Säg VARIFRÅN mätningen börjar. Appens solserie är tom, så kurvan har bara
+       dashboardens egen inspelning — den startar när sidan öppnades. Utan den
+       här upplysningen ser det ut som att panelerna stod stilla på morgonen. */
+    +(fakt.length&&(fakt[0].t-dayStart())>45*60000
+      ? ('<span style="color:var(--faint)"> · mätt från '
+         +new Date(fakt[0].t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})
+         /* Säg VARFÖR den börjar sent. Utan appens serie är kurvan bara så lång
+            som sidan varit öppen, och det är en helt annan sak än att solen
+            inte lyste. */
+         +((_serKalla.solar&&_serKalla.solar.app)?'':' (appen loggar inte solen)')
+         +'</span>')
+      : '')
+    +'</div>';}
 
 /* Staplar for de senaste 14 dygnen. Avvikelsen i procent sager mer an kWh:
    ett fel pa 5 kWh betyder helt olika saker i juni och i december. */
@@ -10094,7 +10123,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v393';
+const APP_VERSION='v395';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
