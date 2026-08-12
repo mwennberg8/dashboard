@@ -593,7 +593,7 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .f-hit{fill:transparent;cursor:pointer}
 .dlg-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .dlg-back.open{display:flex}
-.dlg{background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.25);max-width:340px;width:100%;padding:20px 20px 10px;position:relative;animation:dlgin .2s ease;
+.dlg{background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);border-radius:24px;box-shadow:0 24px 60px rgba(0,0,0,.4),0 4px 14px rgba(0,0,0,.25);width:100%;padding:20px 20px 10px;position:relative;animation:dlgin .2s ease;
   min-width:0;overflow-x:hidden}
 @keyframes dlgin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
 .dlg-x{position:absolute;top:10px;right:10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--inset);color:var(--ink);opacity:.92;cursor:pointer;padding:0;z-index:6;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
@@ -1101,9 +1101,21 @@ body.tabprev.cmp-open{overflow:auto}
 .cal-n.on{color:var(--ok)}
 .dlg-body .drow:last-child{border-bottom:0}
 .dlg-body .dk{color:var(--dim)}.dlg-body .dv{font-weight:680}
-.dlg.wide{max-width:440px}
-.dlg.wide .dlg-body{max-height:74vh;overflow-y:auto}
-.dlg-body{scrollbar-width:none;-ms-overflow-style:none}
+.dlg.wide{max-width:clamp(340px,94vw,620px)}
+.dlg.wide .dlg-body{max-height:calc(100vh - 170px)}
+/* ALLA rutor rullar och anpassar sig. Förut fick bara .wide och .edit ett tak,
+   så en detaljruta med mycket innehåll — sol-popupen med prognoskurvan — bara
+   växte utanför skärmen utan att gå att nå. Att lägga taket på grundregeln i
+   stället för att räkna upp klasser gör att en ny ruta inte kan glömmas bort. */
+.dlg-body{scrollbar-width:none;-ms-overflow-style:none;
+  max-height:calc(100vh - 190px);overflow-y:auto;overscroll-behavior:contain}
+.dlg-body::-webkit-scrollbar{display:none}
+/* Bredden följer skärmen: smal telefon får nästan hela, en platta får mer än
+   340 px. Den fasta 340 px är BORTTAGEN ur grundregeln ovan — låg den kvar
+   vann den ibland, beroende på ordning, och rutan blev smal på plattan. */
+.dlg{max-width:clamp(300px,92vw,420px)}
+@media (min-width:700px){.dlg{max-width:clamp(340px,72vw,520px)}}
+@media (min-width:1000px){.dlg{max-width:560px}}
 .dlg-body::-webkit-scrollbar{display:none;width:0;height:0}
 .fc-now{display:flex;align-items:center;gap:13px;margin-bottom:4px}
 .fc-now-ic{width:48px;height:48px;flex:0 0 auto;color:var(--gold)}.fc-now-ic .ic{width:100%;height:100%}
@@ -1608,7 +1620,7 @@ body.mobile .ew-row{flex-direction:column;gap:var(--pg-gap)}
 body.mobile .ew-row>.panel{flex:0 0 auto}
 body.mobile .dlg{max-width:440px}
 body.mobile .dlg.wide{max-width:94vw}
-body.mobile .dlg.wide .dlg-body{max-height:80vh}
+body.mobile .dlg .dlg-body,body.mobile .dlg.wide .dlg-body{max-height:calc(100vh - 150px)}
 body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 @media (max-width:430px){body.mobile .st3{grid-template-columns:1fr 1fr}}
 :focus-visible{outline:2px solid var(--ok);outline-offset:2px;border-radius:8px}
@@ -9500,9 +9512,9 @@ function trendFor(cfg){if(!cfg||cfg.trend!==true)return '';
 function tileStatus(cfg){
   if(!cfg)return null;
   if(cfg.type==='computed'){const k=cfg.key;
-    if(k==='solnow'||k==='solday'){const p=cap(DEV.solar,'measure_power')||0;if(p<=40)return null;return {glow:'solar',lvl:glowLevel('solar',p)};}
-    if(k==='battnow'){const pw=cap(DEV.battery,'measure_power'),s=cap(DEV.battery,'battery_charging_state'),b=cap(DEV.battery,'measure_battery');const lvl=glowLevel('battflow',Math.abs(pw||0));if(b!=null&&b<10)return{glow:'hot',lvl:Math.max(lvl,0.6)};if(s==='charging')return{glow:'green',lvl:lvl};if(s==='discharging')return{glow:'gold',lvl:lvl};return null;}
-    if(k==='gridnow'){const pw=cap(DEV.pulse,'measure_power');if(pw==null)return null;const lvl=glowLevel('gridflow',Math.abs(pw));if(pw>5)return{glow:'hot',lvl:lvl};if(pw<-5)return{glow:'green',lvl:lvl};return null;}
+    if(k==='solnow'||k==='solday'){const p=cap(DEV.solar,'measure_power')||0;if(p<=40)return null;return {icon:'sun',glow:'solar',lvl:glowLevel('solar',p)};}
+    if(k==='battnow'){const pw=cap(DEV.battery,'measure_power'),s=cap(DEV.battery,'battery_charging_state'),b=cap(DEV.battery,'measure_battery');const lvl=glowLevel('battflow',Math.abs(pw||0));if(b!=null&&b<10)return{glow:'hot',lvl:Math.max(lvl,0.6)};if(s==='charging')return{icon:'lightning',glow:'green',lvl:lvl};if(s==='discharging')return{icon:'battery-low',glow:'gold',lvl:lvl};return null;}
+    if(k==='gridnow'){const pw=cap(DEV.pulse,'measure_power');if(pw==null)return null;const lvl=glowLevel('gridflow',Math.abs(pw));if(pw>5)return{icon:'lightning',glow:'hot',lvl:lvl};if(pw<-5)return{icon:'lightning',glow:'green',lvl:lvl};return null;}
     if(k==='rain'){const r=cap(DEV.rain,'measure_rain.24h');if(r==null||r<=0)return null;return{glow:'blue',lvl:Math.max(.15,Math.min(1,r/15))};}
     if(k==='humidity'){const hh=cap(DEV.outdoor,'measure_humidity');if(hh==null)return null;if(hh>=92||hh<=18)return{glow:'hot',icon:'warning'};if(hh>=85||hh<=25)return{glow:'warm'};return null;}
     if(k==='pressure'){const pr=cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),tr=pressureTrend(pr);if(tr>0)return{glow:'warm'};if(tr<0)return{glow:'blue'};return null;}
@@ -9518,11 +9530,14 @@ function tileStatus(cfg){
          och säger då ingenting om den här bilen — och en låst bil som står
          still lyser inte alls. Blått för laddning, rött för olåst. Laddar en
          olåst bil vinner laddningen; den är det som pågår. */
+      /* BLIXT när bilen laddar. Låsikonen sa bara om den var låst, och med
+         glowet avstängt gick det inte att se att laddningen pågick alls.
+         Blixten är det som pågår; låset är ett tillstånd. */
       if(charging){const p=chargerW();
-        return {icon:licon,glow:'blue',lvl:(p!=null?Math.min(1,Math.max(0.3,p/11000)):0.6)};}
+        return {icon:'lightning',glow:'blue',lvl:(p!=null?Math.min(1,Math.max(0.3,p/11000)):0.6)};}
       if(unlocked)return {icon:licon,glow:'hot'};
       return {icon:licon,glow:null};}
-    if(k==='charger'){const on=cap(DEV.laddbox,'evcharger_charging')===true||carCharging(DEV.car)||carCharging(DEV.car2);const p=chargerW();return on||(p!=null&&p>50)?{glow:'violet',lvl:p!=null?Math.min(1,Math.max(.3,p/11000)):.6}:null;}
+    if(k==='charger'){const on=cap(DEV.laddbox,'evcharger_charging')===true||carCharging(DEV.car)||carCharging(DEV.car2);const p=chargerW();return on||(p!=null&&p>50)?{icon:'lightning',glow:'violet',lvl:p!=null?Math.min(1,Math.max(.3,p/11000)):.6}:null;}
     if(k==='battpct'||k==='battpow'){const s=cap(DEV.battery,'battery_charging_state'),b=cap(DEV.battery,'measure_battery');if(b!=null&&b<10)return{glow:'hot',lvl:0.8};if(s==='charging')return{glow:'green',icon:'battery-charging'};if(s==='discharging')return{glow:'gold'};return null;}
     if(k==='spot'){const pr=elprisNow(),lv=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_info_level');
       if(pr!=null){const b=learnBand('price');if(lv==='VERY_EXPENSIVE')return{glow:'hot',icon:'warning',lvl:1};
@@ -9546,18 +9561,32 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     if(cfg&&cfg.type==='computed'&&(cfg.key==='krcmp'||cfg.key==='krcmp2')){h+=krcHTML(g,i,cfg);return;}
     const fill=tileFill(cfg,g);
     /* Bilrutan får FYLL istället för glow - laddnivån fyller brickan i rött->grönt. */
-    const m=computeMetric(cfg),st=(fill||cfg.glow===false)?null:tileStatus(cfg);
-    const glow=st&&st.glow?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'';
+    /* Statusen hämtas ALLTID. Förut nollställdes hela objektet när glowet var
+       avstängt, och då försvann även statusikonen — man kunde inte se att bilen
+       laddade utan att slå på glowet igen. Nu styr cfg.glow bara ljuset;
+       ikonen är en upplysning och inte en effekt. */
+    /* Statusen hämtas ÄVEN för fyllda rutor, men bara ikonen används av dem:
+       fyllnaden bär redan nivån, och ett glow ovanpå den blir grötigt. Förut
+       nollställdes hela statusen, och bilrutan — som ALLTID har fyllnad — kunde
+       därför aldrig visa att den laddade. */
+    const stRa=tileStatus(cfg);
+    const st=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
+    const m=computeMetric(cfg);
+    const visaGlow=(cfg.glow!==false&&!fill);
+    const glow=(visaGlow&&st&&st.glow)?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'';
+    /* Ikonens färg följer statusen även utan glow — annars blir en aktiv ruta
+       gråmarkerad och syns knappt. */
+    const stFarg=(st&&st.glow)?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'var(--dim)';
     const lvl=st&&st.lvl!=null?st.lvl:1;
     var sty=glow?(' style="--glow:'+glow+';--gi:'+lvl.toFixed(2)+'"'):'';
     const fillH=fill?('<div class="stat-fill" style="width:'+Math.round(fill.frac*100)+'%;background:'+fill.color+'"></div>'):'';
     if(fill)sty='';
     const tr=trendFor(cfg),trH=tr?('<span class="tr '+tr+'">'+(tr==='up'?'▲':'▼')+'</span>'):'';
     if(chip){
-      const stI=st&&st.icon?('<span class="chip-st" style="color:'+(glow||'var(--dim)')+'">'+icon(st.icon)+'</span>'):'';
+      const stI=st&&st.icon?('<span class="chip-st" style="color:'+stFarg+'">'+icon(st.icon)+'</span>'):'';
       h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="en-chip-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span><span class="en-chip-s">'+esc(m.meta||'')+trH+'</span></span>'+stI+'</button>';
     }else{
-      const stI=st&&st.icon?('<span class="stat-st" style="color:'+(glow||'var(--dim)')+'">'+icon(st.icon)+'</span>'):'';
+      const stI=st&&st.icon?('<span class="stat-st" style="color:'+stFarg+'">'+icon(st.icon)+'</span>'):'';
       h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="stat-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div><div class="meta">'+esc(m.meta||'')+trH+'</div></div>'+stI+'</div>';
     }});
   wrap.innerHTML=h;}
@@ -10065,7 +10094,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v390';
+const APP_VERSION='v393';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -11520,8 +11549,28 @@ async function pushPa(){
     var j=await appGet('/push');
     if(!j||!j.publicKey)throw new Error('appen gav ingen nyckel');
     var sub=await reg.pushManager.getSubscription();
+    /* En BEFINTLIG prenumeration är bunden till den VAPID-nyckel den skapades
+       med. Byts nyckeln i appen — vid ominstallation, eller om settings rensas —
+       går den inte längre att skicka till: Google svarar 403 InvalidSignature.
+       Enheten märker ingenting, för getSubscription() ger fortfarande något.
+
+       Därför jämförs nyckeln, och stämmer den inte tecknas prenumerationen om.
+       Utan det här kan en enhet sluta ta emot notiser för alltid, utan att vare
+       sig den eller appen säger till. */
+    var vill=b64(j.publicKey);
+    if(sub){
+      var har=null;
+      try{har=new Uint8Array(sub.options&&sub.options.applicationServerKey||[]);}catch(e){}
+      var lika=!!har&&har.length===vill.length;
+      if(lika)for(var i=0;i<vill.length;i++)if(har[i]!==vill[i]){lika=false;break;}
+      if(!lika){
+        try{await appPost('/push',{avreg:sub.endpoint});}catch(e){}
+        try{await sub.unsubscribe();}catch(e){}
+        sub=null;
+      }
+    }
     if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,
-      applicationServerKey:b64(j.publicKey)});
+      applicationServerKey:vill});
     var namn=(IS_SAMSUNG_TABLET?'Väggplattan':(MOBILE?'Telefon':'Platta'));
     var r=await appPost('/push',{sub:sub.toJSON?sub.toJSON():sub,namn:namn});
     _pushLage=(r&&r.ok)?('på · '+r.antal+' enhet'+(r.antal>1?'er':'')):'appen svarade inte';
@@ -11535,8 +11584,15 @@ async function pushAv(){
     _pushLage='av';return true;
   }catch(e){_pushLage='fel: '+((e&&e.message)||e);return false;}}
 async function pushProv(){
-  try{var r=await appPost('/push',{prov:true});
-    _pushLage=(r&&r.skickade)?('prov skickat till '+r.skickade):'ingen mottagare';
+  try{
+    var r=await appPost('/push',{prov:true});
+    /* Per enhet, inte bara ett antal. "2 skickade" räcker inte när tre enheter
+       skulle ha fått notisen — man ser att något fattas men inte vilken. */
+    if(!r||!r.skickade){_pushLage='ingen mottagare';return;}
+    var t='prov: '+(r.till&&r.till.length?r.till.join(', '):r.skickade+' st');
+    if(r.borttagna)t+=' · '+r.borttagna+' döda borttagna';
+    if(r.fel&&r.fel.length)t+=' · '+r.fel.join(' · ');
+    _pushLage=t;
   }catch(e){_pushLage='fel: '+((e&&e.message)||e);}}
 function cfgPushRita(){
   var e=$('push-lage');if(!e)return;
