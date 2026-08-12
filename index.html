@@ -6165,11 +6165,24 @@ function notDagHTML(n){
         +'</span></div>';});
     h+='<div class="kr-grid">'+r.join('')+'</div>';
   }
-  /* Texten sätts som sammanfattningarnas ingress — samma stil, kortare text. */
-  var txt=n.text||(n.rader&&n.rader.join(' '));
+  /* Samma sättning som sammanfattningarna: första raden som ingress, resten som
+     brödtext. Kortare text, men samma grammatik — annars ser en dagsnotis ut som
+     något annat slags dokument. */
+  var txt=n.text||(n.rader&&n.rader.join('\n'));
   if(txt){
-    h+='<div class="kr-t"><div class="kr-rap"><p class="kr-ing">'
-      +kronTal(esc(txt))+'</p></div></div>';
+    var rr=String(txt).split('\n').map(function(x){return x.trim();})
+      .filter(function(x){return x.length;});
+    h+='<div class="kr-t"><div class="kr-rap">';
+    rr.forEach(function(t,i){
+      var m=t.match(/^([\u203C-\u3299\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F]+)\s*(.*)$/);
+      if(m&&i>0){
+        h+='<div class="kr-rr"><span class="kr-rri">'+esc(m[1])+'</span>'
+          +'<span class="kr-rrt">'+kronTal(esc(m[2]))+'</span></div>';
+        return;
+      }
+      h+='<p class="'+(i===0?'kr-ing':'kr-txt')+'">'+kronTal(esc(t))+'</p>';
+    });
+    h+='</div></div>';
   }
   return h+'</section>';}
 
@@ -10052,7 +10065,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v389';
+const APP_VERSION='v390';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
