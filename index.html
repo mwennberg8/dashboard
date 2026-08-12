@@ -676,7 +676,17 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   display:flex;align-items:center;justify-content:center;padding:20px}
 .krpop{position:relative;background:var(--panel-a);border:1px solid var(--line);
   border-radius:16px;padding:18px 18px 16px;max-width:360px;width:100%;
-  box-shadow:0 18px 50px rgba(0,0,0,.4)}
+  box-shadow:0 18px 50px rgba(0,0,0,.4);max-height:86vh;overflow:auto}
+/* Bredare när innehållet är ett rutnät — två kolumner behöver plats. */
+.krpop-bred{max-width:440px}
+/* TVÅ kolumner alltid. auto-fill med minmax gav en enda kolumn på telefonen —
+   popupen är smalare än sidan, och 118 px plus gap fick inte plats två gånger.
+   Ett fast tvåspaltigt rutnät är dessutom lugnare att läsa. */
+.krpop .kr-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.krpop .kr-c{height:auto;min-height:54px;padding:7px 9px}
+.krpop .kr-v{font-size:14px}
+.krpop .kr-l{font-size:8.5px}
+.krpop .kr-x{font-size:9.5px}
 .krpop-x{position:absolute;top:9px;right:11px;background:none;border:0;color:var(--faint);
   font-size:21px;line-height:1;cursor:pointer;padding:2px 5px}
 .krpop-h{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;
@@ -689,6 +699,12 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   font-size:12.5px;color:var(--dim);border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
 .krpop-r:last-child{border-bottom:0}
 .krpop-r b{color:var(--ink);font-weight:800;text-align:right}
+.krpop-bred{max-width:440px}
+.krpop-grid{margin-top:12px}
+/* Svaret på frågan, i klartext ovanför rutorna. */
+.krpop-svar{margin:9px 0 2px;font-size:14px;font-weight:750;line-height:1.45}
+.krpop-svar.ja{color:var(--gold)}
+.krpop-svar.nej{color:var(--ok)}
 .krpop-t{margin-top:11px;padding-top:10px;border-top:1px solid var(--line);
   font-size:11.5px;line-height:1.55;color:var(--faint)}
 /* Underrubrik inne i artikeln — samma familj som rubriken, mindre. */
@@ -5332,6 +5348,18 @@ function kronDjupLank(){
     var m=(location.search||'').match(/[?&]kronika=([^&]+)/);
     if(m)per=decodeURIComponent(m[1]);
   }
+  /* ?notis=<id> öppnar en dagsnotis; ?kronika=<period> en sammanfattning. */
+  if(!per){
+    var dn=null;
+    try{dn=new URLSearchParams(location.search||'').get('notis');}catch(e){}
+    if(dn&&/^[\w-]{4,40}$/.test(dn)){
+      _kronDjup=true;
+      try{openNotiser();}catch(e){}
+      dagHamta(true).then(function(){try{notOppna(dn);}catch(e){}});
+      try{if(history&&history.replaceState)history.replaceState(null,'',location.pathname);}catch(e){}
+      return true;
+    }
+  }
   if(!per||!/^\d{4}(-\d{2})?$/.test(per))return false;
   _kronDjup=true;
   /* Länken i pushen pekar på en bestämd period — öppna den i notisvyn, som är
@@ -5365,10 +5393,13 @@ async function kronKoll(force){
   if(!appKan())return;
   if(document.hidden&&!force)return;
   if(!force&&_kron&&Date.now()-_kronAt<KRON_KOLL)return;
-  var fore=_kron?JSON.stringify(_kron.manader||[])+JSON.stringify(_kron.ar||[]):'';
+  var fore=(_kron?JSON.stringify(_kron.manader||[])+JSON.stringify(_kron.ar||[]):'')
+    +(_dag?JSON.stringify(_dag.notiser.map(function(x){return x.id;})):'');
+  try{await dagHamta(true);}catch(e){}
   var j=await kronLista(true);
   if(!j)return;
-  var efter=JSON.stringify(j.manader||[])+JSON.stringify(j.ar||[]);
+  var efter=JSON.stringify(j.manader||[])+JSON.stringify(j.ar||[])
+    +(_dag?JSON.stringify(_dag.notiser.map(function(x){return x.id;})):'');
   /* Rita om Insikter bara när något faktiskt ändrats — annars rycker vyn till
      var femte minut medan man läser. */
   if(efter!==fore){
@@ -5696,7 +5727,7 @@ function kronRuta(o,max){
     r.push({p:(prio||99),h:'<div class="kr-c'+(pop?' kan':'')+'"'
       +(pop?(' onclick="krPop(\''+pop+'\',\''+esc(o.period)+'\')"'):'')+'>'
       +'<span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
-      +icon(ik||'circle')+'</span>'
+      +icon(ik||'gauge')+'</span>'
       +'<span class="kr-tx">'
       +'<span class="kr-l">'+esc(krKort(namn))+'</span>'
       +'<span class="kr-v">'+varde+'</span>'
@@ -5945,9 +5976,43 @@ function notBort(p){
     localStorage.setItem(KRON_BORT,JSON.stringify(o));}catch(e){}}
 function notAterstall(){try{localStorage.removeItem(KRON_BORT);}catch(e){}}
 
-/* Alla notiser, nyast forst. Krönikeposter blir notiser med typ 'kronika'. */
+/* Dagsnotiser från appen. Egen cache: de ändras två gånger per dygn, inte var
+   femtonde sekund. */
+var _dag=null,_dagAt=0,_dagFel=null;
+function dagTid(vilken){
+  return (_dag&&_dag.tider&&_dag.tider[vilken])||(vilken==='kvall'?'20:00':'08:00');}
+function dagTidSatt(){
+  var m=$('dag-m'),k=$('dag-k');
+  if(!m||!k)return;
+  appPost('/dag',{tider:{morgon:m.value,kvall:k.value}}).then(function(r){
+    if(r&&r.morgon){_dag=_dag||{notiser:[]};_dag.tider=r;}
+  }).catch(function(){});}
+function dagProv(kvall){
+  appPost('/dag',{kvall:!!kvall}).then(function(){
+    _dag=null;_dagAt=0;
+    return dagHamta(true);
+  }).then(function(){
+    try{krNotisUppdatera();}catch(e){}
+    try{openNotiser();}catch(e){}
+  }).catch(function(e){
+    var el=$('sync-status');if(el)el.textContent='Kunde inte skriva: '+((e&&e.message)||e);});}
+
+async function dagHamta(force){
+  if(!appKan())return null;
+  if(!force&&_dag&&Date.now()-_dagAt<5*60000)return _dag;
+  try{
+    var j=await appGet('/dag');
+    if(!j||!Array.isArray(j.notiser))throw new Error('tomt svar');
+    _dag=j;_dagAt=Date.now();_dagFel=null;
+    try{krNotisUppdatera();}catch(e){}
+    return j;
+  }catch(e){_dagFel=(e&&e.message)||String(e);return null;}}
+
+/* Alla notiser, nyast forst. Krönikeposter blir typ 'kronika', dagsnotiser
+   typ 'dag'. Listan var byggd för flera slag från början — det var hela
+   poängen med typ-fältet. */
 function notLista(){
-  if(!_kron)return [];
+  if(!_kron&&!_dag)return [];
   var bort=notBortGet();
   var ut=[];
   /* Listan säger vad som ÄR oläst. Att väggplattan inte ska visa det är ett
@@ -5957,6 +6022,11 @@ function notLista(){
     tid:kronTid(x),rubrik:'Sammanfattning för '+x.period,sol:x.sol,ny:kronArNy(x)});});
   (_kron.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
     tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:kronArNy(x)});});
+  /* Dagsnotiserna. De har eget id i stället för period — en morgon och en kväll
+     samma dygn är två olika notiser. */
+  if(_dag&&_dag.notiser)_dag.notiser.forEach(function(x){
+    ut.push({typ:'dag',ar:false,period:x.id,tid:x.at,rubrik:x.rubrik,
+      sol:null,kort:x.kort,kvall:x.nar==='kvall',ny:kronArNy({period:x.id,raknad_at:x.at})});});
   return ut.filter(function(x){return !bort[x.period];})
     .sort(function(a,b){return (b.tid||0)-(a.tid||0);});}
 
@@ -6035,10 +6105,12 @@ function notListaHTML(){
   l.forEach(function(x){
     h+='<div class="not-r'+(x.ny?' ny':'')+'" data-per="'+esc(x.period)+'">'
       +'<div class="not-in" onclick="notOppna(\''+x.period+'\')">'
-      +'<span class="not-ic">'+icon(x.ar?'clock-counter-clockwise':'house')+'</span>'
+      +'<span class="not-ic">'+icon(x.typ==='dag'
+        ?(x.kvall?'moon':'sun')
+        :(x.ar?'clock-counter-clockwise':'house'))+'</span>'
       +'<span class="not-tx">'
       +'<span class="not-h">'+esc(x.rubrik)+'</span>'
-      +'<span class="not-s">'+(x.sol!=null?(num(x.sol,0)+' kWh sol · '):'')
+      +'<span class="not-s">'+(x.kort?(esc(x.kort)+' · '):(x.sol!=null?(num(x.sol,0)+' kWh sol · '):''))
       +(x.tid?esc(notNar(x.tid)):'')+'</span>'
       +'</span>'
       +'<span class="not-p">'+(x.ny?'<i class="not-dot"></i>':'')+'›</span>'
@@ -6054,6 +6126,9 @@ function notNar(t){
   try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
 
 function notDetaljHTML(p){
+  /* Dagsnotis? De ligger i _dag, inte i _kronPost, och har färdiga rutor. */
+  var dn=(_dag&&_dag.notiser)?_dag.notiser.filter(function(x){return x.id===p;})[0]:null;
+  if(dn)return notDagHTML(dn);
   var o=_kronPost[p];
   var ar=(String(p).length===4);
   var h='<section class="panel">';
@@ -6066,6 +6141,29 @@ function notDetaljHTML(p){
   if(o.text)h+='<div class="kr-t">'+kronRapport(o.text)+'</div>';
   else h+='<div class="kr-t saknas">Ingen text skriven för den här perioden.</div>';
   h+=kronKulHTML(o,ar);
+  return h+'</section>';}
+
+function notDagHTML(n){
+  var h='<section class="panel">';
+  h+='<div class="kr-rap"><div class="kr-rh">'
+    +'<span class="kr-rhi">'+(n.nar==='kvall'?'🌙':'☀️')+'</span>'
+    +'<span>'+esc(n.rubrik)+'</span></div></div>';
+  if(n.rutor&&n.rutor.length){
+    var r=n.rutor.map(function(x){
+      return '<div class="kr-c"><span class="kr-ic" style="color:var(--'+(x.farg||'faint')+')">'
+        +icon(x.ik||'gauge')+'</span><span class="kr-tx">'
+        +'<span class="kr-l">'+esc(x.namn)+'</span>'
+        +'<span class="kr-v">'+esc(x.varde)+'</span>'
+        +(x.extra?('<span class="kr-x">'+esc(x.extra)+'</span>'):'')
+        +'</span></div>';});
+    h+='<div class="kr-grid">'+r.join('')+'</div>';
+  }
+  if(n.rader&&n.rader.length){
+    h+='<div class="kr-t"><div class="kr-rap">';
+    n.rader.forEach(function(t,i){
+      h+='<p class="'+(i===0?'kr-ing':'kr-txt')+'">'+kronTal(esc(t))+'</p>';});
+    h+='</div></div>';
+  }
   return h+'</section>';}
 
 /* Svep at sidan tar bort. Ren pointer-hantering: inga bibliotek, och den far
@@ -6995,11 +7093,19 @@ function btSum(){
   return _bt||{pagar:false,nu:null,senast:null,senastLangd:null,
     antal30:0,timmar30:0,langst:null,langstLangd:null,golv:6,hyst:3,alla:[]};}
 
+/* num() ger rå toFixed: "4.5" och "1453". Svensk text vill ha komma och
+   mellanslag. Samma fälla som i Kul fakta. */
+function btN(v,d){
+  var t=num(v,d==null?0:d);
+  if(t==='–')return t;
+  var p=t.split('.');
+  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
+  return p.join(',');}
 function btTid(h){
   if(h==null)return '–';
   if(h<1)return Math.round(h*60)+' min';
-  if(h<24)return num(h,1)+' h';
-  return num(h/24,1)+' dygn';}
+  if(h<24)return btN(h,1)+' h';
+  return btN(h/24,1)+' dygn';}
 function btNar(t){
   if(!t)return '';
   var d=Math.floor((Date.now()-t)/86400000);
@@ -7008,44 +7114,113 @@ function btNar(t){
   if(d<30)return d+' dagar sedan';
   try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
 
+/* Rutor i stallet for rader — samma slag som i sammanfattningarna, sa hela
+   dashboarden har en enda grammatik for "har ar ett tal med sitt sammanhang". */
+function btRuta(namn,varde,extra,ik,farg){
+  if(varde==null)return '';
+  return '<div class="kr-c">'
+    +'<span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'+icon(ik||'gauge')+'</span>'
+    +'<span class="kr-tx"><span class="kr-l">'+esc(namn)+'</span>'
+    +'<span class="kr-v">'+varde+'</span>'
+    +(extra?('<span class="kr-x">'+esc(extra)+'</span>'):'')+'</span></div>';}
+
+function btKl(t){
+  if(!t)return '';
+  try{return new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}
+  catch(e){return '';}}
+
+/* Rutor byggda som notisernas: ikon till vanster, etikett och varde till
+   hoger, fast hojd. Samma greppa-med-blicken som i sammanfattningarna. */
+function btRuta(namn,varde,extra,ik,farg){
+  if(varde==null)return '';
+  return '<div class="kr-c"><span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
+    +icon(ik||'gauge')+'</span><span class="kr-tx">'
+    +'<span class="kr-l">'+esc(namn)+'</span>'
+    +'<span class="kr-v">'+varde+'</span>'
+    +(extra?('<span class="kr-x">'+extra+'</span>'):'')
+    +'</span></div>';}
+
+function btKlocka(t){
+  if(!t)return '';
+  try{return new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}
+  catch(e){return '';}}
+
 function btPop(){
   var S=btSum();
   krPopStang();
+  var info=''
+    +'<p style="margin:0 0 8px"><b>Natten räknas 18–09.</b> En tömning klockan två hör till '
+    +'natten som började kvällen innan, inte till dagen som just börjat — annars hade '
+    +'"i natt" bytt betydelse mitt i natten.</p>'
+    +'<p style="margin:0 0 8px">Räknas som tomt vid <b>'+(S.golv||6)+' %</b> eller lägre, och '
+    +'som laddat först över <b>'+((S.golv||6)+(S.hyst||3))+' %</b>. Marginalen finns för att en '
+    +'nivå som studsar kring gränsen annars hade gett dussintals falska tillfällen.</p>'
+    +'<p style="margin:0 0 8px"><b>Snittet säger mer än summan.</b> Fem korta tömningar är '
+    +'något annat än en lång, även om timmarna blir lika många.</p>'
+    +'<p style="margin:0">Räknas i <b>Homey-appen</b> var femtonde minut, dygnet runt — inte i '
+    +'webbläsaren. Historiken byggs framåt; Insights räcker inte bakåt för att leta episoder '
+    +'i efterhand.</p>';
+  var q=iqBtnHtml(info);
+
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
-    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
-    +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>Batteriet tomt</div>'
-    +'<div class="krpop-v">'+(S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'))+'</div>';
+    +'<div class="krpop krpop-bred"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>'
+    +'Batteriet tomt'+q.btn+'</div>'+q.box;
+
   if(_btFel){
     h+='<div class="krpop-t">Kunde inte läsa från Homey-appen: '+esc(_btFel)
-      +'.<br>Kräver appen 2.34.0 eller senare.</div></div></div>';
+      +'.<br>Kräver appen 2.35.0 eller senare.</div></div></div>';
     var w0=document.createElement('div');w0.innerHTML=h;document.body.appendChild(w0.firstChild);return;
   }
-  h+='<div class="krpop-l">';
-  h+='<div class="krpop-r"><span>Läge</span><b>'+(S.pagar?'Tomt just nu':'Har laddat sedan dess')+'</b></div>';
-  if(S.senast)h+='<div class="krpop-r"><span>'+(S.pagar?'Tomt sedan':'Senast tomt')+'</span><b>'
-    +esc(btNar(S.senast.start))+'</b></div>';
-  h+='<div class="krpop-r"><span>Gånger senaste 30 dygn</span><b>'+S.antal30+'</b></div>';
-  h+='<div class="krpop-r"><span>Total tid tom</span><b>'+btTid(S.timmar30)+'</b></div>';
-  if(S.langst)h+='<div class="krpop-r"><span>Längsta</span><b>'+btTid(S.langstLangd)
-    +' · '+esc(btNar(S.langst.start))+'</b></div>';
-  h+='</div>';
-  if(S.alla&&S.alla.length>1){
-    h+='<div class="krpop-t" style="border-bottom:1px solid var(--line);padding-bottom:9px">'
-      +'<b>Senaste tillfällena</b></div><div class="krpop-l">';
-    S.alla.slice(-5).reverse().forEach(function(e){
-      var t=((e.slut||Date.now())-e.start)/3600000;
-      h+='<div class="krpop-r"><span>'+esc(btNar(e.start))+'</span><b>'+btTid(t)
-        +(e.slut?'':' · pågår')+'</b></div>';});
-    h+='</div>';
+
+  /* Svaret pa fragan overst, i klartext. Rutor ar bra for tal men daliga pa
+     ja och nej. */
+  var n=S.natt;
+  h+='<div class="krpop-svar'+(n?' ja':' nej')+'">'
+    +(S.pagar
+      ? ('Tomt just nu — sedan '+btTid(S.nu))
+      : (n
+        ? ('I natt: tomt i '+btTid(n.timmar)
+           +(n.pagar?' och laddar ännu inte':'')
+           +'.')
+        : 'Batteriet klarade natten.'))
+    +'</div>';
+
+  var r=[];
+  if(n){
+    r.push(btRuta('Blev tomt',btKlocka(n.start),n.antal>1?(n.antal+' gånger i natt'):null,
+      'battery-low','var(--hot)'));
+    r.push(btRuta('Laddade igen',n.slut?btKlocka(n.slut):'inte än',
+      n.slut?null:'pågår','battery-charging',n.slut?'var(--ok)':'var(--gold)'));
+    r.push(btRuta('Tomt i',btTid(n.timmar),null,'clock','var(--gold)'));
+    r.push(btRuta('Lägsta nivå',n.min!=null?(n.min+' %'):null,null,'battery-low','var(--hot)'));
   }
-  h+='<div class="krpop-t">Räknas som tomt vid <b>'+(S.golv||6)+' %</b> eller lägre, och som '
-    +'laddat först över <b>'+((S.golv||6)+(S.hyst||3))+' %</b>. Marginalen finns för att en nivå '
-    +'som studsar kring gränsen annars hade gett dussintals falska tillfällen.<br><br>'
-    +'Räknas i <b>Homey-appen</b> var femtonde minut, dygnet runt — inte i webbläsaren. '
-    +'Historiken byggs framåt; Insights räcker inte bakåt för att leta episoder i efterhand.</div>';
+  r.push(btRuta('Senast tomt',S.dygnSedan==null?'aldrig':
+    (S.dygnSedan===0?'idag':(S.dygnSedan===1?'igår':(S.dygnSedan+' dygn sedan'))),
+    S.senast?(btTid(S.senastLangd)+' långt'):null,'clock-counter-clockwise','var(--faint)'));
+  r.push(btRuta('Gånger på 30 dygn',S.antal30,S.timmar30?(btTid(S.timmar30)+' totalt'):null,
+    'chart-line','var(--blue)'));
+  if(S.snitt30!=null)r.push(btRuta('Snittlängd',btTid(S.snitt30),null,'clock','var(--blue)'));
+  if(S.langstLangd!=null)r.push(btRuta('Längsta',btTid(S.langstLangd),
+    S.langst?btNar(S.langst.start):null,'clock','var(--gold)'));
+  if(S.djup30!=null)r.push(btRuta('Djupast',S.djup30+' %','senaste 30 dygnen','battery-low','var(--hot)'));
+  /* Trenden bara nar det finns nagot att jamfora med — annars sager "0 mot 0"
+     ingenting alls. */
+  if(S.senaste15!=null&&S.forra15!=null&&(S.senaste15+S.forra15)>0){
+    var d=S.senaste15-S.forra15;
+    r.push(btRuta('Trend',(d>0?'+':'')+d,
+      S.senaste15+' mot '+S.forra15+' föregående 15 dygn',
+      d>0?'arrow-up':(d<0?'arrow-fat-up':'chart-line'),
+      d>0?'var(--hot)':(d<0?'var(--ok)':'var(--faint)')));
+  }
+  r=r.filter(function(x){return x;});
+  if(r.length)h+='<div class="kr-grid krpop-grid">'+r.join('')+'</div>';
+  else h+='<div class="ins-empty">Batteriet har aldrig varit tomt sedan mätningen började.</div>';
+
   h+='</div></div>';
   var w=document.createElement('div');w.innerHTML=h;
   document.body.appendChild(w.firstChild);}
+
 function computeMetric(cfg){
   if(!cfg)return{label:'–',icon:'gauge',v:'–',meta:'',det:null};
   if(cfg.type==='sensor'){const v=cap(cfg.device,cfg.cap),dev=DATA[cfg.device];
@@ -9870,7 +10045,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v385';
+const APP_VERSION='v388';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10107,6 +10282,18 @@ function openConfig(){
       +'<button class="cfg-opt" onclick="pushAv().then(cfgPushRita)">Stäng av</button>'
       +'<button class="cfg-opt" onclick="pushProv().then(cfgPushRita)">Prov</button>'
       +'</div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Dagsnotis morgon</span>'
+      +'<input class="cfg-inp" id="dag-m" type="time" value="'+esc(dagTid('morgon'))+'"'
+      +' onchange="dagTidSatt()"></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Dagsnotis kväll</span>'
+      +'<input class="cfg-inp" id="dag-k" type="time" value="'+esc(dagTid('kvall'))+'"'
+      +' onchange="dagTidSatt()"></div>';
+    h+='<div class="cfg-btns" style="margin-top:6px">'
+      +'<button class="cfg-opt" onclick="dagProv(false)">Skriv morgonnotis nu</button>'
+      +'<button class="cfg-opt" onclick="dagProv(true)">Skriv kvällsnotis nu</button>'
+      +'</div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Morgon- och kvällsnotisen hamnar i '
+      +'notislistan. Sophämtningen påminns kvällen innan och samma morgon.</div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Chrome visar notisen även med '
       +'skärmen släckt, och trycket öppnar sammanfattningen direkt. Kräver att '
       +'Homey-appen 2.33.0 eller senare är installerad. Väggplattan prenumererar inte.</div>';
@@ -10699,6 +10886,7 @@ async function load(){
        i toppraden på startsidan, och utan det här stod den tom tills man råkat
        öppna Insikter en gång. */
     try{kronLista().then(function(){try{krNotisUppdatera();}catch(e){}});}catch(e){}
+    try{dagHamta();}catch(e){}
     try{kronDjupLank();}catch(e){}zamPressSeed();tibKrFetch();battKwhFetch();monBackfill();emixBackfill();}
 }
 

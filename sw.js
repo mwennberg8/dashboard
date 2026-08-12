@@ -32,6 +32,10 @@ const SKAL = [
   './icon-192.png',
   './icon-512.png',
   './icon-maskable-512.png',
+  './icon-morgon.png',
+  './icon-kvall.png',
+  './icon-sammanfattning.png',
+  './badge-96.png',
 ];
 
 self.addEventListener('install', (e) => {
@@ -114,13 +118,19 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch (x) { d = { titel: e.data ? e.data.text() : '' }; }
   const titel = d.titel || 'Ny sammanfattning';
   const bas = self.location.pathname.replace(/[^/]*$/, '');
-  const url = d.period ? `${bas}?kronika=${encodeURIComponent(d.period)}` : bas;
+  const url = d.dag ? `${bas}?notis=${encodeURIComponent(d.dag)}`
+    : (d.period ? `${bas}?kronika=${encodeURIComponent(d.period)}` : bas);
+  /* Ikon efter slag: sol på morgonen, måne på kvällen, hus för
+     sammanfattningarna. Notisen går att känna igen innan man läst den. */
+  const slag = d.dag ? (/-k($|-)/.test(d.dag) ? 'kvall' : 'morgon') : 'sammanfattning';
   e.waitUntil(self.registration.showNotification(titel, {
     body: d.prov ? 'Provnotis — allt fungerar.' : 'Tryck för att läsa.',
-    icon: `${bas}icon-192.png`,
-    badge: `${bas}icon-192.png`,
-    /* Guldtonen från dashboarden, så notisen känns igen. */
-    tag: d.period ? `kronika-${d.period}` : 'kronika',
+    icon: `${bas}icon-${slag}.png`,
+    /* BADGE är statusradsikonen, och Android maskar den till en silhuett: bara
+       alfakanalen används, all färg kastas. Den färgglada appikonen blev därför
+       en vit klump. badge-96.png är en ren form. */
+    badge: `${bas}badge-96.png`,
+    tag: d.dag ? `dag-${d.dag}` : (d.period ? `kronika-${d.period}` : 'kronika'),
     renotify: true,
     data: { url },
     actions: [{ action: 'las', title: 'Läs' }],
