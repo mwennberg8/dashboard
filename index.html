@@ -376,24 +376,28 @@ body.kiosk{--pg-gap:7px}
    bredden och alla knappar på samma rad blir lika stora, även när den sista
    raden har färre knappar än den första. */
 .ctl-row{display:contents}
-/* Samma innerkant som andra rutor. Utan den ligger knapparna tätare mot kanten
-   än rutorna ovanför, och raden ser ut att spilla ut. */
+/* Samma innerkant som ÖVRIGA RUTOR, inte --pg-gap. På mobil är --pg-gap bara
+   3 px — det är mellanrummet MELLAN rutor, inte innerkanten i dem. Med det som
+   padding låg knapparna 3 px från kanten medan grannrutorna har 16, och raden
+   såg ut att spilla ut ur sin vita ruta. clamp(16px,2vw,21px) är samma mått som
+   panelerna i insikts- och vädervyerna använder. */
 body.mobile:not(.kiosk) .controls{display:flex;flex-direction:column;
-  gap:var(--pg-gap-y);padding:var(--pg-gap);overflow:hidden}
-/* RESERV FÖRST: en enkel grid som alltid är giltig. En del motorer avvisar
-   var() inuti repeat(), och då föll hela deklarationen bort — knapparna blev
-   flexbarn i en kolumn och la sig utanför rutans innerkant. Med reserven kvar
-   får man i värsta fall tre kolumner i stället för fyra, aldrig en trasig rad. */
-body.mobile:not(.kiosk) .ctl-row{display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(0,1fr));
-  grid-auto-flow:column;gap:var(--pg-gap);min-width:0;width:100%}
-@supports (grid-template-columns:repeat(var(--n,3),minmax(0,1fr))){
-  body.mobile:not(.kiosk) .ctl-row{grid-template-columns:repeat(var(--n,3),minmax(0,1fr));
-    grid-auto-flow:row}
-}
-/* Knappen får aldrig vara bredare än sin kolumn. min-width:auto är standard för
-   grid-barn och låter innehållet trycka ut rutan. */
-body.mobile:not(.kiosk) .ctl-row>.ctl{min-width:0;max-width:100%}
+  gap:var(--pg-gap-y);padding:clamp(16px,2vw,21px);overflow:hidden}
+/* Mellanrummet mellan knapparna hämtas separat: det ska vara litet, till
+   skillnad från innerkanten. */
+body.mobile:not(.kiosk) .ctl-row{gap:8px}
+/* FLEXBOX, inte grid. Raden byggde på var(--n) inuti repeat(), och den
+   konstruktionen avvisas av en del motorer — då föll hela deklarationen bort,
+   .ctl-row föll tillbaka på display:contents, och knapparna blev flexbarn i
+   .controls kolumn och la sig utanför rutans innerkant.
+
+   flex:1 1 0 med min-width:0 ger samma jämna fördelning utan att bero på att
+   en variabel går att använda inuti en funktion. */
+body.mobile:not(.kiosk) .ctl-row{display:flex;flex-direction:row;
+  gap:var(--pg-gap);min-width:0;width:100%}
+/* flex-basis med enhet. "flex:1 1 0" utan enhet avvisas av vissa parsrar och
+   hela deklarationen faller — samma sorts tysta bortfall som grid-regeln hade. */
+body.mobile:not(.kiosk) .ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
 .ctl.on{background:rgba(166,227,161,.14);border-color:rgba(166,227,161,.4)}
 .ctl.on .ctl-ic{color:var(--ok)}.ctl.on .ctl-s{color:var(--ok-t)}
 .ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}.ctl.arm .ctl-l{color:var(--warm-t)}.ctl.arm .ctl-ic{color:var(--warm)}
@@ -721,6 +725,8 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   color:var(--ink);font-weight:600}
 /* Hårfin linje mellan raderna, inte runt dem. En ram gör det till en tabell. */
 .dn-r+.dn-r{border-top:1px solid rgba(255,255,255,.05)}
+/* Reservmarkeringen: en asterisk i marginalen, ingen text som förklarar sig. */
+.dn-res{padding:6px 0 0 30px;font-size:13px;color:var(--faint);line-height:1}
 /* Första raden bär tonen: något större, resten linjerar under. */
 .dn-r.forst{font-size:15px;font-weight:700;padding-top:2px}
 .dn-i{position:absolute;left:0;top:9px;width:22px;font-size:15px;line-height:1.4;
@@ -761,6 +767,9 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .kul-i{flex:0 0 17px;height:17px;color:var(--gold);display:inline-flex;margin-top:1px}
 .kul-i .ic{width:100%;height:100%}
 .kul-r b{color:var(--ink);font-weight:800}
+.not-diag{margin:9px 0 2px;padding:9px 11px;border-radius:11px;font-size:12px;line-height:1.5;
+  background:rgba(129,161,193,.10);color:var(--dim);border-left:3px solid var(--blue)}
+.not-diag.varning{background:rgba(235,203,139,.10);border-left-color:var(--gold);color:var(--ink)}
 .not-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;
   margin:10px 0 4px;font-size:12px;font-weight:750;color:var(--gold)}
 .not-l{display:flex;flex-direction:column}
@@ -6283,6 +6292,39 @@ function notListaHTML(){
     +'<p style="margin:0">Dra en notis åt sidan för att ta bort den. '
     +'<button class="wxm-b" onclick="notAterstall();renderNotiser()">Återställ borttagna</button></p>');
 
+  /* Saknas dagens notis, säg VARFÖR direkt här. Att gå till inställningarna för
+     att förstå varför något uteblivit är ett steg för mycket — och frågan
+     ställer man just när listan ser tom ut. */
+  var tick=(_dag&&_dag.tick)||null;
+  var idagK=(function(){var d=new Date();return d.getFullYear()+'-'
+    +String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})();
+  var harIdag=l.some(function(x){return x.typ==='dag'&&String(x.period||'').indexOf(idagK)===0;});
+  if(!harIdag){
+    var puls=(_dag&&_dag.puls)||null;
+    var plan=(_dag&&_dag.plan)||null;
+    /* PULSEN först. Är den gammal har timern inte gått alls, och då är det
+       appen som inte lever — ett helt annat fel än en notis som fallerat, och
+       det ska inte se likadant ut. */
+    var dod=(!puls||Date.now()-puls>20*60000);
+    if(dod){
+      h+='<div class="not-diag varning"><b>Schemat verkar inte köra.</b> '
+        +(puls?('Senaste kontrollen var '
+          +Math.round((Date.now()-puls)/60000)+' minuter sedan; den ska ske var femte.')
+         :'Ingen kontroll har körts sedan appen startade.')
+        +' Starta om Homey-appen och titta igen.</div>';
+    }else if(tick){
+      var rader=Array.isArray(tick.utfall)?tick.utfall:[String(tick.utfall||'')];
+      var vantar=rader.every(function(x){return /väntar till/.test(x);});
+      h+='<div class="not-diag'+(vantar?'':' varning')+'">'
+        +'<b>'+(vantar?'Inget skrivet än idag.':'Dagens notis uteblev.')+'</b> '
+        +esc(rader.join(' · '))
+        +(tick.at?(' <span style="opacity:.7">· kontrollerad '
+          +new Date(tick.at).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+'</span>'):'')
+        +(plan&&plan.om!=null?(' <span style="opacity:.7">· nästa om '+plan.om+' min</span>'):'')
+        +'</div>';
+    }
+  }
+
   if(!l.length){
     h+='<div class="ins-empty">Inga notiser. Sammanfattningen skrivs sista dagen i månaden.</div>';
     return h+'</section>';
@@ -6494,6 +6536,14 @@ function notDagHTML(n){
   if(txt){
     var rr=String(txt).split('\n').map(function(x){return x.trim();})
       .filter(function(x){return x.length;});
+    /* Asterisken sist markerar att texten är skriven utan Gemini. Den ska sitta
+       kvar men inte ta plats — en egen rad hade sett ut som ett fel. */
+    var res=false;
+    if(rr.length){
+      var sis=rr[rr.length-1];
+      if(/\s\*$/.test(sis)){res=true;rr[rr.length-1]=sis.replace(/\s\*$/,'');}
+      else if(sis==='*'){res=true;rr.pop();}
+    }
     h+='<div class="dn-t">';
     rr.forEach(function(t,i){
       /* EN emoji, inte ett block. Regexen tog `+` och svalde därför "🔌🕯" som
@@ -6506,6 +6556,7 @@ function notDagHTML(n){
         +'<span class="dn-i">'+esc(ik)+'</span>'
         +'<span class="dn-x">'+dagTal(esc(txt2))+'</span></p>';
     });
+    if(res)h+='<div class="dn-res" title="Skriven utan AI">*</div>';
     h+='</div>';
   }
   return h+'</section>';}
@@ -10561,7 +10612,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v407';
+const APP_VERSION='v411';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
