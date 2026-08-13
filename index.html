@@ -376,8 +376,24 @@ body.kiosk{--pg-gap:7px}
    bredden och alla knappar på samma rad blir lika stora, även när den sista
    raden har färre knappar än den första. */
 .ctl-row{display:contents}
-body.mobile:not(.kiosk) .controls{display:flex;flex-direction:column;gap:var(--pg-gap-y)}
-body.mobile:not(.kiosk) .ctl-row{display:grid;grid-template-columns:repeat(var(--n,3),minmax(0,1fr));gap:var(--pg-gap)}
+/* Samma innerkant som andra rutor. Utan den ligger knapparna tätare mot kanten
+   än rutorna ovanför, och raden ser ut att spilla ut. */
+body.mobile:not(.kiosk) .controls{display:flex;flex-direction:column;
+  gap:var(--pg-gap-y);padding:var(--pg-gap);overflow:hidden}
+/* RESERV FÖRST: en enkel grid som alltid är giltig. En del motorer avvisar
+   var() inuti repeat(), och då föll hela deklarationen bort — knapparna blev
+   flexbarn i en kolumn och la sig utanför rutans innerkant. Med reserven kvar
+   får man i värsta fall tre kolumner i stället för fyra, aldrig en trasig rad. */
+body.mobile:not(.kiosk) .ctl-row{display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(0,1fr));
+  grid-auto-flow:column;gap:var(--pg-gap);min-width:0;width:100%}
+@supports (grid-template-columns:repeat(var(--n,3),minmax(0,1fr))){
+  body.mobile:not(.kiosk) .ctl-row{grid-template-columns:repeat(var(--n,3),minmax(0,1fr));
+    grid-auto-flow:row}
+}
+/* Knappen får aldrig vara bredare än sin kolumn. min-width:auto är standard för
+   grid-barn och låter innehållet trycka ut rutan. */
+body.mobile:not(.kiosk) .ctl-row>.ctl{min-width:0;max-width:100%}
 .ctl.on{background:rgba(166,227,161,.14);border-color:rgba(166,227,161,.4)}
 .ctl.on .ctl-ic{color:var(--ok)}.ctl.on .ctl-s{color:var(--ok-t)}
 .ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}.ctl.arm .ctl-l{color:var(--warm-t)}.ctl.arm .ctl-ic{color:var(--warm)}
@@ -2749,6 +2765,17 @@ function progKurvaSVG(){
   var d='M0 '+Y(0).toFixed(1);
   for(var h=0;h<24;h++)d+=' L'+X(t0+(h+0.5)*3600000).toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
   d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L0 '+(H-pB)+' Z';
+  /* Klockslag på x-axeln. Utan dem gick det inte att avgöra om kurvorna låg
+     förskjutna mot varandra eller bara hade olika form — och skillnaden är
+     viktig: den ena vore ett fel, den andra är verkligheten. */
+  var xax='';
+  [0,6,12,18,24].forEach(function(h){
+    var x=X(t0+h*3600000);
+    xax+='<text x="'+Math.min(W-2,Math.max(2,x)).toFixed(1)+'" y="'+(H-2)+'" class="mg-ax"'
+      +' text-anchor="'+(h===0?'start':(h===24?'end':'middle'))+'">'
+      +String(h).padStart(2,'0')+'</text>';
+    if(h>0&&h<24)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
+      +'" stroke="var(--line)" stroke-width="1" opacity=".3"/>';});
   var b='<path d="'+d+'" fill="var(--gold)" opacity=".16"/>';
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
     b+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';}
@@ -2760,8 +2787,10 @@ function progKurvaSVG(){
   }
   return '<div class="chart-wrap" style="margin-top:8px">'
     +'<div class="chart-y top">'+num(max/1000,1)+' kW</div><div class="chart-y bot">0</div>'
-    +'<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" '
-    +'aria-label="Prognos och faktisk produktion idag">'+b+'</svg>'
+    /* preserveAspectRatio borttagen: den sträcker svg:n i x-led, och sträckt
+       text på tidsaxeln blir oläslig. Grafen skalar ändå med bredden. */
+    +'<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" '
+    +'aria-label="Prognos och faktisk produktion idag">'+b+xax+'</svg>'
     +'<div class="chart-x l">00</div><div class="chart-x r">24</div></div>'
     +'<div class="isub" style="margin-top:5px;opacity:.7">'
     +'<span style="color:var(--gold)">▬</span> prognos &nbsp; '
@@ -2862,7 +2891,20 @@ function progAvsnitt(){
   }
 
   var st=progStaplarHTML();
-  if(st)h+='<div class="dsec">Träffsäkerhet · 14 dygn</div>'+st;
+  if(st){
+    var tinfo=''
+      +'<p style="margin:0 0 8px">Varje stapel är ett dygn. Höjden visar hur mycket '
+      +'utfallet avvek från prognosen i <b>procent</b>, inte i kWh — ett fel på 5 kWh '
+      +'betyder helt olika saker i juni och i december.</p>'
+      +'<p style="margin:0 0 8px">Grön stapel: prognosen låg nära. Guld: den missade '
+      +'åt något håll. Röd: den missade grovt. Staplar uppåt betyder att det kom mer '
+      +'sol än väntat, nedåt mindre.</p>'
+      +'<p style="margin:0">Ett dygn dyker upp först när utfallet finns, alltså dagen '
+      +'efter. Ligger staplarna genomgående åt samma håll ska molnkoefficienten '
+      +'<b>k</b> justeras i appens inställningar.</p>';
+    var tq=iqBtnHtml(tinfo);
+    h+='<div class="dsec">Träffsäkerhet · 14 dygn'+tq.btn+'</div>'+tq.box+st;
+  }
 
   /* Medelfelet FÖRSVANN helt när inga dygn dög. Att en rad bara uteblir går
      inte att skilja från att funktionen är trasig — säg i stället varför. */
@@ -6390,6 +6432,7 @@ function dagPop(gi,ri){
     kropp='<div class="krpop-v">'+num(P.min,1)+' °</div><div class="krpop-l">';
     if(P.nar)kropp+='<div class="krpop-r"><span>Kallast</span><b>'
       +new Date(P.nar).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+'</b></div>';
+    kropp+='<div class="krpop-r"><span>Utomhus då</span><b>'+num(P.min,1)+' °</b></div>';
     if(P.uteVid!=null)kropp+='<div class="krpop-r"><span>Uterummet då</span><b>'+num(P.uteVid,1)+' °</b></div>';
     if(P.inneVid!=null)kropp+='<div class="krpop-r"><span>Inomhus då</span><b>'+num(P.inneVid,1)+' °</b></div>';
     kropp+='</div>';
@@ -9944,6 +9987,10 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     /* cfg.stik===false döljer ikonen men rör inte glowet — de är två skilda
        upplysningar och ska gå att stänga av var för sig. */
     const visaIk=(cfg.stik!==false);
+    /* Egen storlek på händelseikonen. Ligger i rutans post, alltså i den nyckel
+       som redan synkas — ingen ny nyckel att hålla reda på. */
+    const ikSk=(typeof cfg.stikS==='number'&&isFinite(cfg.stikS))
+      ?Math.max(0.6,Math.min(2.2,cfg.stikS)):1;
     const st0=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
     const st=(st0&&!visaIk)?{glow:st0.glow,lvl:st0.lvl}:st0;
     const m=computeMetric(cfg);
@@ -9958,10 +10005,14 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     if(fill)sty='';
     const tr=trendFor(cfg),trH=tr?('<span class="tr '+tr+'">'+(tr==='up'?'▲':'▼')+'</span>'):'';
     if(chip){
-      const stI=st&&st.icon?('<span class="chip-st" style="color:'+stFarg+'">'+icon(st.icon)+'</span>'):'';
+      const stI=st&&st.icon?('<span class="chip-st" style="color:'+stFarg
+        +(ikSk!==1?(';width:'+(15*ikSk).toFixed(1)+'px;height:'+(15*ikSk).toFixed(1)+'px'):'')
+        +'">'+icon(st.icon)+'</span>'):'';
       h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="en-chip-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span><span class="en-chip-s">'+esc(m.meta||'')+trH+'</span></span>'+stI+'</button>';
     }else{
-      const stI=st&&st.icon?('<span class="stat-st" style="color:'+stFarg+'">'+icon(st.icon)+'</span>'):'';
+      const stI=st&&st.icon?('<span class="stat-st" style="color:'+stFarg
+        +(ikSk!==1?(';width:'+(17*ikSk).toFixed(1)+'px;height:'+(17*ikSk).toFixed(1)+'px'):'')
+        +'">'+icon(st.icon)+'</span>'):'';
       h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="stat-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div><div class="meta">'+esc(m.meta||'')+trH+'</div></div>'+stI+'</div>';
     }});
   wrap.innerHTML=h;}
@@ -10272,7 +10323,13 @@ function openTileEdit(g,i){const arr=gridTiles(g),cur=arr[i];
     /* Indikatorikonen styrs för sig. Den säger VAD som pågår — laddning,
        produktion, olåst — och det vill man ofta se även med glowet av. */
     +'<button class="te-glow'+(cur.stik!==false?' on':'')+'" onclick="toggleTileStik(\''+g+'\','+i+')">'
-    +(cur.stik!==false?'Ikon på':'Ikon av')+'</button>'+'<button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
+    +(cur.stik!==false?'Ikon på':'Ikon av')+'</button>'
+    +(cur.stik!==false
+      ? ('<button class="cfg-pm" onclick="tileStikSize(\''+g+'\','+i+',-1)">−</button>'
+         +'<span class="cfg-num" style="min-width:46px">'
+         +Math.round(((typeof cur.stikS==='number')?cur.stikS:1)*100)+' %</span>'
+         +'<button class="cfg-pm" onclick="tileStikSize(\''+g+'\','+i+',1)">+</button>')
+      : '')+'<button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
   h+='<div class="te-sec">Flytta ruta</div><div class="te-move"><button onclick="moveTile(\''+g+'\','+i+',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+' Upp</button><button onclick="moveTile(\''+g+'\','+i+',1)"'+(i>=arr.length-1?' disabled':'')+'>'+icon('arrow-fat-up','flip')+' Ner</button></div>';
   if(g==='flode'){h+='<div class="te-sec">Lägg till / ta bort</div><div class="te-move"><button onclick="addTile(\''+g+'\','+i+')"'+(arr.length>=12?' disabled':'')+'>+ Ny ruta</button><button class="te-alt" onclick="removeTile(\''+g+'\','+i+')"'+(arr.length<=1?' disabled':'')+'>Ta bort denna</button></div>';}
   h+='</div>';
@@ -10314,6 +10371,13 @@ function toggleTileGlow(g,i){const arr=gridTiles(g);arr[i].glow=(arr[i].glow===f
 /* Indikatorikonen uppe till höger. Sparas i rutans egen post, alltså i
    tiles*-nyckeln som redan synkas till Homey — ingen ny nyckel att hålla reda
    på, och inställningen följer med till de andra enheterna. */
+/* Storleken på händelseikonen, i steg om 10 %. */
+function tileStikSize(g,i,d){
+  const arr=gridTiles(g);
+  const nu=(typeof arr[i].stikS==='number')?arr[i].stikS:1;
+  const f=Math.max(0.6,Math.min(2.2,Math.round((nu+d*0.1)*10)/10));
+  if(Math.abs(f-1)<0.001)delete arr[i].stikS;else arr[i].stikS=f;
+  saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 function toggleTileStik(g,i){
   const arr=gridTiles(g);
   arr[i].stik=(arr[i].stik===false);
@@ -10497,7 +10561,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v406';
+const APP_VERSION='v407';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
