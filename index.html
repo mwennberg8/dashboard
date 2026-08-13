@@ -714,7 +714,8 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 /* Talen får tyngd, texten runt dem lugn — det är siffrorna man letar efter. */
 .dn-x .kr-n2{font-weight:800;color:var(--ink)}
 .dn-r:not(.forst){color:var(--dim)}
-.mgraf{width:100%;height:64px;margin-top:12px;display:block}
+.mgraf{width:100%;height:auto;margin-top:12px;display:block}
+.mg-ax{font-size:9px;fill:var(--faint);font-weight:600}
 .mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
 .mgraf-f{display:flex;flex-wrap:wrap;gap:11px;margin-top:7px;font-size:11px;color:var(--dim)}
 .mgraf-f span{display:inline-flex;align-items:center;gap:5px}
@@ -2700,6 +2701,20 @@ function progIdag(){
 /* Prognoskurvan som svag yta bakom dagens faktiska. Timvarden mot en
    effektkurva: prognosen ar Wh per timme, den faktiska ar W vid en tidpunkt —
    over en timme ar de samma tal, sa de gar att lagga i samma diagram. */
+/* Soluppgång idag, som millisekunder. Kurvan ska börja där solen börjar, inte
+   vid midnatt — en platt linje från 00 till 05 säger ingenting. */
+function t0Sol(){
+  try{
+    var d=new Date(), tz=-d.getTimezoneOffset();
+    var sc=solar(d,CONFIG.LAT,CONFIG.LON,tz);
+    /* solar() ger soluppgången färdig som decimaltimme. Att leta efter
+       elevation>0 i en slinga vore både långsammare och fel: fältet heter
+       elevation, inte alt, och en felstavning gav tyst midnatt. */
+    if(sc&&typeof sc.sunrise==='number'&&isFinite(sc.sunrise))
+      return dayStart()+Math.max(0,sc.sunrise)*3600000;
+  }catch(e){}
+  return dayStart();}
+
 function progKurvaSVG(){
   var e=progIdag();if(!e||!e.timmar||e.timmar.length!==24)return '';
   var W=1000,H=132,pT=10,pB=18;
@@ -2710,6 +2725,20 @@ function progKurvaSVG(){
   var fakt=(HIST['solar']||[]).filter(function(p){
       return p&&p.t>=dayStart()&&p.v!=null&&isFinite(p.v)&&p.v>=0&&p.v<25000;})
     .sort(function(a,b){return a.t-b.t;});
+  /* Börja vid NOLL, inte där mätningen råkade starta. Saknas punkter före
+     första mätvärdet drogs kurvan lodrätt upp från golvet mitt på dagen, som om
+     panelerna slagit på med ett ryck. Före soluppgången producerar de ingenting,
+     så en nolla där är sann — inte en gissning. En nolla läggs bara till om
+     första punkten ligger efter gryningen OCH är låg nog att ha vuxit fram. */
+  if(fakt.length){
+    var forsta=fakt[0];
+    var gryning=t0Sol();
+    if(forsta.t>gryning+15*60000){
+      fakt=[{t:gryning,v:0}].concat(fakt);
+    }else if(forsta.t>dayStart()+15*60000&&forsta.v<300){
+      fakt=[{t:dayStart(),v:0}].concat(fakt);
+    }
+  }
   var max=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
   max=max*1.1;
   var t0=dayStart();
@@ -6264,25 +6293,16 @@ function notDetaljHTML(p){
 
 /* Liten kurva av en serie. Bara form och riktning — en dagsnotis behöver inte
    avläsbara axlar, och en graf med rutnät i en popup blir bara plottrig. */
-function miniGraf(pts,farg,enhet){
-  if(!pts||pts.length<3)return '';
-  var v=pts.map(function(p){return p.v;});
-  var lo=Math.min.apply(null,v), hi=Math.max.apply(null,v);
-  if(!(hi>lo))return '';
-  var W=280,H=64,d='';
-  pts.forEach(function(p,i){
-    var x=(i/(pts.length-1))*W, y=H-((p.v-lo)/(hi-lo))*(H-8)-4;
-    d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);});
-  return '<svg class="mgraf" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
-    +'<path d="'+d+'" fill="none" stroke="'+(farg||'var(--gold)')+'" stroke-width="2"'
-    +' stroke-linejoin="round" stroke-linecap="round"/></svg>'
-    +'<div class="mgraf-l"><span>'+num(lo,1)+(enhet||'')+'</span>'
-    +'<span>'+num(hi,1)+(enhet||'')+'</span></div>';}
+function miniGraf(pts,farg,enhet,xTid){
+  /* En linje är bara ett specialfall av flera. Att ha två ritare gav olika
+     axlar i olika popupar. */
+  var f=(farg||'').replace(/^var\(--|\)$/g,'')||'gold';
+  return multiGraf([{namn:'',farg:f,pts:pts||[]}],enhet,xTid);}
 
 /* Flera linjer i samma diagram, med gemensam skala så att kurvorna går att
    jämföra. Egen skala per linje hade sett snyggare ut men ljugit: två kurvor
    som ligger på samma höjd skulle betyda olika saker. */
-function multiGraf(kurvor,enhet){
+function multiGraf(kurvor,enhet,xTid){
   var k=(kurvor||[]).filter(function(x){return x&&x.pts&&x.pts.length>=2;});
   if(!k.length)return '';
   var lo=Infinity,hi=-Infinity,t0=Infinity,t1=-Infinity;
@@ -6290,22 +6310,41 @@ function multiGraf(kurvor,enhet){
     if(p.v<lo)lo=p.v; if(p.v>hi)hi=p.v;
     if(p.t<t0)t0=p.t; if(p.t>t1)t1=p.t;});});
   if(!(hi>lo)||!(t1>t0))return '';
-  var W=300,H=88,pad=4;
-  var h='<svg class="mgraf" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  /* Luft för axlarna: 34 px till vänster för värdena, 16 px under för tiderna.
+     Utan dem stod siffrorna utanför bilden. */
+  var W=320,H=112,vx=34,ax=14,top=6;
+  var px=function(t){return vx+((t-t0)/(t1-t0))*(W-vx-6);};
+  var py=function(v){return top+(1-(v-lo)/(hi-lo))*(H-top-ax);};
+  var h='<svg class="mgraf" viewBox="0 0 '+W+' '+H+'">';
+  /* Tre stödlinjer med värde till vänster. Fler blir plottrigt i en popup. */
+  [0,0.5,1].forEach(function(f){
+    var v=lo+(hi-lo)*(1-f), y=top+f*(H-top-ax);
+    h+='<line x1="'+vx+'" y1="'+y.toFixed(1)+'" x2="'+(W-6)+'" y2="'+y.toFixed(1)
+      +'" stroke="var(--line)" stroke-width="1" opacity="'+(f===1?'0.9':'0.35')+'"/>';
+    h+='<text x="'+(vx-5)+'" y="'+(y+3.5).toFixed(1)+'" class="mg-ax" text-anchor="end">'
+      +esc(num(v,(hi-lo)<8?1:0))+'</text>';});
+  /* Klockslag på x-axeln: start, mitt och slut. */
+  if(xTid!==false){
+    [0,0.5,1].forEach(function(f){
+      var t=t0+(t1-t0)*f, x=px(t);
+      var d=new Date(t);
+      var lbl=isFinite(d.getTime())
+        ? (String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'))
+        : String(Math.round(t));
+      h+='<text x="'+x.toFixed(1)+'" y="'+(H-3)+'" class="mg-ax" text-anchor="'
+        +(f===0?'start':(f===1?'end':'middle'))+'">'+esc(lbl)+'</text>';});
+  }
   k.forEach(function(x){
     var d='';
     x.pts.forEach(function(p,i){
-      var px=((p.t-t0)/(t1-t0))*W;
-      var py=H-pad-((p.v-lo)/(hi-lo))*(H-pad*2);
-      d+=(i?'L':'M')+px.toFixed(1)+' '+py.toFixed(1);});
+      d+=(i?'L':'M')+px(p.t).toFixed(1)+' '+py(p.v).toFixed(1);});
     h+='<path d="'+d+'" fill="none" stroke="var(--'+(x.farg||'gold')+')" stroke-width="2"'
       +' stroke-linejoin="round" stroke-linecap="round"/>';});
   h+='</svg>';
-  h+='<div class="mgraf-l"><span>'+num(lo,1)+(enhet||'')+'</span>'
-    +'<span>'+num(hi,1)+(enhet||'')+'</span></div>';
   h+='<div class="mgraf-f">';
   k.forEach(function(x){
-    h+='<span><i style="background:var(--'+(x.farg||'gold')+')"></i>'+esc(x.namn||'')+'</span>';});
+    h+='<span><i style="background:var(--'+(x.farg||'gold')+')"></i>'+esc(x.namn||'')
+      +(enhet?'':'')+'</span>';});
   return h+'</div>';}
 
 /* Popup för en ruta i en dagsnotis. Rutorna bär sitt eget underlag i .pop, så
@@ -9423,14 +9462,30 @@ function enhetsId(){
     try{localStorage.setItem('enhetsid_v1',v);}catch(e){}
   }
   return v;}
+/* EN HUVUDENHET PER KLASS. Storlekarna är olika för platta och telefon, så
+   plattornas huvudenhet måste vara en platta — annars skriver telefonen aldrig
+   plattans mått och de fastnar. Delade inställningar (glow, trendpil, teman,
+   rutinnehåll) skrivs av båda; de ligger ändå i samma fack. */
 function huvudGet(){
-  try{return JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');}catch(e){return null;}}
+  try{
+    var o=JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');
+    if(!o)return null;
+    /* Äldre format: ett enda val utan klass. Tolka det som den här klassens. */
+    if(o.id&&!o.klass)return {klass:secKlass(),id:o.id,namn:o.namn};
+    return o[secKlass()]||null;
+  }catch(e){return null;}}
 function arHuvud(){
   var h=huvudGet();
   return !h||!h.id||h.id===enhetsId();}   /* ingen vald: alla får skriva, som förr */
 function huvudSatt(pa){
   try{
-    if(pa)localStorage.setItem(HUVUD_KEY,JSON.stringify({id:enhetsId(),namn:enhetsNamn(),at:Date.now()}));
+    var raa=null;
+    try{raa=JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');}catch(e){}
+    if(raa&&raa.id&&!raa.klass)raa=null;      /* gammalt format skrivs över */
+    var o=raa||{};
+    if(pa)o[secKlass()]={id:enhetsId(),namn:enhetsNamn(),at:Date.now()};
+    else delete o[secKlass()];
+    if(Object.keys(o).length)localStorage.setItem(HUVUD_KEY,JSON.stringify(o));
     else localStorage.removeItem(HUVUD_KEY);
   }catch(e){}}
 function enhetsNamn(){
@@ -10079,22 +10134,38 @@ function openKnEdit(){
 /* Tre oberoende mått: höjd, textstorlek och ikonstorlek. Text och ikon skalas
    OVANPÅ höjden — annars går det inte att ha en låg rad med stor text, vilket
    är precis vad man vill när knapparna ska synas på håll. */
+/* PER ENHETSKLASS via szRead/szWrite, samma mönster som spotpris och köpt/sålt. */
 var KN_STD={h:1,t:1,i:1};
 function knMatt(k){
-  var v=(CFG&&CFG.kn&&CFG.kn[k]);
+  /* EGET fack per klass, inte szRead. szRead lägger plattans värden i botten och
+     mobilens ovanpå — bra för spotpris, där mobilen bara justerar avvikelser,
+     men fel här: ställer man 140 % på plattan ärver telefonen det tills den
+     själv rört reglaget. Knapparna ska vara helt oberoende. */
+  var bok=szMobile()?((CFG.mob&&CFG.mob.kn)||{}):(CFG.kn||{});
+  var v=bok[k];
   return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):(KN_STD[k]||1);}
 function knSteg(k,d){
   var f=Math.max(0.6,Math.min(1.8,Math.round((knMatt(k)+d*0.1)*10)/10));
-  CFG.kn=CFG.kn||{};CFG.kn[k]=f;saveCfg();applyCfg();
+  szWrite('kn')[k]=f;saveCfg();applyCfg();
   var n=$('knnum-'+k);if(n)n.textContent=Math.round(f*100)+' %';}
 function knSteg_h(d){knSteg('h',d);}
 function knSteg_t(d){knSteg('t',d);}
 function knSteg_i(d){knSteg('i',d);}
 /* Kvar för bakåtkompatibilitet: en tidigare version sparade CFG.knHojd. */
-function knHojd(){
-  if(CFG&&CFG.kn&&typeof CFG.kn.h==='number')return knMatt('h');
-  var v=(CFG&&CFG.knHojd);
-  return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):1;}
+/* knMatt ger alltid ett tal, så en reserv här vore onåbar kod. Bakåt-
+   kompatibiliteten med CFG.knHojd ligger i stället i knMatt-facket: en gammal
+   inställning läses in en gång vid uppstart. */
+function knHojd(){return knMatt('h');}
+/* Flyttar CFG.knHojd till plattans fack. Körs en gång; därefter finns nyckeln
+   inte kvar och funktionen gör ingenting. */
+function knMigrera(){
+  try{
+    if(typeof CFG.knHojd!=='number')return;
+    CFG.kn=CFG.kn||{};
+    if(typeof CFG.kn.h!=='number')CFG.kn.h=CFG.knHojd;
+    delete CFG.knHojd;
+    saveCfg();
+  }catch(e){}}
 
 /* Rapportrutans höjd. Samma stegknappar som de andra rutorna, plus ett val för
    om den ska svälja överbliven höjd i kioskläget. */
@@ -10426,7 +10497,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v404';
+const APP_VERSION='v406';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10456,6 +10527,7 @@ function applyCfg(){
      inline-stil där skulle försvinna var femtonde sekund. */
   try{
     document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');
+    knMigrera();
     document.body.style.setProperty('--knhojd',String(knHojd()));
     document.body.style.setProperty('--kntext',String(knMatt('t')));
     document.body.style.setProperty('--knikon',String(knMatt('i')));
@@ -10659,15 +10731,22 @@ function openConfig(){
     /* Huvudenhet. Den som är vald skriver till Homey; övriga läser bara. */
     var hv=huvudGet();
     h+='<div class="cfg-row"><span class="cfg-row-l">Sparar till Homey</span>'
-      +'<span class="cfg-num">'+esc(hv?(arHuvud()?'den här enheten':(hv.namn||'annan enhet')):'alla enheter')+'</span></div>';
+      +'<span class="cfg-num">'+esc(hv?(arHuvud()?'den här enheten':(hv.namn||'annan enhet')):'alla enheter')
+      +'</span></div>';
+    h+='<div class="cfg-row"><span class="cfg-row-l">Gäller</span>'
+      +'<span class="cfg-num">'+(secKlass()==='platta'?'plattor':'telefoner')+'</span></div>';
     h+='<div class="cfg-btns" style="margin-top:6px">'
       +'<button class="cfg-opt'+(hv&&arHuvud()?' on':'')+'" onclick="huvudSatt(true);cfgGo(\'system\')">Gör till huvudenhet</button>'
       +'<button class="cfg-opt'+(!hv?' on':'')+'" onclick="huvudSatt(false);cfgGo(\'system\')">Alla får spara</button>'
       +'</div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Utan huvudenhet skriver varje '
-      +'enhet en gång per dygn, och den som skriver sist vinner — en platta med '
+      +'enhet en gång per dygn, och den som skriver sist vinner — en enhet med '
       +'gamla inställningar kan då skriva tillbaka dem över dina. Välj den enhet '
-      +'du ställer in från; övriga hämtar därifrån i stället.</div>';
+      +'du ställer in från; övriga hämtar därifrån i stället.<br><br>'
+      +'<b>Valet gäller per enhetstyp.</b> Höjder och storlekar är olika för '
+      +'plattor och telefoner, så plattorna behöver en egen huvudenhet — annars '
+      +'skriver telefonen aldrig plattans mått. Glow, trendpilar och rutornas '
+      +'innehåll är gemensamma och följer med ändå.</div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Notiser till telefonen</span>'
       +'<span class="cfg-num" id="push-lage">'+esc(_pushLage)+'</span></div>';
     h+='<div class="cfg-btns" id="push-knappar" style="margin-top:6px">'
@@ -11681,7 +11760,20 @@ function secOrderGet(){try{const s=JSON.parse(localStorage.getItem('secOrder_v1'
 function secOrderSave(o){try{localStorage.setItem('secOrder_v1',JSON.stringify(o));}catch(e){}
   syncPushSoon();}
 const SEC_SCALE_DEF={sun:0.8};
-function secScaleGet(){try{const s=JSON.parse(localStorage.getItem('secScale_v1'));if(s&&typeof s==='object')return Object.assign({},SEC_SCALE_DEF,s);}catch(e){}return Object.assign({},SEC_SCALE_DEF);}
+/* Avsnittshöjder PER ENHETSKLASS. Nyckeln innehåller två fack, platta och
+   telefon — en platta och en telefon har helt olika ytor, och samma höjd på
+   båda blir fel på minst en. Gamla värden på toppnivå ärvs som utgångsläge. */
+function secKlass(){return szMobile()?'telefon':'platta';}
+function secScaleAlla(){try{const s=JSON.parse(localStorage.getItem('secScale_v1'));
+  return (s&&typeof s==='object')?s:{};}catch(e){return {};}}
+function secScaleGet(){
+  const a=secScaleAlla();
+  const k=a[secKlass()];
+  if(k&&typeof k==='object')return Object.assign({},SEC_SCALE_DEF,k);
+  /* Inget fack än: ärv toppnivåns tal en gång, så inget hoppar vid uppgradering. */
+  const gml={};
+  for(const n in a)if(n!=='platta'&&n!=='telefon'&&typeof a[n]==='number')gml[n]=a[n];
+  return Object.assign({},SEC_SCALE_DEF,gml);}
 function secScaleOf(sec){const s=secScaleGet();const v=s[sec];return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.6,v)):1;}
 function applySecScale(){const view=$('view-flode');if(!view||!view.querySelector)return;
   SEC_DEF.forEach(sec=>{const el=view.querySelector('[data-sec="'+sec+'"]');if(!el||!el.style)return;const f=secScaleOf(sec);el.style.zoom=(Math.abs(f-1)<0.001)?'':String(f);});
@@ -11693,7 +11785,9 @@ function secHeightSet(sec,dir){
   let f=secScaleOf(sec)+dir*0.1;
   f=Math.max(0.6,Math.min(1.6,Math.round(f*10)/10));
   if(Math.abs(f-1)<0.001)delete s[sec];else s[sec]=f;
-  try{localStorage.setItem('secScale_v1',JSON.stringify(s));}catch(e){}
+  const alla=secScaleAlla();
+  alla[secKlass()]=s;
+  try{localStorage.setItem('secScale_v1',JSON.stringify(alla));}catch(e){}
   applySecScale();
   return f;}
 function secHeight(sec,dir){secHeightSet(sec,dir);openSecMove(sec);}
