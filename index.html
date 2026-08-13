@@ -699,6 +699,23 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
   font-size:12.5px;color:var(--dim);border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent)}
 .krpop-r:last-child{border-bottom:0}
 .krpop-r b{color:var(--ink);font-weight:800;text-align:right}
+/* Dagsnotisens text. Korta rader, en iakttagelse per rad. */
+.dn-t{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.dn-r{position:relative;margin:0;padding:9px 0 9px 30px;font-size:14px;line-height:1.55;
+  color:var(--ink);font-weight:600}
+/* Hårfin linje mellan raderna, inte runt dem. En ram gör det till en tabell. */
+.dn-r+.dn-r{border-top:1px solid rgba(255,255,255,.05)}
+/* Första raden bär tonen: något större, resten linjerar under. */
+.dn-r.forst{font-size:15px;font-weight:700;padding-top:2px}
+.dn-i{position:absolute;left:0;top:9px;width:22px;font-size:15px;line-height:1.4;
+  text-align:left;opacity:.95}
+.dn-r.forst .dn-i{top:2px}
+.dn-x{display:block}
+/* Talen får tyngd, texten runt dem lugn — det är siffrorna man letar efter. */
+.dn-x .kr-n2{font-weight:800;color:var(--ink)}
+.dn-r:not(.forst){color:var(--dim)}
+.mgraf{width:100%;height:64px;margin-top:12px;display:block}
+.mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
 .krpop-bred{max-width:440px}
 .krpop-grid{margin-top:12px}
 /* Svaret på frågan, i klartext ovanför rutorna. */
@@ -2761,7 +2778,31 @@ function progAvsnitt(){
       +'</div>';
   }
   var e=progIdag();
-  var h='<div class="dsec">Prognos idag</div>';
+  var m=_prog.medelfel||{};
+
+  /* All förklaring bakom en i-knapp — hur prognosen räknas, vad medelfel och
+     systematiskt betyder, och varför de kan saknas. Förut låg fyra rader
+     löptext direkt under siffrorna. */
+  var info=''
+    +'<p style="margin:0 0 8px"><b>Prognosen</b> räknas i Homey-appen ur molntäcket från '
+    +'Open-Meteo och panelernas läge — fyra takgrupper med olika lutning och väderstreck. '
+    +'Den låses mellan kl 4 och 9 och skrivs aldrig om under dagen; en prognos som ändrar '
+    +'sig i efterhand går inte att bedöma.</p>'
+    +'<p style="margin:0 0 8px"><b>Medelfel</b> är hur mycket prognosen missar i genomsnitt, '
+    +'oavsett håll. <b>Systematiskt</b> visar om den genomgående ligger för högt eller lågt. '
+    +'Är det tydligt åt ett håll ska molnkoefficienten <b>k</b> justeras i appens '
+    /* Komma, inte punkt. num() ger rå toFixed, och "0.75" mitt i en svensk
+       mening ser ut som ett fel — samma fälla som i Kul fakta och batteritiden. */
+    +'inställningar — nu '+num(_prog.k,2).replace('.',',')+'.</p>'
+    +'<p style="margin:0 0 8px">Ett dygn räknas först när utfallet finns, alltså dagen efter. '
+    +'Orimliga dygn utelämnas: den totala mätarställningen har tidigare råkat läsas som '
+    +'dygnsproduktion, och ett enda sådant dygn förgiftar medelfelet i veckor.</p>'
+    +'<p style="margin:0"><b>Kurvan</b> visar prognosen som yta och den uppmätta effekten '
+    +'som linje. Mätningen kommer från Homey-appen när den loggar solen, annars från den '
+    +'här webbläsaren — och då bara så länge sidan varit öppen.</p>';
+  var q=iqBtnHtml(info);
+
+  var h='<div class="dsec">Prognos idag'+q.btn+'</div>'+q.box;
   if(e){
     var fakt=cap(DEV.solar,'meter_power.day');
     var pk=e.summa_prognos/1000;
@@ -2776,21 +2817,23 @@ function progAvsnitt(){
     h+='<div class="isub" style="opacity:.7">Ingen prognos ställd för idag'
       +(_progFel?(' — '+esc(_progFel)):'')+'.</div>';
   }
+
   var st=progStaplarHTML();
-  if(st){
-    var m=_prog.medelfel||{};
-    h+='<div class="dsec">Träffsäkerhet · 14 dygn</div>'+st;
-    if(m.n){
-      h+=dRow('Medelfel',num(m.mae/1000,1)+' kWh'+(m.maePct!=null?(' · '+num(m.maePct,0)+' %'):''))
-        +dRow('Systematiskt',(m.bias>=0?'+':'')+num(m.bias/1000,1)+' kWh'
-          +(m.biasPct!=null?(' · '+(m.biasPct>=0?'+':'')+num(m.biasPct,0)+' %'):''));
-      h+='<div class="isub" style="margin-top:6px;opacity:.65">Medelfel är hur mycket prognosen '
-        +'missar i genomsnitt, oavsett håll. Systematiskt visar om den genomgående ligger för '
-        +'högt eller lågt — är det tydligt åt ett håll ska molnkoefficienten k justeras i appens '
-        +'inställningar. Nu: k='+num(_prog.k,2)+'.</div>';
-    }
+  if(st)h+='<div class="dsec">Träffsäkerhet · 14 dygn</div>'+st;
+
+  /* Medelfelet FÖRSVANN helt när inga dygn dög. Att en rad bara uteblir går
+     inte att skilja från att funktionen är trasig — säg i stället varför. */
+  if(m.n){
+    h+=dRow('Medelfel',num(m.mae/1000,1)+' kWh'+(m.maePct!=null?(' · '+num(m.maePct,0)+' %'):''))
+      +dRow('Systematiskt',(m.bias>=0?'+':'')+num(m.bias/1000,1)+' kWh'
+        +(m.biasPct!=null?(' · '+(m.biasPct>=0?'+':'')+num(m.biasPct,0)+' %'):''))
+      +dRow('Bygger på',m.n+' dygn');
+  }else if(st){
+    h+='<div class="isub" style="margin-top:6px;opacity:.7">Ingen träffsäkerhet än — den '
+      +'kräver dygn där både prognos och utfall finns. Utfallet fylls i dagen efter.</div>';
   }
   return h;}
+
 async function appState(force){
   if(!force&&_appState&&Date.now()-_appStateAt<5*60000)return _appState;
   try{
@@ -6028,6 +6071,23 @@ function dagTidSatt(){
   appPost('/dag',{tider:{morgon:m.value,kvall:k.value}}).then(function(r){
     if(r&&r.morgon){_dag=_dag||{notiser:[]};_dag.tider=r;}
   }).catch(function(){});}
+/* Vad hände vid den senaste schemakontrollen? Frågan har varit omöjlig att
+   besvara utan att gå in i appens inställningar — och en notis som uteblir är
+   just då man vill veta. */
+function dagSpar(){
+  var e=$('dag-spar');if(!e)return;
+  e.textContent='Hämtar…';
+  appGet('/diag').then(function(d){
+    var t=d&&d.dagTick;
+    if(!t){e.textContent='Ingen kontroll har körts än. Timern startar med appen '
+      +'och går var femte minut — har den just installerats, vänta fem minuter.';return;}
+    e.textContent='Senaste: '+new Date(t.at).toLocaleString('sv-SE')
+      +' (kl '+(t.klocka||'?')+')\n'
+      +'Tider: '+(t.tider?(t.tider.morgon+' och '+t.tider.kvall+(t.tider.av?' — AVSTÄNGT':'')):'?')+'\n'
+      +'Skrivet idag: '+JSON.stringify(t.sista||{})+'\n'
+      +(Array.isArray(t.utfall)?t.utfall.join('\n'):String(t.utfall||''));
+  }).catch(function(err){e.textContent='Kunde inte läsa: '+((err&&err.message)||err);});}
+
 function dagProv(kvall){
   appPost('/dag',{kvall:!!kvall}).then(function(){
     _dag=null;_dagAt=0;
@@ -6059,9 +6119,12 @@ function notLista(){
   /* Listan säger vad som ÄR oläst. Att väggplattan inte ska visa det är ett
      beslut för vyn, inte för datan — annars tappar den även räkningen, och
      verktygstipset kunde inte säga hur många som väntar. */
-  (_kron.ar||[]).forEach(function(x){ut.push({typ:'kronika',ar:true,period:x.period,
+  /* _kron kan vara null när bara dagsnotiser hunnit hämtas — listan finns för
+     flera slag, och ett saknat slag får inte fälla hela vyn. */
+  var K2=_kron||{ar:[],manader:[]};
+  (K2.ar||[]).forEach(function(x){ut.push({typ:'kronika',ar:true,period:x.period,
     tid:kronTid(x),rubrik:'Sammanfattning för '+x.period,sol:x.sol,ny:kronArNy(x)});});
-  (_kron.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
+  (K2.manader||[]).forEach(function(x){ut.push({typ:'kronika',ar:false,period:x.period,
     tid:kronTid(x),rubrik:'Sammanfattning för '+kronVersal(kronNamn(x.period)),sol:x.sol,ny:kronArNy(x)});});
   /* Dagsnotiserna. De har eget id i stället för period — en morgon och en kväll
      samma dygn är två olika notiser. */
@@ -6191,14 +6254,91 @@ function notDetaljHTML(p){
   h+=kronKulHTML(o,ar);
   return h+'</section>';}
 
+/* Liten kurva av en serie. Bara form och riktning — en dagsnotis behöver inte
+   avläsbara axlar, och en graf med rutnät i en popup blir bara plottrig. */
+function miniGraf(pts,farg,enhet){
+  if(!pts||pts.length<3)return '';
+  var v=pts.map(function(p){return p.v;});
+  var lo=Math.min.apply(null,v), hi=Math.max.apply(null,v);
+  if(!(hi>lo))return '';
+  var W=280,H=64,d='';
+  pts.forEach(function(p,i){
+    var x=(i/(pts.length-1))*W, y=H-((p.v-lo)/(hi-lo))*(H-8)-4;
+    d+=(i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);});
+  return '<svg class="mgraf" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'
+    +'<path d="'+d+'" fill="none" stroke="'+(farg||'var(--gold)')+'" stroke-width="2"'
+    +' stroke-linejoin="round" stroke-linecap="round"/></svg>'
+    +'<div class="mgraf-l"><span>'+num(lo,1)+(enhet||'')+'</span>'
+    +'<span>'+num(hi,1)+(enhet||'')+'</span></div>';}
+
+/* Popup för en ruta i en dagsnotis. Rutorna bär sitt eget underlag i .pop, så
+   den här funktionen behöver inte veta vad slags notis den kom från. All
+   förklaring ligger bakom i-knappen. */
+function dagPop(gi,ri){
+  var n=(_dag&&_dag.notiser)?_dag.notiser.filter(function(x){return x.id===gi;})[0]:null;
+  var r=n&&n.rutor&&n.rutor[ri];
+  if(!r||!r.pop)return;
+  var P=r.pop, info='', kropp='';
+  if(P.typ==='sopor'){
+    info='<p style="margin:0">Hämtningen sker varannan fredag enligt Kungsbacka '
+      +'kommuns schema. Datumen är inlagda till årsskiftet; därefter behöver listan '
+      +'fyllas på. Att räkna ut dem ur en regel vore fel — helger och röda dagar '
+      +'flyttar hämtningen, och det syns bara i schemat.</p>';
+    kropp='<div class="krpop-svar ja">'+esc(P.text||'')+'</div><div class="krpop-l">';
+    (P.kommande||[]).forEach(function(x){
+      kropp+='<div class="krpop-r"><span>'+esc(x.dag)+' '+esc(x.datum)+'</span><b>'
+        +(x.dygn===0?'idag':(x.dygn===1?'i morgon':('om '+x.dygn+' dygn')))+'</b></div>';});
+    kropp+='</div>';
+  }else if(P.typ==='temp'){
+    info='<p style="margin:0">Lägsta temperaturen mellan kl 18 och nu, ur '
+      +'utomhusgivaren. Kurvan visar nattens förlopp. Uterummet och poolen mäts av '
+      +'egna givare och visas som de står JUST NU — inte vid samma tidpunkt som '
+      +'lägstavärdet.</p>';
+    kropp='<div class="krpop-v">'+num(P.min,1)+' °</div><div class="krpop-l">';
+    if(P.nar)kropp+='<div class="krpop-r"><span>Kallast</span><b>'
+      +new Date(P.nar).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+'</b></div>';
+    if(P.ute!=null)kropp+='<div class="krpop-r"><span>Uterummet nu</span><b>'+num(P.ute,1)+' °</b></div>';
+    if(P.pool!=null)kropp+='<div class="krpop-r"><span>Poolen nu</span><b>'+num(P.pool,1)+' °</b></div>';
+    kropp+='</div>';
+    if(P.serie)kropp+=miniGraf(P.serie,'var(--blue)',' °');
+  }else if(P.typ==='prognos'){
+    info='<p style="margin:0">Prognosen räknas i Homey-appen ur molntäcket från '
+      +'Open-Meteo och panelernas läge — fyra takgrupper med olika lutning och '
+      +'väderstreck. Den låses mellan kl 4 och 9 och skrivs aldrig om under dagen.</p>';
+    kropp='<div class="krpop-v">'+num(P.kwh,1)+' kWh</div>';
+    if(P.timmar&&P.timmar.length)
+      kropp+=miniGraf(P.timmar.map(function(v,i){return {t:i,v:v/1000};}),'var(--solar)',' kW');
+  }else return;
+  var q=iqBtnHtml(info);
+  krPopStang();
+  var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
+    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop-h"><span class="krpop-i">'+icon(r.ik||'gauge')+'</span>'
+    +esc(r.namn)+q.btn+'</div>'+q.box+kropp+'</div></div>';
+  var w=document.createElement('div');w.innerHTML=h;
+  document.body.appendChild(w.firstChild);}
+
+/* Talframhävning för dagsnotiser. Bredare än sammanfattningarnas: här skrivs
+   "13,9 grader" och "03:20" i löptext, och just de talen är hela poängen med
+   raden. kronTal() lämnas orörd — den gäller artiklar, där ett framhävt
+   klockslag hade blivit rörigt. */
+function dagTal(t){
+  return String(t)
+    /* Klockslag först, annars fångar sifferregeln bara timmen. */
+    .replace(/\b(\d{1,2}:\d{2})\b/g,'<b class="kr-n2">$1</b>')
+    .replace(/(\d[\d\s\u00a0]*(?:[.,]\d+)?)\s?(kWh|kW|W|kr|öre|mm|m\/s|°C|°|%|grader|timmar|h\b|min\b|dygn|st\b)/g,
+      function(hel,tal,enh){return '<b class="kr-n2">'+tal.trim()+' '+enh+'</b>';});}
+
 function notDagHTML(n){
   var h='<section class="panel">';
   h+='<div class="kr-rap"><div class="kr-rh">'
     +'<span class="kr-rhi">'+(n.nar==='kvall'?'🌙':'☀️')+'</span>'
     +'<span>'+esc(n.rubrik)+'</span></div></div>';
   if(n.rutor&&n.rutor.length){
-    var r=n.rutor.map(function(x){
-      return '<div class="kr-c"><span class="kr-ic" style="color:var(--'+(x.farg||'faint')+')">'
+    var r=n.rutor.map(function(x,ix){
+      return '<div class="kr-c'+(x.pop?' kan':'')+'"'
+        +(x.pop?(' onclick="dagPop(\''+esc(n.id)+'\','+ix+')"'):'')
+        +'><span class="kr-ic" style="color:var(--'+(x.farg||'faint')+')">'
         +icon(x.ik||'gauge')+'</span><span class="kr-tx">'
         +'<span class="kr-l">'+esc(x.namn)+'</span>'
         +'<span class="kr-v">'+esc(x.varde)+'</span>'
@@ -6206,24 +6346,26 @@ function notDagHTML(n){
         +'</span></div>';});
     h+='<div class="kr-grid">'+r.join('')+'</div>';
   }
-  /* Samma sättning som sammanfattningarna: första raden som ingress, resten som
-     brödtext. Kortare text, men samma grammatik — annars ser en dagsnotis ut som
-     något annat slags dokument. */
+  /* EGEN SÄTTNING. Sammanfattningarnas grammatik — ingress plus stycken — passar
+     en artikel på fem stycken, inte fem korta rader. Här är varje rad en egen
+     iakttagelse och ska se ut som en sådan: samma vikt, samma vänsterkant, en
+     hårfin linje emellan så ögat vet var en tanke slutar och nästa börjar.
+
+     Raderna med emoji får tecknet hängande i marginalen, och de utan får samma
+     indrag — annars hoppar vänsterkanten fram och tillbaka. */
   var txt=n.text||(n.rader&&n.rader.join('\n'));
   if(txt){
     var rr=String(txt).split('\n').map(function(x){return x.trim();})
       .filter(function(x){return x.length;});
-    h+='<div class="kr-t"><div class="kr-rap">';
+    h+='<div class="dn-t">';
     rr.forEach(function(t,i){
       var m=t.match(/^([\u203C-\u3299\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F]+)\s*(.*)$/);
-      if(m&&i>0){
-        h+='<div class="kr-rr"><span class="kr-rri">'+esc(m[1])+'</span>'
-          +'<span class="kr-rrt">'+kronTal(esc(m[2]))+'</span></div>';
-        return;
-      }
-      h+='<p class="'+(i===0?'kr-ing':'kr-txt')+'">'+kronTal(esc(t))+'</p>';
+      var ik=m?m[1]:'', txt2=m?m[2]:t;
+      h+='<p class="dn-r'+(i===0?' forst':'')+'">'
+        +'<span class="dn-i">'+esc(ik)+'</span>'
+        +'<span class="dn-x">'+dagTal(esc(txt2))+'</span></p>';
     });
-    h+='</div></div>';
+    h+='</div>';
   }
   return h+'</section>';}
 
@@ -9341,17 +9483,49 @@ async function fetchFromHomey(){
 async function bootSync(){if(CFG.sync===false)return;if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
   /* Appen först vid uppstart också. Har den något sparat är det färskare och
      fullständigare än logikvariabeln, som kan ha tappat loggar till DROPPABLE. */
+  /* Rita bara om när något FAKTISKT ändrats. Förut ritades hela sidan om varje
+     gång backupen lästes, även när den var identisk med det som redan låg i
+     localStorage — det gav ett hopp någon sekund efter start, och en öppen meny
+     stängdes mitt i handen. */
+  var fore=syncSign();
   try{
     if(appKan()){
       var n=await appBackupLas();
       if(n>0){
+        if(syncSign()===fore)return;   /* inget nytt: rör inte skärmen */
         loadCfg();applyCfg();var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
-        applySecOrder();try{render();}catch(e){}
+        applySecOrder();try{ritaOmSakert();}catch(e){}
         return;
       }
     }
   }catch(e){}
-  try{await fetchFromHomey();}catch(e){}}
+  try{
+    await fetchFromHomey();
+    if(syncSign()!==fore)try{ritaOmSakert();}catch(e){}
+  }catch(e){}}
+
+/* Fingeravtryck av allt som påverkar utseendet. Räcker för att avgöra om en
+   omritning behövs — och billigare än att jämföra nyckel för nyckel. */
+function syncSign(){
+  var ut='';
+  try{
+    ['cfg_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','buttons_v1',
+     'secOrder_v1','secScale_v1'].forEach(function(k){
+      ut+=k+':'+((localStorage.getItem(k)||'').length)+'|';});
+  }catch(e){}
+  return ut;}
+
+/* Rita om, men ALDRIG mitt i något användaren håller på med. En öppen dialog
+   eller meny som stängs av sig själv känns som ett fel. */
+function ritaOmSakert(){
+  var bk=$('dlg-back');
+  if(bk&&bk.classList&&bk.classList.contains('open')){
+    /* Vänta tills rutan stängts. Ett försök i minuten räcker. */
+    setTimeout(ritaOmSakert,1000);
+    return;
+  }
+  if(_timeActive)return;
+  try{render();}catch(e){}}
 async function syncDiag(){
   var el=$('sync-diag');if(el)el.textContent='Kollar…';
   try{
@@ -9599,7 +9773,11 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
        nollställdes hela statusen, och bilrutan — som ALLTID har fyllnad — kunde
        därför aldrig visa att den laddade. */
     const stRa=tileStatus(cfg);
-    const st=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
+    /* cfg.stik===false döljer ikonen men rör inte glowet — de är två skilda
+       upplysningar och ska gå att stänga av var för sig. */
+    const visaIk=(cfg.stik!==false);
+    const st0=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
+    const st=(st0&&!visaIk)?{glow:st0.glow,lvl:st0.lvl}:st0;
     const m=computeMetric(cfg);
     const visaGlow=(cfg.glow!==false&&!fill);
     const glow=(visaGlow&&st&&st.glow)?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'';
@@ -9906,7 +10084,11 @@ function openTileEdit(g,i){const arr=gridTiles(g),cur=arr[i];
       if(pr.kind==='onoff'){const on=(curv==='on'||curv===true);h+='<div class="te-move"><button class="te-glow'+(on?' on':'')+'" onclick="setDemoOv(\''+g+'\','+i+',\''+(on?'off':'on')+'\')">'+(on?'På':'Av')+'</button><button class="te-alt" onclick="clearDemoOv(\''+g+'\','+i+')">Nollställ</button></div>';}
       else{h+='<div class="te-adv"><input id="te-demo" class="te-numin" type="number" step="any" value="'+(curv==null?'':curv)+'"><button class="te-use" onclick="setDemoOv(\''+g+'\','+i+')">Använd</button><button class="te-alt" onclick="clearDemoOv(\''+g+'\','+i+')">Nollställ</button></div>';}
     }else h+='<div class="learn-hint">Den här rutan räknas ur flera värden och har inget enskilt demovärde.</div>';}
-  h+='<div class="te-sec">Glow vid händelser</div><div class="te-move"><button class="te-glow'+(cur.glow!==false?' on':'')+'" onclick="toggleTileGlow(\''+g+'\','+i+')">'+(cur.glow!==false?'Glow på':'Glow av')+'</button><button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
+  h+='<div class="te-sec">Glow vid händelser</div><div class="te-move"><button class="te-glow'+(cur.glow!==false?' on':'')+'" onclick="toggleTileGlow(\''+g+'\','+i+')">'+(cur.glow!==false?'Glow på':'Glow av')+'</button>'
+    /* Indikatorikonen styrs för sig. Den säger VAD som pågår — laddning,
+       produktion, olåst — och det vill man ofta se även med glowet av. */
+    +'<button class="te-glow'+(cur.stik!==false?' on':'')+'" onclick="toggleTileStik(\''+g+'\','+i+')">'
+    +(cur.stik!==false?'Ikon på':'Ikon av')+'</button>'+'<button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
   h+='<div class="te-sec">Flytta ruta</div><div class="te-move"><button onclick="moveTile(\''+g+'\','+i+',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+' Upp</button><button onclick="moveTile(\''+g+'\','+i+',1)"'+(i>=arr.length-1?' disabled':'')+'>'+icon('arrow-fat-up','flip')+' Ner</button></div>';
   if(g==='flode'){h+='<div class="te-sec">Lägg till / ta bort</div><div class="te-move"><button onclick="addTile(\''+g+'\','+i+')"'+(arr.length>=12?' disabled':'')+'>+ Ny ruta</button><button class="te-alt" onclick="removeTile(\''+g+'\','+i+')"'+(arr.length<=1?' disabled':'')+'>Ta bort denna</button></div>';}
   h+='</div>';
@@ -9945,6 +10127,14 @@ function moveTile(g,i,d){const arr=gridTiles(g),j=i+d;if(j<0||j>=arr.length)retu
 function addTile(g,i){const arr=gridTiles(g);if(arr.length>=12)return;arr.splice(i+1,0,{type:'computed',key:'house'});saveGrid(g);renderTiles(g);if(typeof setTimeout==='function')setTimeout(fitScreen,40);openTileEdit(g,i+1);}
 function removeTile(g,i){const arr=gridTiles(g);if(arr.length<=1)return;arr.splice(i,1);saveGrid(g);renderTiles(g);if(typeof setTimeout==='function')setTimeout(fitScreen,40);closeDetail();}
 function toggleTileGlow(g,i){const arr=gridTiles(g);arr[i].glow=(arr[i].glow===false);if(arr[i].glow)delete arr[i].glow;saveGrid(g);renderTiles(g);openTileEdit(g,i);}
+/* Indikatorikonen uppe till höger. Sparas i rutans egen post, alltså i
+   tiles*-nyckeln som redan synkas till Homey — ingen ny nyckel att hålla reda
+   på, och inställningen följer med till de andra enheterna. */
+function toggleTileStik(g,i){
+  const arr=gridTiles(g);
+  arr[i].stik=(arr[i].stik===false);
+  if(arr[i].stik)delete arr[i].stik;   /* på är standard: spara bara avvikelsen */
+  saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 function toggleTileGraph(g,i){const arr=gridTiles(g);if(arr[i].graph===false)delete arr[i].graph;else arr[i].graph=false;saveGrid(g);openTileEdit(g,i);}
 function toggleTileTrend(g,i){const arr=gridTiles(g);if(arr[i].trend===true)delete arr[i].trend;else arr[i].trend=true;saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 
@@ -10123,7 +10313,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v395';
+const APP_VERSION='v401';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10369,7 +10559,9 @@ function openConfig(){
     h+='<div class="cfg-btns" style="margin-top:6px">'
       +'<button class="cfg-opt" onclick="dagProv(false)">Skriv morgonnotis nu</button>'
       +'<button class="cfg-opt" onclick="dagProv(true)">Skriv kvällsnotis nu</button>'
+      +'<button class="cfg-opt" onclick="dagSpar()">Visa senaste kontrollen</button>'
       +'</div>';
+    h+='<div class="cfg-hint" id="dag-spar" style="margin-top:6px;white-space:pre-line"></div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Morgon- och kvällsnotisen hamnar i '
       +'notislistan. Sophämtningen påminns kvällen innan och samma morgon.</div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Chrome visar notisen även med '
