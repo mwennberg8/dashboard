@@ -6359,7 +6359,11 @@ function notDagHTML(n){
       .filter(function(x){return x.length;});
     h+='<div class="dn-t">';
     rr.forEach(function(t,i){
-      var m=t.match(/^([\u203C-\u3299\uD83C-\uDBFF\uDC00-\uDFFF\u2600-\u27BF\uFE0F]+)\s*(.*)$/);
+      /* EN emoji, inte ett block. Regexen tog `+` och svalde därför "🔌🕯" som
+         ett enda tecken — två emoji trängdes i en 22 px kolumn och den ena låg
+         halvt över texten. Nu tas första tecknet (plus eventuell
+         variantväljare), och resten stannar i meningen där det hör hemma. */
+      var m=t.match(/^((?:\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDC00-\uDFFF]|[\u2600-\u27BF\u2B00-\u2BFF\u203C-\u3299])\uFE0F?)\s*(.*)$/);
       var ik=m?m[1]:'', txt2=m?m[2]:t;
       h+='<p class="dn-r'+(i===0?' forst':'')+'">'
         +'<span class="dn-i">'+esc(ik)+'</span>'
@@ -10313,7 +10317,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v401';
+const APP_VERSION='v402';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
