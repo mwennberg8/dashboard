@@ -716,6 +716,9 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .dn-r:not(.forst){color:var(--dim)}
 .mgraf{width:100%;height:64px;margin-top:12px;display:block}
 .mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
+.mgraf-f{display:flex;flex-wrap:wrap;gap:11px;margin-top:7px;font-size:11px;color:var(--dim)}
+.mgraf-f span{display:inline-flex;align-items:center;gap:5px}
+.mgraf-f i{width:11px;height:2.5px;border-radius:2px;display:inline-block}
 .krpop-bred{max-width:440px}
 .krpop-grid{margin-top:12px}
 /* Svaret på frågan, i klartext ovanför rutorna. */
@@ -2062,7 +2065,20 @@ let _timeActive=false,_timeMap=null,_timeInfo=null;
 const capLive=(id,c)=>{const d=DATA[id];if(!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]))return null;const v=d.capabilitiesObj[c].value;return (typeof v==='number'&&!isFinite(v))?null:v;};
 function cap(id,c){if(_timeActive&&_timeMap){const k=id+'|'+c;return (k in _timeMap)?_timeMap[k]:null;}return capLive(id,c);}
 const capOf=(d,c)=>d&&d.capabilitiesObj&&d.capabilitiesObj[c]?d.capabilitiesObj[c].value:null;
-const num=(v,d=0)=>(v==null||isNaN(v))?'–':Number(v).toFixed(d);
+/* SVENSK FORMATERING i botten. num() gav rå toFixed — "27.4" och "1453" — och
+   det har lappats lokalt på fyra ställen efter hand (Kul fakta, batteritiden,
+   molnkoefficienten, dagsnotisernas tal). Att rätta källan i stället gör att
+   nästa nya text inte får samma fel.
+
+   Tusental med hårt mellanslag så talet inte bryts över raden, decimalkomma. */
+const num=(v,d=0)=>{
+  if(v==null||isNaN(v))return '–';
+  const t=Number(v).toFixed(d);
+  const p=t.split('.');
+  const neg=p[0].charAt(0)==='-';
+  const heltal=neg?p[0].slice(1):p[0];
+  const grupp=heltal.replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
+  return (neg?'-':'')+grupp+(p[1]?(','+p[1]):'');};
 const W=v=>(v==null||!isFinite(v))?'–':(Math.abs(v)>=1000?(v/1000).toFixed(Math.abs(v)%1000===0?0:1)+' kW':Math.round(v)+' W');
 const grp=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
 const fmtKwh=v=>(v==null||!isFinite(v))?'–':(v<100?num(v,1):grp(Math.round(v)))+' <small>kWh</small>';
@@ -2791,9 +2807,7 @@ function progAvsnitt(){
     +'<p style="margin:0 0 8px"><b>Medelfel</b> är hur mycket prognosen missar i genomsnitt, '
     +'oavsett håll. <b>Systematiskt</b> visar om den genomgående ligger för högt eller lågt. '
     +'Är det tydligt åt ett håll ska molnkoefficienten <b>k</b> justeras i appens '
-    /* Komma, inte punkt. num() ger rå toFixed, och "0.75" mitt i en svensk
-       mening ser ut som ett fel — samma fälla som i Kul fakta och batteritiden. */
-    +'inställningar — nu '+num(_prog.k,2).replace('.',',')+'.</p>'
+    +'inställningar — nu '+num(_prog.k,2)+'.</p>'
     +'<p style="margin:0 0 8px">Ett dygn räknas först när utfallet finns, alltså dagen efter. '
     +'Orimliga dygn utelämnas: den totala mätarställningen har tidigare råkat läsas som '
     +'dygnsproduktion, och ett enda sådant dygn förgiftar medelfelet i veckor.</p>'
@@ -5622,14 +5636,8 @@ function kronTal(t){
    samma manad alltid ger samma rader. */
 function kronKul(o,ar){
   if(!o)return [];
-  /* num() ger "1453" och "5.0" — rå toFixed utan svensk formatering. I en
-     mening som ska läsas högt måste det stå "1 453" och "5,0". */
-  var r=[],n2=function(v,d){
-    var t=num(v,d==null?0:d);
-    if(t==='–')return t;
-    var p=t.split('.');
-    p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
-    return p.join(',');};
+  /* num() formaterar svenskt sedan v404 — ingen egen efterbehandling behövs. */
+  var r=[],n2=function(v,d){return num(v,d==null?0:d);};
   var sol=o.sol&&o.sol.kwh, el=o.el||{}, v=o.vader||{};
 
   /* Hela meningar som säger något, inte lösryckta tal. Varje rad ska gå att
@@ -6271,6 +6279,35 @@ function miniGraf(pts,farg,enhet){
     +'<div class="mgraf-l"><span>'+num(lo,1)+(enhet||'')+'</span>'
     +'<span>'+num(hi,1)+(enhet||'')+'</span></div>';}
 
+/* Flera linjer i samma diagram, med gemensam skala så att kurvorna går att
+   jämföra. Egen skala per linje hade sett snyggare ut men ljugit: två kurvor
+   som ligger på samma höjd skulle betyda olika saker. */
+function multiGraf(kurvor,enhet){
+  var k=(kurvor||[]).filter(function(x){return x&&x.pts&&x.pts.length>=2;});
+  if(!k.length)return '';
+  var lo=Infinity,hi=-Infinity,t0=Infinity,t1=-Infinity;
+  k.forEach(function(x){x.pts.forEach(function(p){
+    if(p.v<lo)lo=p.v; if(p.v>hi)hi=p.v;
+    if(p.t<t0)t0=p.t; if(p.t>t1)t1=p.t;});});
+  if(!(hi>lo)||!(t1>t0))return '';
+  var W=300,H=88,pad=4;
+  var h='<svg class="mgraf" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  k.forEach(function(x){
+    var d='';
+    x.pts.forEach(function(p,i){
+      var px=((p.t-t0)/(t1-t0))*W;
+      var py=H-pad-((p.v-lo)/(hi-lo))*(H-pad*2);
+      d+=(i?'L':'M')+px.toFixed(1)+' '+py.toFixed(1);});
+    h+='<path d="'+d+'" fill="none" stroke="var(--'+(x.farg||'gold')+')" stroke-width="2"'
+      +' stroke-linejoin="round" stroke-linecap="round"/>';});
+  h+='</svg>';
+  h+='<div class="mgraf-l"><span>'+num(lo,1)+(enhet||'')+'</span>'
+    +'<span>'+num(hi,1)+(enhet||'')+'</span></div>';
+  h+='<div class="mgraf-f">';
+  k.forEach(function(x){
+    h+='<span><i style="background:var(--'+(x.farg||'gold')+')"></i>'+esc(x.namn||'')+'</span>';});
+  return h+'</div>';}
+
 /* Popup för en ruta i en dagsnotis. Rutorna bär sitt eget underlag i .pop, så
    den här funktionen behöver inte veta vad slags notis den kom från. All
    förklaring ligger bakom i-knappen. */
@@ -6279,7 +6316,23 @@ function dagPop(gi,ri){
   var r=n&&n.rutor&&n.rutor[ri];
   if(!r||!r.pop)return;
   var P=r.pop, info='', kropp='';
-  if(P.typ==='sopor'){
+  /* Finns rutan redan någon annanstans med en egen ruta: öppna DEN. Två popupar
+     om samma sak glider isär, och den befintliga har mer i sig. */
+  if(P.typ==='detalj'){
+    if(P.vilken==='batttom'){try{btPop();}catch(e){}return;}
+    try{openDetail(P.vilken);}catch(e){}
+    return;
+  }
+  if(P.typ==='temp2'){
+    info='<p style="margin:0">'+esc(P.text||'')+' Jämförelsetalen är från natten '
+      +'som gick, inte från just nu — det är då skillnaden mellan rummen syns.</p>';
+    kropp='<div class="krpop-v">'+num(P.nu,1)+' °</div><div class="krpop-l">';
+    (P.jmf||[]).forEach(function(x){
+      if(x[1]==null)return;
+      kropp+='<div class="krpop-r"><span>'+esc(x[0])+'</span><b>'+num(x[1],1)+' °</b></div>';});
+    kropp+='</div>';
+    if(P.kurvor)kropp+=multiGraf(P.kurvor,' °');
+  }else if(P.typ==='sopor'){
     info='<p style="margin:0">Hämtningen sker varannan fredag enligt Kungsbacka '
       +'kommuns schema. Datumen är inlagda till årsskiftet; därefter behöver listan '
       +'fyllas på. Att räkna ut dem ur en regel vore fel — helger och röda dagar '
@@ -6290,17 +6343,19 @@ function dagPop(gi,ri){
         +(x.dygn===0?'idag':(x.dygn===1?'i morgon':('om '+x.dygn+' dygn')))+'</b></div>';});
     kropp+='</div>';
   }else if(P.typ==='temp'){
-    info='<p style="margin:0">Lägsta temperaturen mellan kl 18 och nu, ur '
-      +'utomhusgivaren. Kurvan visar nattens förlopp. Uterummet och poolen mäts av '
-      +'egna givare och visas som de står JUST NU — inte vid samma tidpunkt som '
-      +'lägstavärdet.</p>';
+    info='<p style="margin:0 0 8px">Lägsta temperaturen mellan kl 18 och nu, ur '
+      +'utomhusgivaren.</p>'
+      +'<p style="margin:0">Uterummet och inomhus visas <b>vid samma tidpunkt</b> som '
+      +'lägstavärdet, inte som de står nu — annars jämför man en kall natt med en '
+      +'varm förmiddag. Poolen är utelämnad: den säger ingenting om en kall natt.</p>';
     kropp='<div class="krpop-v">'+num(P.min,1)+' °</div><div class="krpop-l">';
     if(P.nar)kropp+='<div class="krpop-r"><span>Kallast</span><b>'
       +new Date(P.nar).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+'</b></div>';
-    if(P.ute!=null)kropp+='<div class="krpop-r"><span>Uterummet nu</span><b>'+num(P.ute,1)+' °</b></div>';
-    if(P.pool!=null)kropp+='<div class="krpop-r"><span>Poolen nu</span><b>'+num(P.pool,1)+' °</b></div>';
+    if(P.uteVid!=null)kropp+='<div class="krpop-r"><span>Uterummet då</span><b>'+num(P.uteVid,1)+' °</b></div>';
+    if(P.inneVid!=null)kropp+='<div class="krpop-r"><span>Inomhus då</span><b>'+num(P.inneVid,1)+' °</b></div>';
     kropp+='</div>';
-    if(P.serie)kropp+=miniGraf(P.serie,'var(--blue)',' °');
+    if(P.kurvor)kropp+=multiGraf(P.kurvor,' °');
+    else if(P.serie)kropp+=miniGraf(P.serie,'var(--blue)',' °');
   }else if(P.typ==='prognos'){
     info='<p style="margin:0">Prognosen räknas i Homey-appen ur molntäcket från '
       +'Open-Meteo och panelernas läge — fyra takgrupper med olika lutning och '
@@ -7300,14 +7355,8 @@ function btSum(){
   return _bt||{pagar:false,nu:null,senast:null,senastLangd:null,
     antal30:0,timmar30:0,langst:null,langstLangd:null,golv:6,hyst:3,alla:[]};}
 
-/* num() ger rå toFixed: "4.5" och "1453". Svensk text vill ha komma och
-   mellanslag. Samma fälla som i Kul fakta. */
-function btN(v,d){
-  var t=num(v,d==null?0:d);
-  if(t==='–')return t;
-  var p=t.split('.');
-  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
-  return p.join(',');}
+/* num() formaterar svenskt sedan v404. */
+function btN(v,d){return num(v,d==null?0:d);}
 function btTid(h){
   if(h==null)return '–';
   if(h<1)return Math.round(h*60)+' min';
@@ -9357,10 +9406,68 @@ var MON_PER=[['day','idag'],['week','veckan'],['month','månaden'],['year','åre
 var BKP_KEY='bkp_v1';
 function bkpGet(){try{return JSON.parse(localStorage.getItem(BKP_KEY))||{};}catch(e){return {};}}
 function bkpLen(){let n=0;SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)n+=v.length;});return n;}
+/* HUVUDENHET. Utan den skriver varje enhet en gång per dygn, och sist skriven
+   vinner: stänger man av glowet på telefonen skriver plattan tillbaka sin
+   gamla inställning nästa dygn. Det såg ut som att sparningen inte fastnade,
+   men den fastnade — och skrevs sedan över.
+
+   Är en huvudenhet vald skriver bara den. Övriga läser som förut. */
+var HUVUD_KEY='huvudenhet_v1';
+function enhetsId(){
+  /* Slumpat och lokalt. Ett id per webbläsare räcker; vi behöver bara kunna
+     skilja enheterna åt, inte veta vilken som är vilken. */
+  var v=null;
+  try{v=localStorage.getItem('enhetsid_v1');}catch(e){}
+  if(!v){
+    v=(Date.now().toString(36)+Math.random().toString(36).slice(2,8));
+    try{localStorage.setItem('enhetsid_v1',v);}catch(e){}
+  }
+  return v;}
+function huvudGet(){
+  try{return JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');}catch(e){return null;}}
+function arHuvud(){
+  var h=huvudGet();
+  return !h||!h.id||h.id===enhetsId();}   /* ingen vald: alla får skriva, som förr */
+function huvudSatt(pa){
+  try{
+    if(pa)localStorage.setItem(HUVUD_KEY,JSON.stringify({id:enhetsId(),namn:enhetsNamn(),at:Date.now()}));
+    else localStorage.removeItem(HUVUD_KEY);
+  }catch(e){}}
+function enhetsNamn(){
+  return IS_SAMSUNG_TABLET?'Väggplattan':(MOBILE?'Telefon':'Platta');}
+
+/* Hämtar huvudenhetens inställningar. Körs på övriga enheter en gång per dygn
+   och vid varje uppstart. Ritar bara om när något faktiskt ändrats. */
+async function huvudHamta(){
+  var o=bkpGet(),k=dayKey();
+  if(o.lastLas===k)return false;
+  var fore=syncSign();
+  var n=0;
+  try{ if(appKan())n=await appBackupLas(); }catch(e){}
+  if(!n){try{await fetchFromHomey();}catch(e){}}
+  o.lastLas=k;
+  try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
+  if(syncSign()!==fore){
+    loadCfg();applyCfg();
+    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+    applySecOrder();
+    try{ritaOmSakert();}catch(e){}
+    return true;
+  }
+  return false;}
+
 async function backupTick(){
   try{
     if(CFG.sync===false)return;
     if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
+    /* Inte huvudenhet: läs, skriv aldrig. */
+    if(!arHuvud()){
+      /* Läs i stället. En enhet som aldrig hämtar visar sin egen gamla
+         inställning i evighet, och det var halva förvirringen: telefonen hade
+         rätt, plattan hade fel, och båda trodde de hade sparat. */
+      try{await huvudHamta();}catch(e){}
+      return;
+    }
     const o=bkpGet(),k=dayKey();
     if(o.last===k)return;                    /* en gang per dygn racker */
     const len=bkpLen();
@@ -9561,7 +9668,9 @@ async function doSaveSync(){const el=$('sync-status');if(el)el.textContent='Spar
           localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
         if(el)el.textContent='Sparat ✓ · '+(r.bytes||0).toLocaleString('sv-SE')+' tecken i '
           +(r.sparade||0)+' nycklar i Homey-appen'
-          +((r.fel&&r.fel.length)?(' · '+r.fel.length+' vägrade'):'');
+          /* Säg VILKEN nyckel som vägrades och varför. "1 vägrade" går inte att
+             göra något åt; "shmap_v2 vägrades: 900 tecken mot 12000" gör det. */
+          +((r.fel&&r.fel.length)?('\n'+r.fel.join('\n')):'');
         return;
       }
     }
@@ -10317,7 +10426,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v402';
+const APP_VERSION='v404';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10547,6 +10656,18 @@ function openConfig(){
       +esc(swLage())+'</span></div>';
     /* Push-raden. Läget hämtas asynkront och fylls i när svaret kommer — att
        vänta på det hade fördröjt hela inställningssidan. */
+    /* Huvudenhet. Den som är vald skriver till Homey; övriga läser bara. */
+    var hv=huvudGet();
+    h+='<div class="cfg-row"><span class="cfg-row-l">Sparar till Homey</span>'
+      +'<span class="cfg-num">'+esc(hv?(arHuvud()?'den här enheten':(hv.namn||'annan enhet')):'alla enheter')+'</span></div>';
+    h+='<div class="cfg-btns" style="margin-top:6px">'
+      +'<button class="cfg-opt'+(hv&&arHuvud()?' on':'')+'" onclick="huvudSatt(true);cfgGo(\'system\')">Gör till huvudenhet</button>'
+      +'<button class="cfg-opt'+(!hv?' on':'')+'" onclick="huvudSatt(false);cfgGo(\'system\')">Alla får spara</button>'
+      +'</div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Utan huvudenhet skriver varje '
+      +'enhet en gång per dygn, och den som skriver sist vinner — en platta med '
+      +'gamla inställningar kan då skriva tillbaka dem över dina. Välj den enhet '
+      +'du ställer in från; övriga hämtar därifrån i stället.</div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Notiser till telefonen</span>'
       +'<span class="cfg-num" id="push-lage">'+esc(_pushLage)+'</span></div>';
     h+='<div class="cfg-btns" id="push-knappar" style="margin-top:6px">'
