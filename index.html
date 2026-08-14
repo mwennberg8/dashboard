@@ -1517,6 +1517,12 @@ body.tabprev{padding:0;overflow:hidden}
 .wx-hl{align-self:center}
 /* ===== v39 ===== */
 .secmv{display:flex;flex-direction:column;gap:7px;margin:6px 0 4px}
+/* Dolt avsnitt: bort ur flödet helt, så kioskens höjdfördelning inte lämnar en
+   lucka där det stod. */
+.sec-dold{display:none!important}
+.secmv-row.dold .secmv-n{opacity:.45;text-decoration:line-through}
+.secmv-oga{font-size:10.5px;font-weight:750;padding:0 7px;min-width:38px;letter-spacing:.02em}
+.secmv-oga.av{color:var(--gold)}
 .secmv-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;row-gap:8px;background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .secmv-row.sel{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
 .secmv-n{flex:1 1 90px;min-width:80px;font-size:13.5px;font-weight:650}
@@ -2774,33 +2780,24 @@ function progKurvaSVG(){
      är första och sista timmen med något att visa, i prognos eller utfall, plus
      en halvtimmes marginal i vardera änden. */
   var dagT0=dayStart();
-  /* Tröskeln är RELATIV till dagens topp, inte ett fast wattal. En växelriktare
-     som står och drar några tiotal watt på natten, eller en prognos som ger
-     små men nollskilda tal i gryningen, slog ut en absolut gräns — och då
-     sträckte sig fönstret till midnatt igen. Två procent av toppen är väl under
-     vad som syns i grafen men långt över brus. */
-  var topp=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
-  var trosk=Math.max(60,topp*0.02);
-  var forsta=null,sista=null;
-  for(var hh=0;hh<24;hh++){
-    if((e.timmar[hh]||0)>trosk){ if(forsta==null)forsta=hh; sista=hh; }
-  }
-  fakt.forEach(function(p){
-    if(p.v<=trosk)return;
-    var h2=Math.floor((p.t-dagT0)/3600000);
-    if(forsta==null||h2<forsta)forsta=h2;
-    if(sista==null||h2>sista)sista=h2;
-  });
-  if(forsta==null){forsta=0;sista=23;}
-  /* Minst sex timmars fönster. En vinterdag med tre ljusa timmar blir annars så
-     hoptryckt att kurvan inte går att läsa. */
-  if(sista-forsta<6){
-    var mitt=(forsta+sista)/2;
-    forsta=Math.max(0,Math.round(mitt-3));
-    sista=Math.min(23,forsta+6);
-  }
-  var t0=dagT0+Math.max(0,forsta-0.5)*3600000;
-  var t1=dagT0+Math.min(24,sista+1.5)*3600000;
+  /* SOLUPPGÅNG OCH SOLNEDGÅNG som fönster, inte en tröskel i produktionen.
+     Tröskelmetoden gick om intet så fort ett enda småvärde låg utanför — och
+     eftersom både prognosen och mätningen kan ha sådana blev fönstret hela
+     dygnet igen. Solens gång är känd, oberoende av data, och kan inte förstöras
+     av en enstaka avvikande punkt.
+
+     En halvtimme före uppgång och efter nedgång, så kurvan får landa i noll i
+     stället för att klippas mitt i. */
+  var sc=null;
+  try{sc=solar(new Date(),CONFIG.LAT,CONFIG.LON,-(new Date()).getTimezoneOffset());}catch(e){}
+  var upp=(sc&&isFinite(sc.sunrise))?sc.sunrise:6;
+  var ner=(sc&&isFinite(sc.sunset))?sc.sunset:20;
+  if(!(ner>upp)){upp=6;ner=20;}
+  /* Minst sex timmar. En decemberdag i Bohuslän har knappt sju timmars ljus,
+     och under det blir kurvan för hoptryckt för att läsa. */
+  if(ner-upp<6){var mitt=(upp+ner)/2;upp=Math.max(0,mitt-3);ner=Math.min(24,mitt+3);}
+  var t0=dagT0+Math.max(0,upp-0.5)*3600000;
+  var t1=dagT0+Math.min(24,ner+0.5)*3600000;
   var X=function(ms){return ((ms-t0)/(t1-t0))*W;};
   var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
   /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
@@ -8735,7 +8732,7 @@ async function homeyTriggerFlow(type,id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOK
   t.clear();if(!r.ok)throw new Error('HTTP '+r.status);return true;}
 
 /* ===== Synk via Homey-logikvariabler (chunkat) ===== */
-const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
+const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
 const SYNC_CHUNK=3500;let _syncMeta=null;
 function apiBase(){return (BASE||(candidates()[0])||CONFIG.HOMEY_URL||'').replace(/\/$/,'');}
 async function logicList(){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
@@ -9683,6 +9680,10 @@ function bkpLen(){let n=0;SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);
    men den fastnade — och skrevs sedan över.
 
    Är en huvudenhet vald skriver bara den. Övriga läser som förut. */
+/* SYNKAS INTE, med flit. Nyckeln låg i SYNC_KEYS, vilket betydde att en enhets
+   val skrevs ut till alla andra — utsåg man telefonen fick plattan samma post
+   och trodde att den var utsedd. Valet måste avgöras lokalt, annars kan
+   mekanismen som ska hindra överskrivningar inte själv överleva dem. */
 var HUVUD_KEY='huvudenhet_v1';
 function enhetsId(){
   /* Slumpat och lokalt. Ett id per webbläsare räcker; vi behöver bara kunna
@@ -9694,10 +9695,13 @@ function enhetsId(){
     try{localStorage.setItem('enhetsid_v1',v);}catch(e){}
   }
   return v;}
-/* EN HUVUDENHET PER KLASS. Storlekarna är olika för platta och telefon, så
-   plattornas huvudenhet måste vara en platta — annars skriver telefonen aldrig
-   plattans mått och de fastnar. Delade inställningar (glow, trendpil, teman,
-   rutinnehåll) skrivs av båda; de ligger ändå i samma fack. */
+/* EN HUVUDENHET PER KLASS, och valet SYNKAS. Det var felet: nyckeln låg bara
+   lokalt, så den enhet man utsåg visste om det — men ingen annan. Plattan
+   fortsatte skriva sin gamla glow-inställning över telefonens varje dygn, och
+   utifrån såg det ut som att sparningen inte fastnade.
+
+   Storlekarna är olika för platta och telefon, så plattornas huvudenhet måste
+   vara en platta — annars skriver telefonen aldrig plattans mått. */
 function huvudGet(){
   try{
     var o=JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');
@@ -9706,9 +9710,24 @@ function huvudGet(){
     if(o.id&&!o.klass)return {klass:secKlass(),id:o.id,namn:o.namn};
     return o[secKlass()]||null;
   }catch(e){return null;}}
+/* Finns NÅGON huvudenhet, oavsett klass? */
+function huvudFinns(){
+  try{
+    var o=JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');
+    if(!o)return false;
+    if(o.id)return true;                       /* gammalt format */
+    return !!(o.platta&&o.platta.id)||!!(o.telefon&&o.telefon.id);
+  }catch(e){return false;}}
+
 function arHuvud(){
   var h=huvudGet();
-  return !h||!h.id||h.id===enhetsId();}   /* ingen vald: alla får skriva, som förr */
+  if(h&&h.id)return h.id===enhetsId();
+  /* INGEN huvudenhet för min klass. Förut betydde det "fri att skriva", och då
+     fortsatte plattan skriva över telefonens inställningar trots att telefonen
+     utsetts — plattans klass hade ju ingen egen huvudenhet. Är någon utsedd
+     alls ska övriga hålla sig undan; först när ingen är utsedd får alla skriva,
+     som det fungerade innan. */
+  return !huvudFinns();}
 function huvudSatt(pa){
   try{
     var raa=null;
@@ -9719,7 +9738,32 @@ function huvudSatt(pa){
     else delete o[secKlass()];
     if(Object.keys(o).length)localStorage.setItem(HUVUD_KEY,JSON.stringify(o));
     else localStorage.removeItem(HUVUD_KEY);
-  }catch(e){}}
+  }catch(e){}
+  /* SKRIV DIREKT till Homey. Att vänta på nästa dygnstick vore obegripligt:
+     man trycker på knappen och vill att det ska gälla nu. Och den andra
+     enheten måste få veta innan den hinner skriva över. */
+  try{
+    if(appKan())appBackupSpara().then(function(){huvudKvitto(true);})
+      .catch(function(){huvudKvitto(false);});
+    else saveToHomey().then(function(){huvudKvitto(true);})
+      .catch(function(){huvudKvitto(false);});
+  }catch(e){huvudKvitto(false);}}
+
+/* Kvitto i inställningsrutan. Utan det ser trycket ut att inte göra något. */
+function huvudKvitto(ok){
+  var e=$('huvud-kvitto');
+  if(e)e.textContent=ok?'Sparat till Homey — övriga enheter hämtar det härnäst.'
+    :'Kunde inte spara till Homey. Valet gäller den här enheten tills vidare.';}
+/* Väljer och säger till. Utan besked ser det ut som att knappen inte gör något —
+   raden ovanför uppdateras, men den är lätt att missa. */
+function huvudValj(pa){
+  huvudSatt(pa);
+  cfgGo('system');
+  var e=$('huvud-svar');
+  if(e)e.textContent=pa
+    ? ('Den här enheten ('+enhetsNamn().toLowerCase()+') sparar nu till Homey. Övriga hämtar härifrån.')
+    : 'Alla enheter får spara igen.';}
+
 function enhetsNamn(){
   return IS_SAMSUNG_TABLET?'Väggplattan':(MOBILE?'Telefon':'Platta');}
 
@@ -9955,9 +9999,13 @@ async function doSaveSync(){const el=$('sync-status');if(el)el.textContent='Spar
           localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
         if(el)el.textContent='Sparat ✓ · '+(r.bytes||0).toLocaleString('sv-SE')+' tecken i '
           +(r.sparade||0)+' nycklar i Homey-appen'
-          /* Säg VILKEN nyckel som vägrades och varför. "1 vägrade" går inte att
-             göra något åt; "shmap_v2 vägrades: 900 tecken mot 12000" gör det. */
-          +((r.fel&&r.fel.length)?('\n'+r.fel.join('\n')):'');
+          /* Säg VILKEN nyckel och varför. Det är inte ett fel utan ett skydd:
+             en enhet som varit öppen en timme ska inte kunna radera en logg som
+             byggts upp under månader på väggplattan. */
+          +((r.fel&&r.fel.length)
+            ?('\n'+r.fel.join('\n')+'\nDetta är ett skydd, inte ett fel — långa '
+              +'loggar behålls där de är längst.')
+            :'');
         return;
       }
     }
@@ -10750,7 +10798,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v415';
+const APP_VERSION='v417';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10989,9 +11037,11 @@ function openConfig(){
     h+='<div class="cfg-row"><span class="cfg-row-l">Gäller</span>'
       +'<span class="cfg-num">'+(secKlass()==='platta'?'plattor':'telefoner')+'</span></div>';
     h+='<div class="cfg-btns" style="margin-top:6px">'
-      +'<button class="cfg-opt'+(hv&&arHuvud()?' on':'')+'" onclick="huvudSatt(true);cfgGo(\'system\')">Gör till huvudenhet</button>'
-      +'<button class="cfg-opt'+(!hv?' on':'')+'" onclick="huvudSatt(false);cfgGo(\'system\')">Alla får spara</button>'
+      +'<button class="cfg-opt'+(hv&&arHuvud()?' on':'')+'" onclick="huvudValj(true)">Gör till huvudenhet</button>'
+      +'<button class="cfg-opt'+(!huvudFinns()?' on':'')+'" onclick="huvudValj(false)">Alla får spara</button>'
       +'</div>';
+    h+='<div class="cfg-hint" id="huvud-kvitto" style="margin-top:4px;min-height:15px"></div>';
+    h+='<div class="cfg-hint" id="huvud-svar" style="margin-top:6px;color:var(--ok)"></div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Utan huvudenhet skriver varje '
       +'enhet en gång per dygn, och den som skriver sist vinner — en enhet med '
       +'gamla inställningar kan då skriva tillbaka dem över dina. Välj den enhet '
@@ -12049,22 +12099,50 @@ function secHeightSet(sec,dir){
   return f;}
 function secHeight(sec,dir){secHeightSet(sec,dir);openSecMove(sec);}
 function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)return;const o=secOrderGet();
-  o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;if(el)view.appendChild(el);});
+  const dolt=secDolda();
+  o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;
+    if(!el)return;
+    view.appendChild(el);
+    /* hidden, inte display:none i en regel: elementet ska kunna tas fram igen
+       utan att kioskens flexlayout behöver räknas om på nytt. */
+    el.classList.toggle('sec-dold',!!dolt[sec]);});
   applySecScale();
   if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
 function secMove(sec,dir){const o=secOrderGet(),i=o.indexOf(sec),j=i+dir;if(i<0||j<0||j>=o.length)return;const t=o[i];o[i]=o[j];o[j]=t;secOrderSave(o);applySecOrder();openSecMove(sec);}
 function openSecMove(sel){const o=secOrderGet();
   let h='<div class="te"><div class="cfg-hint" style="margin-top:0">▲▼ flyttar avsnittet. −/+ ändrar dess höjd (innehållet skalar med). Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
   o.forEach((sec,i)=>{const pct=Math.round(secScaleOf(sec)*100);
-    h+='<div class="secmv-row'+(sec===sel?' sel':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
+    h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
     +'<span class="secmv-h"><button onclick="secHeight(\''+sec+'\',-1)"'+(pct<=60?' disabled':'')+'>−</button><span class="secmv-hv">'+pct+'%</span><button onclick="secHeight(\''+sec+'\',1)"'+(pct>=160?' disabled':'')+'>+</button></span>'
-    +'<span class="secmv-btns"><button onclick="secMove(\''+sec+'\',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+'</button>'
+    +'<span class="secmv-btns">'
+    /* Text i stället för ikon: uppsättningen saknar öga, och en lånad ikon som
+       betyder något annat är sämre än ett ord som säger vad knappen gör. */
+    +'<button class="secmv-oga'+(secDold(sec)?' av':'')+'" onclick="secDoldTog(\''+sec+'\')" title="'
+    +(secDold(sec)?'Visa avsnittet':'Dölj avsnittet')+'">'+(secDold(sec)?'Visa':'Dölj')+'</button>'
+    +'<button onclick="secMove(\''+sec+'\',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+'</button>'
     +'<button onclick="secMove(\''+sec+'\',1)"'+(i>=o.length-1?' disabled':'')+'>'+icon('arrow-fat-up','flip')+'</button></span></div>';});
   h+='</div><div class="te-adv"><button class="te-use" onclick="closeDetail()">Klar</button><button class="te-alt" onclick="secReset()">Återställ</button></div></div>';
   const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
   setT('dlg-title','Ordna avsnitt');setIcon('dlg-ic','gauge');const bd=$('dlg-body');if(bd)bd.innerHTML=h;
   const bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');dlgTop();}
-function secReset(){secOrderSave(SEC_DEF.slice());try{localStorage.removeItem('secScale_v1');}catch(e){}applySecOrder();openSecMove(SEC_DEF[0]);}
+/* Dolda avsnitt. Egen nyckel i stället för ett fält i secOrder: ordningen ska
+   vara kvar när man tar fram avsnittet igen, och den som redigerar listan ska
+   se allt även det som är dolt. Ligger i samma fack per enhetsklass som
+   höjderna — en platta och en telefon vill dölja olika saker. */
+function secDoldaAlla(){try{return JSON.parse(localStorage.getItem('secDold_v1')||'{}')||{};}catch(e){return {};}}
+function secDolda(){var a=secDoldaAlla();var k=a[secKlass()];return (k&&typeof k==='object')?k:{};}
+function secDold(sec){return !!secDolda()[sec];}
+function secDoldTog(sec){
+  var a=secDoldaAlla(), k=secDolda();
+  if(k[sec])delete k[sec];else k[sec]=1;
+  a[secKlass()]=k;
+  try{localStorage.setItem('secDold_v1',JSON.stringify(a));}catch(e){}
+  applySecOrder();
+  try{openSecMove(sec);}catch(e){}}
+
+function secReset(){secOrderSave(SEC_DEF.slice());
+  try{localStorage.removeItem('secScale_v1');localStorage.removeItem('secDold_v1');}catch(e){}
+  applySecOrder();openSecMove(SEC_DEF[0]);}
 function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;openDetail('cost');}
 (function(){const view=$('view-flode');if(!view||!view.addEventListener)return;let t=null,sec=null;
   const dn=e=>{const tgt=e.target;if(!tgt||!tgt.closest)return;
