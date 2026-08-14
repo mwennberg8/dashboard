@@ -310,7 +310,9 @@ body.kiosk{--pg-gap:7px}
 .chartcard h3 .ic{width:17px;height:17px}
 .chartcard .cap{font-size:11px;color:var(--dim);margin:4px 0 15px;font-weight:500}
 .chart-wrap{position:relative;width:100%}
-.chart{width:100%;height:230px;display:block}
+/* height:auto — svg:n får bestämma sin egen höjd ur bildförhållandet. En fast
+   höjd gav tomma band över och under när innehållet inte fyllde lådan. */
+.chart{width:100%;height:auto;display:block}
 .grid-l{stroke:var(--line-soft);stroke-width:1;vector-effect:non-scaling-stroke}
 .chart-y{position:absolute;left:0;font-size:11px;color:var(--dim);font-weight:500}.chart-y.top{top:0}.chart-y.bot{bottom:23px}
 .chart-x{position:absolute;bottom:0;font-size:11px;color:var(--faint);font-weight:500}.chart-x.l{left:0}.chart-x.r{right:0}
@@ -740,7 +742,7 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .mg-ax{font-size:9px;fill:var(--faint);font-weight:600}
 /* Prognosgrafens egna etiketter. Grafen är 1000 enheter bred mot skärmens
    bredd, så 9 px i viewBox blir under 4 px på en telefon — oläsligt. */
-.chart .mg-ax{font-size:20px;fill:var(--dim);font-weight:700}
+.chart .mg-ax{font-size:34px;fill:var(--dim);font-weight:700}
 .mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
 .mgraf-f{display:flex;flex-wrap:wrap;gap:11px;margin-top:7px;font-size:11px;color:var(--dim)}
 .mgraf-f span{display:inline-flex;align-items:center;gap:5px}
@@ -2757,7 +2759,14 @@ function progKurvaSVG(){
   /* Högre ritruta och mer plats under. Bredden är 1000 enheter mot skärmens
      bredd, så en högre H ger en proportionellt högre graf — på en telefon i
      stället för en tunn remsa. pB rymmer klockslagen i läsbar storlek. */
-  var W=1000,H=210,pT=14,pB=34;
+  /* HÖJDEN. Bredden är alltid 1000 enheter mot skärmens bredd, så förhållandet
+     mellan W och H avgör hur hög grafen blir. 430 mot 1000 ger ungefär 170 px
+     på en telefon — dubbelt mot förut.
+
+     Elementet har numera height:auto. Med fast höjd och bibehållet
+     bildförhållande centrerades svg:n i rutan och lämnade breda tomma band över
+     och under, eftersom innehållet bara var 82 px högt i en 230 px hög låda. */
+  var W=1000,H=430,pT=18,pB=56;
   /* Sortera OCH avvisa orimliga punkter. En serie som slagits ihop från två
      källor kan ligga i fel ordning, och en enda punkt med mätarställning i
      stället för effekt drar kurvan rakt upp. 25 kW är långt över vad 19,44 kWp
@@ -2820,7 +2829,7 @@ function progKurvaSVG(){
   if(ner-upp<6){var mitt=(upp+ner)/2;upp=Math.max(0,mitt-3);ner=Math.min(24,mitt+3);}
   var t0=dagT0+Math.max(0,upp-0.5)*3600000;
   var t1=dagT0+Math.min(24,ner+0.5)*3600000;
-  var vxL=120;                     /* plats för kW-talen till vänster */
+  var vxL=150;                     /* plats för kW-talen till vänster */
   var X=function(ms){return vxL+((ms-t0)/(t1-t0))*(W-vxL);};
   var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
   /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
@@ -2842,7 +2851,7 @@ function progKurvaSVG(){
     var t=t0+(t1-t0)*f, x=X(t);
     var dt=new Date(t);
     var lbl=String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    xax+='<text x="'+Math.min(W-2,Math.max(vxL,x)).toFixed(1)+'" y="'+(H-6)+'" class="mg-ax"'
+    xax+='<text x="'+Math.min(W-2,Math.max(vxL,x)).toFixed(1)+'" y="'+(H-12)+'" class="mg-ax"'
       +' text-anchor="'+(i2===0?'start':(i2===3?'end':'middle'))+'">'+lbl+'</text>';
     if(i2>0&&i2<3)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
       +'" stroke="var(--line)" stroke-width="1" opacity=".3"/>';});
@@ -2852,8 +2861,18 @@ function progKurvaSVG(){
      längs stödlinjerna där de hör hemma. */
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
     b+='<line class="grid-l" x1="'+vxL+'" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';
-    b+='<text x="'+(vxL-10)+'" y="'+(gy+7).toFixed(1)+'" class="mg-ax" text-anchor="end">'
-      +num(max/1000*(1-g/2),1)+(g===0?' kW':'')+'</text>';}
+    /* Toppraden vänsterställs: "14,1 kW" är bredare än de andra talen och
+       klipptes i kanten när alla högerställdes mot samma linje. */
+    b+=(g===0
+      ? ('<text x="4" y="'+(gy+11).toFixed(1)+'" class="mg-ax" text-anchor="start">'
+         +num(max/1000,1)+' kW</text>')
+      : ('<text x="'+(vxL-14)+'" y="'+(gy+11).toFixed(1)+'" class="mg-ax" text-anchor="end">'
+         +num(max/1000*(1-g/2),1)+'</text>'));}
+  /* Fem stödlinjer i stället för tre — med dubbel höjd blev avstånden annars
+     för stora för att kunna läsa av ett värde mitt i kurvan. */
+  for(var g2=1;g2<4;g2+=2){var gy2=pT+(H-pT-pB)*g2/4;
+    b+='<line class="grid-l" x1="'+vxL+'" y1="'+gy2.toFixed(1)+'" x2="'+W+'" y2="'+gy2.toFixed(1)
+      +'" opacity=".4"/>';}
   /* Enheten skrivs i TOPPVÄRDET i stället för som en egen etikett. Ovanför
      krockade den med toppen och nedanför med nollan — kolumnen är för smal för
      två rader, och ett tal med enhet läses ändå lättare än två separata. */
@@ -3347,12 +3366,13 @@ const WX_EDIT={strip:{title:'Storlek · Väderremsa',rows:[['Etikett','stripL'],
 function szMobile(){try{var vm=localStorage.getItem('view_mode_v1');
   if(vm==='phone')return true; if(vm==='tablet')return false;}catch(e){}
   return MOBILE;}
-function szRead(name){var g=CFG[name]||{};
-  if(!szMobile())return g;
-  var m=(CFG.mob&&CFG.mob[name])||{},o={},k;
-  for(k in g)o[k]=g[k];
-  for(k in m)o[k]=m[k];
-  return o;}
+/* HELT SEPARATA fack per enhetstyp. Telefonen lade förut sina värden ovanpå
+   plattans, så ett mått man inte rört ärvdes från plattan — ställde man om
+   spotpriset på plattan flyttade sig telefonens också. En platta och en telefon
+   har olika ytor och ska inte påverka varandra alls. */
+function szRead(name){
+  if(szMobile())return (CFG.mob&&CFG.mob[name])||{};
+  return CFG[name]||{};}
 function szWrite(name){
   if(szMobile()){CFG.mob=CFG.mob||{};CFG.mob[name]=CFG.mob[name]||{};return CFG.mob[name];}
   CFG[name]=CFG[name]||{};return CFG[name];}
@@ -9796,7 +9816,27 @@ function huvudValj(pa){
     : 'Alla enheter får spara igen.';}
 
 function enhetsNamn(){
-  return IS_SAMSUNG_TABLET?'Väggplattan':(MOBILE?'Telefon':'Platta');}
+  return IS_SAMSUNG_TABLET?'Väggplattan':(szMobile()?'Telefon':'Platta');}
+
+/* Väggplattan och telefonen utses automatiskt första gången de öppnas, var och
+   en för sin klass. Att behöva hitta rätt i inställningarna på två enheter för
+   att en självklar uppdelning ska gälla är ett steg för mycket — och glömmer man
+   den ena skriver den över den andra, vilket är precis felet vi jagat. */
+function huvudAuto(){
+  try{
+    var raa=JSON.parse(localStorage.getItem(HUVUD_KEY)||'null');
+    if(raa&&raa.id)return false;                 /* gammalt format: rör inte */
+    var o=raa||{};
+    var k=secKlass();
+    if(o[k]&&o[k].id)return false;               /* redan utsedd */
+    /* BARA de två avsedda enheterna utser sig själva. En godtycklig platta som
+       råkar öppnas först ska inte ta rollen från väggplattan. */
+    var jag=(k==='platta')?IS_SAMSUNG_TABLET:MOBILE;
+    if(!jag)return false;
+    o[k]={id:enhetsId(),namn:enhetsNamn(),at:Date.now(),auto:1};
+    localStorage.setItem(HUVUD_KEY,JSON.stringify(o));
+    return true;
+  }catch(e){return false;}}
 
 /* Hämtar huvudenhetens inställningar. Körs på övriga enheter en gång per dygn
    och vid varje uppstart. Ritar bara om när något faktiskt ändrats. */
@@ -9953,7 +9993,9 @@ async function fetchFromHomey(){
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
-async function bootSync(){if(CFG.sync===false)return;if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
+async function bootSync(){
+  try{huvudAuto();}catch(e){}
+  if(CFG.sync===false)return;if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
   /* Appen först vid uppstart också. Har den något sparat är det färskare och
      fullständigare än logikvariabeln, som kan ha tappat loggar till DROPPABLE. */
   /* Rita bara om när något FAKTISKT ändrats. Förut ritades hela sidan om varje
@@ -10829,7 +10871,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v419';
+const APP_VERSION='v420';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -12087,7 +12129,18 @@ loadCfg();applyCfg();
 /* ===== flyttbara sektioner ===== */
 const SECMETA={energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',report:'Rapport'};
 const SEC_DEF=['energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','report'];
-function secOrderGet(){try{const s=JSON.parse(localStorage.getItem('secOrder_v1'));if(Array.isArray(s)){
+/* Avsnittens ORDNING per enhetstyp. Nyckeln har två fack, precis som höjderna
+   och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
+   sällan den man vill ha i handen. */
+function secOrderAlla(){try{return JSON.parse(localStorage.getItem('secOrder_v1')||'null');}catch(e){return null;}}
+function secOrderKlassGet(){
+  var a=secOrderAlla();
+  if(!a)return null;
+  if(Array.isArray(a))return a;          /* gammalt format: gäller båda */
+  var k=a[secKlass()];
+  return Array.isArray(k)?k:null;}
+
+function secOrderGet(){try{const s=secOrderKlassGet();if(Array.isArray(s)){
     var o=s.filter(x=>SEC_DEF.indexOf(x)>=0);
     /* Nya avsnitt (t.ex. energy-tiles, weather-tiles, kopt-salt) som saknas i en gammal
        sparad ordning läggs in EFTER sin granne i SEC_DEF - inte sist. */
@@ -12095,7 +12148,17 @@ function secOrderGet(){try{const s=JSON.parse(localStorage.getItem('secOrder_v1'
       var after=null;for(var k=di-1;k>=0;k--){if(o.indexOf(SEC_DEF[k])>=0){after=SEC_DEF[k];break;}}
       if(after==null){o.unshift(x);}else{o.splice(o.indexOf(after)+1,0,x);}});
     return o;}}catch(e){}return SEC_DEF.slice();}
-function secOrderSave(o){try{localStorage.setItem('secOrder_v1',JSON.stringify(o));}catch(e){}
+function secOrderSave(o){try{
+    var a=secOrderAlla();
+    if(!a||Array.isArray(a)){
+      /* Gammalt format eller tomt: skapa två fack och låt den befintliga
+         ordningen gälla båda som utgångsläge, så inget hoppar vid uppgradering. */
+      var gml=Array.isArray(a)?a:null;
+      a={platta:gml||SEC_DEF.slice(),telefon:gml||SEC_DEF.slice()};
+    }
+    a[secKlass()]=o;
+    localStorage.setItem('secOrder_v1',JSON.stringify(a));
+  }catch(e){}
   syncPushSoon();}
 const SEC_SCALE_DEF={sun:0.8};
 /* Avsnittshöjder PER ENHETSKLASS. Nyckeln innehåller två fack, platta och
