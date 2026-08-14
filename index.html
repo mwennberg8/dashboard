@@ -789,7 +789,10 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .not-tx{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
 .not-h{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .not-r.ny .not-h{font-weight:850;color:var(--ink)}
-.not-s{font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.not-s{font-size:11px;color:var(--faint);white-space:nowrap;display:flex;min-width:0}
+/* Texten kortas, tiden aldrig — flex:0 0 auto håller den hel. */
+.not-s-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.not-s-n{flex:0 0 auto;white-space:nowrap}
 .not-p{flex:0 0 auto;display:flex;align-items:center;gap:7px;color:var(--faint);font-size:15px}
 .not-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);display:inline-block;
   box-shadow:0 0 0 3px rgba(235,203,139,.18)}
@@ -2766,24 +2769,48 @@ function progKurvaSVG(){
   }
   var max=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
   max=max*1.1;
-  var t0=dayStart();
-  var X=function(ms){return ((ms-t0)/86400000)*W;};
+  /* BESKÄR till soltimmarna. Halva grafen var natt — en platt linje som inte
+     sa något, medan dagen som faktiskt hände blev liten och svårläst. Fönstret
+     är första och sista timmen med något att visa, i prognos eller utfall, plus
+     en halvtimmes marginal i vardera änden. */
+  var dagT0=dayStart();
+  var forsta=null,sista=null;
+  for(var hh=0;hh<24;hh++){
+    if((e.timmar[hh]||0)>50){ if(forsta==null)forsta=hh; sista=hh; }
+  }
+  fakt.forEach(function(p){
+    if(p.v<=50)return;
+    var h2=Math.floor((p.t-dagT0)/3600000);
+    if(forsta==null||h2<forsta)forsta=h2;
+    if(sista==null||h2>sista)sista=h2;
+  });
+  if(forsta==null){forsta=0;sista=23;}
+  var t0=dagT0+Math.max(0,forsta-0.5)*3600000;
+  var t1=dagT0+Math.min(24,sista+1.5)*3600000;
+  var X=function(ms){return ((ms-t0)/(t1-t0))*W;};
   var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
   /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
      ska inte se lika bestamd ut som den faktiska kurvan. */
   var d='M0 '+Y(0).toFixed(1);
-  for(var h=0;h<24;h++)d+=' L'+X(t0+(h+0.5)*3600000).toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
+  for(var h=0;h<24;h++){
+    var hx=X(dagT0+(h+0.5)*3600000);
+    if(hx<-2||hx>W+2)continue;              /* utanför det beskurna fönstret */
+    d+=' L'+hx.toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
+  }
   d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L0 '+(H-pB)+' Z';
   /* Klockslag på x-axeln. Utan dem gick det inte att avgöra om kurvorna låg
      förskjutna mot varandra eller bara hade olika form — och skillnaden är
      viktig: den ena vore ett fel, den andra är verkligheten. */
+  /* Fyra klockslag: start, två emellan, slut. Fönstret är beskuret till
+     soltimmarna, så fasta timmar som 00 och 24 hade hamnat utanför bilden. */
   var xax='';
-  [0,6,12,18,24].forEach(function(h){
-    var x=X(t0+h*3600000);
-    xax+='<text x="'+Math.min(W-2,Math.max(2,x)).toFixed(1)+'" y="'+(H-2)+'" class="mg-ax"'
-      +' text-anchor="'+(h===0?'start':(h===24?'end':'middle'))+'">'
-      +String(h).padStart(2,'0')+'</text>';
-    if(h>0&&h<24)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
+  [0,1/3,2/3,1].forEach(function(f,i2){
+    var t=t0+(t1-t0)*f, x=X(t);
+    var dt=new Date(t);
+    var lbl=String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+    xax+='<text x="'+Math.min(W-2,Math.max(2,x)).toFixed(1)+'" y="'+(H-3)+'" class="mg-ax"'
+      +' text-anchor="'+(i2===0?'start':(i2===3?'end':'middle'))+'">'+lbl+'</text>';
+    if(i2>0&&i2<3)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
       +'" stroke="var(--line)" stroke-width="1" opacity=".3"/>';});
   var b='<path d="'+d+'" fill="var(--gold)" opacity=".16"/>';
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
@@ -2795,12 +2822,16 @@ function progKurvaSVG(){
       +'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
   }
   return '<div class="chart-wrap" style="margin-top:8px">'
-    +'<div class="chart-y top">'+num(max/1000,1)+' kW</div><div class="chart-y bot">0</div>'
+    /* Nollan under y-axeln är underförstådd — kurvan bottnar där ändå, och en
+       tredje uppsättning siffror gjorde bara grafen plottrig. */
+    +'<div class="chart-y top">'+num(max/1000,1)+' kW</div>'
     /* preserveAspectRatio borttagen: den sträcker svg:n i x-led, och sträckt
        text på tidsaxeln blir oläslig. Grafen skalar ändå med bredden. */
     +'<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" '
     +'aria-label="Prognos och faktisk produktion idag">'+b+xax+'</svg>'
-    +'<div class="chart-x l">00</div><div class="chart-x r">24</div></div>'
+    /* Klockslagen ritas numera inuti svg:n och följer det beskurna fönstret.
+       De fasta 00 och 24 här hade blivit fel så fort grafen zoomades in. */
+    +'</div>'
     +'<div class="isub" style="margin-top:5px;opacity:.7">'
     +'<span style="color:var(--gold)">▬</span> prognos &nbsp; '
     +'<span style="color:var(--solar)">▬</span> faktiskt'
@@ -6418,8 +6449,12 @@ function notListaHTML(){
         :(x.ar?'clock-counter-clockwise':'house'))+'</span>'
       +'<span class="not-tx">'
       +'<span class="not-h">'+esc(x.rubrik)+'</span>'
-      +'<span class="not-s">'+(x.kort?(esc(x.kort)+' · '):(x.sol!=null?(num(x.sol,0)+' kWh sol · '):''))
-      +(x.tid?esc(notNar(x.tid)):'')+'</span>'
+      /* Tiden sist och ALLTID synlig: förhandsvisningen kortas i stället för att
+         trycka ut den. "idag" utan klockslag går inte att skilja på morgon- och
+         kvällsnotisen, och det är just den skillnaden man letar efter. */
+      +'<span class="not-s"><span class="not-s-t">'
+      +(x.kort?esc(x.kort):(x.sol!=null?(num(x.sol,0)+' kWh sol'):''))
+      +'</span>'+(x.tid?('<span class="not-s-n"> · '+esc(notNar(x.tid))+'</span>'):'')+'</span>'
       +'</span>'
       +'<span class="not-p">'+(x.ny?'<i class="not-dot"></i>':'')+'›</span>'
       +'</div></div>';
@@ -6428,8 +6463,12 @@ function notListaHTML(){
 
 function notNar(t){
   var d=Math.floor((Date.now()-t)/86400000);
-  if(d<=0)return 'idag';
-  if(d===1)return 'igår';
+  /* Klockslag på dagens och gårdagens notiser. Utan det går morgon- och
+     kvällsnotisen inte att skilja åt i listan. */
+  var kl='';
+  try{kl=' '+new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}catch(e){}
+  if(d<=0)return 'idag'+kl;
+  if(d===1)return 'igår'+kl;
   if(d<30)return d+' dagar sedan';
   try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
 
@@ -6462,7 +6501,9 @@ function miniGraf(pts,farg,enhet,xTid){
 /* Flera linjer i samma diagram, med gemensam skala så att kurvorna går att
    jämföra. Egen skala per linje hade sett snyggare ut men ljugit: två kurvor
    som ligger på samma höjd skulle betyda olika saker. */
-function multiGraf(kurvor,enhet,xTid){
+/* markT = tidpunkt att märka ut med en lodrät linje. Utan den går det inte att
+   se VAR i natten lägstavärdet låg, och det är hela poängen med kurvan. */
+function multiGraf(kurvor,enhet,xTid,markT){
   var k=(kurvor||[]).filter(function(x){return x&&x.pts&&x.pts.length>=2;});
   if(!k.length)return '';
   var lo=Infinity,hi=-Infinity,t0=Infinity,t1=-Infinity;
@@ -6484,6 +6525,11 @@ function multiGraf(kurvor,enhet,xTid){
     h+='<text x="'+(vx-5)+'" y="'+(y+3.5).toFixed(1)+'" class="mg-ax" text-anchor="end">'
       +esc(num(v,(hi-lo)<8?1:0))+'</text>';});
   /* Klockslag på x-axeln: start, mitt och slut. */
+  if(markT!=null&&markT>=t0&&markT<=t1){
+    var mx=px(markT);
+    h+='<line x1="'+mx.toFixed(1)+'" y1="'+top+'" x2="'+mx.toFixed(1)+'" y2="'+(H-ax)
+      +'" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="3 3" opacity=".85"/>';
+  }
   if(xTid!==false){
     [0,0.5,1].forEach(function(f){
       var t=t0+(t1-t0)*f, x=px(t);
@@ -6550,11 +6596,11 @@ function dagPop(gi,ri){
     kropp='<div class="krpop-v">'+num(P.min,1)+' °</div><div class="krpop-l">';
     if(P.nar)kropp+='<div class="krpop-r"><span>Kallast</span><b>'
       +new Date(P.nar).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})+'</b></div>';
-    kropp+='<div class="krpop-r"><span>Utomhus då</span><b>'+num(P.min,1)+' °</b></div>';
-    if(P.uteVid!=null)kropp+='<div class="krpop-r"><span>Uterummet då</span><b>'+num(P.uteVid,1)+' °</b></div>';
+    /* Utomhus står som stora talet överst — att upprepa det i listan är brus. */
     if(P.inneVid!=null)kropp+='<div class="krpop-r"><span>Inomhus då</span><b>'+num(P.inneVid,1)+' °</b></div>';
+    if(P.uteVid!=null)kropp+='<div class="krpop-r"><span>Uterummet då</span><b>'+num(P.uteVid,1)+' °</b></div>';
     kropp+='</div>';
-    if(P.kurvor)kropp+=multiGraf(P.kurvor,' °');
+    if(P.kurvor)kropp+=multiGraf(P.kurvor,' °',true,P.nar);
     else if(P.serie)kropp+=miniGraf(P.serie,'var(--blue)',' °');
   }else if(P.typ==='prognos'){
     info='<p style="margin:0">Prognosen räknas i Homey-appen ur molntäcket från '
@@ -7138,12 +7184,14 @@ function openDetail(which){
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
   const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temprange:'cloud-sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
-    body=dRow('Produktion nu',W(cap(DEV.solar,'measure_power')||0))
+    /* PROGNOSEN ÖVERST. Det är den man öppnar rutan för — hur dagen ser ut
+       framåt. Mätarställningarna är uppslagsverk och hör hemma under. */
+    body='<div id="prog-sec">'+progAvsnitt()+'</div>'
+      +dRow('Produktion nu',W(cap(DEV.solar,'measure_power')||0))
       +(theo>=400?dRow('Möjligt just nu (klart)','~'+W(theo)):'')
       +(perf!=null?dRow('Prestanda',perf+' % av möjligt'):'')
       +dRow('Idag',num(cap(DEV.solar,'meter_power.day'),1)+' kWh')+dRow('Denna månad',num(cap(DEV.solar,'meter_power.month'),0)+' kWh')+dRow('I år',num(cap(DEV.solar,'meter_power.year'),0)+' kWh')
-      +dayBarsHTML('sol','kWh sol','sun')
-      +'<div id="prog-sec">'+progAvsnitt()+'</div>';
+      +dayBarsHTML('sol','kWh sol','sun');
     /* RITA OM DELEN, inte hela rutan. Förut anropades openDetail('sun') härifrån,
        som körde samma rad igen — och eftersom progHamta() svarar direkt ur cachen
        löstes löftet omedelbart varje gång. Resultatet var en oändlig loop som
@@ -10688,7 +10736,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v412';
+const APP_VERSION='v414';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10959,6 +11007,10 @@ function openConfig(){
     h+='<div class="cfg-hint" id="dag-spar" style="margin-top:6px;white-space:pre-line"></div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Morgon- och kvällsnotisen hamnar i '
       +'notislistan. Sophämtningen påminns kvällen innan och samma morgon.</div>';
+    h+='<div class="cfg-hint" style="margin-top:6px">Provnotisen kastas om den inte '
+      +'kommit fram inom två minuter, så en som dyker upp långt senare är alltid '
+      +'ett tecken på något annat. Dagsnotiser kastas efter fyra timmar — en '
+      +'morgonrapport klockan sex på kvällen är sämre än ingen alls.</div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Chrome visar notisen även med '
       +'skärmen släckt, och trycket öppnar sammanfattningen direkt. Kräver att '
       +'Homey-appen 2.33.0 eller senare är installerad. Väggplattan prenumererar inte.</div>';
