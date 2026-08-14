@@ -2793,6 +2793,16 @@ function progKurvaSVG(){
   var upp=(sc&&isFinite(sc.sunrise))?sc.sunrise:6;
   var ner=(sc&&isFinite(sc.sunset))?sc.sunset:20;
   if(!(ner>upp)){upp=6;ner=20;}
+  /* SLUTET styrs av prognosen, inte av solnedgången. Panelerna är sydvända och
+     skuggas av taket långt före horisonten — sista timmarna gav en flack svans
+     som tryckte ihop resten av kurvan. Sista timmen över 500 W är där det
+     slutar hända något värt att titta på.
+
+     Soluppgången får däremot styra starten: på morgonen vill man se att solen
+     kommer, och där finns inget motsvarande skuggproblem. */
+  var sistaOver=null;
+  for(var hi=23;hi>=0;hi--){ if((e.timmar[hi]||0)>=500){ sistaOver=hi; break; } }
+  if(sistaOver!=null)ner=Math.min(ner,sistaOver+1);
   /* Minst sex timmar. En decemberdag i Bohuslän har knappt sju timmars ljus,
      och under det blir kurvan för hoptryckt för att läsa. */
   if(ner-upp<6){var mitt=(upp+ner)/2;upp=Math.max(0,mitt-3);ner=Math.min(24,mitt+3);}
@@ -10798,7 +10808,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v417';
+const APP_VERSION='v418';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
