@@ -310,7 +310,7 @@ body.kiosk{--pg-gap:7px}
 .chartcard h3 .ic{width:17px;height:17px}
 .chartcard .cap{font-size:11px;color:var(--dim);margin:4px 0 15px;font-weight:500}
 .chart-wrap{position:relative;width:100%}
-.chart{width:100%;height:170px;display:block}
+.chart{width:100%;height:230px;display:block}
 .grid-l{stroke:var(--line-soft);stroke-width:1;vector-effect:non-scaling-stroke}
 .chart-y{position:absolute;left:0;font-size:11px;color:var(--dim);font-weight:500}.chart-y.top{top:0}.chart-y.bot{bottom:23px}
 .chart-x{position:absolute;bottom:0;font-size:11px;color:var(--faint);font-weight:500}.chart-x.l{left:0}.chart-x.r{right:0}
@@ -738,6 +738,9 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .dn-r:not(.forst){color:var(--dim)}
 .mgraf{width:100%;height:auto;margin-top:12px;display:block}
 .mg-ax{font-size:9px;fill:var(--faint);font-weight:600}
+/* Prognosgrafens egna etiketter. Grafen är 1000 enheter bred mot skärmens
+   bredd, så 9 px i viewBox blir under 4 px på en telefon — oläsligt. */
+.chart .mg-ax{font-size:20px;fill:var(--dim);font-weight:700}
 .mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
 .mgraf-f{display:flex;flex-wrap:wrap;gap:11px;margin-top:7px;font-size:11px;color:var(--dim)}
 .mgraf-f span{display:inline-flex;align-items:center;gap:5px}
@@ -2751,7 +2754,10 @@ function t0Sol(){
 
 function progKurvaSVG(){
   var e=progIdag();if(!e||!e.timmar||e.timmar.length!==24)return '';
-  var W=1000,H=132,pT=10,pB=18;
+  /* Högre ritruta och mer plats under. Bredden är 1000 enheter mot skärmens
+     bredd, så en högre H ger en proportionellt högre graf — på en telefon i
+     stället för en tunn remsa. pB rymmer klockslagen i läsbar storlek. */
+  var W=1000,H=210,pT=14,pB=34;
   /* Sortera OCH avvisa orimliga punkter. En serie som slagits ihop från två
      källor kan ligga i fel ordning, och en enda punkt med mätarställning i
      stället för effekt drar kurvan rakt upp. 25 kW är långt över vad 19,44 kWp
@@ -2773,8 +2779,14 @@ function progKurvaSVG(){
       fakt=[{t:dayStart(),v:0}].concat(fakt);
     }
   }
-  var max=Math.max.apply(null,e.timmar.concat(fakt.map(function(p){return p.v;})).concat([1]));
-  max=max*1.1;
+  /* Skalan sätts av dagens HÖGSTA PROGNOSTAL, inte av utfallet. Ett enstaka
+     mätvärde över prognosen tryckte annars ner hela kurvan — och det är
+     prognosen man läser grafen mot. Utfallet får gå över taket de sällsynta
+     gånger det händer; hellre det än en kurva som är platt varje dag.
+     Fem procents luft räcker för att toppen inte ska nudda kanten. */
+  var max=Math.max.apply(null,e.timmar.concat([1]))*1.05;
+  var faktMax=fakt.length?Math.max.apply(null,fakt.map(function(p){return p.v;})):0;
+  if(faktMax>max)max=faktMax*1.02;
   /* BESKÄR till soltimmarna. Halva grafen var natt — en platt linje som inte
      sa något, medan dagen som faktiskt hände blev liten och svårläst. Fönstret
      är första och sista timmen med något att visa, i prognos eller utfall, plus
@@ -2808,17 +2820,18 @@ function progKurvaSVG(){
   if(ner-upp<6){var mitt=(upp+ner)/2;upp=Math.max(0,mitt-3);ner=Math.min(24,mitt+3);}
   var t0=dagT0+Math.max(0,upp-0.5)*3600000;
   var t1=dagT0+Math.min(24,ner+0.5)*3600000;
-  var X=function(ms){return ((ms-t0)/(t1-t0))*W;};
+  var vxL=120;                     /* plats för kW-talen till vänster */
+  var X=function(ms){return vxL+((ms-t0)/(t1-t0))*(W-vxL);};
   var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
   /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
      ska inte se lika bestamd ut som den faktiska kurvan. */
-  var d='M0 '+Y(0).toFixed(1);
+  var d='M'+vxL+' '+Y(0).toFixed(1);
   for(var h=0;h<24;h++){
     var hx=X(dagT0+(h+0.5)*3600000);
-    if(hx<-2||hx>W+2)continue;              /* utanför det beskurna fönstret */
+    if(hx<vxL-2||hx>W+2)continue;           /* utanför det beskurna fönstret */
     d+=' L'+hx.toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
   }
-  d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L0 '+(H-pB)+' Z';
+  d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L'+vxL+' '+(H-pB)+' Z';
   /* Klockslag på x-axeln. Utan dem gick det inte att avgöra om kurvorna låg
      förskjutna mot varandra eller bara hade olika form — och skillnaden är
      viktig: den ena vore ett fel, den andra är verkligheten. */
@@ -2829,13 +2842,21 @@ function progKurvaSVG(){
     var t=t0+(t1-t0)*f, x=X(t);
     var dt=new Date(t);
     var lbl=String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    xax+='<text x="'+Math.min(W-2,Math.max(2,x)).toFixed(1)+'" y="'+(H-3)+'" class="mg-ax"'
+    xax+='<text x="'+Math.min(W-2,Math.max(vxL,x)).toFixed(1)+'" y="'+(H-6)+'" class="mg-ax"'
       +' text-anchor="'+(i2===0?'start':(i2===3?'end':'middle'))+'">'+lbl+'</text>';
     if(i2>0&&i2<3)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
       +'" stroke="var(--line)" stroke-width="1" opacity=".3"/>';});
   var b='<path d="'+d+'" fill="var(--gold)" opacity=".16"/>';
+  /* Y-AXELN INUTI grafen. Toppvärdet låg som ett HTML-element bredvid och
+     skalade inte med den; nu står tre kW-tal i samma storlek som klockslagen,
+     längs stödlinjerna där de hör hemma. */
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
-    b+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';}
+    b+='<line class="grid-l" x1="'+vxL+'" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';
+    b+='<text x="'+(vxL-10)+'" y="'+(gy+7).toFixed(1)+'" class="mg-ax" text-anchor="end">'
+      +num(max/1000*(1-g/2),1)+(g===0?' kW':'')+'</text>';}
+  /* Enheten skrivs i TOPPVÄRDET i stället för som en egen etikett. Ovanför
+     krockade den med toppen och nedanför med nollan — kolumnen är för smal för
+     två rader, och ett tal med enhet läses ändå lättare än två separata. */
   if(fakt.length>1){
     var fd='';
     for(var i=0;i<fakt.length;i++)fd+=(i?'L':'M')+X(fakt[i].t).toFixed(1)+' '+Y(fakt[i].v).toFixed(1)+' ';
@@ -2845,7 +2866,7 @@ function progKurvaSVG(){
   return '<div class="chart-wrap" style="margin-top:8px">'
     /* Nollan under y-axeln är underförstådd — kurvan bottnar där ändå, och en
        tredje uppsättning siffror gjorde bara grafen plottrig. */
-    +'<div class="chart-y top">'+num(max/1000,1)+' kW</div>'
+
     /* preserveAspectRatio borttagen: den sträcker svg:n i x-led, och sträckt
        text på tidsaxeln blir oläslig. Grafen skalar ändå med bredden. */
     +'<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" '
@@ -10808,7 +10829,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v418';
+const APP_VERSION='v419';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
