@@ -6136,6 +6136,59 @@ function effHTML(){
    Last/oledt och borttagning ar PER ENHET. Att du last pa plattan sager
    ingenting om vad du sett i telefonen, och att du sopat undan en notis dar
    betyder inte att den ska forsvinna har. */
+/* =====================================================================
+   NOTISTEXTENS TON — ÄNDRA HÄR
+   ---------------------------------------------------------------------
+   Det här skickas till Gemini tillsammans med dagens siffror. Tomma fält
+   används inte; då gäller appens inbyggda text. Ändringen skickas till
+   Homey-appen nästa gång dashboarden ansluter, och gäller därefter även
+   när dashboarden är stängd.
+
+   ton   — hur texten ska låta
+   form  — hur den ska se ut: antal rader, emoji, blandning
+   hus   — beskrivningen av anläggningen
+   extra — vad som helst mer, läggs sist före reglerna
+   ===================================================================== */
+/* ===== Notisernas ton — REDIGERA HÄR =====
+   Fälten skickas till Homey-appen och ersätter dess inbyggda formuleringar.
+   Vill du ändra hur morgon- och kvällsnotisen låter räcker det att ändra texten
+   nedan och ladda upp filen; appen behöver inte byggas om.
+
+   Ett tomt fält betyder att appens egen text används för just det fältet — så
+   man kan justera tonen utan att ta ansvar för formen, eller tvärtom. */
+var DAG_STIL={
+
+  /* Hur texten ska låta. */
+  ton:
+    'Du skriver till någon som känner huset utan och innan och redan sett '
+    +'siffrorna i rutorna ovanför texten. Kommentera dem — upprepa dem inte. '
+    +'Kunnig vän med torr humor. Inga utrop, inget säljande, aldrig '
+    +'"fantastiskt" eller "härligt".',
+
+  /* Hur texten ska se ut. Lämna tom för appens standardform, som är ett kort
+     stycke plus ett par fristående rader, omkring 350 tecken. Skriv något här
+     bara om du vill ha en helt annan form — texten ersätter hela FORM-stycket
+     i prompten, inklusive emoji-reglerna. */
+  form:'',
+
+  /* Vad modellen ska veta om anläggningen. */
+  hus:
+    '48 solpaneler på taket, 19,44 kWp, fördelade på fyra takgrupper med olika '
+    +'lutning och väderstreck. Husbatteri på 24 kWh. Tibber med timpris och '
+    +'Pulse på elmätaren. Två elbilar, en Volvo C40 och en EX40, med egen '
+    +'laddbox. Pool med automatisk uppvärmning som styrs av solöverskottet. '
+    +'Motoriserad markis. Vinkällare. Värmepump i gäststugan. Havet ligger '
+    +'några hundra meter bort.',
+
+  /* Övrigt som ska gälla varje gång. */
+  extra:
+    'Nämn poolens temperatur bara när den säger något — att den är badbar, '
+    +'eller ovanligt kall för årstiden. Vardagliga tal behöver ingen kommentar. '
+    +'Ge hellre ett konkret råd om NÄR på dagen något bör göras än en '
+    +'upprepning av dygnssumman.'
+
+};
+
 var KRON_BORT='kronbort_v1';
 function notBortGet(){
   try{return JSON.parse(localStorage.getItem(KRON_BORT)||'{}')||{};}catch(e){return {};}}
@@ -6186,6 +6239,27 @@ function dagProv(kvall){
   }).catch(function(e){
     var el=$('sync-status');if(el)el.textContent='Kunde inte skriva: '+((e&&e.message)||e);});}
 
+/* Skickar tonen till appen när den ändrats. Jämför mot vad appen redan har, så
+   varje uppkoppling inte skriver om samma sak. */
+var _stilSkickad=false;
+async function dagStilSynka(){
+  if(_stilSkickad||!appKan())return false;
+  _stilSkickad=true;
+  try{
+    var vill={},n=0;
+    ['ton','form','hus','extra'].forEach(function(k){
+      var v=(DAG_STIL&&DAG_STIL[k]||'').trim();
+      if(v){vill[k]=v;n++;}
+    });
+    var har=(_dag&&_dag.stil)||{};
+    var lika=(Object.keys(har).length===n);
+    if(lika)for(var k2 in vill)if(har[k2]!==vill[k2]){lika=false;break;}
+    if(lika)return false;
+    await appPost('/dag',{stil:vill});
+    _dag=null;_dagAt=0;
+    return true;
+  }catch(e){_stilSkickad=false;return false;}}
+
 async function dagHamta(force){
   if(!appKan())return null;
   if(!force&&_dag&&Date.now()-_dagAt<5*60000)return _dag;
@@ -6193,6 +6267,8 @@ async function dagHamta(force){
     var j=await appGet('/dag');
     if(!j||!Array.isArray(j.notiser))throw new Error('tomt svar');
     _dag=j;_dagAt=Date.now();_dagFel=null;
+    try{if(await dagStilSynka())j=await appGet('/dag')||j;}catch(e){}
+    _dag=j;
     try{krNotisUppdatera();}catch(e){}
     return j;
   }catch(e){_dagFel=(e&&e.message)||String(e);return null;}}
@@ -10612,7 +10688,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v411';
+const APP_VERSION='v412';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
