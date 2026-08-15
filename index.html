@@ -151,7 +151,7 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
    ändarna, och två tal på skilda ställen glider isär. */
 /* --ds-gap: mellanrummet mellan ikon, tal och skala. Sju pixlar är ungefär tre
    mellanslag — nära nog att höra ihop, tydligt nog att inte klibba. */
-body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--avd-pad:16px;--ds-sun:11px;--ds-gap:7px}
+body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--avd-pad:16px;--ds-sun:11px;--ds-gap:7px;--ds-h:3px}
 /* Höjdledsavståndet går att ställa separat på telefonen (Inställningar →
    Skärm & läge). --mob-gap-y sätts då på <html> och slår igenom här. */
 body.mobile:not(.kiosk){--pg-gap-y:var(--mob-gap-y,var(--pg-gap))}
@@ -197,7 +197,7 @@ body.kiosk{--pg-gap:7px}
 .daystrip{display:flex;align-items:center;gap:12px;padding:12px 20px;margin-bottom:13px;font-size:12px;color:var(--dim);font-weight:500}
 .daystrip b{color:var(--ink);font-weight:700}
 .daystrip .ic{width:17px;height:17px}
-.ds-track{position:relative;flex:1;min-width:60px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--gold),var(--blue));opacity:.6}
+.ds-track{position:relative;flex:1;min-width:60px;height:var(--ds-h);border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--gold),var(--blue));opacity:.6}
 /* Elprisets skala: grönt till rött i stället för solens blått-guld-blått.
    Samma höjd och form — bara färgerna skiljer, för det är det som skiljer
    sakerna åt. */
@@ -249,10 +249,10 @@ body.kiosk{--pg-gap:7px}
 /* Markören får inte hamna ovanpå högsta-talet. Skalan är egen kolumn, så
    punkten kan hållas innanför den. */
 .sp-track{overflow:visible}
-/* Skalans tjocklek följer reglaget "Skala" i håll-inne-menyn. Utan det pekade
-   --spscale på .tide-track, som inte längre finns i bandet — reglaget rörde sig
-   men ingenting hände. */
-.pband-slim .sp-track{height:calc(9px*var(--spscale,1))}
+/* Skalans tjocklek: soluppgångens höjd i det aktuella läget, skalad av reglaget
+   "Skala". Ett fast 9 px gjorde prisskalan lika tjock i alla lägen medan
+   solens var 3, 6 eller 9 — de såg olika ut på plattan. */
+.pband-slim .sp-track{height:calc(var(--ds-h)*var(--spscale,1))}
 .daystrip{position:relative}
 .ds-live{display:flex;align-items:center;gap:var(--ds-gap);flex:1 1 auto;min-width:0}
 /* Skalan får luft på båda sidor, men mindre än förut — den var 10 px och
@@ -1358,7 +1358,7 @@ body{--solar:#ffc21f;--glowmul:1}
 .wx-windblock{flex:1 1 0;justify-content:center}
 /* högre solgångsskala, ligger redan under energi */
 .daystrip{padding:17px 22px}
-.ds-track{height:6px}
+body.mobile{--ds-h:6px}
 body.mobile{--ds-sun:14px}
 /* jämn radmarginal mellan alla rutor (icke-kiosk) */
 #view-flode>.panel,#view-flode>.grid,#view-flode>.warnwrap{margin-top:0;margin-bottom:var(--pg-gap-y)}
@@ -1476,7 +1476,7 @@ body{--tl-ic-b:34px;--tl-v-b:27px;--tl-name-b:11px;--tl-desc-b:11px;--ch-ic-b:28
 .stat{gap:var(--tl-gap,14px)}
 .en-chip{gap:var(--ch-gap,11px)}
 .daystrip{padding:24px 24px}
-.ds-track{height:9px}
+body.kiosk{--ds-h:9px}
 body.kiosk{--ds-sun:17px}
 .warns.tick{min-height:50px;padding:13px 16px}
 .warns.tick .wt{font-size:13px}
@@ -1642,7 +1642,15 @@ body.tabprev{padding:0;overflow:hidden}
    avståndet, och två luftrum på samma ställe blev dubbelt. */
 .sp-inne{background:none!important;border:0!important;box-shadow:none!important;
   margin:0!important;padding:0!important;height:auto!important;
-  min-height:0!important;overflow:visible!important}
+  min-height:0!important;overflow:visible!important;
+  /* RAD, inte kolumn. .kiosk .pband sätter flex-direction:column för det gamla
+     fristående bandet — inbäddat blev raden då en kolumn, och skalan krympte
+     till innehållets bredd i stället för att fylla panelen. Det är därför
+     väggplattan såg helt annorlunda ut än telefonen. */
+  display:flex!important;flex-direction:row!important;align-items:center!important;
+  width:100%!important}
+/* Och innehållet ska ta hela bredden. */
+.sp-inne .ds-live{flex:1 1 auto;min-width:0}
 /* Avdelaren mellan panelens huvuddel och dess rutor. */
 /* Samma mått lodrätt som vågrätt. Linjen går KANT TILL KANT, lika lång som
    remsans egen border-top — en indragen linje bredvid en genomgående såg ut som
@@ -11128,7 +11136,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v440';
+const APP_VERSION='v441';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
