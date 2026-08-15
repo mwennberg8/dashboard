@@ -1478,13 +1478,17 @@ body{--tl-ic-b:34px;--tl-v-b:27px;--tl-name-b:11px;--tl-desc-b:11px;--ch-ic-b:28
 /* CENTRERING. Klasserna sattes i renderTiles men reglerna fanns aldrig — därför
    hände ingenting. Ikonen är redan lodrätt centrerad av align-items; knappen
    gör det uttryckligt och nollar marginaler som annars drar den uppåt. */
-.stat.ic-mitt{align-items:center}
-.stat.ic-mitt .stat-ic{align-self:center;margin-top:0!important;margin-bottom:0!important}
+/* !important: mediefrågan sätter align-items:flex-start på body:not(.kiosk)
+   .stat, vilket har HÖGRE specificitet än en enkel klass — därför gjorde
+   knappen ingenting på telefonen. */
+.stat.ic-mitt{align-items:center!important}
+.stat.ic-mitt .stat-ic{align-self:center!important;margin-top:0!important;margin-bottom:0!important}
 /* Hela innehållet centrerat. justify-content ensamt räcker inte: textblocket
    växer och fyller raden, så det finns ingenting att centrera. */
-.stat.allt-mitt{justify-content:center;text-align:center}
+.stat.allt-mitt{justify-content:center!important;text-align:center!important;
+  align-items:center!important}
 .stat.allt-mitt .stat-txt{flex:0 1 auto;display:flex;flex-direction:column;align-items:center}
-.stat.allt-mitt .label,.stat.allt-mitt .v,.stat.allt-mitt .meta{text-align:center;padding-left:0}
+.stat.allt-mitt .label,.stat.allt-mitt .v,.stat.allt-mitt .meta{text-align:center!important;padding-left:0}
 .stat-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
 .stat .v,.stat .meta{padding-left:0}
 .stat .v{margin:0}
@@ -1698,6 +1702,26 @@ body.tabprev{padding:0;overflow:hidden}
    avståndet från innehållet till linjen blir detsamma uppåt, nedåt och åt
    sidorna. En marginal på raden hade lagt sig ovanpå den paddingen. */
 .pn-tiles{margin-top:0;background:none;border:0;box-shadow:none;padding:0;gap:0}
+/* EGNA BASMÅTT för tre-kolumnsraderna. De sex rutorna ligger två i bredd och
+   har gott om plats; energi- och väderraderna tre i bredd på samma yta. Med
+   samma basmått klipptes "2.3 kW" och rubrikerna trunkerades till "LUFTFUKTI…".
+   Skalreglagen verkar ovanpå det här, så 100 % ser rätt ut från början. */
+.pn-tiles{--tl-v-b:21px;--tl-ic-b:24px;--tl-name-b:10px;--tl-desc-b:10px}
+body.mobile .pn-tiles,body:not(.kiosk) .pn-tiles{--tl-v-b:17px;--tl-ic-b:20px;
+  --tl-name-b:9.5px;--tl-desc-b:9.5px}
+.kiosk .pn-tiles{--tl-v-b:19px;--tl-ic-b:22px;--tl-name-b:9.5px;--tl-desc-b:9px}
+/* Rubriken får plats: något glesare teckenavstånd kostar mer än det smakar när
+   kolumnen är smal. */
+.pn-tiles .label{letter-spacing:.02em}
+/* Mellanrummet ikon–text som MARGINAL, inte som flex-gap. gap på flex stöds
+   inte av äldre WebKit — och i en dashboard som körs i en webbläsarvy på en
+   platta är det inte värt att gissa. Marginalen fungerar överallt.
+   Gapet ligger kvar som reserv för radbrytande layouter. */
+.stat>.stat-ic{margin-right:var(--tl-gap,14px)}
+.kiosk .stat>.stat-ic{margin-right:var(--tl-gap,11px)}
+/* Centrerat innehåll ska inte ha marginalen kvar på ena sidan. */
+.stat.allt-mitt>.stat-ic{margin-right:calc(var(--tl-gap,14px)/2);
+  margin-left:calc(var(--tl-gap,14px)/2)}
 .pn-tiles>.stat{background:none;border:0;box-shadow:none}
 /* Lodräta avdelare MELLAN rutorna i en panel — luftfukt | regn | tryck, och
    sol nu | batteri | elnät. Utan dem flyter tre tal ihop till en rad siffror.
@@ -1750,7 +1774,8 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 @media (max-width:600px){
   body:not(.kiosk){--tl-ic-b:24px;--tl-v-b:19px;--tl-name-b:10px;--tl-desc-b:10px;--ch-ic-b:22px;--ch-v-b:16px;--ch-name-b:10px;--ch-desc-b:9px}
   body:not(.kiosk) .wrap{padding:12px}
-  body:not(.kiosk) .stat{padding:12px 13px;gap:11px}
+  /* Mellanrummet via variabeln — ett fast tal här skriver över reglaget. */
+  body:not(.kiosk) .stat{padding:12px 13px;gap:var(--tl-gap,11px)}
   body:not(.kiosk) .stat-txt{min-width:0}
   body:not(.kiosk) .stat .label,body:not(.kiosk) .stat .v{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   body:not(.kiosk) .stat .meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1798,7 +1823,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
 
   /* Statusrutorna (Sol/Batteri/Elnät + luft/regn m.fl.): stående layout, inget kapat */
   /* Rubriken ligger på samma rad som ikonen, värdet under i hela textkolumnen */
-  body:not(.kiosk) .stat{flex-direction:row;align-items:flex-start;gap:8px;padding:12px 11px;text-align:left}
+  body:not(.kiosk) .stat{flex-direction:row;align-items:flex-start;gap:var(--tl-gap,8px);padding:12px 11px;text-align:left}
   /* BASMÅTT, inte fast storlek. Ett hårdkodat 19px här låg efter regeln med
      --tl-ic och skrev över den — reglaget för de sex rutorna ändrade variabeln
      men ingenting hände. Sätt basvärdet i stället, så multiplikatorn får verka. */
@@ -11206,7 +11231,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v451';
+const APP_VERSION='v453';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
