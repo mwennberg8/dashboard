@@ -1395,6 +1395,9 @@ body.mobile{--ds-sun:14px}
 .cfg-prev{display:flex;justify-content:center;padding:14px;background:var(--inset);border:1px solid var(--line);border-radius:14px;margin-bottom:8px}
 .cfg-prev .en-chip{flex:0 0 140px;cursor:default}
 .cfg-prev .stat{flex:0 0 180px;cursor:default}
+/* Energi- och väderrutorna ligger tre i bredd — smalare förhandsvisning så
+   proportionerna stämmer med startsidan. */
+.cfg-prev.prev-chip .stat{flex:0 0 140px}
 .cfg-row{display:flex;align-items:center;gap:11px;padding:5px 2px;min-width:0}
 /* Etiketten fick bara 92px och radbröts i tre rader på smala skärmar. Nu får
    den ta den plats som blir över, med 92px som minsta bredd. */
@@ -1706,10 +1709,14 @@ body.tabprev{padding:0;overflow:hidden}
    har gott om plats; energi- och väderraderna tre i bredd på samma yta. Med
    samma basmått klipptes "2.3 kW" och rubrikerna trunkerades till "LUFTFUKTI…".
    Skalreglagen verkar ovanpå det här, så 100 % ser rätt ut från början. */
-.pn-tiles{--tl-v-b:21px;--tl-ic-b:24px;--tl-name-b:10px;--tl-desc-b:10px}
-body.mobile .pn-tiles,body:not(.kiosk) .pn-tiles{--tl-v-b:17px;--tl-ic-b:20px;
+/* Samma basmått i förhandsvisningen som i den riktiga raden. Låg den utanför
+   .pn-tiles fick den de generella måtten och visade en annan storlek än den
+   skulle förutsäga — en förhandsvisning som ljuger är värre än ingen. */
+.pn-tiles,.cfg-prev.prev-chip{--tl-v-b:21px;--tl-ic-b:24px;--tl-name-b:10px;--tl-desc-b:10px}
+body.mobile .pn-tiles,body:not(.kiosk) .pn-tiles,
+body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17px;--tl-ic-b:20px;
   --tl-name-b:9.5px;--tl-desc-b:9.5px}
-.kiosk .pn-tiles{--tl-v-b:19px;--tl-ic-b:22px;--tl-name-b:9.5px;--tl-desc-b:9px}
+.kiosk .pn-tiles,.kiosk .cfg-prev.prev-chip{--tl-v-b:19px;--tl-ic-b:22px;--tl-name-b:9.5px;--tl-desc-b:9px}
 /* Rubriken får plats: något glesare teckenavstånd kostar mer än det smakar när
    kolumnen är smal. */
 .pn-tiles .label{letter-spacing:.02em}
@@ -11231,7 +11238,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v453';
+const APP_VERSION='v454';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -11657,9 +11664,24 @@ function tileMitt(vad){
 
 function cfgSize(grp,key,d){CFG[grp][key]=Math.max(-8,Math.min(14,(CFG[grp][key]||0)+d));saveCfg();applyCfg();const n=$('cfgnum-'+grp+'-'+key);if(n)n.textContent=(CFG[grp][key]>0?'+':'')+CFG[grp][key];updatePrev();}
 let _sizeSection=null;
-function prevVars(section){const g=CFG[section],pre=(section==='tile')?'--tl':'--ch',gapDef=(section==='tile')?14:11;
+/* ALLTID --tl. Förhandsvisningen för energi- och väderrutor satte --ch-*, från
+   när den använde .en-chip-uppmärkningen. Sedan den bytte till samma .stat som
+   startsidan läser den --tl-* — variablerna hamnade alltså på fel namn och
+   ingenting hände. Vilken uppsättning VÄRDEN som används styrs av CFG[section],
+   inte av prefixet. */
+function prevVars(section){const g=CFG[section],pre='--tl',gapDef=(section==='tile')?14:11;
   return pre+'-ic:'+scl(g.ic)+';'+pre+'-v:'+scl(g.v)+';'+pre+'-name:'+scl(g.name)+';'+pre+'-desc:'+scl(g.desc)+';'+pre+'-gap:'+(g.gap==null?gapDef:g.gap)+'px';}
 function updatePrev(){if(!_sizeSection)return;const p=$('cfg-prev');if(p&&p.setAttribute)p.setAttribute('style',prevVars(_sizeSection));
+  /* SAMMA pixelberäkning som startsidan. Förhandsvisningen förlitade sig på
+     reserven calc(var*var) medan rutorna fick färdiga px — och när de två vägarna
+     skiljer sig är det bara en tidsfråga innan de visar olika saker. Nu går båda
+     genom applyGrpVars. */
+  try{
+    applyGrpVars(p,'--tl',CFG[_sizeSection]||{});
+    var gapDef=(_sizeSection==='tile')?14:11;
+    var gv=CFG[_sizeSection]&&CFG[_sizeSection].gap;
+    if(p&&p.style)p.style.setProperty('--tl-gap',((gv==null)?gapDef:gv)+'px');
+  }catch(e){}
   if(typeof setTimeout==='function')setTimeout(function(){try{sizeMatt();}catch(e){}},30);}
 function cfgGap(section,d){const def=(section==='tile')?14:11;CFG[section].gap=Math.max(2,Math.min(30,(CFG[section].gap==null?def:CFG[section].gap)+d*2));saveCfg();applyCfg();const n=$('cfgnum-'+section+'-gap');if(n)n.textContent=CFG[section].gap+' px';updatePrev();}
 function cfgSpot(v){CFG.showspot=(v!=='off');saveCfg();applyCfg();if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
@@ -11668,7 +11690,8 @@ function openSizeMenu(section){_sizeSection=section;
   const prev=(section==='tile')?previewTile():previewChip();
   let h='<div class="cfg"><div class="cfg-back-row"><button class="te-alt" onclick="_sizeSection=null;openConfig()">‹ Tillbaka</button></div>';
   h+='<div class="cfg-sec">'+titles[section]+' · storlek</div>';
-  h+='<div class="cfg-prev" id="cfg-prev" style="'+prevVars(section)+'">'+prev+'</div>';
+  h+='<div class="cfg-prev'+(section==='chip'?' prev-chip':'')+'" id="cfg-prev" style="'
+    +prevVars(section)+'">'+prev+'</div>';
   h+=sizeRow(section,'ic','Ikon')+sizeRow(section,'v','Värde')+sizeRow(section,'name','Namn')+sizeRow(section,'desc','Beskrivning');
   h+='<div class="cfg-sec">Mellanrum ikon/text</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Avstånd</span><div class="cfg-step"><button class="cfg-pm" onclick="cfgGap(\''+section+'\',-1)">−</button><span class="cfg-num" id="cfgnum-'+section+'-gap">'+((CFG[section].gap==null?(section==='tile'?14:11):CFG[section].gap))+' px</span><button class="cfg-pm" onclick="cfgGap(\''+section+'\',1)">+</button></div></div>';
@@ -11690,6 +11713,8 @@ function openSizeMenu(section){_sizeSection=section;
   h+='<div class="cfg-sec">Uppmätt</div><div class="cfg-hint" id="sz-matt">–</div>';
   h+='</div>';
   const bd=$('dlg-body');if(bd)bd.innerHTML=h;setT('dlg-title',titles[section]);
+  /* Rutan finns först nu i dokumentet — måtten kan inte räknas innan. */
+  try{updatePrev();}catch(e){}
   try{sizeMatt();}catch(e){}}
 
 /* Läser av verkliga mått från en ruta på startsidan och från förhandsvisningen,
