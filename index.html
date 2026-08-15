@@ -145,7 +145,13 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 @keyframes float{from{transform:translate(-1.5%,-1%)}to{transform:translate(1.5%,1.5%)}}
 .wrap{max-width:1180px;margin:0 auto}
 /* ===== v288: ETT avstånd mellan rutor – samma på alla sidor, per läge ===== */
-body{--pg-gap:15px;--pg-gap-y:var(--pg-gap)}
+/* Avståndet mellan innehåll och avdelare, gemensamt för Väder/Vind och för
+   rutraderna. Ett enda mått i stället för tre som glider isär. */
+/* Soldottens storlek som variabel: sliden i spotbandet ska ha samma radie i
+   ändarna, och två tal på skilda ställen glider isär. */
+/* --ds-gap: mellanrummet mellan ikon, tal och skala. Sju pixlar är ungefär tre
+   mellanslag — nära nog att höra ihop, tydligt nog att inte klibba. */
+body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--avd-pad:16px;--ds-sun:11px;--ds-gap:7px}
 /* Höjdledsavståndet går att ställa separat på telefonen (Inställningar →
    Skärm & läge). --mob-gap-y sätts då på <html> och slår igenom här. */
 body.mobile:not(.kiosk){--pg-gap-y:var(--mob-gap-y,var(--pg-gap))}
@@ -153,6 +159,10 @@ body.mobile:not(.kiosk){--pg-gap:3px}
 body.kiosk{--pg-gap:7px}
 .ic{width:1em;height:1em;display:inline-block;vertical-align:-.15em;fill:currentColor;flex:0 0 auto}
 .ic-slot{display:inline-flex;align-items:center;justify-content:center}
+/* .acc-hot saknades helt — ikoner med den klassen blev ofärgade. Den användes
+   redan i uppmärkningen, vilket är just den sortens tysta miss som inte syns
+   förrän man tittar. */
+.acc-hot{color:var(--hot)}.acc-ok{color:var(--ok)}
 .acc-gold{color:var(--gold)}.acc-green{color:var(--ok)}.acc-warm{color:var(--warm)}.acc-cyan{color:var(--cyan)}.acc-blue{color:var(--blue)}.acc-violet{color:var(--violet)}.acc-hot{color:var(--hot)}.acc-dim{color:var(--dim)}.acc-ink{color:var(--ink)}
 .label{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);font-weight:650}
 
@@ -188,8 +198,66 @@ body.kiosk{--pg-gap:7px}
 .daystrip b{color:var(--ink);font-weight:700}
 .daystrip .ic{width:17px;height:17px}
 .ds-track{position:relative;flex:1;min-width:60px;height:3px;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--gold),var(--blue));opacity:.6}
+/* Elprisets skala: grönt till rött i stället för solens blått-guld-blått.
+   Samma höjd och form — bara färgerna skiljer, för det är det som skiljer
+   sakerna åt. */
+/* Full opacitet. .ds-track dämpar till 60 % för att soldotten ska dominera;
+   prisskalan ÄR informationen och ska synas. */
+.sp-track{background:linear-gradient(90deg,var(--ok),var(--gold),var(--hot));opacity:1}
+
+/* Aktuellt pris till höger, som klockslaget i soluppgångsremsan. */
+.sp-nu{margin-left:0;white-space:nowrap;font-weight:800;color:var(--ink);font-size:15px;
+  flex:0 0 auto}
+.sp-nu .unit{font-size:10px;font-weight:700;color:var(--faint);margin-left:2px}
+/* Samma storlek på båda talen och samma som klockslagen i soluppgångsremsan —
+   de ärver .pband-slim:s font-size, som nu är densamma som .daystrip:s. */
+.sp-live b{color:var(--ink);font-weight:700;font-size:inherit}
+.sp-live .ic{width:17px;height:17px}
+/* Skalorna EXAKT lika långa och i lodrät linje. Ändtalen har olika bredd —
+   "03:36" mot "12" — och med flex:1 på skalan blev längden olika i de två
+   banden. Samma fasta kolumnbredd i BÅDA ger skalan identiskt utrymme, och då
+   linjerar ikoner, tal och skala lodrätt mellan banden. */
+/* Talet nära sin ikon, skalan lång. Kolumnen var 44 px bred och centrerad, så
+   "12" hamnade långt från myntet medan skalan trängdes ihop.
+
+   Fast bredd, men texten riktad MOT sin ikon: vänstra talet vänsterställt,
+   högra högerställt. Då hamnar "12" intill myntet och "18:58" intill månen,
+   samtidigt som båda banden reserverar lika mycket och skalorna blir exakt lika
+   långa. Content-sizing gav närhet men olika längd, eftersom "03:36" är bredare
+   än "12". */
+/* Smalare kolumn: 42 px reserverade mer än "18:58" behöver, och överskottet
+   låg som tom yta mellan tal och skala. 38 px räcker för både klockslag och
+   tresiffriga priser, och skillnaden går till skalan. */
+.ds-live>b{flex:0 0 auto;min-width:38px;white-space:nowrap}
+.ds-live>b:first-of-type{text-align:left}
+.ds-live>b:last-of-type{text-align:right}
+/* Eget klassnamn: sp-nu användes redan av den gamla prisraden, och två regler
+   med samma namn i samma band är precis den sortens krock som är svår att se. */
+/* Talet står i plattan, inte ovanpå den — därför statiskt läge och färg mot
+   panelbakgrunden. Enheten i mindre stil efter, som i de andra talen. */
+.sp-punkt{white-space:nowrap;font-size:calc(1em*var(--spnum,1));font-weight:850;
+  letter-spacing:-.02em;line-height:1;color:var(--pc,var(--ink));pointer-events:none}
+.sp-punkt .sp-enh{font-size:.72em;font-weight:700;opacity:.75;margin-left:1px}
+/* Punkten är en AVLÅNG platta, inte en prick: den bär en siffra och ska gå att
+   läsa. Absolut placerad, så den påverkar inte bandets höjd. Storleken styrs av
+   --spslide, siffran av --spnum — samma reglage som förut, nu kopplade till de
+   element som faktiskt finns. */
+/* Formen från första versionen: en mörk platta med färgad kant och mjuk skugga,
+   inte en fylld prick. Talet läses mot panelbakgrunden i stället för mot en
+   stark färg, och kanten tar färg efter priset — billigt grönt, dyrt rött.
+   Radien är soldottens, så ändarna rundas lika mycket som pricken. */
+/* Markören får inte hamna ovanpå högsta-talet. Skalan är egen kolumn, så
+   punkten kan hållas innanför den. */
+.sp-track{overflow:visible}
+/* Skalans tjocklek följer reglaget "Skala" i håll-inne-menyn. Utan det pekade
+   --spscale på .tide-track, som inte längre finns i bandet — reglaget rörde sig
+   men ingenting hände. */
+.pband-slim .sp-track{height:calc(9px*var(--spscale,1))}
 .daystrip{position:relative}
-.ds-live{display:flex;align-items:center;gap:12px;flex:1 1 auto;min-width:0}
+.ds-live{display:flex;align-items:center;gap:var(--ds-gap);flex:1 1 auto;min-width:0}
+/* Skalan får luft på båda sidor, men mindre än förut — den var 10 px och
+   tillsammans med kolumnbredden blev avståndet till talen onödigt stort. */
+.ds-live>.ds-track{margin:0 6px}
 .ds-pm{display:none;position:absolute;top:50%;transform:translateY(-50%);align-items:center;justify-content:center;border:1px solid var(--line);background:var(--card);color:var(--ink);font-weight:800;font-size:20px;line-height:1;width:34px;height:34px;border-radius:50%;cursor:pointer;z-index:4;touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 #ds-minus{left:8px}#ds-plus{right:8px}
 .daystrip.scrubbing{padding-top:14px;padding-bottom:30px}
@@ -208,7 +276,17 @@ body.kiosk{--pg-gap:7px}
 #timebar .tb-t{font-size:13px;font-weight:650;white-space:nowrap}
 #timebar .tb-x{border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12px;border-radius:999px;padding:6px 13px;cursor:pointer}
 #timebar .tb-pm{border:1px solid var(--line);background:var(--inset);color:var(--ink);font-weight:800;font-size:17px;line-height:1;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.ds-sun{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);box-shadow:0 0 12px 3px rgba(249,226,175,.55);transition:left .9s ease}
+.ds-sun{position:absolute;top:50%;width:var(--ds-sun);height:var(--ds-sun);border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);box-shadow:0 0 12px 3px rgba(249,226,175,.55);transition:left .9s ease}
+/* EFTER .ds-sun med flit. Samma specificitet, och den som står sist vinner —
+   låg .sp-dot före skrev .ds-sun över bakgrund och skugga och plattan blev en
+   fylld prick igen. */
+.sp-dot{width:auto;min-width:calc(var(--ds-sun)*2.4*var(--spslide,1));height:auto;
+  padding:calc(3px*var(--spslide,1)) calc(9px*var(--spslide,1));
+  border-radius:calc(var(--ds-sun)/2);
+  background:var(--panel-b);border:1.5px solid var(--pc,var(--gold));
+  box-shadow:0 2px 8px rgba(0,0,0,.28);
+  display:inline-flex;align-items:baseline;gap:2px;justify-content:center}
+
 .ds-rem{color:var(--gold);white-space:nowrap;font-weight:600}
 
 .insight{display:flex;gap:13px;align-items:flex-start;padding:15px 19px;margin-bottom:13px;background:var(--ins-grad);border-color:var(--ins-border)}
@@ -245,7 +323,29 @@ body.kiosk{--pg-gap:7px}
 .flb2{font-size:8px;fill:var(--faint);letter-spacing:.14em;text-transform:uppercase;font-weight:600}
 
 .pband{padding:clamp(16px,2vw,24px);margin-bottom:13px}
-.pband-slim{box-sizing:border-box;height:calc(66px*var(--spbox,1));padding:0 15px;margin-bottom:11px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+/* SAMMA stil som soluppgångsremsan (.daystrip): samma innerkant, samma
+   textstorlek och färg. De två banden ligger ovanpå varandra på startsidan och
+   ska läsas som samma sorts element. Höjden är kvar som eget mått eftersom
+   priskurvan behöver mer plats än en soldot. */
+/* RAD, inte kolumn — som .daystrip. Med flex-direction:column hamnade priset
+   under skalan i stället för bredvid, och hela remsan blev dubbelt så hög som
+   soluppgångens. */
+/* INGEN fast höjd i px. Soluppgångsremsans höjd sätts på min-height av
+   bandLika(), och --spbox skalar den — så inställningen fungerar som förut men
+   utgår från remsans höjd i stället för ett eget tal. Att lämna --spbox utan
+   verkan hade varit död kod som ser levande ut. */
+/* overflow:visible. Sliden sticker ut över skalans ändar när priset ligger nära
+   dygnets högsta eller lägsta, och overflow:hidden klippte den mitt itu. Bandet
+   har inget innehåll som behöver klippas. */
+.pband-slim{box-sizing:border-box;padding:24px;
+  margin-bottom:13px;display:flex;flex-direction:row;align-items:center;gap:12px;
+  overflow:visible;font-size:12px;color:var(--dim);font-weight:500}
+/* Samma ikonstorlek som i soluppgångsremsan. */
+.pband-slim .ic{width:17px;height:17px}
+/* .daystrip har flera regler; de gällande är 24px i bas, 12px 16px på mobil och
+   15px 16px i kiosk. Matcha de FAKTISKA värdena, inte den första regeln i
+   filen — det var så jag först satte fel padding. */
+body.mobile .pband-slim{padding:12px 16px}
 .pband-slim .pb-row{display:flex;align-items:center;gap:9px}
 .pband-slim .pb-ic{width:16px;height:16px;color:var(--blue);flex:0 0 auto}
 .pband-slim .pb-ic svg{width:16px;height:16px}
@@ -584,8 +684,13 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .wx2{position:relative;display:flex;align-items:stretch;gap:0}
 .wx2-now,.wx2-wind{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:12px;padding:2px}
 .wx2-center .wx2-now,.wx2-center .wx2-wind{justify-content:center}
-.wx2-wind{padding-left:16px}
-.wx2-div{position:absolute;left:50%;top:6px;bottom:6px;width:1px;background:var(--line);transform:translateX(-50%)}
+.wx2-wind{padding-left:var(--avd-pad)}
+.wx2-now{padding-right:var(--avd-pad)}
+/* Samma indrag som rutornas avdelare: --avd-pad minus 6 px. Ett fast 6 px här
+   och ett räknat där gav olika långa linjer så fort avdelarmåttet ändrades. */
+.wx2-div{position:absolute;left:50%;top:calc(var(--avd-pad) - 6px);
+  bottom:calc(var(--avd-pad) - 6px);width:1px;background:var(--line);
+  transform:translateX(-50%)}
 .wx2-ic{width:46px;height:46px;flex:0 0 auto;color:var(--gold)}.wx2-ic .ic{width:100%;height:100%}
 .wx2-arrow{width:40px;height:40px;flex:0 0 auto;color:var(--cyan);display:inline-flex;transition:transform .3s}.wx2-arrow .ic{width:100%;height:100%}
 .wx2-now-txt,.wx2-wind-txt{min-width:0}
@@ -598,7 +703,14 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .wx2-feelslbl{color:var(--dim);font-weight:600;white-space:nowrap;letter-spacing:0;flex:0 0 auto}
 .wx2-feels .wx2-dir{margin-left:7px}
 .wx2-sub,.wx2-wl{font-size:11.5px;color:var(--dim);font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wx2-strip{display:flex;margin-top:13px;border-top:1px solid var(--line);padding-top:11px}
+/* Ingen marginal ovanför: rutraden bidrar redan med sin padding, och två
+   avstånd på samma ställe hade blivit dubbelt.
+
+   Och INGEN padding nedanför: remsan är sist i panelen, så panelens egen
+   innerkant räcker. Utan det låg remsans luft ovanpå panelens och botten blev
+   större än toppen. */
+.wx2-strip{display:flex;margin-top:0;border-top:1px solid var(--line);
+  padding-top:var(--avd-pad);padding-bottom:0}
 .wx2-cell{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 5px;border-left:1px solid var(--line);cursor:pointer}
 .wx2-cell:first-child{border-left:0}
 .wx2-cl{font-size:8.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;line-height:1}
@@ -607,7 +719,7 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .wx2-ci{display:inline-flex;flex:0 0 auto}.wx2-ci .ic{width:100%;height:100%}
 .wx2-cell:hover .wx2-cv{filter:brightness(1.15)}
 .kiosk .wx2-temp,.kiosk .wx2-wv{font-size:26px}.kiosk .wx2-ic{width:42px;height:42px}.kiosk .wx2-arrow{width:37px;height:37px}
-.kiosk .wx2-strip{margin-top:10px;padding-top:9px}
+
 .kiosk .wx2-wind{padding-left:13px;margin-left:13px}
 body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .cmp-card{fill:var(--orb-fill);stroke:var(--svg-stroke)}.cmp-lbl{fill:var(--dim)}
@@ -1247,7 +1359,7 @@ body{--solar:#ffc21f;--glowmul:1}
 /* högre solgångsskala, ligger redan under energi */
 .daystrip{padding:17px 22px}
 .ds-track{height:6px}
-.ds-sun{width:14px;height:14px}
+body.mobile{--ds-sun:14px}
 /* jämn radmarginal mellan alla rutor (icke-kiosk) */
 #view-flode>.panel,#view-flode>.grid,#view-flode>.warnwrap{margin-top:0;margin-bottom:var(--pg-gap-y)}
 #view-flode>*:last-child{margin-bottom:0}
@@ -1365,7 +1477,7 @@ body{--tl-ic-b:34px;--tl-v-b:27px;--tl-name-b:11px;--tl-desc-b:11px;--ch-ic-b:28
 .en-chip{gap:var(--ch-gap,11px)}
 .daystrip{padding:24px 24px}
 .ds-track{height:9px}
-.ds-sun{width:17px;height:17px}
+body.kiosk{--ds-sun:17px}
 .warns.tick{min-height:50px;padding:13px 16px}
 .warns.tick .wt{font-size:13px}
 .kiosk .daystrip{padding:11px 18px}
@@ -1475,7 +1587,7 @@ body.tabprev{padding:0;overflow:hidden}
    när man drog storleken under noll — höjden räknades ut men golvet vann.
    Höjden styrs av --spbox, och overflow:hidden håller innehållet innanför. */
 .kiosk .pband{flex:0 0 auto;padding:10px 15px 8px;margin:0;display:flex;flex-direction:column;justify-content:center}
-.kiosk .pband-slim{padding:0 15px}
+.kiosk .pband-slim{padding:15px 16px}
 .kiosk .pband .price-now .big{font-size:24px}
 .kiosk .pband .tide{margin-top:0}
 .kiosk .stats{flex:0 0 auto;margin:0;gap:var(--pg-gap)}
@@ -1525,17 +1637,30 @@ body.tabprev{padding:0;overflow:hidden}
 /* Dolt avsnitt: bort ur flödet helt, så kioskens höjdfördelning inte lämnar en
    lucka där det stod. */
 .sec-dold{display:none!important}
-/* Avdelaren mellan panelens huvuddel och dess rutor. Hårfin och indragen, så
-   den skiljer utan att dela — en heldragen linje kant till kant hade sett ut
-   som två kort igen. */
-.pn-del{height:1px;background:var(--line);opacity:.75;margin:11px 10px 0}
-.kiosk .pn-del{margin:8px 8px 0}
+/* Bandet inuti energipanelen: ingen egen bakgrund, ram eller marginal — det är
+   en rad i panelen, inte ett kort. Ingen padding heller: avdelaren ovanför bär
+   avståndet, och två luftrum på samma ställe blev dubbelt. */
+.sp-inne{background:none!important;border:0!important;box-shadow:none!important;
+  margin:0!important;padding:0!important;height:auto!important;
+  min-height:0!important;overflow:visible!important}
+/* Avdelaren mellan panelens huvuddel och dess rutor. */
+/* Samma mått lodrätt som vågrätt. Linjen går KANT TILL KANT, lika lång som
+   remsans egen border-top — en indragen linje bredvid en genomgående såg ut som
+   två olika sorters avdelare. */
+.pn-del{height:1px;background:var(--line);opacity:.75;margin:var(--avd-pad) 0 0}
+/* Avdelaren FÖRE spotbandet: rutraden ovanför bär redan sin nedre padding, så
+   en marginal här blev dubbelt avstånd — linjen låg synligt längre ner än den
+   över rutraden. Luften under linjen ligger i stället i bandets plats. */
+#sp-del{margin-top:0}
+#sp-plats{padding-top:var(--avd-pad)}
 /* Rutorna inuti panelen: ingen egen bakgrund eller ram, bara innehåll. */
 /* Tightare: rutorna sitter redan i en panel med egen innerkant och behöver inte
    samma luft som när de var egna kort. */
-.pn-tiles{margin-top:9px;background:none;border:0;box-shadow:none;padding:0;gap:0}
-.kiosk .pn-tiles{margin-top:6px}
-.pn-tiles>.stat{background:none;border:0;box-shadow:none;padding:0}
+/* Ingen marginal här: luften ligger som padding INUTI rutorna i stället, så
+   avståndet från innehållet till linjen blir detsamma uppåt, nedåt och åt
+   sidorna. En marginal på raden hade lagt sig ovanpå den paddingen. */
+.pn-tiles{margin-top:0;background:none;border:0;box-shadow:none;padding:0;gap:0}
+.pn-tiles>.stat{background:none;border:0;box-shadow:none}
 /* Lodräta avdelare MELLAN rutorna i en panel — luftfukt | regn | tryck, och
    sol nu | batteri | elnät. Utan dem flyter tre tal ihop till en rad siffror.
    :not(:first-child) i stället för en egen klass, så inget behöver hållas i takt
@@ -1546,10 +1671,25 @@ body.tabprev{padding:0;overflow:hidden}
    spänner hela rutnätets höjd ger raka linjer av samma längd. */
 .pn-tiles{position:relative;align-items:stretch}
 .pn-tiles>.stat{position:relative}
-.pn-tiles>.stat+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;
+/* SAMMA avdelare som mellan Väder och Vind: 6 px indrag upptill och nedtill,
+   och samma luft på BÅDA sidor om linjen. Förut satt luften bara efter linjen,
+   så kolumnen före låg tätt intill medan den efter fick 16 px — det såg
+   snedfördelat ut och gav intryck av mycket tomrum. */
+/* Linjen spänner rutans höjd minus --avd-pad i vardera änden, alltså exakt lika
+   långt in som innehållet står. Ett fast 6 px gav olika resultat när
+   avdelarmåttet ändrades. */
+.pn-tiles>.stat+.stat::before{content:'';position:absolute;left:0;
+  top:calc(var(--avd-pad) - 6px);bottom:calc(var(--avd-pad) - 6px);
   width:1px;background:var(--line)}
-.pn-tiles>.stat+.stat{padding-left:10px}
-.kiosk .pn-tiles>.stat+.stat{padding-left:7px}
+/* Lika luft runt hela rutan — upp, ner och ut mot avdelarna. */
+.pn-tiles>.stat{padding:var(--avd-pad) 0}
+/* SIST I PANELEN: ingen luft nedåt. Rutradens padding lades annars till
+   panelens egen innerkant, så botten blev dubbelt så djup som toppen — tydligast
+   i energipanelen, där rutraden är sista elementet. Väderrutan slutar med
+   remsan och drabbades inte, men regeln gäller båda så de följs åt. */
+.pn-tiles:last-child>.stat{padding-bottom:0}
+.pn-tiles>.stat+.stat{padding-left:var(--avd-pad)}
+.pn-tiles>.stat:not(:last-child){padding-right:var(--avd-pad)}
 /* Platshållare för ordna-listan: avsnittet finns kvar som val men syns inte. */
 .dolj-plats{display:none}
 .secmv-row.dold .secmv-n{opacity:.45;text-decoration:line-through}
@@ -1939,12 +2079,26 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
              läses som en. -->
         <div class="pn-del"></div>
         <div class="grid stats st3 en-stats pn-tiles" id="stats-energy" data-grid="energy"></div>
+        <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
+             och blir ett kort mindre på startsidan. -->
+        <div class="pn-del" id="sp-del"></div>
+        <div id="sp-plats"></div>
       </section>
 
     <section class="dolj-plats" data-sec="energy-tiles" hidden></section>
 
     <section class="panel pband pband-slim clickable" id="pband" data-sec="spot" onclick="pbandTap()">
-      <div class="tide"><div class="tide-track"><span class="tide-end tide-end-lo" id="lo">–</span><span class="tide-end tide-end-hi" id="hi">–</span><span class="tide-price" id="price-wrap" style="left:50%"><b id="price">–</b><span class="unit">öre</span></span></div></div>
+      <!-- Samma uppbyggnad som soluppgångsremsan: ikon, värde, skala, värde,
+           ikon. Lägsta och högsta pris står UTANFÖR skalan, inte ovanpå den. -->
+      <div class="ds-live sp-live">
+        <span class="ic-slot acc-green" data-ic="coins"></span><b id="lo">–</b>
+        <div class="ds-track sp-track" id="sp-track"><span class="ds-sun sp-dot" id="price-wrap" style="left:50%"><span class="sp-punkt" id="sp-nu"></span></span></div>
+        <b id="hi">–</b><span class="ic-slot acc-hot" data-ic="coins"></span>
+      </div>
+      <!-- Priset stod förut på egen rad ovanför skalan. Det ligger nu i punkten,
+           där markören är. Elementet finns kvar dolt: render() sätter färg på
+           #price, och att ta bort det hade krävt ändringar på flera ställen. -->
+      <span hidden><b id="price">–</b></span>
     </section>
 
     <section class="panel pband pband-slim clickable ksband" id="ksband" data-sec="kopt-salt" onclick="openDetail('kopt')">
@@ -2026,7 +2180,8 @@ const ICONS={'arrow-left':'<path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8
 'battery-low':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM256,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
 'battery-empty':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM256,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
 'trend-up':'<path d="M240,56V120a8,8,0,0,1-16,0V75.31l-90.34,90.35a8,8,0,0,1-11.32,0L80,123.31,29.66,173.66a8,8,0,0,1-11.32-11.32l56-56a8,8,0,0,1,11.32,0L128,148.69,212.69,64H168a8,8,0,0,1,0-16h64A8,8,0,0,1,240,56Z"/>',
-'clock-counter-clockwise':'<path d="M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.86,40,82.36V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49.62c6.13-7.32,12.37-14.42,19.46-21.59a80,80,0,1,1,1.87,114.14,8,8,0,1,0-11,11.63A96,96,0,1,0,128,32Z"/>','car-profile':'<path d="M88,176a24,24,0,1,1-24-24A24,24,0,0,1,88,176Zm104-24a24,24,0,1,0,24,24A24,24,0,0,0,192,152ZM162.34,74.34A8,8,0,0,0,156.69,72H44.28a8,8,0,0,0-6.66,3.56L8,120H208Z" opacity="0.2"/><path d="M240,112H211.31L168,68.69A15.86,15.86,0,0,0,156.69,64H44.28A16,16,0,0,0,31,71.12L1.34,115.56A8.07,8.07,0,0,0,0,120v48a16,16,0,0,0,16,16H33a32,32,0,0,0,62,0h66a32,32,0,0,0,62,0h17a16,16,0,0,0,16-16V128A16,16,0,0,0,240,112ZM44.28,80H156.69l32,32H23ZM64,192a16,16,0,1,1,16-16A16,16,0,0,1,64,192Zm128,0a16,16,0,1,1,16-16A16,16,0,0,1,192,192Zm48-24H223a32,32,0,0,0-62,0H95a32,32,0,0,0-62,0H16V128H240Z"/>','cat':'<path d="M224,48v88c0,48.6-43,88-96,88s-96-39.4-96-88V48a8,8,0,0,1,13.66-5.66L67.6,67.6h0a102.87,102.87,0,0,1,120.8,0h0l21.94-25.24A8,8,0,0,1,224,48Z" opacity="0.2"/><path d="M96,140a12,12,0,1,1-12-12A12,12,0,0,1,96,140Zm76-12a12,12,0,1,0,12,12A12,12,0,0,0,172,128Zm60-80v88c0,52.93-46.65,96-104,96S24,188.93,24,136V48A16,16,0,0,1,51.31,36.69c.14.14.26.27.38.41L69,57a111.22,111.22,0,0,1,118.1,0L204.31,37.1c.12-.14.24-.27.38-.41A16,16,0,0,1,232,48Zm-16,0-21.56,24.8A8,8,0,0,1,183.63,74,88.86,88.86,0,0,0,168,64.75V88a8,8,0,1,1-16,0V59.05a97.43,97.43,0,0,0-16-2.72V88a8,8,0,1,1-16,0V56.33a97.43,97.43,0,0,0-16,2.72V88a8,8,0,1,1-16,0V64.75A88.86,88.86,0,0,0,72.37,74a8,8,0,0,1-10.81-1.17L40,48v88c0,41.66,35.21,76,80,79.67V195.31l-13.66-13.66a8,8,0,0,1,11.32-11.31L128,180.68l10.34-10.34a8,8,0,0,1,11.32,11.31L136,195.31v20.36c44.79-3.69,80-38,80-79.67Z"/>','cloud-sun':'<path d="M139.84,84.41v0a68.22,68.22,0,0,0-41.65,46v-.11a44.08,44.08,0,0,0-38.54,5h0a48,48,0,1,1,80.19-50.94Z" opacity="0.2"/><path d="M164,72a76.2,76.2,0,0,0-20.26,2.73,55.63,55.63,0,0,0-9.41-11.54l9.51-13.57a8,8,0,1,0-13.11-9.18L121.22,54A55.9,55.9,0,0,0,96,48c-.58,0-1.16,0-1.74,0L91.37,31.71a8,8,0,1,0-15.75,2.77L78.5,50.82A56.1,56.1,0,0,0,55.23,65.67L41.61,56.14a8,8,0,1,0-9.17,13.11L46,78.77A55.55,55.55,0,0,0,40,104c0,.57,0,1.15,0,1.72L23.71,108.6a8,8,0,0,0,1.38,15.88,8.24,8.24,0,0,0,1.39-.12l16.32-2.88a55.74,55.74,0,0,0,5.86,12.42A52,52,0,0,0,84,224h80a76,76,0,0,0,0-152ZM56,104a40,40,0,0,1,72.54-23.24,76.26,76.26,0,0,0-35.62,40,52.14,52.14,0,0,0-31,4.17A40,40,0,0,1,56,104ZM164,208H84a36,36,0,1,1,4.78-71.69c-.37,2.37-.63,4.79-.77,7.23a8,8,0,0,0,16,.92,58.91,58.91,0,0,1,1.88-11.81c0-.16.09-.32.12-.48A60.06,60.06,0,1,1,164,208Z"/>','coins':'<path d="M240,132c0,19.88-35.82,36-80,36-19.6,0-37.56-3.17-51.47-8.44h0C146.76,156.85,176,142,176,124V96.72h0C212.52,100.06,240,114.58,240,132ZM176,84c0-19.88-35.82-36-80-36S16,64.12,16,84s35.82,36,80,36S176,103.88,176,84Z" opacity="0.2"/><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/>','drop':'<path d="M208,144a80,80,0,0,1-160,0c0-72,80-128,80-128S208,72,208,144Z" opacity="0.2"/><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM128,216a72.08,72.08,0,0,1-72-72c0-57.23,55.47-105,72-118,16.53,13,72,60.75,72,118A72.08,72.08,0,0,1,128,216Zm55.89-62.66a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68Z"/>','fork-knife':'<path d="M208,40V168H152S152,64,208,40Z" opacity="0.2"/><path d="M72,88V40a8,8,0,0,1,16,0V88a8,8,0,0,1-16,0ZM216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40ZM200,53.9c-32.17,24.57-38.47,84.42-39.7,106.1H200ZM119.89,38.69a8,8,0,1,0-15.78,2.63L112,88.63a32,32,0,0,1-64,0l7.88-47.31a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/>','gauge':'<path d="M232,152v24a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V153.13C24,95.65,70.15,48.2,127.63,48A104,104,0,0,1,232,152Z" opacity="0.2"/><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/>','house':'<path d="M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"/><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"/>','leaf':'<path d="M63.81,192.19c-47.89-79.81,16-159.62,151.64-151.64C223.43,176.23,143.62,240.08,63.81,192.19Z" opacity="0.2"/><path d="M223.45,40.07a8,8,0,0,0-7.52-7.52C139.8,28.08,78.82,51,52.82,94a87.09,87.09,0,0,0-12.76,49c.57,15.92,5.21,32,13.79,47.85l-19.51,19.5a8,8,0,0,0,11.32,11.32l19.5-19.51C81,210.73,97.09,215.37,113,215.94q1.67.06,3.33.06A86.93,86.93,0,0,0,162,203.18C205,177.18,227.93,116.21,223.45,40.07ZM153.75,189.5c-22.75,13.78-49.68,14-76.71.77l88.63-88.62a8,8,0,0,0-11.32-11.32L65.73,179c-13.19-27-13-54,.77-76.71,22.09-36.47,74.6-56.44,141.31-54.06C210.2,114.89,190.22,167.41,153.75,189.5Z"/>','lightbulb':'<path d="M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z" opacity="0.2"/><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49C39.74,56.83,78.26,17.14,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.65,71.65,0,0,0,27.64,56.3A32,32,0,0,1,96,186v6h64v-6a32.15,32.15,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Zm-16.11-9.34a57.6,57.6,0,0,0-46.56-46.55,8,8,0,0,0-2.66,15.78c16.57,2.79,30.63,16.85,33.44,33.45A8,8,0,0,0,176,104a9,9,0,0,0,1.35-.11A8,8,0,0,0,183.89,94.66Z"/>','lamp':'<path d="M240,152H16L64,40H192Z" opacity="0.2"/><path d="M247.35,148.85l-48-112A8,8,0,0,0,192,32H64a8,8,0,0,0-7.35,4.85l-48,112A8,8,0,0,0,16,160H120v48H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V160h56v32a8,8,0,0,0,16,0V160h32a8,8,0,0,0,7.35-11.15ZM28.13,144,69.28,48H186.72l41.15,96Z"/>',
+'clock-counter-clockwise':'<path d="M136,80v43.47l36.12,21.67a8,8,0,0,1-8.24,13.72l-40-24A8,8,0,0,1,120,128V80a8,8,0,0,1,16,0Zm-8-48A95.44,95.44,0,0,0,60.08,60.15C52.81,67.51,46.35,74.86,40,82.36V64a8,8,0,0,0-16,0v40a8,8,0,0,0,8,8H72a8,8,0,0,0,0-16H49.62c6.13-7.32,12.37-14.42,19.46-21.59a80,80,0,1,1,1.87,114.14,8,8,0,1,0-11,11.63A96,96,0,1,0,128,32Z"/>','car-profile':'<path d="M88,176a24,24,0,1,1-24-24A24,24,0,0,1,88,176Zm104-24a24,24,0,1,0,24,24A24,24,0,0,0,192,152ZM162.34,74.34A8,8,0,0,0,156.69,72H44.28a8,8,0,0,0-6.66,3.56L8,120H208Z" opacity="0.2"/><path d="M240,112H211.31L168,68.69A15.86,15.86,0,0,0,156.69,64H44.28A16,16,0,0,0,31,71.12L1.34,115.56A8.07,8.07,0,0,0,0,120v48a16,16,0,0,0,16,16H33a32,32,0,0,0,62,0h66a32,32,0,0,0,62,0h17a16,16,0,0,0,16-16V128A16,16,0,0,0,240,112ZM44.28,80H156.69l32,32H23ZM64,192a16,16,0,1,1,16-16A16,16,0,0,1,64,192Zm128,0a16,16,0,1,1,16-16A16,16,0,0,1,192,192Zm48-24H223a32,32,0,0,0-62,0H95a32,32,0,0,0-62,0H16V128H240Z"/>','cat':'<path d="M224,48v88c0,48.6-43,88-96,88s-96-39.4-96-88V48a8,8,0,0,1,13.66-5.66L67.6,67.6h0a102.87,102.87,0,0,1,120.8,0h0l21.94-25.24A8,8,0,0,1,224,48Z" opacity="0.2"/><path d="M96,140a12,12,0,1,1-12-12A12,12,0,0,1,96,140Zm76-12a12,12,0,1,0,12,12A12,12,0,0,0,172,128Zm60-80v88c0,52.93-46.65,96-104,96S24,188.93,24,136V48A16,16,0,0,1,51.31,36.69c.14.14.26.27.38.41L69,57a111.22,111.22,0,0,1,118.1,0L204.31,37.1c.12-.14.24-.27.38-.41A16,16,0,0,1,232,48Zm-16,0-21.56,24.8A8,8,0,0,1,183.63,74,88.86,88.86,0,0,0,168,64.75V88a8,8,0,1,1-16,0V59.05a97.43,97.43,0,0,0-16-2.72V88a8,8,0,1,1-16,0V56.33a97.43,97.43,0,0,0-16,2.72V88a8,8,0,1,1-16,0V64.75A88.86,88.86,0,0,0,72.37,74a8,8,0,0,1-10.81-1.17L40,48v88c0,41.66,35.21,76,80,79.67V195.31l-13.66-13.66a8,8,0,0,1,11.32-11.31L128,180.68l10.34-10.34a8,8,0,0,1,11.32,11.31L136,195.31v20.36c44.79-3.69,80-38,80-79.67Z"/>','cloud-sun':'<path d="M139.84,84.41v0a68.22,68.22,0,0,0-41.65,46v-.11a44.08,44.08,0,0,0-38.54,5h0a48,48,0,1,1,80.19-50.94Z" opacity="0.2"/><path d="M164,72a76.2,76.2,0,0,0-20.26,2.73,55.63,55.63,0,0,0-9.41-11.54l9.51-13.57a8,8,0,1,0-13.11-9.18L121.22,54A55.9,55.9,0,0,0,96,48c-.58,0-1.16,0-1.74,0L91.37,31.71a8,8,0,1,0-15.75,2.77L78.5,50.82A56.1,56.1,0,0,0,55.23,65.67L41.61,56.14a8,8,0,1,0-9.17,13.11L46,78.77A55.55,55.55,0,0,0,40,104c0,.57,0,1.15,0,1.72L23.71,108.6a8,8,0,0,0,1.38,15.88,8.24,8.24,0,0,0,1.39-.12l16.32-2.88a55.74,55.74,0,0,0,5.86,12.42A52,52,0,0,0,84,224h80a76,76,0,0,0,0-152ZM56,104a40,40,0,0,1,72.54-23.24,76.26,76.26,0,0,0-35.62,40,52.14,52.14,0,0,0-31,4.17A40,40,0,0,1,56,104ZM164,208H84a36,36,0,1,1,4.78-71.69c-.37,2.37-.63,4.79-.77,7.23a8,8,0,0,0,16,.92,58.91,58.91,0,0,1,1.88-11.81c0-.16.09-.32.12-.48A60.06,60.06,0,1,1,164,208Z"/>','coin':'<path d="M128,24a72,72,0,1,0,72,72A72.08,72.08,0,0,0,128,24Zm0,128a56,56,0,1,1,56-56A56.06,56.06,0,0,1,128,152Zm12-56a12,12,0,0,1-12,12v8a8,8,0,0,1-16,0v-8a20,20,0,0,1,0-40h16a8,8,0,0,1,0,16H128a4,4,0,0,0,0,8A28,28,0,0,1,140,96Z"/><path d="M128,176a80,80,0,0,1-56-22.9V184a72,72,0,0,0,112,60V152.4A79.79,79.79,0,0,1,128,176Z" opacity=".35"/>',
+  'coins':'<path d="M240,132c0,19.88-35.82,36-80,36-19.6,0-37.56-3.17-51.47-8.44h0C146.76,156.85,176,142,176,124V96.72h0C212.52,100.06,240,114.58,240,132ZM176,84c0-19.88-35.82-36-80-36S16,64.12,16,84s35.82,36,80,36S176,103.88,176,84Z" opacity="0.2"/><path d="M184,89.57V84c0-25.08-37.83-44-88-44S8,58.92,8,84v40c0,20.89,26.25,37.49,64,42.46V172c0,25.08,37.83,44,88,44s88-18.92,88-44V132C248,111.3,222.58,94.68,184,89.57ZM232,132c0,13.22-30.79,28-72,28-3.73,0-7.43-.13-11.08-.37C170.49,151.77,184,139,184,124V105.74C213.87,110.19,232,122.27,232,132ZM72,150.25V126.46A183.74,183.74,0,0,0,96,128a183.74,183.74,0,0,0,24-1.54v23.79A163,163,0,0,1,96,152,163,163,0,0,1,72,150.25Zm96-40.32V124c0,8.39-12.41,17.4-32,22.87V123.5C148.91,120.37,159.84,115.71,168,109.93ZM96,56c41.21,0,72,14.78,72,28s-30.79,28-72,28S24,97.22,24,84,54.79,56,96,56ZM24,124V109.93c8.16,5.78,19.09,10.44,32,13.57v23.37C36.41,141.4,24,132.39,24,124Zm64,48v-4.17c2.63.1,5.29.17,8,.17,3.88,0,7.67-.13,11.39-.35A121.92,121.92,0,0,0,120,171.41v23.46C100.41,189.4,88,180.39,88,172Zm48,26.25V174.4a179.48,179.48,0,0,0,24,1.6,183.74,183.74,0,0,0,24-1.54v23.79a165.45,165.45,0,0,1-48,0Zm64-3.38V171.5c12.91-3.13,23.84-7.79,32-13.57V172C232,180.39,219.59,189.4,200,194.87Z"/>','drop':'<path d="M208,144a80,80,0,0,1-160,0c0-72,80-128,80-128S208,72,208,144Z" opacity="0.2"/><path d="M174,47.75a254.19,254.19,0,0,0-41.45-38.3,8,8,0,0,0-9.18,0A254.19,254.19,0,0,0,82,47.75C54.51,79.32,40,112.6,40,144a88,88,0,0,0,176,0C216,112.6,201.49,79.32,174,47.75ZM128,216a72.08,72.08,0,0,1-72-72c0-57.23,55.47-105,72-118,16.53,13,72,60.75,72,118A72.08,72.08,0,0,1,128,216Zm55.89-62.66a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68Z"/>','fork-knife':'<path d="M208,40V168H152S152,64,208,40Z" opacity="0.2"/><path d="M72,88V40a8,8,0,0,1,16,0V88a8,8,0,0,1-16,0ZM216,40V224a8,8,0,0,1-16,0V176H152a8,8,0,0,1-8-8,268.75,268.75,0,0,1,7.22-56.88c9.78-40.49,28.32-67.63,53.63-78.47A8,8,0,0,1,216,40ZM200,53.9c-32.17,24.57-38.47,84.42-39.7,106.1H200ZM119.89,38.69a8,8,0,1,0-15.78,2.63L112,88.63a32,32,0,0,1-64,0l7.88-47.31a8,8,0,1,0-15.78-2.63l-8,48A8.17,8.17,0,0,0,32,88a48.07,48.07,0,0,0,40,47.32V224a8,8,0,0,0,16,0V135.32A48.07,48.07,0,0,0,128,88a8.17,8.17,0,0,0-.11-1.31Z"/>','gauge':'<path d="M232,152v24a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V153.13C24,95.65,70.15,48.2,127.63,48A104,104,0,0,1,232,152Z" opacity="0.2"/><path d="M207.06,72.67A111.24,111.24,0,0,0,128,40h-.4C66.07,40.21,16,91,16,153.13V176a16,16,0,0,0,16,16H224a16,16,0,0,0,16-16V152A111.25,111.25,0,0,0,207.06,72.67ZM224,176H119.71l54.76-75.3a8,8,0,0,0-12.94-9.42L99.92,176H32V153.13c0-3.08.15-6.12.43-9.13H56a8,8,0,0,0,0-16H35.27c10.32-38.86,44-68.24,84.73-71.66V80a8,8,0,0,0,16,0V56.33A96.14,96.14,0,0,1,221,128H200a8,8,0,0,0,0,16h23.67c.21,2.65.33,5.31.33,8Z"/>','house':'<path d="M216,120v96H152V152H104v64H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"/><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V160h32v56a8,8,0,0,0,8,8h64a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48V120l80-80,80,80Z"/>','leaf':'<path d="M63.81,192.19c-47.89-79.81,16-159.62,151.64-151.64C223.43,176.23,143.62,240.08,63.81,192.19Z" opacity="0.2"/><path d="M223.45,40.07a8,8,0,0,0-7.52-7.52C139.8,28.08,78.82,51,52.82,94a87.09,87.09,0,0,0-12.76,49c.57,15.92,5.21,32,13.79,47.85l-19.51,19.5a8,8,0,0,0,11.32,11.32l19.5-19.51C81,210.73,97.09,215.37,113,215.94q1.67.06,3.33.06A86.93,86.93,0,0,0,162,203.18C205,177.18,227.93,116.21,223.45,40.07ZM153.75,189.5c-22.75,13.78-49.68,14-76.71.77l88.63-88.62a8,8,0,0,0-11.32-11.32L65.73,179c-13.19-27-13-54,.77-76.71,22.09-36.47,74.6-56.44,141.31-54.06C210.2,114.89,190.22,167.41,153.75,189.5Z"/>','lightbulb':'<path d="M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z" opacity="0.2"/><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49C39.74,56.83,78.26,17.14,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.65,71.65,0,0,0,27.64,56.3A32,32,0,0,1,96,186v6h64v-6a32.15,32.15,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Zm-16.11-9.34a57.6,57.6,0,0,0-46.56-46.55,8,8,0,0,0-2.66,15.78c16.57,2.79,30.63,16.85,33.44,33.45A8,8,0,0,0,176,104a9,9,0,0,0,1.35-.11A8,8,0,0,0,183.89,94.66Z"/>','lamp':'<path d="M240,152H16L64,40H192Z" opacity="0.2"/><path d="M247.35,148.85l-48-112A8,8,0,0,0,192,32H64a8,8,0,0,0-7.35,4.85l-48,112A8,8,0,0,0,16,160H120v48H96a8,8,0,0,0,0,16h64a8,8,0,0,0,0-16H136V160h56v32a8,8,0,0,0,16,0V160h32a8,8,0,0,0,7.35-11.15ZM28.13,144,69.28,48H186.72l41.15,96Z"/>',
 'lamp-pendant':'<path d="M232,176H24A104,104,0,0,1,88,80V72a8,8,0,0,1,8-8h64a8,8,0,0,1,8,8v8A104,104,0,0,1,232,176Z" opacity="0.2"/><path d="M176,74.78V72a16,16,0,0,0-16-16H136V16a8,8,0,0,0-16,0V56H96A16,16,0,0,0,80,72v2.78A111.73,111.73,0,0,0,16,176a8,8,0,0,0,8,8H88a40,40,0,0,0,80,0h64a8,8,0,0,0,8-8A111.73,111.73,0,0,0,176,74.78ZM128,208a24,24,0,0,1-24-24h48A24,24,0,0,1,128,208ZM32.33,168A95.79,95.79,0,0,1,91.08,87.35,8,8,0,0,0,96,80V72h64v8a8,8,0,0,0,4.92,7.38A95.79,95.79,0,0,1,223.67,168Z"/>',
 'lightbulb-filament':'<path d="M208,104a79.86,79.86,0,0,1-30.59,62.92A24.29,24.29,0,0,0,168,186v6a8,8,0,0,1-8,8H96a8,8,0,0,1-8-8v-6a24.11,24.11,0,0,0-9.3-19A79.87,79.87,0,0,1,48,104.45C47.76,61.09,82.72,25,126.07,24A80,80,0,0,1,208,104Z" opacity="0.2"/><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm40-128a87.55,87.55,0,0,1-33.64,69.21A16.24,16.24,0,0,0,176,186v6a16,16,0,0,1-16,16H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.5C39.74,56.83,78.26,17.15,125.88,16A88,88,0,0,1,216,104Zm-16,0a72,72,0,0,0-73.74-72c-39,.92-70.47,33.39-70.26,72.39a71.64,71.64,0,0,0,27.64,56.3h0A32,32,0,0,1,96,186v6h24V147.31L90.34,117.66a8,8,0,0,1,11.32-11.32L128,132.69l26.34-26.35a8,8,0,0,1,11.32,11.32L136,147.31V192h24v-6a32.12,32.12,0,0,1,12.47-25.35A71.65,71.65,0,0,0,200,104Z"/>',
 'fan':'<path d="M136.5,150.45A52,52,0,1,1,33,155.13l71.91-20.54h0A24,24,0,0,0,128,152a23.75,23.75,0,0,0,8.5-1.56Zm-32.19-26.31h0a24,24,0,0,1,29.52-19.42h0L152,32.17a52,52,0,1,0-47.69,92ZM201,105.5a52,52,0,0,0-57.84,3.91h0a24,24,0,0,1,2.06,35.26h0l53.74,52a52,52,0,0,0,2-91.2Z" opacity="0.2"/><path d="M233,135a60,60,0,0,0-89.62-35.45l16.39-65.44a8,8,0,0,0-3.45-8.68A60,60,0,1,0,95.69,128.91L30.82,147.44a8,8,0,0,0-5.8,7.32,60,60,0,0,0,44.42,60.66,60.52,60.52,0,0,0,15.62,2.07,60.07,60.07,0,0,0,59.88-62l48.48,46.92a8,8,0,0,0,9.25,1.35A60,60,0,0,0,233,135Zm-121-7a16,16,0,1,1,16,16A16,16,0,0,1,112,128ZM80,76a44,44,0,0,1,62.75-39.82L127.77,96A32,32,0,0,0,99.85,112.8,43.85,43.85,0,0,1,80,76Zm27,119.57a44,44,0,0,1-65.86-34.43l59.31-16.94A32,32,0,0,0,128,160l.91,0A43.82,43.82,0,0,1,107,195.57Zm106.17-23a43.92,43.92,0,0,1-13,14.14l-44.32-42.89a31.91,31.91,0,0,0-.59-32.57,44,44,0,0,1,57.91,61.32Z"/>',
@@ -2919,9 +3074,12 @@ function progKurvaSVG(){
      något tar bara plats. */
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
     b+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';
-    if(g===2)continue;
+    /* BARA toppvärdet. Skalan är linjär från noll, så ett mellanvärde säger
+       ingenting man inte redan kan läsa ur linjernas placering — och det tog
+       plats i kurvans övre halva. */
+    if(g!==0)continue;
     b+='<text x="2" y="'+(gy-9).toFixed(1)+'" class="mg-ax" text-anchor="start">'
-      +num(max/1000*(1-g/2),1)+(g===0?' kW':'')+'</text>';}
+      +num(max/1000,1)+' kW</text>';}
   /* Fem stödlinjer i stället för tre — med dubbel höjd blev avstånden annars
      för stora för att kunna läsa av ett värde mitt i kurvan. */
   for(var g2=1;g2<4;g2+=2){var gy2=pT+(H-pT-pB)*g2/4;
@@ -3415,7 +3573,9 @@ function renderWeather(){const a=$('weather-flow');if(a)a.innerHTML=buildWeather
     var strip=a?a.querySelector('.wx2-strip'):null;
     if(strip&&plats&&strip.parentElement!==plats){plats.innerHTML='';plats.appendChild(strip);}
   }catch(e){}
-  const fc=cap(DEV.smhi,'forecast_for_cp'),fce=$('wx-fc');if(fce)fce.textContent='SMHI'+(fc?' · '+fc:'');}
+  const fc=cap(DEV.smhi,'forecast_for_cp'),fce=$('wx-fc');if(fce)fce.textContent='SMHI'+(fc?' · '+fc:'');
+  /* Väderrutan ändrar höjd när prognostexten byts — mät om. */
+}
 
 const ARROW_COLORS={default:'var(--blue)',red:'var(--hot)',blue:'var(--blue)',cyan:'var(--cyan)',green:'var(--ok)'};
 const ARROW_COLOR_ORDER=['default','red','blue','cyan','green'];
@@ -6588,13 +6748,23 @@ function notListaHTML(){
   return h+'</div></section>';}
 
 function notNar(t){
-  var d=Math.floor((Date.now()-t)/86400000);
+  /* KALENDERDAGAR, inte förflutna dygn. (Date.now()-t)/86400000 gav 13 timmar
+     för en notis kl 20 igår när klockan var 09 — alltså 0 dygn, alltså "idag",
+     trots att det var en annan dag. Räkna från midnatt till midnatt i stället;
+     det är så man själv menar "igår". */
+  var d;
+  try{
+    var a=new Date(t), b2=new Date();
+    a.setHours(0,0,0,0); b2.setHours(0,0,0,0);
+    d=Math.round((b2-a)/86400000);
+  }catch(e){d=Math.floor((Date.now()-t)/86400000);}
   /* Klockslag på dagens och gårdagens notiser. Utan det går morgon- och
      kvällsnotisen inte att skilja åt i listan. */
   var kl='';
   try{kl=' '+new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}catch(e){}
   if(d<=0)return 'idag'+kl;
   if(d===1)return 'igår'+kl;
+  if(d===2)return 'i förrgår'+kl;
   if(d<30)return d+' dagar sedan';
   try{return new Date(t).toLocaleDateString('sv-SE');}catch(e){return '';}}
 
@@ -10582,6 +10752,16 @@ function knMargSteg(d){
   bok.m=f;saveCfg();applyCfg();
   var n=$('knnum-m');if(n)n.textContent=Math.round(f*100)+' %';}
 
+/* Luften kring de lodräta avdelarna. Ett mått för hela dashboarden: väder, vind
+   och båda rutraderna. Sparas per enhetstyp som övriga storlekar. */
+function avdPad(){
+  var v=szRead('avd').p;
+  return (typeof v==='number'&&isFinite(v))?Math.max(0,Math.min(40,v)):16;}
+function avdSteg(d){
+  var f=Math.max(0,Math.min(40,avdPad()+d*2));
+  szWrite('avd').p=f;saveCfg();applyCfg();
+  var n=$('cf-avd');if(n)n.textContent=f+' px';}
+
 function knSteg(k,d){
   var f=Math.max(0.6,Math.min(1.8,Math.round((knMatt(k)+d*0.1)*10)/10));
   szWrite('kn')[k]=f;saveCfg();applyCfg();
@@ -10948,7 +11128,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v425';
+const APP_VERSION='v440';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -10981,6 +11161,7 @@ function applyCfg(){
     knMigrera();
     document.body.style.setProperty('--knhojd',String(knHojd()));
     document.body.style.setProperty('--knmarg',String(knMarg()));
+    document.body.style.setProperty('--avd-pad',avdPad()+'px');
     document.body.style.setProperty('--kntext',String(knMatt('t')));
     document.body.style.setProperty('--knikon',String(knMatt('i')));
   }catch(e){}
@@ -10992,7 +11173,26 @@ function applyCfg(){
   applyGrpVars(te,'--tl',CFG.tile);if(te&&te.style)te.style.setProperty('--tl-gap',(CFG.tile.gap==null?14:CFG.tile.gap)+'px');
   r.style.setProperty('--glowmul',CFG.glowmul);r.style.setProperty('--glowsharp',(CFG.glowsharp==null?0.5:CFG.glowsharp));
   {const pb=$('pband');if(pb&&pb.classList){pb.classList.toggle('hide-spot',CFG.showspot===false);
-     var sp=szRead('spot');if(pb.style){pb.style.setProperty('--spnum',(1+((sp.num||0)+5)*0.08).toFixed(3));pb.style.setProperty('--spslide',(1+((sp.slide||0)+8)*0.10).toFixed(3));pb.style.setProperty('--spscale',(1+((sp.scale||0)+10)*0.12).toFixed(3));pb.style.setProperty('--spbox',(1+((sp.box||0))*0.10).toFixed(3));pb.style.setProperty('--spend',(1+((sp.end||0))*0.10).toFixed(3));}
+     /* NOLL = NEUTRALT. Formlerna hade förskjutningar (+5, +8, +10) från när
+        bandet såg annorlunda ut, så steg 0 gav faktorerna 1,4, 1,8 och 2,2 —
+        aldrig samma storlek som soluppgångsremsan. Nu är 0 exakt 1,0, och
+        reglagen finjusterar därifrån. */
+     /* NOLLSTÄLL EN GÅNG. De sparade stegen var inställda för de gamla
+        formlerna med förskjutning — behåller vi dem blir 0 inte neutralt utan
+        bara flyttat. Rensas en gång, sedan gäller användarens nya justeringar. */
+     try{
+       if(!localStorage.getItem('spot_nollst_v436')){
+         szClear('spot',['num','slide','scale','box','end']);
+         localStorage.setItem('spot_nollst_v436','1');
+         saveCfg();
+       }
+     }catch(e){}
+     var sp=szRead('spot');if(pb.style){
+       pb.style.setProperty('--spnum',(1+(sp.num||0)*0.08).toFixed(3));
+       pb.style.setProperty('--spslide',(1+(sp.slide||0)*0.10).toFixed(3));
+       pb.style.setProperty('--spscale',(1+(sp.scale||0)*0.12).toFixed(3));
+       pb.style.setProperty('--spbox',(1+(sp.box||0)*0.10).toFixed(3));
+       pb.style.setProperty('--spend',(1+(sp.end||0)*0.10).toFixed(3));}
      var eos=[$('lo'),$('hi')];for(var _i=0;_i<eos.length;_i++){if(eos[_i]&&eos[_i].classList)eos[_i].classList.toggle('on-white',!!sp.endWhite);}}
    {const kb=$('ksband');if(kb){kb.classList.toggle('hide-spot',CFG.showspot===false);var k=szRead('ks');if(kb.style){kb.style.setProperty('--ksnum',(1+((k.num||0)+5)*0.08).toFixed(3));kb.style.setProperty('--ksslide',(1+((k.slide||0)+8)*0.10).toFixed(3));kb.style.setProperty('--ksscale',(1+((k.scale||0)+10)*0.12).toFixed(3));kb.style.setProperty('--ksbox',(1+((k.box||0))*0.10).toFixed(3));}}}}
   if(CFG.theme==='light'||CFG.theme==='dark'){CONFIG.THEME=CFG.theme;const root=document.documentElement;if(root&&root.setAttribute){root.setAttribute('data-theme',CFG.theme);}curTheme=CFG.theme;setIcon('theme-ic',CFG.theme==='light'?'sun':'moon');try{syncThemeColor();}catch(e){}}
@@ -11078,7 +11278,14 @@ function openConfig(){
   h+=cfgMi('openSizeMenu(\'chip\')','gauge','Energi- & väderrutor','Storlek på de små rutorna');
   h+=cfgMi('openSizeMenu(\'tile\')','tag','De sex rutorna','Storlek på flödesrutorna');
   h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
+  /* 'sliders' finns inte i ikonuppsättningen — 'gauge' är närmast i betydelse. */
+  h+=cfgMi('openKnEdit()','gauge','Knappraden','Höjd, text, ikon och marginal');
   h+='</div>';
+  h+='<div class="cfg-sec">Avdelare</div>';
+  h+=stepRow('Luft kring avdelare','cf-avd',avdPad()+' px','avdSteg');
+  h+='<div class="cfg-hint">Avståndet mellan innehåll och de lodräta linjerna — '
+    +'i väderrutan mellan Väder och Vind, och mellan rutorna under. Samma mått '
+    +'överallt, så raderna linjerar.</div>';
   h+='<div class="cfg-sec">Köpt/sålt-rutan</div>';
   h+=krcOpRow();
   h+='</div>';
@@ -11357,7 +11564,11 @@ function render(){
   const price=elprisNow(),lo=elprisLo(),hi=elprisHi(),lvl=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_info_level');
   var priceAll=spotAllIn(price);
   setT('price',priceAll==null?'–':String(Math.round(priceAll*100)));
-  {var loA=spotAllIn(lo),hiA=spotAllIn(hi);setT('lo',loA==null?'–':Math.round(loA*100)+' öre');setT('hi',hiA==null?'–':Math.round(hiA*100)+' öre');}
+  /* Bara talet i ändarna. Enheten upprepas tre gånger i ett band som är fem
+     centimeter brett — den framgår av sammanhanget. */
+  {var loA=spotAllIn(lo),hiA=spotAllIn(hi);
+   setT('lo',loA==null?'–':String(Math.round(loA*100)));
+   setT('hi',hiA==null?'–':String(Math.round(hiA*100)));}
   {const pw=$('price-wrap');if(pw&&pw.style){
     /* Skalan sträcker sig mellan dygnets lägsta och dygnets högsta allt-inkl-pris (dynamiskt).
        Aktuellt pris (current price från Homey) placeras och färgas mellan dem.
@@ -11367,8 +11578,22 @@ function render(){
     var pTop=(hiAll!=null?hiAll:(CFG.priceRed!=null?CFG.priceRed:0.80));
     let frac=0.5;
     if(priceAll!=null&&pTop>pBot)frac=Math.max(0,Math.min(1,(priceAll-pBot)/(pTop-pBot)));
-    pw.style.left=Math.max(8,Math.min(92,frac*100))+'%';
-    {var loEl=$('lo'),hiEl=$('hi');if(loEl&&loEl.style)loEl.style.opacity=(frac<0.18?'0':'1');if(hiEl&&hiEl.style)hiEl.style.opacity=(frac>0.82?'0':'1');}
+/* Håll plattan innanför skalan. Den är bredare än den gamla punkten — vid 92 %
+       hängde den ut över högsta-talet till höger. */
+    pw.style.left=Math.max(12,Math.min(88,frac*100))+'%';
+    /* NUVARANDE PRIS i punkten. Lägsta och högsta står utanför skalan; det som
+       gäller just nu hör hemma där markören är. */
+    var nuEl=$('sp-nu');
+    /* Enheten står här men inte i ändarna: här finns plats, och det är talet man
+       läser av. innerHTML för att kunna ge "öre" mindre stil. */
+    if(nuEl)nuEl.innerHTML=(priceAll!=null
+      ? (Math.round(priceAll*100)+'<span class="sp-enh">öre</span>')
+      : '');
+    /* Talen utanför tonas INTE längre bort när markören närmar sig — de står i
+       egna kolumner utanför skalan och kan inte längre krocka med punkten. */
+    {var loEl=$('lo'),hiEl=$('hi');
+     if(loEl&&loEl.style)loEl.style.opacity='1';
+     if(hiEl&&hiEl.style)hiEl.style.opacity='1';}
     const col=priceColor(frac);const b=$('price');if(b&&b.style)b.style.color=col;
     if(pw.style)pw.style.setProperty('--pc',col);
   }}
@@ -11662,6 +11887,18 @@ function setupDemo(){
     setupDolj();
     SOURCE='demo-data';
     BASE='';CONFIG.TOKEN='';
+    /* NOLLSTÄLL alla storlekar. Demovyn ska visa hur dashboarden ser ut som den
+       levereras — inte hur den råkar vara inställd på just den här enheten.
+       Utan det bär demot med sig gamla justeringar och duger inte som facit. */
+    try{
+      ['spot','ks','kn','avd','chip','tile'].forEach(function(g){
+        try{szClear(g);}catch(e){}
+      });
+      CFG.mob={};
+      localStorage.removeItem('secScale_v1');
+      localStorage.removeItem('secDold_v1');
+      saveCfg();applyCfg();applySecOrder();
+    }catch(e){}
     DATA=applyScenario(0);
     if(typeof seedHistory==='function')try{seedHistory();}catch(e){}
     /* Krönikan finns inte i demoläget — lägg in några poster så notisvyn går
@@ -12238,7 +12475,11 @@ function secOrderSave(o){try{
     localStorage.setItem('secOrder_v1',JSON.stringify(a));
   }catch(e){}
   syncPushSoon();}
-const SEC_SCALE_DEF={sun:0.8};
+/* INGA avvikande standardvärden. sun låg på 0.8, och eftersom secHeightSet
+   RADERAR nyckeln vid 100 % föll avsnittet tillbaka dit — reglaget kunde inte
+   nå 100, och nästa tryck utgick från 80 och landade på 90. Ett standardvärde
+   som skiljer sig från det värde raderingen betyder är en fälla. */
+const SEC_SCALE_DEF={};
 /* Avsnittshöjder PER ENHETSKLASS. Nyckeln innehåller två fack, platta och
    telefon — en platta och en telefon har helt olika ytor, och samma höjd på
    båda blir fel på minst en. Gamla värden på toppnivå ärvs som utgångsläge. */
@@ -12270,6 +12511,56 @@ function secHeightSet(sec,dir){
   applySecScale();
   return f;}
 function secHeight(sec,dir){secHeightSet(sec,dir);openSecMove(sec);}
+/* Energipanelen och väderrutan lika höga. Innehållet är olika — energi har en
+   rad staplar, vädret tre rader — så CSS kan inte räkna ut det. Mät i stället
+   och sätt min-height på den kortare. Nollställs först, annars växer den bara
+   uppåt när innehållet krymper. */
+/* Spotbandet lika högt som soluppgångsremsan. Innehållet skiljer sig — remsan
+   har fram- och bakåtknappar, bandet en prisplatta — så CSS kan inte räkna ut
+   det. Mät och sätt min-height, samma metod som för panelerna. */
+function bandLika(){
+  try{
+    if(document.body.classList.contains('kiosk'))return;
+    var a=document.getElementById('daystrip'), b=document.getElementById('pband');
+    if(!a||!b)return;
+    b.style.minHeight='';
+    if(a.offsetParent===null||b.offsetParent===null)return;
+    var ha=a.getBoundingClientRect().height;
+    if(!(ha>0))return;
+    /* --spbox är användarens egen justering, 1 = samma som remsan. */
+    var f=parseFloat(getComputedStyle(b).getPropertyValue('--spbox'))||1;
+    b.style.minHeight=Math.round(ha*f)+'px';
+  }catch(e){}}
+
+function panelerLika(){
+  try{
+    if(document.body.classList.contains('kiosk'))return;   /* kiosk fördelar höjd själv */
+    var a=document.querySelector('#view-flode .enpanel');
+    var b=document.querySelector('#view-flode .wx-card');
+    if(!a||!b)return;
+    a.style.minHeight='';b.style.minHeight='';
+    if(a.offsetParent===null||b.offsetParent===null)return;  /* dolt: mät inte */
+    var ha=a.getBoundingClientRect().height, hb=b.getBoundingClientRect().height;
+    if(!(ha>0&&hb>0))return;
+    var m=Math.max(ha,hb);
+    a.style.minHeight=m+'px';b.style.minHeight=m+'px';
+  }catch(e){}}
+
+/* Flyttar spotbandet in i energipanelen. Bandet ligger kvar som eget avsnitt i
+   ordna-listan, så det går att dölja och flytta som förut — men visas inuti
+   energipanelen i stället för som ett eget kort. */
+function spotIn(){
+  try{
+    var pb=$('pband'), plats=$('sp-plats'), del=$('sp-del');
+    if(!pb||!plats)return;
+    if(pb.parentElement!==plats)plats.appendChild(pb);
+    /* Inne i panelen ska bandet inte se ut som ett eget kort. */
+    pb.classList.add('sp-inne');
+    var dolt=pb.classList.contains('sec-dold');
+    if(del)del.style.display=dolt?'none':'';
+    plats.style.display=dolt?'none':'';
+  }catch(e){}}
+
 function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)return;const o=secOrderGet();
   const dolt=secDolda();
   o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;
@@ -12279,7 +12570,14 @@ function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)
        utan att kioskens flexlayout behöver räknas om på nytt. */
     el.classList.toggle('sec-dold',!!dolt[sec]);});
   applySecScale();
-  if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
+  spotIn();
+  if(typeof setTimeout==='function'){
+    setTimeout(fitScreen,40);
+    /* panelerLika() anropas INTE längre: energipanelen och väderrutan har olika
+       mycket innehåll, och att tvinga dem lika höga gav en tom lucka i den
+       kortare. bandLika är kvar — där är innehållet likvärdigt. */
+    setTimeout(bandLika,60);
+  }}
 function secMove(sec,dir){const o=secOrderGet(),i=o.indexOf(sec),j=i+dir;if(i<0||j<0||j>=o.length)return;const t=o[i];o[i]=o[j];o[j]=t;secOrderSave(o);applySecOrder();openSecMove(sec);}
 function openSecMove(sel){const o=secOrderGet();
   let h='<div class="te"><div class="cfg-hint" style="margin-top:0">▲▼ flyttar avsnittet. −/+ ändrar dess höjd (innehållet skalar med). Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
@@ -12302,7 +12600,15 @@ function openSecMove(sel){const o=secOrderGet();
    se allt även det som är dolt. Ligger i samma fack per enhetsklass som
    höjderna — en platta och en telefon vill dölja olika saker. */
 function secDoldaAlla(){try{return JSON.parse(localStorage.getItem('secDold_v1')||'{}')||{};}catch(e){return {};}}
-function secDolda(){var a=secDoldaAlla();var k=a[secKlass()];return (k&&typeof k==='object')?k:{};}
+/* Dolt från början. Köpt/sålt säger samma sak som energipanelen fast i kronor —
+   den som vill se den tar fram den i Ordna avsnitt. Standarden gäller bara tills
+   något växlas; då sparas hela facket och den slutar påverka. */
+var SEC_DOLD_DEF={'kopt-salt':1};
+function secDolda(){
+  var a=secDoldaAlla(),k=a[secKlass()];
+  if(k&&typeof k==='object')return k;
+  var o={};for(var n in SEC_DOLD_DEF)o[n]=SEC_DOLD_DEF[n];
+  return o;}
 function secDold(sec){return !!secDolda()[sec];}
 function secDoldTog(sec){
   var a=secDoldaAlla(), k=secDolda();
@@ -12427,6 +12733,22 @@ _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);setInterval(ti
 /* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
    sekund och det vore fyrtio gånger fler anrop än nödvändigt. */
 setInterval(function(){try{kronKoll();}catch(e){}},60000);
+/* DYGNSBYTE. kronKoll ritar bara om när notisernas id ändras, så "idag" stod
+   kvar på gårdagens notiser tills en ny kom — vilket kan dröja till klockan
+   åtta. En gång i minuten räcker för att fånga midnatt. */
+var _notDag=null;
+setInterval(function(){
+  try{
+    var k=dayKey();
+    if(_notDag===null){_notDag=k;return;}
+    if(k===_notDag)return;
+    _notDag=k;
+    /* Bara listan: notisernas innehåll är oförändrat, det är etiketterna
+       "idag" och "igår" som blivit fel. */
+    try{renderNotiser();}catch(e){}
+    try{krNotisUppdatera();}catch(e){}
+  }catch(e){}
+},60000);
 try{
   document.addEventListener('visibilitychange',function(){
     if(!document.hidden){
