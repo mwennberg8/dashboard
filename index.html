@@ -9465,25 +9465,47 @@ function brvSedan(start){
   var h=Math.floor(m/60),r=m-h*60;
   return h+'h'+(r?' '+r+'min':'');}
 
+/* Vägar att prova, i tur och ordning: den som redan fungerar först, sedan
+   molnet. Borta hemifrån svarar inte det lokala nätet, och den ordinarie
+   basvalsslingan hinner inte alltid byta väg innan man trycker. Att prova
+   molnet direkt efteråt är billigare än att låta trycket falla. */
+function brvVagar(){
+  var ut=[],b=BASE&&BASE.replace(/\/$/,'');
+  if(b)ut.push(b);
+  try{var mo=credMoln();if(mo&&ut.indexOf(mo)<0)ut.push(mo);}catch(e){}
+  try{var ln=credLan();if(ln&&ut.indexOf(ln)<0)ut.push(ln);}catch(e){}
+  if(!ut.length){try{ut=candidates();}catch(e){}}
+  return ut;}
+
 async function brvHamta(){
   if(_brvHamtar)return _brv;
   _brvHamtar=true;
-  try{
-    var tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(8000);
-    var r=await fetch(apiBase()+'/api/manager/logic/variable/'+BRV_VAR,
-      {headers:{Authorization:'Bearer '+tk},signal:t.signal});
-    t.clear();
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    var j=await r.json();
-    var raa=(j&&j.value!=null)?j.value:null;
-    var o=(typeof raa==='string')?JSON.parse(raa):raa;
-    if(o&&typeof o==='object'){_brv=o;_brvAt=Date.now();}
-  }catch(e){
-    /* BEHÅLL senast kända värde. Ett nätfel ska inte tömma kortet — det
-       markeras som gammalt i stället, vilket är ärligare än ett streck. */
+  var tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN, vagar=brvVagar();
+  for(var i=0;i<vagar.length;i++){
+    try{
+      var t=withTimeout(8000);
+      var r=await fetch(vagar[i]+'/api/manager/logic/variable/'+BRV_VAR,
+        {headers:{Authorization:'Bearer '+tk},signal:t.signal});
+      t.clear();
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      var j=await r.json();
+      var raa=(j&&j.value!=null)?j.value:null;
+      var o=(typeof raa==='string')?JSON.parse(raa):raa;
+      if(o&&typeof o==='object'){
+        _brv=o;_brvAt=Date.now();
+        /* Fungerade en annan väg än den valda, låt resten av dashboarden
+           få veta — annars fortsätter den mot ett nät som inte svarar. */
+        if(vagar[i]!==BASE){BASE=vagar[i];_baseAt=Date.now();}
+        break;
+      }
+    }catch(e){
+      /* Nästa väg. Faller alla: BEHÅLL senast kända värde. Ett nätfel ska inte
+         tömma kortet — det markeras som gammalt, vilket är ärligare. */
+    }
   }
   _brvHamtar=false;
   try{renderTiles('flode');}catch(e){}
+  try{renderControls();}catch(e){}
   return _brv;}
 
 async function brvTryck(){
@@ -9491,8 +9513,23 @@ async function brvTryck(){
   var flow=(B&&B.aktiv)?BRV_FLOW_AV:BRV_FLOW_PA;
   _brvVanta=Date.now();
   try{renderTiles('flode');}catch(e){}
-  try{await homeyTriggerFlow('normal',flow);}
-  catch(e){toast&&toast('Kunde inte nå Homey');}
+  /* Trycket provar samma vägar som läsningen. Ett misslyckat anrop över det
+     lokala nätet ska inte betyda att knappen är död när man är borta. */
+  var tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN, vagar=brvVagar(), gick=false;
+  for(var i=0;i<vagar.length&&!gick;i++){
+    try{
+      var t=withTimeout(9000);
+      var r=await fetch(vagar[i]+'/api/manager/flow/flow/'+flow+'/trigger',
+        {method:'POST',headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json'},
+         body:'{}',signal:t.signal});
+      t.clear();
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      gick=true;
+      if(vagar[i]!==BASE){BASE=vagar[i];_baseAt=Date.now();}
+    }catch(e){}
+  }
+  if(!gick){_brvVanta=0;try{toast&&toast('Kunde inte nå Homey');}catch(e){}
+    try{renderTiles('flode');renderControls();}catch(e){}return;}
   /* Variabeln uppdateras inom någon sekund. Hämta om några gånger i stället
      för att vänta på nästa ordinarie cykel. */
   [2000,5000,10000].forEach(function(ms){setTimeout(function(){brvHamta();},ms);});
@@ -11676,7 +11713,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v468';
+const APP_VERSION='v469';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
