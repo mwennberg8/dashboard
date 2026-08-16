@@ -151,7 +151,10 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
    ändarna, och två tal på skilda ställen glider isär. */
 /* --ds-gap: mellanrummet mellan ikon, tal och skala. Sju pixlar är ungefär tre
    mellanslag — nära nog att höra ihop, tydligt nog att inte klibba. */
-body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--avd-pad:16px;--ds-sun:11px;--ds-gap:7px;--ds-h:3px;--div-h:44px}
+/* --ds-gap: luften mellan ikon, tal och skala. Halverad — avståndet mellan
+   skalans ände och högsta priset var dubbelt mot mot lägsta, eftersom gapet
+   låg både före och efter talet. Nu lika på båda sidor och skalan längre. */
+body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--avd-pad:16px;--ds-sun:11px;--ds-gap:4px;--ds-h:3px;--div-h:44px}
 /* Höjdledsavståndet går att ställa separat på telefonen (Inställningar →
    Skärm & läge). --mob-gap-y sätts då på <html> och slår igenom här. */
 body.mobile:not(.kiosk){--pg-gap-y:var(--mob-gap-y,var(--pg-gap))}
@@ -228,7 +231,9 @@ body.kiosk{--pg-gap:7px}
 /* Smalare kolumn: 42 px reserverade mer än "18:58" behöver, och överskottet
    låg som tom yta mellan tal och skala. 38 px räcker för både klockslag och
    tresiffriga priser, och skillnaden går till skalan. */
-.ds-live>b{flex:0 0 auto;min-width:38px;white-space:nowrap}
+/* Smalare kolumn ger längre skala. 38 px reserverade mer än "20:56" behöver
+   när talet ändå riktas mot sin ikon. */
+.ds-live>b{flex:0 0 auto;min-width:34px;white-space:nowrap}
 .ds-live>b:first-of-type{text-align:left}
 .ds-live>b:last-of-type{text-align:right}
 /* Eget klassnamn: sp-nu användes redan av den gamla prisraden, och två regler
@@ -8096,7 +8101,11 @@ function btVisSatt(v){
   CFG.btVis=(BT_VIS.indexOf(v)>=0)?v:'langd';
   saveCfg();
   ['flode','energy','weather'].forEach(function(g){try{renderTiles(g);}catch(e){}});
-  try{openDetail('batttom');}catch(e){}}
+  /* Rita om SAMMA popup som knapparna sitter i. openDetail('batttom') öppnade en
+     annan vy som inte finns för den här rutan — resultatet blev en tom ruta som
+     låste sig tills man stängde den. */
+  try{krPopStang();}catch(e){}
+  try{btPop();}catch(e){}}
 
 /* Klockslag och datum via Intl med explicit tidszon — enheten kan stå i UTC. */
 function btKl(t){
@@ -8298,14 +8307,16 @@ function computeMetric(cfg){
          hamnar i underraden så ingenting går förlorat. */
       const vis=btVisGet();
       const langd=S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–');
-      const slutT=S.senast?(S.senast.slut||S.senast.start):null;
+      /* När batteriet BLEV tomt, alltså episodens början. Slutet är när det
+         började laddas igen — en annan sak, och inte den man frågar efter. */
+      const slutT=S.senast?S.senast.start:null;
       let vv,mm;
       /* Pågår just nu: klockslaget då det TOG SLUT finns inte än, så visa när
          det började i stället. Utan den skillnaden blev talet tomt. */
       if(S.pagar&&vis!=='antal'){
         vv=(vis==='klockslag')?btKl(S.senast?S.senast.start:null)
           :(vis==='datum')?btDatum(S.senast?S.senast.start:null):langd;
-        mm=(vis==='klockslag'||vis==='datum')?('började · tomt '+langd):'pågår nu';
+        mm=(vis==='klockslag'||vis==='datum')?('tomt sedan · '+langd):'pågår nu';
       }
       else if(vis==='klockslag'){vv=S.senast?btKl(slutT):'–';mm=S.senast?('tomt '+langd):'aldrig sett';}
       else if(vis==='datum'){vv=btDatum(slutT);mm=S.senast?(btKl(slutT)+' · '+langd):'aldrig sett';}
@@ -11345,7 +11356,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v461';
+const APP_VERSION='v462';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
