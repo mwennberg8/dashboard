@@ -10374,24 +10374,47 @@ function appKan(){try{
 /* POST mot appen. Samma inlindning i {result:…} som appGet hanterar. */
 async function appPost(vag,kropp){
   if(!appKan())throw new Error('ingen direktkoppling till Homey');
-  var t=withTimeout(12000);
-  var r=await fetch(apiBase()+'/api/app/'+APP_ID+vag,
-    {method:'POST',headers:{Authorization:'Bearer '+(CONFIG.TOKEN||''),
-      'Content-Type':'application/json'},
-     body:JSON.stringify(kropp||{}),cache:'no-store',signal:t.signal});
-  t.clear();
-  if(!r.ok)throw new Error(r.status+' '+r.statusText);
+  /* Samma vägval som appGet — "Spara till Homey" ska fungera borta hemifrån. */
+  var r=null,sist=null,vagar=brvVagar();
+  for(var vi=0;vi<vagar.length;vi++){
+    try{
+      var t=withTimeout(12000);
+      r=await fetch(vagar[vi]+'/api/app/'+APP_ID+vag,
+        {method:'POST',headers:{Authorization:'Bearer '+(CONFIG.TOKEN||''),
+          'Content-Type':'application/json'},
+         body:JSON.stringify(kropp||{}),cache:'no-store',signal:t.signal});
+      t.clear();
+      if(!r.ok){sist=new Error(r.status+' '+r.statusText);r=null;continue;}
+      if(vagar[vi]!==BASE){BASE=vagar[vi];_baseAt=Date.now();}
+      break;
+    }catch(e){sist=e;r=null;}
+  }
+  if(!r)throw (sist||new Error('ingen väg till Homey'));
   var j=await r.json();
   if(j&&typeof j==='object'&&!Array.isArray(j)&&'result'in j&&Object.keys(j).length===1)j=j.result;
   return j;}
 
 async function appGet(vag){
   if(!appKan())throw new Error('ingen direktkoppling till Homey');
-  var t=withTimeout(8000);
-  var r=await fetch(apiBase()+'/api/app/'+APP_ID+vag,
-    {headers:{Authorization:'Bearer '+(CONFIG.TOKEN||'')},cache:'no-store',signal:t.signal});
-  t.clear();
-  if(!r.ok)throw new Error(r.status+' '+r.statusText);
+  /* PROVA ALLA VÄGAR, inte bara apiBase(). Borta hemifrån pekar apiBase() på
+     det lokala nätet tills uppdateringsslingan hunnit byta — och trycker man
+     "Hämta från Homey" innan dess faller anropet, utan att något syns.
+     Det var så inställningarna kunde se ut att vara borta: de fanns kvar i
+     Homey, men vägen dit provades aldrig. */
+  var r=null,sist=null;
+  var vagar=brvVagar();
+  for(var vi=0;vi<vagar.length;vi++){
+    try{
+      var t=withTimeout(8000);
+      r=await fetch(vagar[vi]+'/api/app/'+APP_ID+vag,
+        {headers:{Authorization:'Bearer '+(CONFIG.TOKEN||'')},cache:'no-store',signal:t.signal});
+      t.clear();
+      if(!r.ok){sist=new Error(r.status+' '+r.statusText);r=null;continue;}
+      if(vagar[vi]!==BASE){BASE=vagar[vi];_baseAt=Date.now();}
+      break;
+    }catch(e){sist=e;r=null;}
+  }
+  if(!r)throw (sist||new Error('ingen väg till Homey'));
   var j=await r.json();
   /* Homey svarar ibland med själva värdet, ibland inlindat i {result:…}.
      Att bara läsa det ena ger tysta tomma svar. */
@@ -11713,7 +11736,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v469';
+const APP_VERSION='v470';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
