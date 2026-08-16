@@ -685,17 +685,56 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 /* ---- omdesignat väderkort (v81) ---- */
 .wx2{position:relative;display:flex;align-items:stretch;gap:0}
 .wx2-now,.wx2-wind{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:12px;padding:2px}
-/* CENTRERING. justify-content ensamt räcker inte: kolumnerna har padding åt var
-   sitt håll mot avdelaren, så innehållet hamnade mitt i det som blev kvar och
-   inte mitt i kolumnen. Nolla paddingen och låt marginalen sköta avståndet till
-   linjen i stället. */
-.wx2-center .wx2-now,.wx2-center .wx2-wind{justify-content:center}
-.wx2-center .wx2-now{padding-right:0;margin-right:var(--avd-pad)}
-.wx2-center .wx2-wind{padding-left:0;margin-left:var(--avd-pad)}
-/* Och texten får inte växa och fylla ut — då finns inget att centrera. */
-.wx2-center .wx2-now-txt,.wx2-center .wx2-wind-txt{flex:0 1 auto}
+
 .wx2-wind{padding-left:var(--avd-pad)}
 .wx2-now{padding-right:var(--avd-pad)}
+/* CENTRERING — måste stå EFTER raderna ovan. Låg den före kom paddingen mot
+   avdelaren tillbaka och innehållet hamnade mitt i det som blev kvar, inte mitt
+   i kolumnen. Kioskregeln längre ner sätter dessutom egna värden, därav
+   !important. */
+.wx2-center .wx2-now,.wx2-center .wx2-wind{justify-content:center!important}
+.wx2-center .wx2-now{padding-right:0!important;margin-right:var(--avd-pad)!important}
+.wx2-center .wx2-wind{padding-left:0!important;margin-left:var(--avd-pad)!important}
+/* Texten får inte växa och fylla ut — då finns ingenting att centrera. */
+.wx2-center .wx2-now-txt,.wx2-center .wx2-wind-txt{flex:0 1 auto!important}
+/* VÄDERSIDAN radbryter ("16,7° känns 17°" över två rader på smal skärm) och
+   fyller därför bredden även med flex:0 1 auto — då syntes ingen centrering
+   trots att kolumnen var centrerad. Centrera raderna i sig i stället; det
+   fungerar oavsett hur brett innehållet blir. */
+/* Vänsterställt: hela blocket flyttas mot mitten, raderna centreras inte var
+   för sig — annars tappar temperaturen, "Känns" och beskrivningen sin
+   gemensamma vänsterkant. */
+.wx2-center .wx2-now-txt,.wx2-center .wx2-wind-txt{text-align:left!important}
+.wx2-center .wx2-line{justify-content:flex-start!important}
+.wx2-center .wx2-sub,.wx2-center .wx2-by{text-align:left!important}
+/* Textblocket måste vara SMALARE än kolumnen, annars fyller gruppen ikon+text
+   hela bredden och justify-content har ingenting att centrera — ikonen blev
+   kvar i vänsterkanten medan texten såg centrerad ut. Vindsidans text är kort
+   och rymdes ändå; vädersidans "Växlande molnighet" gör det inte.
+   Taket tvingar radbrytning och gör gruppen smal nog att flyttas. */
+/* INGEN radbrytning i centrerat läge. Taket jag hade här bröt "Växlande
+   molnighet" i två rader; texten ryms på en rad om den får krympa något och
+   gå närmare avdelaren.
+
+   Kolumnen är knappt 175 px på en telefon. Ikon 46 + mellanrum 12 lämnar 116 px
+   åt texten, och "Växlande molnighet" tar cirka 105 px vid 11,5 px — det går
+   ihop, men först när radbrytningen är avstängd. */
+.wx2-center .wx2-line{flex-wrap:nowrap!important}
+.wx2-center .wx2-sub,.wx2-center .wx2-by,.wx2-center .wx2-wl{white-space:nowrap!important;
+  /* INGEN nedskalning. Texten ska ha samma storlek oavsett om centreringen är
+     på eller av — nedskalningen var ett försök att få plats som i stället lät
+     ett läge påverka ett mått som hör till reglagen. */
+  overflow:visible!important;text-overflow:clip!important}
+/* Får gå in i innerkanten och närmare linjen — hellre det än en bruten rad. */
+.wx2-center .wx2-now{padding-right:2px!important;margin-right:6px!important}
+.wx2-center .wx2-wind{padding-left:2px!important;margin-left:6px!important}
+/* Tätare mellan ikon och text, och en aning mindre ikon: varje pixel här går
+   till texten. */
+.wx2-center .wx2-now,.wx2-center .wx2-wind{gap:8px!important}
+.wx2-center .wx2-ic{width:40px!important;height:40px!important}
+.wx2-center .wx2-arrow{width:36px!important;height:36px!important}
+/* Textblocket får ta den plats som blir över, men inte mer. */
+.wx2-center .wx2-now-txt,.wx2-center .wx2-wind-txt{max-width:none!important;min-width:0!important}
 /* Samma indrag som rutornas avdelare: --avd-pad minus 6 px. Ett fast 6 px här
    och ett räknat där gav olika långa linjer så fort avdelarmåttet ändrades. */
 /* Lika lång som avdelaren mellan regn och tryck. Den spänner rutans höjd minus
@@ -720,7 +759,14 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .wx2-sub,.wx2-wl,.wx2-by{font-size:11.5px;color:var(--dim);font-weight:600;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* Byraden bär värdet och är därför något starkare än beskrivningen under. */
 .wx2-by{color:var(--ink);font-weight:700}
-.wx2-by .wx2-dir{font-weight:700}
+/* Punkten får samma luft på båda sidor — riktningen låg för långt bort. */
+.wx2-by .wx2-pt{margin:0 .3em;opacity:.7;font-weight:600}
+/* Ingen egen marginal: .wx2-pt har redan luft på båda sidor, och två i rad
+   gjorde avståndet efter punkten dubbelt mot före. */
+/* Marginal bara när det INTE står en punkt före — "Känns 17°" behöver ett
+   mellanrum, "By 6 m/s · N" har redan luft från punkten. */
+.wx2-by .wx2-dir{font-weight:700;margin-left:.32em}
+.wx2-by .wx2-pt+.wx2-dir{margin-left:0}
 /* Ingen marginal ovanför: rutraden bidrar redan med sin padding, och två
    avstånd på samma ställe hade blivit dubbelt.
 
@@ -3632,7 +3678,8 @@ function buildWeatherHTML(){
   const wz=szRead('wx'),SZ=(b,o,s)=>Math.max(6,Math.round((b+(o||0)*s)*10)/10);
   const zSL=SZ(8.5,wz.stripL,0.8),zSV=SZ(15,wz.stripV,1),zSI=SZ(11,wz.stripI,1);
   const nI=wz.nowI||0,nV=wz.nowV||0,nT=wz.nowT||0;
-  const zWicon=Math.max(20,46+nI*2),zArrow=Math.max(18,40+nI*2),zNum=Math.max(14,Math.round((29+nV*1.6)*10)/10),zNsub=Math.max(8,Math.round((11.5+nT*0.8)*10)/10),zBes=Math.max(8,Math.round((12.5+nT*0.8)*10)/10),zDir=Math.max(9,Math.round((15+(wz.nowDir||0)*1)*10)/10),zArrColor=ARROW_COLORS[wz.arrowColor||'default']||'var(--blue)';
+  const zWicon=Math.max(20,46+nI*2),zArrow=Math.max(18,40+nI*2),zNum=Math.max(14,Math.round((29+nV*1.6)*10)/10),zNsub=Math.max(8,Math.round((11.5+nT*0.8)*10)/10),zKB=Math.max(8,Math.round((12.5+(wz.nowKB||0)*0.8)*10)/10),zBes=zKB,
+    zDir=Math.max(9,Math.round((15+(wz.nowDir||0)*1)*10)/10),zArrColor=ARROW_COLORS[wz.arrowColor||'default']||'var(--blue)';
   const ex=tempExtremes(tOut);
   /* Max vind/by på remsan = högsta de senaste tre timmarna, samma som popupens
      HÖGSTA NU. windExtremes() körs vidare så dygnsminnet hålls uppdaterat. */
@@ -3648,14 +3695,20 @@ function buildWeatherHTML(){
   let wsub2='';if(wgust!=null)wsub2=stor(gustDesc(wgust));else if(wspd!=null)wsub2=stor(windDesc(wspd,wgust));
   let h='<div class="wx2'+(wz.nowCenter?' wx2-center':'')+'" data-wxedit="now">';
   h+='<div class="wx2-now wx-click" onclick="openDetail(\'wxwind\')"><span class="wx2-ic" style="width:'+zWicon+'px;height:'+zWicon+'px">'+icon(wxIcon(sit))+'</span>'
-    +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'+(feels!=null?'<span class="wx2-feels"><span class="wx2-feelslbl" style="font-size:'+zBes+'px">känns</span><span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span></span>':'')+'</div>'
+    +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span></div>'
+    /* "Känns 17°" på EGEN rad, som "By 6 m/s · N" på vindsidan. Förut satt den
+       på samma rad som temperaturen och de två kolumnerna läste olika. */
+    +(feels!=null?('<div class="wx2-by" style="font-size:'+zKB+'px">Känns'
+      +'<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span></div>'):'')
     +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(sit||'Väder')+'</div></div></div>';
   h+='<div class="wx2-div"></div>';
   h+='<div class="wx2-wind wx-click" onclick="openDetail(\'wxwind\')">'+windArrow(wdir,zArrow,zArrColor)
     +'<div class="wx2-wind-txt"><div class="wx2-line"><span class="wx2-wv" style="font-size:'+zNum+'px">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span></div>'
     /* Byvind och riktning på samma rad, riktningen EFTER pricken. */
-    +(wBy||wdir_txt?('<div class="wx2-by" style="font-size:'+zNsub+'px">'+esc(wBy)
-      +(wBy&&wdir_txt?' · ':'')+(wdir_txt?'<span class="wx2-dir">'+wdir_txt+'</span>':'')+'</div>'):'')
+    +(wBy||wdir_txt?('<div class="wx2-by" style="font-size:'+zKB+'px">'+esc(wBy)
+      +(wBy&&wdir_txt?'<span class="wx2-pt">·</span>':'')/* Riktningsbokstaven i samma storlek som "känns 17°" — båda är det lilla
+        talet bredvid huvudvärdet och ska väga lika. */
+      +(wdir_txt?'<span class="wx2-dir" style="font-size:'+zDir+'px">'+wdir_txt+'</span>':'')+'</div>'):'')
     +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(wsub2)+'</div></div></div>';
   h+='</div>';
   const wcell=(det,label,val,cls,ic,clr,flip)=>'<div class="wx2-cell" onclick="openDetail(\''+det+'\')"><span class="wx2-cl" style="font-size:'+zSL+'px">'+label+'</span><span class="wx2-cv'+(cls?' '+cls:'')+'" style="font-size:'+zSV+'px">'+(ic?'<span class="wx2-ci" style="width:'+zSI+'px;height:'+zSI+'px;color:'+clr+(flip?';transform:rotate(180deg)':'')+'">'+icon(ic)+'</span>':'')+val+'</span></div>';
@@ -3687,7 +3740,8 @@ const ARROW_COLORS={default:'var(--blue)',red:'var(--hot)',blue:'var(--blue)',cy
 const ARROW_COLOR_ORDER=['default','red','blue','cyan','green'];
 const ARROW_COLOR_NAMES={default:'Standard',red:'Röd',blue:'Blå',cyan:'Cyan',green:'Grön'};
 const WX_EDIT={strip:{title:'Storlek · Väderremsa',rows:[['Etikett','stripL'],['Värde','stripV'],['Ikon','stripI']]},
-  now:{title:'Väder & vind',rows:[['Ikoner','nowI'],['Värden','nowV'],['Text','nowT'],['Vindriktning/temp','nowDir']]}};
+  now:{title:'Väder & vind',rows:[['Ikoner','nowI'],['Värden','nowV'],['Text','nowT'],
+    ['Känns / By','nowKB'],['Vindriktning/temp','nowDir']]}};
 /* ===== Storleksprofiler: mobil och platta har egna storlekar =====
    Allt ligger kvar i samma konfiguration och synkas till Homey som vanligt, men
    mobilens värden sparas under CFG.mob och används bara när dashboarden körs på
@@ -8016,11 +8070,43 @@ function btSum(){
 
 /* num() formaterar svenskt sedan v404. */
 function btN(v,d){return num(v,d==null?0:d);}
+/* Timmar och minuter, aldrig decimaltimmar. "2,5 h" kräver att man räknar om i
+   huvudet; "2h 30min" går att läsa direkt. Samma sak för dygn. */
 function btTid(h){
   if(h==null)return '–';
-  if(h<1)return Math.round(h*60)+' min';
-  if(h<24)return btN(h,1)+' h';
-  return btN(h/24,1)+' dygn';}
+  var m=Math.round(h*60);
+  if(m<60)return m+' min';
+  if(m<24*60){
+    var tt=Math.floor(m/60), mm=m-tt*60;
+    return tt+'h'+(mm?' '+mm+'min':'');
+  }
+  var dd=Math.floor(m/1440), rt=Math.round((m-dd*1440)/60);
+  if(rt===24){dd+=1;rt=0;}
+  return dd+'d'+(rt?' '+rt+'h':'');}
+
+/* Vad rutan "Batteriet tomt" ska visa som huvudtal. Längden är förvalt, men
+   klockslaget är ofta det man vill åt — "när tog det slut" snarare än "hur
+   länge var det tomt". */
+var BT_VIS=['langd','klockslag','datum','antal'];
+var BT_VIS_NAMN={langd:'Hur länge',klockslag:'Klockslag',datum:'Datum',antal:'Antal gånger'};
+function btVisGet(){
+  var v=(CFG&&CFG.btVis)||'langd';
+  return BT_VIS.indexOf(v)>=0?v:'langd';}
+function btVisSatt(v){
+  CFG.btVis=(BT_VIS.indexOf(v)>=0)?v:'langd';
+  saveCfg();
+  ['flode','energy','weather'].forEach(function(g){try{renderTiles(g);}catch(e){}});
+  try{openDetail('batttom');}catch(e){}}
+
+/* Klockslag och datum via Intl med explicit tidszon — enheten kan stå i UTC. */
+function btKl(t){
+  if(!t)return '–';
+  try{return new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}
+  catch(e){return '–';}}
+function btDatum(t){
+  if(!t)return '–';
+  try{return new Date(t).toLocaleDateString('sv-SE',{day:'numeric',month:'short'});}
+  catch(e){return '–';}}
 function btNar(t){
   if(!t)return '';
   var d=Math.floor((Date.now()-t)/86400000);
@@ -8080,7 +8166,13 @@ function btPop(){
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
     +'<div class="krpop krpop-bred"><button class="krpop-x" onclick="krPopStang()">×</button>'
     +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>'
-    +'Batteriet tomt'+q.btn+'</div>'+q.box;
+    +'Batteriet tomt'+q.btn+'</div>'+q.box
+    /* Valet av huvudtal ligger här, vid siffrorna det gäller — inte i en
+       allmän inställningsmeny där man får leta. */
+    +'<div class="cfg-sec">Visa i rutan</div><div class="cfg-btns">'
+    +BT_VIS.map(function(k){return '<button class="cfg-opt'+(btVisGet()===k?' on':'')
+      +'" onclick="btVisSatt(\''+k+'\')">'+BT_VIS_NAMN[k]+'</button>';}).join('')
+    +'</div><div class="cfg-hint">Det som inte står som huvudtal visas på raden under.</div>';
 
   if(_btFel){
     h+='<div class="krpop-t">Kunde inte läsa från Homey-appen: '+esc(_btFel)
@@ -8202,11 +8294,26 @@ function computeMetric(cfg){
     case 'battnow':{const pw=cap(DEV.battery,'measure_power'),b=cap(DEV.battery,'measure_battery'),bs=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
       return {label:'Batteri',icon:bs==='charging'?'battery-charging':battIcon(b),icc:battIcc(b,bs),v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt'};}
     case 'batttom':{const S=btSum();
+      /* Huvudtalet väljs i inställningarna; det som inte visas som huvudtal
+         hamnar i underraden så ingenting går förlorat. */
+      const vis=btVisGet();
+      const langd=S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–');
+      const slutT=S.senast?(S.senast.slut||S.senast.start):null;
+      let vv,mm;
+      /* Pågår just nu: klockslaget då det TOG SLUT finns inte än, så visa när
+         det började i stället. Utan den skillnaden blev talet tomt. */
+      if(S.pagar&&vis!=='antal'){
+        vv=(vis==='klockslag')?btKl(S.senast?S.senast.start:null)
+          :(vis==='datum')?btDatum(S.senast?S.senast.start:null):langd;
+        mm=(vis==='klockslag'||vis==='datum')?('började · tomt '+langd):'pågår nu';
+      }
+      else if(vis==='klockslag'){vv=S.senast?btKl(slutT):'–';mm=S.senast?('tomt '+langd):'aldrig sett';}
+      else if(vis==='datum'){vv=btDatum(slutT);mm=S.senast?(btKl(slutT)+' · '+langd):'aldrig sett';}
+      else if(vis==='antal'){vv=String(S.antal30!=null?S.antal30:0);mm='gånger på 30 dygn';}
+      else {vv=langd;mm=S.senast?btNar(S.senast.start):'aldrig sett';}
       return {label:'Batteriet tomt',icon:'battery-low',
         icc:S.pagar?'var(--hot)':'var(--faint)',
-        v:S.pagar?btTid(S.nu):(S.senastLangd!=null?btTid(S.senastLangd):'–'),
-        meta:S.pagar?'pågår nu':(S.senast?btNar(S.senast.start):'aldrig sett'),
-        det:'batttom'};}
+        v:vv,meta:mm,det:'batttom'};}
     case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');return {label:'Elnät',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
     case 'humidity':{const hum=cap(DEV.outdoor,'measure_humidity');return {label:'Luftfuktighet',icon:'drop-half-bottom',v:hum==null?'–':Math.round(hum)+' <small>%</small>',meta:'utomhus',det:'humidity'};}
     case 'seatemp':{const t=(typeof FEED!=='undefined')?FEED.sea:null;return {label:'Badtemp',icon:'waves',v:(t==null?'–':num(t,1)+' <small>°C</small>'),meta:CONFIG.BATH_NAME||'havet',det:'seatemp'};}
@@ -11238,7 +11345,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v454';
+const APP_VERSION='v461';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
