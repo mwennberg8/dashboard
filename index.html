@@ -11736,7 +11736,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v470';
+const APP_VERSION='v472';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13183,12 +13183,15 @@ const SEC_DEF=['energy','energy-tiles','spot','kopt-salt','sun','weather','weath
    och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
    sällan den man vill ha i handen. */
 function secOrderAlla(){try{return JSON.parse(localStorage.getItem('secOrder_v1')||'null');}catch(e){return null;}}
+/* DELAD mellan alla enheter. Ordningen på avsnitten ska se likadan ut på
+   telefon och platta — bara storlekarna skiljer. Fanns ett gammalt fack per
+   klass läses plattans som gemensam utgångspunkt. */
 function secOrderKlassGet(){
   var a=secOrderAlla();
   if(!a)return null;
-  if(Array.isArray(a))return a;          /* gammalt format: gäller båda */
-  var k=a[secKlass()];
-  return Array.isArray(k)?k:null;}
+  if(Array.isArray(a))return a;
+  if(Array.isArray(a.delad))return a.delad;
+  return Array.isArray(a.platta)?a.platta:(Array.isArray(a.telefon)?a.telefon:null);}
 
 function secOrderGet(){try{const s=secOrderKlassGet();if(Array.isArray(s)){
     var o=s.filter(x=>SEC_DEF.indexOf(x)>=0);
@@ -13199,15 +13202,8 @@ function secOrderGet(){try{const s=secOrderKlassGet();if(Array.isArray(s)){
       if(after==null){o.unshift(x);}else{o.splice(o.indexOf(after)+1,0,x);}});
     return o;}}catch(e){}return SEC_DEF.slice();}
 function secOrderSave(o){try{
-    var a=secOrderAlla();
-    if(!a||Array.isArray(a)){
-      /* Gammalt format eller tomt: skapa två fack och låt den befintliga
-         ordningen gälla båda som utgångsläge, så inget hoppar vid uppgradering. */
-      var gml=Array.isArray(a)?a:null;
-      a={platta:gml||SEC_DEF.slice(),telefon:gml||SEC_DEF.slice()};
-    }
-    a[secKlass()]=o;
-    localStorage.setItem('secOrder_v1',JSON.stringify(a));
+    /* Ett enda fack: ordningen gäller alla enheter. */
+    localStorage.setItem('secOrder_v1',JSON.stringify({delad:o}));
   }catch(e){}
   syncPushSoon();}
 /* INGA avvikande standardvärden. sun låg på 0.8, och eftersom secHeightSet
@@ -13351,21 +13347,53 @@ function secDoldaAlla(){try{return JSON.parse(localStorage.getItem('secDold_v1')
    den som vill se den tar fram den i Ordna avsnitt. Standarden gäller bara tills
    något växlas; då sparas hela facket och den slutar påverka. */
 var SEC_DOLD_DEF={'kopt-salt':1};
+/* DELAD, som ordningen. Ett avsnitt man gömt ska vara gömt överallt. */
 function secDolda(){
-  var a=secDoldaAlla(),k=a[secKlass()];
-  if(k&&typeof k==='object')return k;
+  var a=secDoldaAlla();
+  if(a&&typeof a.delad==='object')return a.delad;
+  var g=a&&(a.platta||a.telefon);
+  if(g&&typeof g==='object')return g;
   var o={};for(var n in SEC_DOLD_DEF)o[n]=SEC_DOLD_DEF[n];
   return o;}
 function secDold(sec){return !!secDolda()[sec];}
 function secDoldTog(sec){
   var a=secDoldaAlla(), k=secDolda();
   if(k[sec])delete k[sec];else k[sec]=1;
-  a[secKlass()]=k;
+  a={delad:k};
   try{localStorage.setItem('secDold_v1',JSON.stringify(a));}catch(e){}
   applySecOrder();
   try{openSecMove(sec);}catch(e){}}
 
-function secReset(){secOrderSave(SEC_DEF.slice());
+/* HOMEYS KOPIA ÄR UTGÅNGSLÄGET. Återställ hämtar hem den sparade uppsättningen
+   i stället för att gå till fabriksvärdena — den layout du byggt är facit, och
+   en enhet som råkat hamna fel ska kunna komma tillbaka dit med ett tryck.
+   Storleksnycklarna hämtas med: de har egna fack per enhetstyp inuti sig, så
+   telefonens mått påverkar inte plattans. */
+async function secResetHomey(){
+  try{
+    if(!appKan())return false;
+    var n=await appBackupLas();
+    if(!n)return false;
+    /* LADDA OM i minnet. appBackupLas skriver bara till localStorage; CFG och
+       CONFIG.BUTTONS är redan inlästa och skulle annars ligga kvar med de gamla
+       värdena — layouten såg då oförändrad ut trots att hämtningen lyckats.
+       Samma ordning som knappen "Hämta från Homey" använder. */
+    loadCfg();applyCfg();
+    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+    applySecOrder();
+    try{render();}catch(e){}
+    try{renderControls();}catch(e){}
+    return true;
+  }catch(e){return false;}}
+
+function secReset(){
+  /* Prova Homey först; först om det inte går faller vi till fabriksläget. */
+  secResetHomey().then(function(ok){
+    if(ok){try{openSecMove(SEC_DEF[0]);}catch(e){}return;}
+    secResetFabrik();
+  });}
+
+function secResetFabrik(){secOrderSave(SEC_DEF.slice());
   try{localStorage.removeItem('secScale_v1');localStorage.removeItem('secDold_v1');}catch(e){}
   applySecOrder();openSecMove(SEC_DEF[0]);}
 function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;openDetail('cost');}
