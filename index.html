@@ -10699,6 +10699,28 @@ async function backupTick(){
     var far=await agareFarSkriva(false);
     if(!far.ok){
       o.blocked=k;o.blockadAv=(far.agare&&far.agare.namn)||'annan enhet';
+      /* ÄRV I STÄLLET. Att bara avstå från att skriva räckte inte — då satt
+         enheten kvar med sina egna inställningar i evighet. Äger någon annan
+         kopian är den kopian sanningen, och den här enheten ska hämta hem den.
+
+         Bara en gång per stämpel: `argt` är ägarens tidpunkt, och har vi redan
+         ärvt just den behöver vi inte göra det igen vid varje tick. */
+      var argt=(far.agare&&far.agare.at)||0;
+      if(argt&&o.argt===argt){
+        try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
+        return;
+      }
+      try{
+        var n2=await appBackupLas();
+        if(n2>0){
+          loadCfg();applyCfg();
+          var sb3=loadButtons();if(sb3)CONFIG.BUTTONS=sb3;
+          applySecOrder();
+          try{render();}catch(e){}
+          try{renderControls();}catch(e){}
+          o.argt=argt;o.arvdaFran=o.blockadAv;o.arvdaAt=Date.now();o.arvdaAntal=n2;
+        }
+      }catch(e){}
       try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
       return;
     }
@@ -11843,7 +11865,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v475';
+const APP_VERSION='v476';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
