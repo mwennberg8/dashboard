@@ -10662,10 +10662,50 @@ async function backupTick(){
       try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
       return;
     }
+    /* SKYDD MOT FÖRSTA SPARNINGEN. Guarden ovan jämför mot enhetens EGET minne
+       av vad den senast sparade. En enhet med tom lagring — ny telefon, rensad
+       cache, eller dashboarden öppnad från en annan adress — har inget att
+       jämföra med, och skrev därför över Homeys kopia med sina standardvärden
+       vid första ticket. Det var så en sparad layout kunde försvinna helt.
+
+       Fråga i stället Homey hur mycket som ligger där. Har appen väsentligt fler
+       nycklar än vi har lokalt är vi den tomma parten och ska hämta, inte skriva. */
+    if(!o.len){
+      try{
+        if(appKan()){
+          var fjarr=await appGet('/backup');
+          var antalFjarr=(fjarr&&fjarr.nycklar)?Object.keys(fjarr.nycklar).length:0;
+          var antalHar=0;
+          for(var si=0;si<SYNC_KEYS.length;si++){
+            var vv=localStorage.getItem(SYNC_KEYS[si]);
+            if(vv!=null&&vv.length)antalHar++;
+          }
+          if(antalFjarr>2&&antalHar<antalFjarr*0.6){
+            o.blocked=k;o.blockedLen=len;o.fjarrAntal=antalFjarr;o.harAntal=antalHar;
+            try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
+            /* HÄMTA i stället — enheten är tom och Homey har sanningen. */
+            try{await appBackupLas();loadCfg();applyCfg();
+              var sb2=loadButtons();if(sb2)CONFIG.BUTTONS=sb2;
+              applySecOrder();render();}catch(e){}
+            return;
+          }
+        }
+      }catch(e){}
+    }
+    /* ÄGARSKAPET GÅR FÖRE. Har någon tryckt "Spara till Homey" för hand på en
+       annan enhet är den kopian ett beslut — den automatiska säkerhets-
+       kopieringen ska aldrig köra över den. Bara ett nytt manuellt tryck från
+       samma enhet får skriva om den. */
+    var far=await agareFarSkriva(false);
+    if(!far.ok){
+      o.blocked=k;o.blockadAv=(far.agare&&far.agare.namn)||'annan enhet';
+      try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
+      return;
+    }
     /* Appen först. Den har inget utrymmestak, så inga loggar behöver offras. */
     var viaApp=false;
     try{
-      if(appKan()){var r=await appBackupSpara(); viaApp=!!(r&&r.ok);}
+      if(appKan()){var r=await appBackupSpara(false); viaApp=!!(r&&r.ok);}
     }catch(e){}
     if(!viaApp)await saveToHomey();
     o.last=k; o.len=len; o.t=Date.now(); o.kalla=viaApp?'app':'variabel';
@@ -10700,7 +10740,35 @@ function syncPushSoon(){try{
    la allt i EN logikvariabel, och när den blev för stor offrades loggar enligt
    DROPPABLE-listan — det var så Zambretti-tavlan nollställdes.
    Logikvariabeln är kvar som reserv, med listan intakt, ifall appen inte svarar. */
-async function appBackupSpara(){
+/* ÄGARSTÄMPEL. Sparas tillsammans med inställningarna och säger vem som senast
+   tryckte "Spara till Homey" för hand. En manuell sparning är ett beslut; den
+   automatiska säkerhetskopieringen ska aldrig köra över ett beslut från en
+   annan enhet. Nyckeln ligger utanför SYNC_KEYS så den inte hamnar i någons
+   lokala inställningar. */
+var AGARE_KEY='_agare_v1';
+function agareStampel(manuell){
+  return JSON.stringify({id:enhetsId(),namn:enhetsNamn(),at:Date.now(),manuell:!!manuell});}
+function agareLas(o){
+  try{
+    var raa=o&&o[AGARE_KEY];
+    if(raa==null)return null;
+    return (typeof raa==='string')?JSON.parse(raa):raa;
+  }catch(e){return null;}}
+/* Får DEN HÄR enheten skriva över det som ligger i Homey? */
+async function agareFarSkriva(manuell){
+  if(manuell)return {ok:true};              /* ett tryck är alltid ett beslut */
+  try{
+    if(!appKan())return {ok:true};
+    var lista=await appGet('/backup');
+    if(!lista||!lista.nycklar)return {ok:true};
+    if(!(AGARE_KEY in lista.nycklar))return {ok:true};
+    var a=agareLas({_agare_v1:await appGet('/backup?key='+encodeURIComponent(AGARE_KEY))});
+    if(!a||!a.manuell)return {ok:true};
+    if(a.id===enhetsId())return {ok:true};
+    return {ok:false,agare:a};
+  }catch(e){return {ok:true};}}
+
+async function appBackupSpara(manuell){
   var obj={};
   for(var i=0;i<SYNC_KEYS.length;i++){
     var k=SYNC_KEYS[i], v=null;
@@ -10708,12 +10776,23 @@ async function appBackupSpara(){
     if(v!=null)obj[k]=v;
   }
   if(!Object.keys(obj).length)return null;
-  var t=withTimeout(15000);
-  var r=await fetch(apiBase()+'/api/app/'+APP_ID+'/backup',
-    {method:'POST',headers:{Authorization:'Bearer '+(CONFIG.TOKEN||''),'Content-Type':'application/json'},
-     body:JSON.stringify(obj),signal:t.signal});
-  t.clear();
-  if(!r.ok)throw new Error(r.status+' '+r.statusText);
+  /* Stämpla ALLTID, men bara en manuell sparning låser. */
+  obj[AGARE_KEY]=agareStampel(manuell);
+  /* Samma vägval som resten — annars fungerar sparningen inte borta hemifrån. */
+  var r=null,sist=null,vagar=brvVagar();
+  for(var vi=0;vi<vagar.length;vi++){
+    try{
+      var t=withTimeout(15000);
+      r=await fetch(vagar[vi]+'/api/app/'+APP_ID+'/backup',
+        {method:'POST',headers:{Authorization:'Bearer '+(CONFIG.TOKEN||''),'Content-Type':'application/json'},
+         body:JSON.stringify(obj),signal:t.signal});
+      t.clear();
+      if(!r.ok){sist=new Error(r.status+' '+r.statusText);r=null;continue;}
+      if(vagar[vi]!==BASE){BASE=vagar[vi];_baseAt=Date.now();}
+      break;
+    }catch(e){sist=e;r=null;}
+  }
+  if(!r)throw (sist||new Error('ingen väg till Homey'));
   var j=await r.json();
   if(j&&j.result)j=j.result;
   return j;}
@@ -10723,8 +10802,9 @@ async function appBackupLas(){
   _appLasSist={rap:0,las:0,hopp:[],fel:[]};
   if(!lista||!lista.nycklar||!Object.keys(lista.nycklar).length)return 0;
   var n=0;
-  _appLasSist.rap=Object.keys(lista.nycklar).length;
+  _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY;}).length;
   for(var k in lista.nycklar){
+    if(k===AGARE_KEY)continue;               /* stämpeln är inte en inställning */
     if(SYNC_KEYS.indexOf(k)<0){_appLasSist.hopp.push(k);continue;}
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(k));
@@ -10870,12 +10950,13 @@ async function doSaveSync(){const el=$('sync-status');if(el)el.textContent='Spar
      den vägen byggdes, men den manuella knappen kopplades aldrig om. */
   try{
     if(appKan()){
-      var r=await appBackupSpara();
+      /* MANUELL: låser kopian till den här enheten. */
+      var r=await appBackupSpara(true);
       if(r&&r.ok){
         try{var o=bkpGet();o.last=dayKey();o.len=bkpLen();o.t=Date.now();o.kalla='app';
           localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
         if(el)el.textContent='Sparat ✓ · '+(r.bytes||0).toLocaleString('sv-SE')+' tecken i '
-          +(r.sparade||0)+' nycklar i Homey-appen'
+          +(r.sparade||0)+' nycklar i Homey-appen · låst till '+enhetsNamn().toLowerCase()
           /* Säg VILKEN nyckel och varför. Det är inte ett fel utan ett skydd:
              en enhet som varit öppen en timme ska inte kunna radera en logg som
              byggts upp under månader på väggplattan. */
@@ -11762,7 +11843,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v473';
+const APP_VERSION='v475';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
