@@ -10717,17 +10717,28 @@ async function appBackupSpara(){
   var j=await r.json();
   if(j&&j.result)j=j.result;
   return j;}
+var _appLasSist={rap:0,las:0,hopp:[],fel:[]};
 async function appBackupLas(){
   var lista=await appGet('/backup');
+  _appLasSist={rap:0,las:0,hopp:[],fel:[]};
   if(!lista||!lista.nycklar||!Object.keys(lista.nycklar).length)return 0;
   var n=0;
+  _appLasSist.rap=Object.keys(lista.nycklar).length;
   for(var k in lista.nycklar){
-    if(SYNC_KEYS.indexOf(k)<0)continue;      /* bara kända nycklar tillbaka */
+    if(SYNC_KEYS.indexOf(k)<0){_appLasSist.hopp.push(k);continue;}
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(k));
-      if(typeof v==='string'&&v.length){localStorage.setItem(k,v);n++;}
-    }catch(e){}
+      /* ACCEPTERA ÄVEN OBJEKT. appGet packar upp {result:…} och tolkar JSON, så
+         ett sparat värde kan komma tillbaka som objekt i stället för sträng.
+         Kravet på sträng lät nyckeln falla bort TYST — hämtningen såg ut att
+         lyckas men ingenting ändrades. */
+      if(v==null){_appLasSist.hopp.push(k);continue;}
+      if(typeof v!=='string'){try{v=JSON.stringify(v);}catch(e){v='';}}
+      if(v.length){localStorage.setItem(k,v);n++;}
+      else _appLasSist.hopp.push(k);
+    }catch(e){_appLasSist.fel.push(k);}
   }
+  _appLasSist.las=n;
   return n;}
 async function saveToHomey(){
   /* Homey-variabler har begränsat utrymme. Vi delar upp datan i bitar. Om allt inte får
@@ -10895,13 +10906,28 @@ async function doFetchSync(){const el=$('sync-status');if(el)el.textContent='Hä
   try{
     if(appKan()){
       var n=await appBackupLas();
+      if(n===0&&_appLasSist.rap>0){
+        /* Appen HADE nycklar men ingen kunde läsas. Säg det rakt ut i stället
+           för att tyst falla vidare till logikvariabeln. */
+        var e4=$('sync-status');
+        if(e4)e4.textContent='Appen rapporterade '+_appLasSist.rap
+          +' nycklar men ingen kunde läsas'
+          +(_appLasSist.fel.length?(' · fel på: '+_appLasSist.fel.join(', ')):'')
+          +(_appLasSist.hopp.length?(' · okända: '+_appLasSist.hopp.join(', ')):'');
+        return;
+      }
       if(n>0){
         loadCfg();applyCfg();
         var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
         applySecOrder();
         try{render();}catch(e){}
         var e2=$('sync-status');
-        if(e2)e2.textContent='Hämtat ✓ · '+n+' nycklar ur Homey-appen';
+        /* Säg hur många appen RAPPORTERADE och hur många som togs emot.
+           Skiljer de sig är det just den skillnaden som förklarar en utebliven
+           layout — förut stod bara ett tal och det såg alltid rätt ut. */
+        if(e2)e2.textContent='Hämtat ✓ · '+n+' av '+_appLasSist.rap+' nycklar ur Homey-appen'
+          +(_appLasSist.hopp.length?(' · hoppade över: '+_appLasSist.hopp.join(', ')):'')
+          +(_appLasSist.fel.length?(' · fel på: '+_appLasSist.fel.join(', ')):'');
         return;
       }
     }
@@ -11736,7 +11762,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v472';
+const APP_VERSION='v473';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
