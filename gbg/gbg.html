@@ -125,7 +125,13 @@ window.pwaTryFileManifest();
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
-body{font-family:var(--sans);color:var(--ink);min-height:100vh;line-height:1.42;
+/* Ingen textmarkering, ingen förstoringslupp och ingen länkmeny vid långtryck.
+   Dashboarden är en tavla man trycker på, inte en text man läser — och långtryck
+   är numera en egen gest här (inställningar, knappredigering). Fält där man
+   faktiskt skriver är undantagna längre ner. */
+body{-webkit-user-select:none;-ms-user-select:none;user-select:none;
+  -webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;
+  font-family:var(--sans);color:var(--ink);min-height:100vh;line-height:1.42;
   padding:clamp(13px,2.4vw,34px);font-variant-numeric:tabular-nums;letter-spacing:-.006em;
   background:var(--bg);position:relative;overflow-x:hidden;transition:background-color .7s ease,color .7s ease}
 body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;transition:opacity .7s ease;
@@ -227,6 +233,21 @@ body.mobile .car{padding:16px}
   .statusbar .en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
   .statusbar .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 }
+/* Väder, vind och temperaturer i toppraden. Rutorna för väder och vind är borta;
+   det här är samma uppgifter men på en rad, mellan huset och växlingsknappen.
+   Blocket kränger ihop sig i tur och ordning när bredden tryter: först faller
+   inne bort, sedan vinden — ute står kvar längst. */
+.en-wx{display:flex;align-items:center;gap:9px;min-width:0;overflow:hidden;
+  font-size:12px;font-weight:700;color:var(--dim);margin-left:8px}
+.en-wx .wxi{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.en-wx .ic-slot{width:15px;height:15px;flex:0 0 auto}
+.en-wx .ic{width:100%;height:100%}
+.en-wx b{color:var(--ink);font-weight:750}
+.en-wx .pil{color:var(--wind);transition:transform .3s}
+.en-wx .ute{color:var(--gold)}
+.en-wx .inne{color:var(--warm)}
+@media (max-width:430px){.en-wx .wxi-inne{display:none}}
+@media (max-width:360px){.en-wx .wxi-vind{display:none}}
 /* Toppraden ligger kvar vid skroll, som Gottskärs. */
 body.mobile .statusbar{position:sticky;top:0;z-index:35}
 
@@ -253,7 +274,6 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
   transition:left .9s ease}
 
 /* ===== väder ===== */
-.wx-card{padding:clamp(16px,2vw,21px)}
 .wx-top{display:flex;align-items:center;gap:13px}
 .wx-ic{width:46px;height:46px;flex:0 0 auto;color:var(--gold)}.wx-ic .ic{width:100%;height:100%}
 .wx-temp{font-size:29px;font-weight:760;line-height:1;letter-spacing:-.02em}
@@ -261,9 +281,6 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 .wx-sit{font-size:12.5px;color:var(--dim);font-weight:600;margin-top:3px}
 /* Väder och vind är två rutor bredvid varandra, med innehållet centrerat i var
    och en. Raden med regn, luftfuktighet, tryck och innetemperatur är borttagen. */
-.wx-pair{display:flex;gap:var(--pg-gap);align-items:stretch}
-.wx-pair>.panel{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center}
-.wx-pair>.panel>div{width:100%}
 .wx-now{display:flex;align-items:center;justify-content:center;gap:11px;min-width:0}
 .wx-windblock{display:flex;align-items:center;justify-content:center;gap:11px;min-width:0}
 .wx-arrow{width:42px;height:42px;flex:0 0 auto;color:var(--wind);display:inline-flex;transition:transform .3s}.wx-arrow .ic{width:100%;height:100%}
@@ -278,8 +295,11 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 .clickable{cursor:pointer}
 
 /* ===== rutor ===== */
-.stats{grid-template-columns:repeat(auto-fit,minmax(148px,1fr))}
-.stat{padding:14px 16px;position:relative;transition:box-shadow .8s ease,border-color .25s}
+/* Enhetskorten ligger i en egen ruta, precis som rummen och knapparna. */
+.devswrap{padding:var(--kn-luft)}
+.stats{grid-template-columns:repeat(auto-fit,minmax(148px,1fr));column-gap:var(--kn-luft);row-gap:var(--kn-luft)}
+.stat{padding:14px 16px;position:relative;transition:box-shadow .8s ease,border-color .25s;
+  background:var(--inset);border:1px solid var(--line);border-radius:18px;margin:0;box-shadow:none}
 .stat-h{display:flex;align-items:center;gap:9px;margin-bottom:7px}
 .stat-ic{width:24px;height:24px;display:inline-flex}.stat-ic .ic{width:100%;height:100%}
 .stat.clickable{transition:.16s}.stat.clickable:hover{border-color:var(--svg-stroke);transform:translateY(-1px)}
@@ -289,6 +309,28 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 .label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:650}
 .sec-h{display:flex;align-items:center;gap:8px;margin:0 6px 9px}
 .sec-h .ic{width:15px;height:15px;color:var(--dim)}
+
+/* ===== 3D-skrivaren =====
+   Rutan finns bara medan något skrivs. Den ligger överst — det är det enda
+   som händer i huset just då, och den är intressant i minuter, inte timmar. */
+.printer{padding:14px 16px;display:flex;flex-direction:column;gap:11px;cursor:pointer;
+  border-color:rgba(208,135,112,.38);
+  background:linear-gradient(180deg,rgba(208,135,112,.13),var(--panel-b))}
+.pr-h{display:flex;align-items:center;gap:10px;min-width:0}
+.pr-ic{width:22px;height:22px;color:var(--warm);flex:0 0 auto;display:inline-flex}
+.pr-ic .ic{width:100%;height:100%}
+.pr-n{font-size:13px;font-weight:750;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-p{font-size:19px;font-weight:780;letter-spacing:-.02em;color:var(--ink);flex:0 0 auto}
+.pr-p small{font-size:11px;font-weight:650;color:var(--dim);margin-left:2px}
+.pr-bar{height:7px;border-radius:999px;background:var(--inset);overflow:hidden;border:1px solid var(--line-soft)}
+.pr-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--warm),var(--gold));
+  transition:width .8s ease}
+.pr-m{display:flex;flex-wrap:wrap;gap:7px}
+.pr-c{background:var(--inset);border:1px solid var(--line-soft);border-radius:12px;padding:5px 9px;
+  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;color:var(--dim)}
+.pr-c b{color:var(--ink);font-weight:750}
+.pr-c .ic{width:13px;height:13px}
 
 /* ===== rumskort ===== */
 /* Rumskorten ligger i EN ruta, precis som styrknapparna: ytterpanelen håller
@@ -474,6 +516,8 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
   border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:12px;cursor:pointer}
 .kn-ikon .ic-slot,.kn-ikon .ic{width:20px;height:20px}
 .kn-ikon.on{border-color:var(--blue);color:var(--blue);background:rgba(129,161,193,.16)}
+/* Undantag: allt man skriver eller kopierar i ska gå att markera. */
+input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);z-index:9999;
   padding:10px 16px;border-radius:999px;background:var(--panel-a);border:1px solid var(--line);color:var(--ink);
   font-family:var(--sans);font-size:12.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.28);
@@ -487,36 +531,32 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
   <section class="panel statusbar">
     <div class="en-top">
       <button class="en-cmp en-hem" id="hem-btn" title="Tryck: uppdatera. Håll inne: inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Göteborg</button>
+      <div class="en-wx" id="en-wx"></div>
       <div class="en-status en-cmp en-status-btn" id="en-status"><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div>
     </div>
   </section>
 
-  <section class="panel daystrip" id="daystrip">
+  <section class="panel daystrip" id="daystrip" data-sec="daystrip">
     <div class="ds-live"><span class="ic-slot acc-gold" data-ic="sun-horizon"></span><b id="sunrise">–</b>
     <div class="ds-track" id="ds-track"><span class="ds-tick" id="ds-rise"></span><span class="ds-tick set" id="ds-set"></span><span class="ds-sun" id="ds-sun" style="left:50%"></span></div>
     <b id="sunset">–</b><span class="ic-slot acc-violet" data-ic="moon"></span></div>
   </section>
 
-  <div class="wx-pair">
-    <section class="panel wx-card clickable" id="wx-card" onclick="openVader()"><div id="wx-body"></div></section>
-    <section class="panel wx-card clickable" id="wind-card" onclick="openVader()"><div id="wind-body"></div></section>
-  </div>
+  <section class="panel printer" id="printer" data-sec="printer" hidden onclick="openBambu()"></section>
 
-  <section class="panel controls" id="controls"></section>
+  <section class="panel controls" id="controls" data-sec="controls"></section>
 
-  <div class="sec-h"><span class="ic-slot" data-ic="house-line"></span><span class="label">Rum</span></div>
-  <section class="panel roomswrap"><div class="grid rooms" id="rooms"></div></section>
+  <section class="panel roomswrap" data-sec="rooms"><div class="grid rooms" id="rooms"></div></section>
 
-  <section class="panel car clickable" id="car" onclick="openBil()"></section>
+  <section class="panel car clickable" id="car" data-sec="car" onclick="openBil()"></section>
 
-  <section class="panel cam" id="cam" hidden></section>
+  <section class="panel cam" id="cam" data-sec="cam" hidden></section>
 
-  <div class="sec-h"><span class="ic-slot" data-ic="plug"></span><span class="label">Enheter</span></div>
-  <section class="grid stats" id="devs"></section>
+  <section class="panel devswrap" data-sec="devs"><div class="grid stats" id="devs"></div></section>
 
-  <section class="panel rows clickable" id="sensors" onclick="openSensorer()"></section>
+  <section class="panel rows clickable" id="sensors" data-sec="sensors" onclick="openSensorer()"></section>
 
-  <section class="panel warns clickable" id="warns" onclick="openBatteri()"></section>
+  <section class="panel warns clickable" id="warns" data-sec="warns" onclick="openBatteri()"></section>
 
   <div class="foot"><span id="foot-src">–</span><span id="foot-via"></span></div>
 </div>
@@ -614,7 +654,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.7.0';
+const APP_VERSION = 'v1.8.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -930,7 +970,7 @@ async function fetchSmhi(){
     const r=await fetch(smhiUrl(),{signal:t.signal});t.clear();
     if(!r.ok){SMHI_ST={at:Date.now(),ok:false,fel:r.status+' '+r.statusText,punkter:0};return;}
     const j=await r.json(),out=parseSmhi(j);
-    if(out){FORECAST=out;SMHI_ST={at:Date.now(),ok:true,fel:null,punkter:out.length};renderVader();}
+    if(out){FORECAST=out;SMHI_ST={at:Date.now(),ok:true,fel:null,punkter:out.length};renderTopWx();}
     /* Svaret kom fram men gick inte att tolka — nästan alltid en omlagd
        datastruktur, inte ett nätfel. Skillnaden ska synas i texten. */
     else SMHI_ST={at:Date.now(),ok:false,punkter:0,fel:'svaret kunde inte tolkas'+(j&&j.timeSeries?'':' (ingen timeSeries)')};
@@ -977,7 +1017,8 @@ function render(){
   try{klockan();}catch(e){}
   try{renderDaystrip();}catch(e){}
   try{applyTheme();}catch(e){}
-  try{renderVader();}catch(e){}
+  try{renderTopWx();}catch(e){}
+  try{renderPrinter();}catch(e){}
   try{renderControls();}catch(e){}
   try{renderRooms();}catch(e){}
   try{renderCar();}catch(e){}
@@ -990,37 +1031,55 @@ function render(){
 }
 
 /* ---------- väder ---------- */
-function renderVader(){
-  const b=$('wx-body');if(!b)return;
-  const f=fcNu();
+/* renderVader är borttagen tillsammans med väder- och vindrutorna —
+   uppgifterna visas nu i toppraden, se renderTopWx. */
+function renderTopWx(){
+  const el=$('en-wx');if(!el)return;
+  const f=fcNu(),inne=innetemp();
   const d=new Date(),h=d.getHours()+d.getMinutes()/60;
   const sc=solar(d,CONFIG.LAT,CONFIG.LON,-d.getTimezoneOffset());
   const natt=!(sc.sunrise!=null&&h>=sc.sunrise&&h<sc.sunset);
-  if(!f){
-    b.innerHTML='<div class="wx-top"><div class="wx-ic ic-slot" data-ic="cloud"></div>'
-      +'<div><div class="wx-temp">–</div><div class="wx-sit">'
-      +(SMHI_ST.at?('prognos: '+esc(SMHI_ST.fel||'inget svar')):'hämtar prognos…')+'</div></div></div>';
-    initIcons(b);
-    const v0=$('wind-body');
-    if(v0){v0.innerHTML='<div class="wx-windblock"><div class="wx-arrow ic-slot" data-ic="navigation-arrow"></div>'
-      +'<div class="wx-wind"><div class="wv">–</div><div class="wl">vind</div></div></div>';initIcons(v0);}
-    return;}
-  const kann=kannsSom(f.temp,f.ws,f.rh);
-  const visaKann=(f.temp!=null&&kann!=null&&Math.abs(kann-f.temp)>=1.5);
-  const ic=wxIcon(f.tcc,f.p,natt);
-  const rot=(f.wd==null)?0:((((f.wd+180-135)%360)+360)%360);   /* pilen pekar dit vinden BLÅSER */
-  b.innerHTML='<div class="wx-now"><div class="wx-ic ic-slot" data-ic="'+ic+'"></div>'
-    +'<div><div class="wx-temp">'+num(f.temp,1)+'<small>°</small></div>'
-    +'<div class="wx-sit">'+esc(molnText(f.tcc)||'–')
-    +(visaKann?(' · känns '+num(kann,0)+'°'):'')+'</div></div></div>';
-  initIcons(b);
-  const v=$('wind-body');
-  if(v){
-    v.innerHTML='<div class="wx-windblock"><div class="wx-arrow ic-slot" style="transform:rotate('+rot.toFixed(0)+'deg)" data-ic="navigation-arrow"></div>'
-      +'<div class="wx-wind"><div class="wv">'+num(f.ws,1)+' <small style="font-size:11px;color:var(--dim)">m/s</small></div>'
-      +'<div class="wl">'+esc(vindNamn(f.wd)||'vind')+(f.gust!=null?(' · by '+num(f.gust,0)):'')+'</div></div></div>';
-    initIcons(v);
+  let ut='';
+  if(f&&f.temp!=null)
+    ut+='<span class="wxi wxi-ute"><span class="ic-slot ute" data-ic="'+wxIcon(f.tcc,f.p,natt)+'"></span><b>'+num(f.temp,1)+'\u00b0</b></span>';
+  if(f&&f.ws!=null){
+    const rot=(f.wd==null)?0:((((f.wd+180-135)%360)+360)%360);
+    ut+='<span class="wxi wxi-vind"><span class="ic-slot pil" style="transform:rotate('+rot.toFixed(0)+'deg)" data-ic="navigation-arrow"></span><b>'+num(f.ws,1)+'</b></span>';
   }
+  if(inne!=null)
+    ut+='<span class="wxi wxi-inne"><span class="ic-slot inne" data-ic="thermometer"></span><b>'+num(inne,1)+'\u00b0</b></span>';
+  el.innerHTML=ut;initIcons(el);
+}
+/* Skriver den just nu? Samma prövning som enhetsrutan använder: framsteg under
+   100 % OCH ett varmt munstycke. Bara procenten duger inte — den står kvar på
+   sitt sista värde när utskriften är klar. */
+function bambuSkriver(d){
+  if(!d)return false;
+  const p=capOf(d,'bambu_progress_percentage'),noz=capOf(d,'measure_temperature.nozzle');
+  return (p!=null&&p<100&&noz!=null&&noz>60);
+}
+function renderPrinter(){
+  const el=$('printer');if(!el)return;
+  const d=DATA[DEV.bambu];
+  if(!bambuSkriver(d)){el.hidden=true;el.innerHTML='';return;}
+  const p=capOf(d,'bambu_progress_percentage')||0;
+  const lag=capOf(d,'bambu_print_layers'),tid=capOf(d,'bambu_progress_time_remaining');
+  const noz=capOf(d,'measure_temperature.nozzle'),nozM=capOf(d,'measure_temperature.nozzle_target');
+  const bed=capOf(d,'measure_temperature.bed'),bedM=capOf(d,'measure_temperature.bed_target');
+  const kam=capOf(d,'measure_temperature.chamber');
+  const chip=(ic,v,e)=>'<span class="pr-c"><span class="ic-slot" data-ic="'+ic+'"></span><b>'+v+'</b>'+(e?(' '+esc(e)):'')+'</span>';
+  let m='';
+  if(tid!=null&&String(tid).trim())m+=chip('timer',esc(String(tid)),'kvar');
+  if(lag!=null&&String(lag).trim())m+=chip('stairs',esc(String(lag)),'lager');
+  if(noz!=null)m+=chip('flame',num(noz,0)+'\u00b0',(nozM?('/ '+num(nozM,0)+'\u00b0'):'')+' munstycke');
+  if(bed!=null)m+=chip('oven',num(bed,0)+'\u00b0',(bedM?('/ '+num(bedM,0)+'\u00b0'):'')+' b\u00e4dd');
+  if(kam!=null)m+=chip('thermometer',num(kam,0)+'\u00b0','kammare');
+  el.innerHTML='<div class="pr-h"><span class="pr-ic ic-slot" data-ic="printer"></span>'
+    +'<span class="pr-n">'+esc((d&&d.name)||'3D-skrivare')+' skriver</span>'
+    +'<span class="pr-p">'+num(p,0)+'<small>%</small></span></div>'
+    +'<div class="pr-bar"><i style="width:'+Math.max(0,Math.min(100,p)).toFixed(1)+'%"></i></div>'
+    +(m?('<div class="pr-m">'+m+'</div>'):'');
+  el.hidden=false;initIcons(el);
 }
 function innetemp(){
   const v=cap(DEV.sensVard,'measure_temperature');
@@ -1257,7 +1316,7 @@ function renderCam(){
 
 /* ---------- enheter ---------- */
 function stat(ic,acc,lab,v,meta,click){
-  return '<div class="panel stat'+(click?' clickable':'')+'"'+(click?(' onclick="'+click+'"'):'')+'>'
+  return '<div class="stat'+(click?' clickable':'')+'"'+(click?(' onclick="'+click+'"'):'')+'>'
     +'<div class="stat-h"><span class="stat-ic ic-slot '+(acc||'')+'" data-ic="'+ic+'"></span>'
     +'<span class="label">'+esc(lab)+'</span></div>'
     +'<div class="v">'+v+'</div><div class="meta">'+meta+'</div></div>';}
@@ -1655,6 +1714,9 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='auto'?' pri':'')+'" onclick="temaSatt(\'auto\')">Auto</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='light'?' pri':'')+'" onclick="temaSatt(\'light\')">Ljust</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
+  h+=dSec('Avsnitt')
+    +'<div class="setup-t">Ordningen p\u00e5 sidan, och vad som visas.</div>'
+    +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>';
   h+=dSec('Knappar')
     +'<div class="setup-t">L\u00e4gg till, flytta, byt namn, ikon och vad varje styrknapp g\u00f6r.</div>'
     +'<button class="dbtn wide" data-knapp="meny" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>'
@@ -1676,6 +1738,105 @@ function loggaUt(){
   try{localStorage.removeItem(CRED_KEY);}catch(e){}
   stangDlg();BASE='';DATA={};location.reload();}
 
+
+/* ================= avsnittsordning =================
+   Samma tanke som på Gottskär: du bestämmer ordningen, och kan dölja det du inte
+   vill se. Skrivarrutan ingår INTE — den ska alltid ligga överst när den syns,
+   och en ruta som dyker upp mitt i listan är svår att hitta.
+   Toppraden ligger också fast; den är sidans ram, inte ett avsnitt. */
+const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs','sensors','warns'];
+const SEKT_NAMN={daystrip:'Sol upp och ner',controls:'Styrknappar',rooms:'Rum',
+  car:'Bil',cam:'Kamera',devs:'Enheter',sensors:'Sensorer',warns:'Batterivarningar'};
+const SEKT_IC={daystrip:'sun-horizon',controls:'toggle-right',rooms:'house-line',
+  car:'car',cam:'camera',devs:'plug',sensors:'gauge',warns:'battery-low'};
+const SEKT_KEY='gbgsekt_v1';
+function sektLadda(){
+  var o={ordning:SEKT_DEF.slice(),dolda:{}};
+  try{
+    var a=JSON.parse(localStorage.getItem(SEKT_KEY)||'null');
+    if(a&&Array.isArray(a.ordning)){
+      /* Bara kända namn, och avsnitt som tillkommit i en nyare version läggs
+         sist i stället för att försvinna tyst. */
+      var kv=a.ordning.filter(function(x){return SEKT_DEF.indexOf(x)>=0;});
+      SEKT_DEF.forEach(function(x){if(kv.indexOf(x)<0)kv.push(x);});
+      o.ordning=kv;
+    }
+    if(a&&a.dolda&&typeof a.dolda==='object')o.dolda=a.dolda;
+  }catch(e){}
+  return o;
+}
+var SEKT=sektLadda();
+function sektSpara(){
+  try{localStorage.setItem(SEKT_KEY,JSON.stringify(SEKT));}catch(e){}
+  applySekt();
+}
+function applySekt(){
+  try{
+    var wrap=document.querySelector('.wrap'),foot=wrap&&wrap.querySelector('.foot');
+    if(!wrap)return;
+    SEKT.ordning.forEach(function(sek){
+      var el=wrap.querySelector('[data-sec="'+sek+'"]');
+      if(!el)return;
+      el.style.display=SEKT.dolda[sek]?'none':'';
+      /* Flytta sist, i tur och ordning — då hamnar listan i rätt följd utan att
+         något behöver räknas ut. Sidfoten skjuts efteråt. */
+      wrap.appendChild(el);
+    });
+    if(foot)wrap.appendChild(foot);
+  }catch(e){}
+}
+function sektHTML(){
+  var h='<div class="setup-t">Pilarna flyttar avsnittet. \u00d6gat d\u00f6ljer det utan att ta bort n\u00e5got.</div><div class="kn-lista">';
+  SEKT.ordning.forEach(function(sek,i){
+    var dold=!!SEKT.dolda[sek];
+    h+='<div class="kn-rad">'
+      +'<div class="kn-namn"'+(dold?' style="opacity:.5"':'')+'>'
+      +'<span class="kn-ic ic-slot" data-ic="'+(SEKT_IC[sek]||'tag')+'"></span>'
+      +'<span class="kn-txt"><b>'+esc(SEKT_NAMN[sek]||sek)+'</b>'
+      +'<small>'+(dold?'dold':'visas')+'</small></span></div>'
+      +'<button class="kn-mini" data-sekt="upp:'+i+'" onclick="sektFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
+      +'<button class="kn-mini" data-sekt="ner:'+i+'" onclick="sektFlytta('+i+',1)"'+(i===SEKT.ordning.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
+      +'<button class="kn-mini" data-sekt="dolj:'+i+'" onclick="sektDolj('+i+')" title="Visa eller d\u00f6lj">'+(dold?'\u2715':'\u25c9')+'</button>'
+      +'</div>';
+  });
+  h+='</div><button class="dbtn wide" data-sekt="aterstall" onclick="sektAterstall()">\u00c5terst\u00e4ll ordningen</button>';
+  return h;
+}
+function openSekt(){
+  try{
+    DLG_OM.sekt=null;
+    openDlg('Ordna avsnitt','arrow-up',sektHTML(),'sekt');
+    knIkoner();
+  }catch(e){toast('Kunde inte \u00f6ppna: '+((e&&e.message)||'ok\u00e4nt fel'));}
+}
+function sektOm(){dlgSatt(sektHTML());knIkoner();}
+function sektFlytta(i,d){
+  var j=i+d;if(j<0||j>=SEKT.ordning.length)return;
+  var t=SEKT.ordning[i];SEKT.ordning[i]=SEKT.ordning[j];SEKT.ordning[j]=t;
+  sektSpara();sektOm();
+}
+function sektDolj(i){
+  var sek=SEKT.ordning[i];if(!sek)return;
+  if(SEKT.dolda[sek])delete SEKT.dolda[sek];else SEKT.dolda[sek]=1;
+  sektSpara();sektOm();
+}
+function sektAterstall(){
+  SEKT={ordning:SEKT_DEF.slice(),dolda:{}};sektSpara();sektOm();toast('\u00c5terst\u00e4llt');
+}
+var _sektKlickAt=0;
+function sektDeleg(e){
+  var t=e.target&&e.target.closest?e.target.closest('[data-sekt]'):null;
+  if(!t)return;
+  var nu=Date.now();if(nu-_sektKlickAt<400)return;_sektKlickAt=nu;
+  var v=t.getAttribute('data-sekt');
+  try{
+    if(v==='meny')openSekt();
+    else if(v==='aterstall')sektAterstall();
+    else if(v.indexOf('upp:')===0)sektFlytta(+v.slice(4),-1);
+    else if(v.indexOf('ner:')===0)sektFlytta(+v.slice(4),1);
+    else if(v.indexOf('dolj:')===0)sektDolj(+v.slice(5));
+  }catch(err){toast('Fel: '+((err&&err.message)||'ok\u00e4nt'));}
+}
 
 /* ================= knappredigerare =================
    Samma sorts inställning som Gottskär har för sina styrknappar, men med de tre
@@ -1931,7 +2092,9 @@ function start(){
   const db=$('dlg-back');
   if(db){['click','touchstart','wheel','keydown'].forEach(ev=>db.addEventListener(ev,dlgRorelse,{passive:true}));}
   /* Reservvägen för knappmenyns klick — se knDeleg. */
-  const dbo=$('dlg-body');if(dbo)dbo.addEventListener('click',knDeleg);
+  const dbo=$('dlg-body');
+  if(dbo){dbo.addEventListener('click',knDeleg);dbo.addEventListener('click',sektDeleg);}
+  applySekt();
   if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches)document.body.classList.add('mobile');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
