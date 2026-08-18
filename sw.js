@@ -21,13 +21,17 @@
  *  färska eller misslyckas — en cachad temperatur är värre än ingen.
  */
 
-const CACHE = 'dashboard-v1';
+const CACHE = 'dashboard-v2';
 
 /* Det som behövs för att sidan ska kunna starta. Ikonerna har versionslösa
    namn men byts sällan; blir de fel räcker en avinstallation. */
 const SKAL = [
   './',
   './index.html',
+  /* Göteborgsdashboarden ligger under samma scope och måste finnas i cachen —
+     annars faller en offline-navigering dit tillbaka på startsidan, som är
+     Gottskär. Det ser ut som ett växlingsfel men är den här reserven. */
+  './gbg/gbg.html',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -97,8 +101,12 @@ self.addEventListener('fetch', (e) => {
       /* En navigering utan träff: fall tillbaka på startsidan. Adressen kan ha
          en frågesträng (?kronika=…) som aldrig cachats för sig. */
       if (req.mode === 'navigate') {
-        const start = await caches.match(`${bas}index.html`)
-          || await caches.match(bas);
+        /* Reservfil efter vilket hus adressen gäller. Hårdkodat index.html här
+           gav Gottskär-dashboarden på Göteborgs adress när nätet var nere. */
+        const gbg = url.pathname.indexOf(`${bas}gbg/`) === 0;
+        const start = gbg
+          ? (await caches.match(`${bas}gbg/gbg.html`) || await caches.match(`${bas}gbg/`))
+          : (await caches.match(`${bas}index.html`) || await caches.match(bas));
         if (start) return start;
       }
       return new Response('Offline och inget i cachen.', {

@@ -11865,7 +11865,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v476';
+const APP_VERSION='v477';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13806,6 +13806,177 @@ async function checkForUpdate(){try{
   }
 }catch(e){}}
 checkForUpdate();setInterval(checkForUpdate,60000);
+</script>
+<script>
+/* ===== husvakt 1.0.0 =====
+   Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
+   aldrig bara den ena, ett test jämför dem tecken för tecken.
+
+   Ordningen är vald för att starten aldrig ska kännas långsam:
+     1. Minnet avgör direkt. Nio gånger av tio är förra huset rätt hus.
+     2. Position och sondering körs sedan i bakgrunden, parallellt, och först
+        till kvarn vinner. Säger de fel hus byts sidan.
+   Positionen kostar oftast ingenting (telefonen har redan en färsk), medan
+   sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
+   faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
+(function(){
+  var VER='1.0.0';
+  /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
+     en grov nätbaserad position träffar rätt sida med den marginalen. */
+  var GRANS=57.530366;
+  var HUS={
+    gottskar:{namn:'Gottskär',cred:'homeycred_v1',fil:''},
+    gbg:     {namn:'Göteborg',cred:'gbgcred_v1',  fil:'gbg/gbg.html'}
+  };
+  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp';
+  var POS_MS=3000, SOND_MS=2500, TOTAL_MS=4000;
+
+  function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+  function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
+  function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
+  function ss(k){try{return sessionStorage.getItem(k);}catch(e){return null;}}
+  function ssSet(k,v){try{sessionStorage.setItem(k,v);}catch(e){}}
+
+  /* Roten är katalogen som båda filerna delar. Göteborg ligger en nivå ner. */
+  function rot(){var p=location.pathname,i=p.indexOf('/gbg/');
+    return i>=0?p.slice(0,i+1):p.replace(/[^/]*$/,'');}
+  function jag(){return location.pathname.indexOf('/gbg/')>=0?'gbg':'gottskar';}
+  function url(h){var q=new URLSearchParams(location.search||'');q.delete('hem');
+    var s=q.toString();return location.origin+rot()+HUS[h].fil+(s?('?'+s):'');}
+
+  /* Bara på https. Kopian som serveras från Homeys egen HTTP-server ska bete
+     sig precis som förut — där finns varken den andra filen eller position. */
+  function tillaten(){return location.protocol==='https:';}
+  function pa(){return tillaten()&&ls(NYCK)==='auto';}
+
+  var rort=false;
+  ['pointerdown','keydown','touchstart'].forEach(function(t){
+    try{addEventListener(t,function(){rort=true;},{once:true,passive:true});}catch(e){}});
+
+  function hoppa(h,varfor){
+    if(!HUS[h]||h===jag())return false;
+    var n=parseInt(ss(HOPP)||'0',10)||0;
+    if(n>=2)return false;               /* två byten per session räcker; sedan aldrig en loop */
+    ssSet(HOPP,String(n+1));
+    lsSet(SIST,h);
+    API.navigera(url(h),varfor);
+    return true;
+  }
+
+  function position(){
+    var t0=Date.now();
+    return new Promise(function(klar){
+      if(!navigator.geolocation)return klar({sig:'position',hus:null,fel:'saknas'});
+      navigator.geolocation.getCurrentPosition(
+        function(p){var la=p&&p.coords?p.coords.latitude:null;
+          klar({sig:'position',hus:(la==null||!isFinite(la))?null:(la>GRANS?'gbg':'gottskar'),
+                ms:Date.now()-t0,lat:la});},
+        function(e){klar({sig:'position',hus:null,ms:Date.now()-t0,fel:(e&&e.message)||'nekad'});},
+        {maximumAge:300000,timeout:POS_MS,enableHighAccuracy:false});
+    });
+  }
+
+  /* Adressen tas ur husets egna sparade uppgifter — inga IP-nummer i koden.
+     Den råa http-adressen duger inte från en https-sida, så den skrivs om till
+     homeylocal-namnet, som har giltigt certifikat och pekar på samma maskin. */
+  function lokal(h){
+    try{
+      var o=JSON.parse(ls(HUS[h].cred)||'{}'), lan=String(o.lan||'').trim();
+      if(!lan||!o.token)return null;
+      var v=lan.replace(/^https?:\/\//i,'').split('/')[0].split(':')[0];
+      var m=v.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+      if(m)return {bas:'https://'+m.slice(1).join('-')+'.homey.homeylocal.com',token:o.token};
+      if(/homeylocal\.com$/i.test(v))return {bas:'https://'+v,token:o.token};
+    }catch(e){}
+    return null;
+  }
+  function sond(h){
+    var t0=Date.now(), c=lokal(h);
+    if(!c)return Promise.resolve({sig:'sond-'+h,hus:null,fel:'ingen lokal adress'});
+    var ac=null,tid=null;
+    try{ac=new AbortController();tid=setTimeout(function(){ac.abort();},SOND_MS);}catch(e){}
+    var o={headers:{Authorization:'Bearer '+c.token},cache:'no-store'};
+    if(ac)o.signal=ac.signal;
+    /* Zonlistan är liten och kräver rätt token — ett främmande svar på samma
+       adress i det andra nätet kan alltså inte förväxlas med huset. */
+    return fetch(c.bas+'/api/manager/zones/zone/',o).then(function(r){
+      if(tid)clearTimeout(tid);
+      return {sig:'sond-'+h,hus:r&&r.ok?h:null,ms:Date.now()-t0,fel:(r&&r.ok)?null:('HTTP '+(r?r.status:'?'))};
+    },function(e){
+      if(tid)clearTimeout(tid);
+      return {sig:'sond-'+h,hus:null,ms:Date.now()-t0,
+              fel:(e&&e.name==='AbortError')?'tidsgräns':'ingen kontakt'};
+    });
+  }
+
+  /* Första svaret som pekar ut ett hus vinner. Svarar ingen inom tiden blir det
+     inget byte alls — att stanna är alltid ett giltigt utfall. */
+  function forst(lista,ms){
+    return new Promise(function(klar){
+      var kvar=lista.length,klart=false;
+      var t=setTimeout(function(){if(!klart){klart=true;klar(null);}},ms);
+      lista.forEach(function(p){p.then(function(r){
+        if(klart)return;
+        if(r&&r.hus){klart=true;clearTimeout(t);klar(r);return;}
+        if(!--kvar){klart=true;clearTimeout(t);klar(null);}
+      },function(){if(!klart&&!--kvar){klart=true;clearTimeout(t);klar(null);}});});
+    });
+  }
+
+  function diag(){
+    var d=document.createElement('div');
+    d.id='husvakt-diag';
+    d.setAttribute('style','position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;'
+      +'font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;background:#1f2430;color:#eceff4;'
+      +'border:1px solid #4c566a;border-radius:14px;padding:12px 14px;white-space:pre-wrap;'
+      +'box-shadow:0 10px 30px rgba(0,0,0,.45)');
+    var rader=['husvakt '+VER+'  (tryck för att stänga)',
+      'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'av'),'minne: '+(ls(SIST)||'–'),
+      'gräns: '+GRANS,'mäter…'];
+    function skriv(){d.textContent=rader.join('\n');}
+    skriv();
+    (document.body||document.documentElement).appendChild(d);
+    d.addEventListener('click',function(){d.remove();});
+    rader.pop();
+    [position(),sond('gottskar'),sond('gbg')].forEach(function(p){p.then(function(r){
+      rader.push(r.sig+': '+(r.hus||'–')+' · '+(r.ms==null?'–':r.ms+' ms')
+        +(r.lat!=null?(' · lat '+Number(r.lat).toFixed(5)):'')+(r.fel?(' · '+r.fel):''));
+      skriv();});});
+  }
+
+  var API={
+    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa,
+    position:position, sond:sond, forst:forst, lokal:lokal, diag:diag,
+    navigera:function(u){location.replace(u);}
+  };
+  try{window.HUSVAKT=API;}catch(e){}
+
+  function start(){
+    var q;try{q=new URLSearchParams(location.search||'');}catch(e){return;}
+    var hem=q.get('hem');
+    if(hem==='auto'){lsSet(NYCK,'auto');}
+    else if(hem==='av'){lsDel(NYCK);}
+    else if(hem==='diag'){diag();return;}
+    else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
+    if(!pa())return;
+    var sist=ls(SIST);
+    if(sist&&HUS[sist]&&sist!==jag()){if(hoppa(sist,'minne'))return;}
+    if(!sist)lsSet(SIST,jag());
+    forst([position(),sond('gottskar'),sond('gbg')],TOTAL_MS).then(function(r){
+      if(!r||!r.hus)return;
+      lsSet(SIST,r.hus);
+      /* Har du redan tryckt på något ska sidan inte byta under fingret. Minnet
+         är ändå satt, så nästa öppning hamnar rätt. */
+      if(!rort)hoppa(r.hus,r.sig);
+    });
+  }
+  /* Starten läggs i en egen tick: sidans egen uppstart ska hinna köra klart
+     innan ett eventuellt byte, och ett hopp mitt i parsningen är svårt att
+     resonera om. Fördröjningen är noll millisekunder i praktiken. */
+  function koa(){setTimeout(start,0);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',koa);
+  else koa();
+})();
 </script>
 </body>
 </html>
