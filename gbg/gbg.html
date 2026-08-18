@@ -33,7 +33,10 @@ window.pwaBuildManifest=function(){try{
   }catch(e){}
   var m={id:dir+"#gbg", name:"Göteborg", short_name:"Göteborg",
     description:"Styrning, väder och status för hemmet",
-    start_url:base, scope:dir, lang:"sv", dir:"ltr",
+    /* Scope en nivå upp: båda dashboarderna ligger i /dashboard/, och med
+       scope /dashboard/gbg/ hamnade ett hopp till Gottskär utanför appen —
+       nytt sammanhang, tom sessionStorage, och växlingen studsade tillbaka. */
+    start_url:base, scope:dir.replace(/gbg\/$/,""), lang:"sv", dir:"ltr",
     display:"standalone", display_override:["standalone","minimal-ui"],
     /* FAST värde. Tidigare lästes det ur localStorage, vilket gjorde manifestet
        olika på olika enheter och vid olika tillfällen. Chrome kontrollerar
@@ -578,7 +581,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.4.0';
+const APP_VERSION = 'v1.5.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1695,7 +1698,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.1.0 =====
+/* ===== husvakt 1.2.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -1707,7 +1710,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.1.0';
+  var VER='1.2.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -1715,7 +1718,13 @@ else start();
     gottskar:{namn:'Gottskär',cred:'homeycred_v1',fil:''},
     gbg:     {namn:'Göteborg',cred:'gbgcred_v1',  fil:'gbg/gbg.html'}
   };
-  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp', LAS='huslas';
+  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp', LAS='huslas_v1';
+  /* Låset låg i sessionStorage i 1.1.0. Det var fel: Göteborgsfilens manifest
+     hade scope /dashboard/gbg/, så ett hopp därifrån till /dashboard/ lämnade
+     appens scope och öppnades i ett nytt sammanhang — med tom sessionStorage.
+     Låset försvann, automatiken körde, och du kastades rakt tillbaka. Därför
+     localStorage med tidsstämpel i stället. */
+  var LAS_MS=45*60*1000;
   var POS_MS=3000, SOND_MS=2500, TOTAL_MS=4000;
 
   function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -1743,9 +1752,16 @@ else start();
   /* Ett manuellt val låser sessionen. Annars kastar bakgrundssignalerna tillbaka
      dig till huset du står i några sekunder efter att du bytt med flit. Låset
      gäller bara sessionen — nästa start är automatiken igång igen. */
+  function last(){
+    try{var o=JSON.parse(ls(LAS)||'null');
+      if(!o||!HUS[o.hus]||!o.t)return null;
+      if(Date.now()-o.t>LAS_MS)return null;
+      return o;}catch(e){return null;}
+  }
   function vaxla(){
     var andra=jag()==='gbg'?'gottskar':'gbg';
-    ssSet(LAS,'1');ssSet(HOPP,'0');lsSet(SIST,andra);
+    lsSet(LAS,JSON.stringify({hus:andra,t:Date.now()}));
+    ssSet(HOPP,'0');lsSet(SIST,andra);
     API.navigera(url(andra),'manuellt');
     return andra;
   }
@@ -1828,7 +1844,9 @@ else start();
       +'box-shadow:0 10px 30px rgba(0,0,0,.45)');
     var rader=['husvakt '+VER+'  (tryck för att stänga)',
       'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'av'),'minne: '+(ls(SIST)||'–'),
-      'gräns: '+GRANS,'mäter…'];
+      'gräns: '+GRANS,
+      'lås: '+(function(){var l=last();return l?(l.hus+', '+Math.round((LAS_MS-(Date.now()-l.t))/60000)+' min kvar'):'inget';})(),
+      'mäter…'];
     function skriv(){d.textContent=rader.join('\n');}
     skriv();
     (document.body||document.documentElement).appendChild(d);
@@ -1861,7 +1879,7 @@ else start();
 
   var API={
     ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
-    position:position, sond:sond, forst:forst, lokal:lokal, diag:diag,
+    position:position, sond:sond, forst:forst, lokal:lokal, diag:diag, last:last,
     navigera:function(u){location.replace(u);}
   };
   try{window.HUSVAKT=API;}catch(e){}
@@ -1875,8 +1893,10 @@ else start();
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
     if(!pa())return;
     knapp();
-    /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler. */
-    if(ss(LAS)==='1')return;
+    /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler.
+       Låset gäller 45 minuter och bara för huset du valde. */
+    var l=last();
+    if(l&&l.hus===jag())return;
     var sist=ls(SIST);
     if(sist&&HUS[sist]&&sist!==jag()){if(hoppa(sist,'minne'))return;}
     if(!sist)lsSet(SIST,jag());
