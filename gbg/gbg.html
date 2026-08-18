@@ -142,11 +142,11 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
 /* Samma mått som Gottskär-dashboarden: 15 px mellan rutor i alla lägen.
    Mobilläget kröp förut till 9 px, vilket gjorde luften olika i de två
    dashboarderna på samma telefon. */
-body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--ds-sun:11px;--ds-gap:4px;--ds-h:3px}
+body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--ds-sun:11px;--ds-gap:4px;--ds-h:3px;--kn-luft:var(--pg-gap)}
 /* RÄTTELSE mot v1.2.0. Där satte jag 15 px även på telefonen efter att ha
    jämfört Gottskärs skrivbordsregler. På mobil kör Gottskär helt andra värden:
    body 0, .wrap 2 px och --pg-gap 3 px. 15 px gjorde alltså skillnaden större. */
-body.mobile{--pg-gap:3px;--ds-h:6px;--ds-sun:14px;padding:0}
+body.mobile{--pg-gap:3px;--ds-h:6px;--ds-sun:14px;padding:0;--kn-luft:calc(var(--pg-gap)*3)}
 body.mobile .wrap{max-width:540px;padding:2px;
   padding-left:max(2px,env(safe-area-inset-left));
   padding-right:max(2px,env(safe-area-inset-right));
@@ -189,8 +189,6 @@ body.mobile .car{padding:16px}
 .en-cmp.active .ic{color:#0e1726}
 .en-cmp-ic{width:14px;height:14px;display:inline-flex}.en-cmp-ic .ic{width:100%;height:100%}
 .en-hem{cursor:pointer}
-.en-klocka{font-size:12px;font-weight:800;color:var(--ink);margin-left:2px;white-space:nowrap}
-.en-klocka small{font-size:10px;font-weight:650;color:var(--faint);margin-left:5px}
 /* EFTER .en-cmp med flit: statusen bär båda klasserna och ska ha egen textstil.
    Samma specificitet — den som står sist vinner. Står den före skriver .en-cmp
    över storlek och versaler och pillret ser ut som en knapp till. */
@@ -207,23 +205,30 @@ body.mobile .car{padding:16px}
 .rel{color:var(--faint);font-size:11px}.rel.stale{color:var(--warm)}
 .en-status .rel{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(163,190,140,.45)}70%{box-shadow:0 0 0 7px rgba(163,190,140,0)}100%{box-shadow:0 0 0 0 rgba(163,190,140,0)}}
+/* Mobiltoppraden är Gottskärs, tal för tal: 34 px höga piller, huset som enbart
+   ikon och statusen nedbantad till en prick. De tidigare 480/380-reglerna är
+   borta — de krängde egna paddingvärden över just de här. */
 @media (max-width:600px){
-  /* Gottskär har 10x12 här; --pg-gap-y (15) blev en synligt tjockare topprad. */
-  .statusbar{padding:10px 12px}
+  .statusbar{padding:10px 12px;align-items:center}
+  .statusbar .en-top{flex-wrap:nowrap;overflow:visible;align-items:center;gap:6px;width:100%}
+  .en-cmp{flex:0 1 auto;min-width:0;margin-left:0;padding:0 11px;font-size:12px;gap:5px;
+    height:34px;box-sizing:border-box;align-items:center;justify-content:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .en-cmp-ic{width:15px;height:15px;flex:0 0 auto}
+  /* Huset ensamt: font-size:0 döljer texten, ikonen är en SVG och påverkas inte. */
+  .en-hem{font-size:0;padding:0;gap:0;flex:0 0 auto;width:38px;height:34px;
+    display:inline-flex;align-items:center;justify-content:center}
+  .en-hem .en-cmp-ic{width:18px;height:18px;margin:0}
+  .statusbar .en-status{margin-left:auto;flex:0 0 auto;padding:0;border:0;background:none;
+    width:24px;height:34px;display:inline-flex;align-items:center;justify-content:center}
+  .statusbar .en-status>span:not(.dot){display:none!important}
+  .statusbar .en-status .dot{width:13px;height:13px;border-radius:50%;margin:0;flex:0 0 auto;
+    background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+  .statusbar .en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+  .statusbar .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 }
-@media (max-width:480px){
-  .en-top{gap:5px}
-  .en-top .en-cmp{padding:6px 9px;gap:4px;font-size:11.5px}
-  .en-top .en-status-btn{padding:6px 9px;gap:5px}
-  .en-klocka{font-size:11.5px}
-}
-@media (max-width:380px){
-  .en-top{gap:4px}
-  .en-top .en-cmp{padding:5px 7px;gap:3px;font-size:11px;overflow:hidden;text-overflow:ellipsis}
-  .en-top .en-cmp-ic{width:13px;height:13px}
-  .en-top .en-status-btn{padding:5px 8px}
-  .en-klocka small{display:none}
-}
+/* Toppraden ligger kvar vid skroll, som Gottskärs. */
+body.mobile .statusbar{position:sticky;top:0;z-index:35}
 
 /* ===== sol upp/ner =====
    Remsan från Gottskär-dashboarden: ikon, klockslag, skala med solpricken,
@@ -303,8 +308,10 @@ body.mobile .car{padding:16px}
 .room-bar i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .5s ease}
 
 /* ===== styrknappar ===== */
+/* Luften runt styrknapparna sitter i EN variabel, --kn-luft, så den går att
+   skruva på utan att leta i flera regler. På mobil är den 3x --pg-gap. */
 .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
-  column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);padding:var(--pg-gap)}
+  column-gap:var(--kn-luft);row-gap:var(--kn-luft);padding:var(--kn-luft)}
 .ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);
   font-family:var(--sans);font-weight:650;font-size:13px;padding:12px 10px;cursor:pointer;display:flex;
   flex-direction:column;align-items:center;gap:6px;transition:.18s;min-height:78px;justify-content:center}
@@ -441,6 +448,25 @@ body.mobile .car{padding:16px}
 .setup-b2{background:transparent;border:1px solid var(--line);color:var(--dim);margin-top:9px}
 .setup-m{font-size:12px;line-height:1.5;margin-top:12px;min-height:18px}
 .setup-m.ok{color:var(--ok)}.setup-m.fel{color:var(--hot)}
+.kn-lista{margin-top:8px}
+.kn-rad{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.kn-namn{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;
+  appearance:none;border:1px solid var(--line);background:var(--inset);color:var(--ink);
+  font:inherit;border-radius:12px;padding:9px 12px;cursor:pointer}
+.kn-ic{width:19px;height:19px;color:var(--dim);flex:0 0 auto;display:inline-flex}
+.kn-ic .ic{width:100%;height:100%}
+.kn-txt{display:flex;flex-direction:column;min-width:0}
+.kn-txt b{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kn-txt small{font-size:10.5px;color:var(--faint);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kn-mini{appearance:none;flex:0 0 auto;width:34px;height:38px;border:1px solid var(--line);
+  background:transparent;color:var(--dim);border-radius:11px;font:inherit;font-size:15px;cursor:pointer}
+.kn-mini:disabled{opacity:.35;cursor:default}
+.kn-bort{color:var(--hot)}
+.kn-ikoner{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-top:8px}
+.kn-ikon{appearance:none;aspect-ratio:1;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:12px;cursor:pointer}
+.kn-ikon .ic-slot,.kn-ikon .ic{width:20px;height:20px}
+.kn-ikon.on{border-color:var(--blue);color:var(--blue);background:rgba(129,161,193,.16)}
 .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);z-index:9999;
   padding:10px 16px;border-radius:999px;background:var(--panel-a);border:1px solid var(--line);color:var(--ink);
   font-family:var(--sans);font-size:12.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.28);
@@ -453,10 +479,7 @@ body.mobile .car{padding:16px}
 
   <section class="panel statusbar">
     <div class="en-top">
-      <button class="en-cmp en-hem" id="hem-btn" title="Uppdatera nu"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Göteborg</button>
-      <span class="en-klocka" id="klocka">–<small id="datum"></small></span>
-      <button class="en-cmp" onclick="openFlows()" title="Flows"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span><span class="lbl-txt">Flows</span></button>
-      <button class="en-cmp" onclick="openInst()" title="Inställningar"><span class="en-cmp-ic ic-slot" data-ic="wrench"></span></button>
+      <button class="en-cmp en-hem" id="hem-btn" title="Tryck: uppdatera. Håll inne: inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Göteborg</button>
       <div class="en-status en-cmp en-status-btn" id="en-status"><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div>
     </div>
   </section>
@@ -581,7 +604,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.5.0';
+const APP_VERSION = 'v1.6.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -866,11 +889,12 @@ function renderDaystrip(){
   stt('ds-rise',sc.sunrise);stt('ds-set',sc.sunset);
   stt('ds-sun',d.getHours()+d.getMinutes()/60+d.getSeconds()/3600);
 }
+/* Klockan togs bort ur toppraden. Funktionen finns kvar och gör ingenting om
+   elementet saknas — den anropas från både render() och sekundslingan. */
 function klockan(){
+  const e=$('klocka');if(!e)return;
   const d=new Date();
-  setT('klocka',hhmm(d));
-  const e=$('klocka');
-  if(e)e.innerHTML=hhmm(d)+'<small>'+d.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'})+'</small>';
+  e.innerHTML=hhmm(d)+'<small>'+d.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'})+'</small>';
 }
 
 /* ===== SMHI =====
@@ -997,7 +1021,7 @@ function innetemp(){
   return (v==null||!isFinite(v))?null:v;}
 
 /* ---------- styrknappar ---------- */
-const KNAPPAR=[
+const KNAPPAR_DEF=[
   {l:'Auto',      ic:'toggle-right', typ:'dev',  id:DEV.auto,     cap:'onoff'},
   {l:'Läggdags',  ic:'moon',         typ:'dev',  id:DEV.laggdags, cap:'onoff'},
   {l:'Släck allt',ic:'lightbulb-off',typ:'allt'},
@@ -1005,6 +1029,23 @@ const KNAPPAR=[
   {l:'Luftrenare',ic:'wind',         typ:'dev',  id:DEV.luftren,  cap:'onoff'},
   {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'}
 ];
+const KN_KEY='gbgknappar_v1';
+/* Egna knappar ligger i webbläsaren. Saknas de, eller är listan trasig, faller
+   vi tillbaka på originaluppställningen — en tom kontrollpanel är värre än en
+   uppställning man inte valt själv. */
+function knLadda(){
+  try{const a=JSON.parse(localStorage.getItem(KN_KEY)||'null');
+    if(Array.isArray(a)&&a.length)return a.filter(b=>b&&b.typ);}catch(e){}
+  return KNAPPAR_DEF.map(b=>Object.assign({},b));
+}
+function knSpara(){
+  try{localStorage.setItem(KN_KEY,JSON.stringify(KNAPPAR));}catch(e){}
+  renderControls();
+}
+let KNAPPAR=knLadda();
+/* let hamnar inte på window i ett vanligt skript — den här ger testerna
+   (och felsökning i konsolen) åtkomst till listan. */
+function knLista(){return KNAPPAR;}
 function knappPa(b){
   if(b.typ==='dev')return cap(b.id,b.cap)===true;
   if(b.typ==='allt')return devs().some(d=>klass(d)==='light'&&capOf(d,'onoff')===true);
@@ -1589,6 +1630,9 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='auto'?' pri':'')+'" onclick="temaSatt(\'auto\')">Auto</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='light'?' pri':'')+'" onclick="temaSatt(\'light\')">Ljust</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
+  h+=dSec('Knappar')
+    +'<div class="setup-t">L\u00e4gg till, flytta, byt namn, ikon och vad varje styrknapp g\u00f6r.</div>'
+    +'<button class="dbtn wide" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>';
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
     +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
@@ -1605,6 +1649,129 @@ function temaSatt(t){
 function loggaUt(){
   try{localStorage.removeItem(CRED_KEY);}catch(e){}
   stangDlg();BASE='';DATA={};location.reload();}
+
+
+/* ================= knappredigerare =================
+   Samma sorts inställning som Gottskär har för sina styrknappar, men med de tre
+   typer den här dashboarden faktiskt kan köra: enhet av/på, starta flow och
+   släck alla lampor. Gottskärs mood- och flowtoggle-typer finns inte här — jag
+   vet inte om den här Homeyn har moods, och gissar inte. */
+var _knIdx=-1, _knIkon=null;
+function knZon(d){const z=d&&d.zone&&ZONES[d.zone];return z&&z.name?z.name:'';}
+function knDevOpts(sel){
+  return devs().filter(d=>d&&d.capabilitiesObj&&d.capabilitiesObj.onoff)
+    .map(d=>({id:d.id,namn:(knZon(d)?knZon(d)+' \u00b7 ':'')+(d.name||'(utan namn)')}))
+    .sort((a,b)=>a.namn.localeCompare(b.namn,'sv'))
+    .map(o=>'<option value="'+o.id+'"'+(o.id===sel?' selected':'')+'>'+esc(o.namn)+'</option>').join('');
+}
+function knFlowOpts(sel){
+  return FLOWS.map(f=>{const v=f.typ+':'+f.id;
+    return '<option value="'+v+'"'+(v===sel?' selected':'')+'>'+esc(f.name)+(f.typ==='advanced'?' (avancerad)':'')+'</option>';}).join('');
+}
+function knTypNamn(b){
+  if(b.typ==='flow')return 'flow';
+  if(b.typ==='allt')return 'alla lampor av';
+  const d=DATA[b.id];return d?(d.name||'enhet'):'enhet saknas';
+}
+function knapparHTML(){
+  let h='<div class="setup-t">Tryck p\u00e5 en knapp f\u00f6r att \u00e4ndra den. Pilarna flyttar, krysset tar bort.</div>';
+  h+='<div class="kn-lista">';
+  KNAPPAR.forEach((b,i)=>{
+    h+='<div class="kn-rad">'
+      +'<button class="kn-namn" onclick="knRed('+i+')">'
+      +'<span class="kn-ic ic-slot" data-ic="'+esc(b.ic||'toggle-right')+'"></span>'
+      +'<span class="kn-txt"><b>'+esc(b.l||'(utan namn)')+'</b><small>'+esc(knTypNamn(b))+'</small></span></button>'
+      +'<button class="kn-mini" onclick="knFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
+      +'<button class="kn-mini" onclick="knFlytta('+i+',1)"'+(i===KNAPPAR.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
+      +'<button class="kn-mini kn-bort" onclick="knTaBort('+i+')" title="Ta bort">\u00d7</button>'
+      +'</div>';
+  });
+  h+='</div>';
+  h+='<button class="dbtn wide" onclick="knNy()">L\u00e4gg till knapp</button>';
+  h+='<button class="dbtn wide" onclick="knAterstall()">\u00c5terst\u00e4ll till original</button>';
+  return h;
+}
+function openKnappar(){DLG_OM.knappar=null;openDlg('Knappar','toggle-right',knapparHTML(),'knappar');knIkoner();}
+function knIkoner(){const b=$('dlg-body');if(b)initIcons(b);}
+function knOm(){dlgSatt(knapparHTML());knIkoner();}
+function knFlytta(i,d){
+  const j=i+d;if(j<0||j>=KNAPPAR.length)return;
+  const t=KNAPPAR[i];KNAPPAR[i]=KNAPPAR[j];KNAPPAR[j]=t;knSpara();knOm();
+}
+function knTaBort(i){
+  if(!KNAPPAR[i])return;
+  KNAPPAR.splice(i,1);knSpara();knOm();toast('Knappen borttagen');
+}
+function knAterstall(){
+  KNAPPAR=KNAPPAR_DEF.map(b=>Object.assign({},b));knSpara();knOm();toast('\u00c5terst\u00e4llt');
+}
+function knNy(){
+  KNAPPAR.push({l:'Ny knapp',ic:'toggle-right',typ:'dev',id:'',cap:'onoff'});
+  knSpara();knRed(KNAPPAR.length-1);
+}
+const KN_IKONER=['toggle-right','toggle-left','lightbulb','lightbulb-off','lamp','moon','sun','power','plug',
+  'fan','wind','snowflake','flame','thermometer','drop','shower','bathtub','bed','couch','door','door-open',
+  'lock','lock-open','car','charging-station','television','speaker-high','music-note','game-controller',
+  'coffee','cooking-pot','oven','washing-machine','printer','robot','camera','sparkle','timer','alarm','bell',
+  'shield-check','key','leaf','tree','flower','swimming-pool','garage','stairs','house','wrench'];
+function knRed(i){
+  const b=KNAPPAR[i];if(!b)return;
+  _knIdx=i;_knIkon=b.ic||'toggle-right';
+  if(!FLOWS.length)hamtaFlows().then(()=>{if(_knIdx===i)knRedOm(i);}).catch(()=>{});
+  knRedOm(i);
+}
+function knRedOm(i){
+  const b=KNAPPAR[i];if(!b)return;
+  let h='<div class="setup-t">\u00c4ndringen sparas direkt och g\u00e4ller bara den h\u00e4r webbl\u00e4saren.</div>';
+  h+=dSec('Typ')+'<div class="dbtn-row">'
+    +'<button class="dbtn'+(b.typ==='dev'?' pri':'')+'" onclick="knTyp('+i+',\'dev\')">Enhet</button>'
+    +'<button class="dbtn'+(b.typ==='flow'?' pri':'')+'" onclick="knTyp('+i+',\'flow\')">Flow</button>'
+    +'<button class="dbtn'+(b.typ==='allt'?' pri':'')+'" onclick="knTyp('+i+',\'allt\')">Sl\u00e4ck allt</button></div>';
+  h+=dSec('Namn')+'<input class="setup-i" id="kn-namn" maxlength="22" value="'+esc(b.l||'')+'">';
+  if(b.typ==='dev'){
+    h+=dSec('Enhet')+'<select class="setup-i" id="kn-dev"><option value="">V\u00e4lj enhet\u2026</option>'+knDevOpts(b.id||'')+'</select>'
+      +'<div class="setup-t">Bara enheter som g\u00e5r att sl\u00e5 av och p\u00e5 visas.</div>';
+  }else if(b.typ==='flow'){
+    const sel=b.flow?((b.ftyp||'standard')+':'+b.flow):'';
+    h+=dSec('Flow')+'<select class="setup-i" id="kn-flow"><option value="">'+(FLOWS.length?'V\u00e4lj flow\u2026':'L\u00e4ser in flows\u2026')+'</option>'+knFlowOpts(sel)+'</select>';
+  }else{
+    h+=dSec('Handling')+'<div class="setup-t">Sl\u00e4cker alla lampor i hemmet med ett tryck. Inget att st\u00e4lla in.</div>';
+  }
+  h+=dSec('Ikon')+'<div class="kn-ikoner">'
+    +KN_IKONER.map(n=>'<button class="kn-ikon'+(n===_knIkon?' on':'')+'" onclick="knValjIkon(\''+n+'\')" title="'+n+'"><span class="ic-slot" data-ic="'+n+'"></span></button>').join('')
+    +'</div>';
+  h+='<button class="dbtn wide pri" onclick="knSparaRed('+i+')">Spara</button>';
+  h+='<button class="dbtn wide" onclick="openKnappar()">Tillbaka</button>';
+  DLG_OM.knapp=null;
+  openDlg('\u00c4ndra knapp','wrench',h,'knapp');
+  knIkoner();
+}
+function knTyp(i,t){
+  const b=KNAPPAR[i];if(!b)return;
+  knLasIn(i);b.typ=t;knSpara();knRedOm(i);
+}
+function knValjIkon(n){
+  _knIkon=n;
+  const el=$('dlg-body');if(!el)return;
+  el.querySelectorAll('.kn-ikon').forEach(x=>x.classList.toggle('on',x.getAttribute('title')===n));
+}
+/* L\u00e4s av f\u00e4lten innan n\u00e5got ritas om \u2014 annars f\u00f6rsvinner ett halvskrivet namn
+   s\u00e5 fort man byter typ. */
+function knLasIn(i){
+  const b=KNAPPAR[i];if(!b)return;
+  const n=$('kn-namn');if(n&&typeof n.value==='string'&&n.value.trim())b.l=n.value.trim();
+  const d=$('kn-dev');if(d&&d.value){b.id=d.value;b.cap='onoff';}
+  const f=$('kn-flow');
+  if(f&&f.value){const p=f.value.split(':');b.ftyp=p[0];b.flow=p.slice(1).join(':');}
+  if(_knIkon)b.ic=_knIkon;
+}
+function knSparaRed(i){
+  const b=KNAPPAR[i];if(!b)return;
+  knLasIn(i);
+  if(b.typ==='dev'&&!b.id){toast('V\u00e4lj en enhet f\u00f6rst');return;}
+  if(b.typ==='flow'&&!b.flow){toast('V\u00e4lj ett flow f\u00f6rst');return;}
+  knSpara();openKnappar();toast('Sparad');
+}
 
 /* ================= första uppstarten ================= */
 function setupHTML(){
@@ -1689,7 +1856,22 @@ function start(){
   setInterval(()=>{fetchSmhi();},5*60000);
   /* Tillbaka i förgrunden: hämta direkt i stället för att vänta ut intervallet. */
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();fetchSmhi();}});
-  const hb=$('hem-btn');if(hb)hb.addEventListener('click',()=>{load();fetchSmhi();toast('Uppdaterar…');});
+  /* Huset: kort tryck uppdaterar, långt tryck öppnar inställningarna. Kugghjulet
+     är borta ur toppraden, så det här är enda vägen in dit. */
+  const hb=$('hem-btn');
+  if(hb){
+    let tid=null,lang=false;
+    const start=()=>{lang=false;clearTimeout(tid);tid=setTimeout(()=>{lang=true;
+      try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
+      openInst();},550);};
+    const slut=()=>{clearTimeout(tid);};
+    hb.addEventListener('pointerdown',start);
+    hb.addEventListener('pointerup',slut);
+    hb.addEventListener('pointerleave',slut);
+    hb.addEventListener('pointercancel',slut);
+    hb.addEventListener('contextmenu',e=>e.preventDefault());
+    hb.addEventListener('click',()=>{if(lang){lang=false;return;}load();fetchSmhi();toast('Uppdaterar…');});
+  }
   const db=$('dlg-back');
   if(db){['click','touchstart','wheel','keydown'].forEach(ev=>db.addEventListener(ev,dlgRorelse,{passive:true}));}
   if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches)document.body.classList.add('mobile');
@@ -1698,7 +1880,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.2.0 =====
+/* ===== husvakt 1.3.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -1710,7 +1892,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.2.0';
+  var VER='1.3.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -1860,16 +2042,32 @@ else start();
 
   /* Knappen ritas av modulen själv, inte av respektive fils HTML — då finns den
      på båda hållen med exakt samma kod. .en-cmp finns i båda filerna. */
+  /* Rund, bara ikonen — samma form som notisknappen på Gottskärs mobilläge:
+     38x34 med full radie. Stilen följer med modulen så den ser likadan ut i
+     båda filerna utan att någon av dem behöver egna regler. */
+  var STIL='.husvakt-knapp{width:38px;height:34px;padding:0;gap:0;font-size:0;border-radius:999px;'
+    +'flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}'
+    +'.husvakt-knapp svg{width:18px;height:18px;fill:currentColor;display:block}';
+  var PIL='<svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,181.66l-32,32a8,8,0,0,1-11.32-11.32L188.69,184H48a8,8,0,0,1,0-16H188.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,213.66,181.66Zm-139.32-64a8,8,0,0,0,11.32-11.32L67.31,88H208a8,8,0,0,0,0-16H67.31L85.66,53.66A8,8,0,0,0,74.34,42.34l-32,32a8,8,0,0,0,0,11.32Z"/></svg>';
+  function stil(){
+    try{
+      if(document.getElementById('husvakt-stil'))return;
+      var st=document.createElement('style');st.id='husvakt-stil';st.textContent=STIL;
+      (document.head||document.documentElement).appendChild(st);
+    }catch(e){}
+  }
   function knapp(){
     try{
       if(document.getElementById('husvakt-knapp'))return null;
       var rad=document.querySelector('.statusbar .en-top')||document.querySelector('.en-top');
       if(!rad)return null;
+      stil();
       var andra=jag()==='gbg'?'gottskar':'gbg';
       var b=document.createElement('button');
       b.id='husvakt-knapp';b.className='en-cmp husvakt-knapp';b.type='button';
       b.title='Växla till '+HUS[andra].namn;
-      b.textContent='\u21c4 '+HUS[andra].namn;
+      b.setAttribute('aria-label','Växla till '+HUS[andra].namn);
+      b.innerHTML=PIL;
       b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();vaxla();});
       var st=rad.querySelector('.en-status');
       if(st)rad.insertBefore(b,st);else rad.appendChild(b);
