@@ -688,7 +688,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.12.0';
+const APP_VERSION = 'v1.13.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -747,6 +747,11 @@ function demoData(){
   /* lampor i fyra rum, några tända och dimrade */
   dev('d-kok1','Taklampa kök','light',kok,{onoff:true,dim:0.72});
   dev('d-kok2','Bänkbelysning','light',kok,{onoff:true,dim:0.4});
+  /* En Hue-grupp med tre medlemmar, så gruppdöljningen går att se i demoläget. */
+  dev('d-koktak','Kök tak','light',kok,{onoff:false,dim:0.51});
+  dev('d-koktak1','Kök tak 1','light',kok,{onoff:false,dim:0.51});
+  dev('d-koktak2','Kök tak 2','light',kok,{onoff:false,dim:0.51});
+  dev('d-koktak3','Kök tak 3','light',kok,{onoff:false,dim:0.51});
   dev('d-vard1','Golvlampa','light',vard,{onoff:true,dim:0.55});
   dev('d-vard2','Ambilight','light',vard,{onoff:false,dim:0.9});
   dev('d-sov1','Sänglampa','light',sov,{onoff:false,dim:0.3});
@@ -839,26 +844,51 @@ function devs(){return Object.keys(DATA).map(k=>DATA[k]).filter(Boolean);}
 function devsIZon(zid){return devs().filter(d=>d.zone===zid);}
 const tillg=d=>!(d&&d.available===false);
 
-/* Hue-rumsgrupper heter som lamporna de innehåller, fast utan siffra:
-   "Kök tak" bredvid "Kök tak 1".."Kök tak 5". De ska inte räknas två gånger.
-   Det här är en HEURISTIK på namn — Homeys API skiljer inte ut grupper på ett
-   sätt jag kunnat verifiera mot den här installationen. Slår den fel blir en
-   lampa räknad dubbelt; den går fortfarande att styra. */
+/* ===== grupper och deras medlemmar =====
+   Hue-rumsgrupper heter som lamporna de innehåller, fast utan siffra:
+   "Kök tak" bredvid "Kök tak 1".."Kök tak 5".
+
+   Jag läste igenom enhetslistan i den här Homeyn: det finns INGET fält som
+   säger vilka lampor som ingår i en grupp. Zon, typ och capabilities ser
+   likadana ut för gruppen och dess medlemmar. Det lokala API:t skickar med
+   driverId och driverUri per enhet, och de kan skilja gruppen från lamporna —
+   men jag vet inte vilka värden just din Hue-app använder, så koden PROVAR dem
+   först och faller tillbaka på namnregeln. Vilka värden du faktiskt har ser du
+   under Inställningar → Grupper; skicka listan så gör jag regeln exakt. */
 let _grupp=null;
-function arGrupp(d){
-  if(_grupp===null){
-    _grupp={};
-    const ljus=devs().filter(x=>klass(x)==='light');
-    for(const a of ljus){
-      const n=namn(a);
-      if(ljus.some(b=>b!==a&&b.zone===a.zone&&new RegExp('^'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+' \\d+$').test(namn(b))))
-        _grupp[a.id]=true;
+function grpDrivare(d){
+  return String((d&&(d.driverUri||d.driverId||d.driverUrl))||'');
+}
+function grpBygg(){
+  const g={grupper:{},medlemmar:{},iGrupp:{}};
+  const ljus=devs().filter(x=>klass(x)==='light');
+  const esc2=t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  for(const a of ljus){
+    const n=namn(a);
+    /* Medlemmar heter "<gruppen> <siffra>" och ligger i samma zon. */
+    const med=ljus.filter(b=>b!==a&&b.zone===a.zone&&new RegExp('^'+esc2(n)+' \\d+$').test(namn(b)));
+    if(med.length){
+      g.grupper[a.id]=med.map(b=>b.id);
+      med.forEach(b=>{g.medlemmar[b.id]=a.id;});
     }
   }
-  return !!_grupp[d.id];
+  /* Om drivrutinen skvallrar om att något är en grupp räknas det som grupp även
+     utan namnmatchning — men bara som TILLÄGG, aldrig för att dölja något. */
+  for(const a of ljus){
+    if(g.grupper[a.id])continue;
+    if(/group|zone|room/i.test(grpDrivare(a)))g.grupper[a.id]=g.grupper[a.id]||[];
+  }
+  for(const id in g.medlemmar)g.iGrupp[id]=true;
+  return g;
 }
+function grpInfo(){if(_grupp===null)_grupp=grpBygg();return _grupp;}
+function arGrupp(d){return !!grpInfo().grupper[d&&d.id];}
+function iGrupp(d){return !!grpInfo().iGrupp[d&&d.id];}
+function grpMedlemmar(d){return (grpInfo().grupper[d&&d.id]||[]).map(id=>DATA[id]).filter(Boolean);}
+/* Lamporna i en zon. Medlemmar i en grupp döljs — gruppen styr dem ändå, och
+   annars står samma lampa två gånger i listan. taMed=true ger alla. */
 function ljusIZon(zid,taMed){
-  return devsIZon(zid).filter(d=>klass(d)==='light'&&har(d,'onoff')&&(taMed||!arGrupp(d)));
+  return devsIZon(zid).filter(d=>klass(d)==='light'&&har(d,'onoff')&&(taMed||!iGrupp(d)));
 }
 
 /* ===== sparade uppgifter ===== */
@@ -1632,7 +1662,9 @@ function devRad(d){
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
   let h='<div class="dv-row'+(pa?' on':'')+'">'
     +'<span class="dv-ic">'+icon(klass(d)==='socket'?'plug':'lightbulb-filament')+'</span>'
-    +'<span class="dv-n">'+esc(namn(d))+(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
+    +'<span class="dv-n">'+esc(namn(d))
+      +(arGrupp(d)&&grpMedlemmar(d).length?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
+      +(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
   if(dim!=null&&pa)h+='<input class="sl dv-dim" type="range" min="1" max="100" value="'+Math.round(dim*100)
     +'" onchange="devDim(\''+d.id+'\',this.value)">';
@@ -1646,7 +1678,7 @@ function openRum(zid){
   openDlg(zonNamn(zid)||'Rum',ZON_IC[zonNamn(zid)]||'lightbulb',rumHTML(),'rum');
 }
 function rumHTML(){
-  const zid=_rumId,lj=ljusIZon(zid),grp=devsIZon(zid).filter(d=>klass(d)==='light'&&arGrupp(d));
+  const zid=_rumId,lj=ljusIZon(zid);
   const pa=lj.filter(d=>capOf(d,'onoff')===true);
   const dimbara=pa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
   const medel=dimbara.length?Math.round(dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length*100):50;
@@ -1659,7 +1691,6 @@ function rumHTML(){
   }
   h+=dSec('Lampor ('+pa.length+' av '+lj.length+' tända)');
   h+=lj.map(devRad).join('');
-  if(grp.length)h+=dSec('Grupper')+grp.map(devRad).join('');
   const gard=devsIZon(zid).filter(d=>['curtain','windowcoverings','blinds'].indexOf(klass(d))>=0);
   if(gard.length){h+=dSec('Gardiner');h+=gard.map(gardRad).join('');}
   const ovr=devsIZon(zid).filter(d=>['socket'].indexOf(klass(d))>=0);
@@ -1910,6 +1941,9 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='auto'?' pri':'')+'" onclick="temaSatt(\'auto\')">Auto</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='light'?' pri':'')+'" onclick="temaSatt(\'light\')">Ljust</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
+  h+=dSec('Lampgrupper')
+    +'<div class="setup-t">Lampor som ing\u00e5r i en grupp d\u00f6ljs i rumsrutan \u2014 gruppen styr dem \u00e4nd\u00e5. H\u00e4r ser du vad som r\u00e4knas som vad.</div>'
+    +'<button class="dbtn wide" data-sekt="grupper" onclick="openGrupper()">Visa grupper</button>';
   h+=dSec('Avsnitt')
     +'<div class="setup-t">Ordningen p\u00e5 sidan, och vad som visas.</div>'
     +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>'
@@ -1965,6 +1999,29 @@ function demoBind(){
       el.addEventListener('click',function(){demoOppna(el.getAttribute('data-demo')==='ny');});
     });
   }catch(e){}
+}
+/* Vad dashboarden TROR om grupperna, och vad den har att gå på. Skicka den här
+   listan så kan namnregeln bytas mot ett riktigt fält. */
+function grpText(){
+  const g=grpInfo(),rader=[];
+  const zoner={};
+  devs().filter(d=>klass(d)==='light').forEach(d=>{(zoner[zonNamn(d.zone)||'?']=zoner[zonNamn(d.zone)||'?']||[]).push(d);});
+  Object.keys(zoner).sort((a,b)=>a.localeCompare(b,'sv')).forEach(z=>{
+    rader.push(z);
+    zoner[z].sort((a,b)=>namn(a).localeCompare(namn(b),'sv')).forEach(d=>{
+      const roll=g.grupper[d.id]?('GRUPP ('+(g.grupper[d.id].length)+')'):(g.medlemmar[d.id]?('i '+(namn(DATA[g.medlemmar[d.id]])||'?')):'ensam');
+      rader.push('  '+namn(d)+'  ·  '+roll+'  ·  '+(grpDrivare(d)||'ingen drivrutin i svaret'));
+    });
+  });
+  return rader.join('\n');
+}
+function openGrupper(){
+  try{
+    DLG_OM.grupper=null;
+    openDlg('Grupper','lightbulb',
+      '<div class="setup-t">Vad dashboarden tror om varje lampa. GRUPP betyder att den styr andra, "i X" att den d\u00f6ljs eftersom X styr den. Sista kolumnen \u00e4r drivrutinen \u2014 st\u00e5r det n\u00e5got d\u00e4r kan regeln g\u00f6ras exakt i st\u00e4llet f\u00f6r att gissa p\u00e5 namn.</div>'
+      +'<pre class="cfg-diag" style="white-space:pre-wrap;font-size:11px;margin-top:8px">'+esc(grpText())+'</pre>','grupper');
+  }catch(e){toast('Kunde inte \u00f6ppna: '+((e&&e.message)||'ok\u00e4nt fel'));}
 }
 function loggaUt(){
   try{localStorage.removeItem(CRED_KEY);}catch(e){}
@@ -2062,7 +2119,8 @@ function sektDeleg(e){
   var nu=Date.now();if(nu-_sektKlickAt<400)return;_sektKlickAt=nu;
   var v=t.getAttribute('data-sekt');
   try{
-    if(v==='meny')openSekt();
+    if(v==='grupper')openGrupper();
+    else if(v==='meny')openSekt();
     else if(v==='aterstall')sektAterstall();
     else if(v.indexOf('upp:')===0)sektFlytta(+v.slice(4),-1);
     else if(v.indexOf('ner:')===0)sektFlytta(+v.slice(4),1);
