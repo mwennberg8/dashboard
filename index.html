@@ -11865,7 +11865,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v477';
+const APP_VERSION='v478';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13808,7 +13808,7 @@ async function checkForUpdate(){try{
 checkForUpdate();setInterval(checkForUpdate,60000);
 </script>
 <script>
-/* ===== husvakt 1.0.0 =====
+/* ===== husvakt 1.1.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -13820,7 +13820,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.0.0';
+  var VER='1.1.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -13828,7 +13828,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
     gottskar:{namn:'Gottskär',cred:'homeycred_v1',fil:''},
     gbg:     {namn:'Göteborg',cred:'gbgcred_v1',  fil:'gbg/gbg.html'}
   };
-  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp';
+  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp', LAS='huslas';
   var POS_MS=3000, SOND_MS=2500, TOTAL_MS=4000;
 
   function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -13853,6 +13853,15 @@ checkForUpdate();setInterval(checkForUpdate,60000);
   ['pointerdown','keydown','touchstart'].forEach(function(t){
     try{addEventListener(t,function(){rort=true;},{once:true,passive:true});}catch(e){}});
 
+  /* Ett manuellt val låser sessionen. Annars kastar bakgrundssignalerna tillbaka
+     dig till huset du står i några sekunder efter att du bytt med flit. Låset
+     gäller bara sessionen — nästa start är automatiken igång igen. */
+  function vaxla(){
+    var andra=jag()==='gbg'?'gottskar':'gbg';
+    ssSet(LAS,'1');ssSet(HOPP,'0');lsSet(SIST,andra);
+    API.navigera(url(andra),'manuellt');
+    return andra;
+  }
   function hoppa(h,varfor){
     if(!HUS[h]||h===jag())return false;
     var n=parseInt(ss(HOPP)||'0',10)||0;
@@ -13944,8 +13953,27 @@ checkForUpdate();setInterval(checkForUpdate,60000);
       skriv();});});
   }
 
+  /* Knappen ritas av modulen själv, inte av respektive fils HTML — då finns den
+     på båda hållen med exakt samma kod. .en-cmp finns i båda filerna. */
+  function knapp(){
+    try{
+      if(document.getElementById('husvakt-knapp'))return null;
+      var rad=document.querySelector('.statusbar .en-top')||document.querySelector('.en-top');
+      if(!rad)return null;
+      var andra=jag()==='gbg'?'gottskar':'gbg';
+      var b=document.createElement('button');
+      b.id='husvakt-knapp';b.className='en-cmp husvakt-knapp';b.type='button';
+      b.title='Växla till '+HUS[andra].namn;
+      b.textContent='\u21c4 '+HUS[andra].namn;
+      b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();vaxla();});
+      var st=rad.querySelector('.en-status');
+      if(st)rad.insertBefore(b,st);else rad.appendChild(b);
+      return b;
+    }catch(e){return null;}
+  }
+
   var API={
-    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa,
+    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
     position:position, sond:sond, forst:forst, lokal:lokal, diag:diag,
     navigera:function(u){location.replace(u);}
   };
@@ -13959,6 +13987,9 @@ checkForUpdate();setInterval(checkForUpdate,60000);
     else if(hem==='diag'){diag();return;}
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
     if(!pa())return;
+    knapp();
+    /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler. */
+    if(ss(LAS)==='1')return;
     var sist=ls(SIST);
     if(sist&&HUS[sist]&&sist!==jag()){if(hoppa(sist,'minne'))return;}
     if(!sist)lsSet(SIST,jag());
