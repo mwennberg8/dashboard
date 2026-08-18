@@ -11112,12 +11112,23 @@ var VAL_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','secOrder_v1','secScale_v1','s
 function valString(){
   var o={_om:{ver:APP_VERSION,enhet:enhetsNamn(),lage:(MOBILE?'telefon':'platta'),
                at:new Date().toISOString(),mobGapY:mobGapY()}};
+  /* Nycklar och lösenord ska aldrig följa med ut. Exporten är gjord för att
+     klistras in i ett meddelande, och då är en riktig API-nyckel mitt i texten
+     en läcka — den syns för alla som ser meddelandet och går inte att ångra.
+     De maskeras här; själva inställningen på enheten rörs inte. */
+  var HEMLIGA=/(key|token|secret|nyckel|losen|lösen|password)/i;
+  function maska(o){
+    if(!o||typeof o!=='object')return o;
+    if(Array.isArray(o))return o.map(maska);
+    var ut={};
+    for(var n in o)ut[n]=HEMLIGA.test(n)?(o[n]?'(dold — ligger kvar på enheten)':o[n]):maska(o[n]);
+    return ut;}
   VAL_KEYS.forEach(function(k){
     var v=null;try{v=localStorage.getItem(k);}catch(e){}
     if(v==null)return;
     /* Tolka JSON så utskriften går att läsa i stället för att bli en sträng
        inuti en sträng med alla citattecken förrymda. */
-    try{o[k]=JSON.parse(v);}catch(e){o[k]=v;}
+    try{o[k]=maska(JSON.parse(v));}catch(e){o[k]=v;}
   });
   return JSON.stringify(o,null,1);}
 function openVal(){
@@ -11964,7 +11975,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v482';
+const APP_VERSION='v484';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13910,7 +13921,7 @@ async function checkForUpdate(){try{
 checkForUpdate();setInterval(checkForUpdate,60000);
 </script>
 <script>
-/* ===== husvakt 1.4.0 =====
+/* ===== husvakt 1.5.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -13922,7 +13933,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.4.0';
+  var VER='1.5.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -14123,6 +14134,9 @@ checkForUpdate();setInterval(checkForUpdate,60000);
 
   function start(){
     var q;try{q=new URLSearchParams(location.search||'');}catch(e){return;}
+    /* Demoläget ska stå still. En dashboard som hoppar till det andra huset mitt
+       i en utprovning är obrukbar, och där finns ingen påhittad data. */
+    if(q.get('demo')==='1')return;
     var hem=q.get('hem');
     if(hem==='auto'){lsSet(NYCK,'auto');}
     else if(hem==='av'){lsDel(NYCK);}
