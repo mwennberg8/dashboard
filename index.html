@@ -10698,7 +10698,8 @@ async function backupTick(){
        samma enhet får skriva om den. */
     var far=await agareFarSkriva(false);
     if(!far.ok){
-      o.blocked=k;o.blockadAv=(far.agare&&far.agare.namn)||'annan enhet';
+      o.blocked=k;o.blockadAv=(far.agare&&far.agare.namn)||far.orsak||'annan enhet';
+      loggSkriv('avstod',{orsak:o.blockadAv});
       /* ÄRV I STÄLLET. Att bara avstå från att skriva räckte inte — då satt
          enheten kvar med sina egna inställningar i evighet. Äger någon annan
          kopian är den kopian sanningen, och den här enheten ska hämta hem den.
@@ -10752,10 +10753,21 @@ function syncPushSoon(){try{
     var o=bkpGet(),len=bkpLen();
     if(o.len&&len<o.len*0.6){syncNote('Sparade inte – lokal data ser ofullständig ut');return;}
     _pushBusy=true;
+    /* ÄGARSKAPET GÄLLER ÄVEN HÄR. Den här vägen skrev rakt på logikvariablerna
+       utan att fråga vem som äger kopian — en enhet som råkade ändra något
+       lokalt kunde alltså skriva över ett manuellt beslut från en annan enhet
+       några sekunder senare, tyst. */
+    agareFarSkriva(false).then(function(far){
+      if(!far.ok){_pushBusy=false;
+        syncNote('Sparade inte – '+((far.agare&&far.agare.namn)?(far.agare.namn+' äger kopian'):(far.orsak||'kunde inte kontrollera ägaren')));
+        loggSkriv('push-avstod',{orsak:(far.agare&&far.agare.namn)||far.orsak||''});
+        return;}
     saveToHomey().then(function(){_pushBusy=false;
       try{var b=bkpGet();b.len=len;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
+      loggSkriv('push',{tecken:len});
       syncNote('Sparat till Homey');},
-      function(){_pushBusy=false;});},3000);
+      function(){_pushBusy=false;});
+    });},3000);
 }catch(e){}}
 /* ===== Backup till v2-appen =====
    Appen sparar varje nyckel för sig och har inget tak att slå i. Den gamla vägen
@@ -10768,6 +10780,48 @@ function syncPushSoon(){try{
    annan enhet. Nyckeln ligger utanför SYNC_KEYS så den inte hamnar i någons
    lokala inställningar. */
 var AGARE_KEY='_agare_v1';
+/* SKRIVLOGG. Varje skrivning mot Homey antecknas i appen under _logg_v1: vem,
+   när, hur mycket, manuellt eller automatiskt, och från vilken adress. När en
+   sparning försvinner är frågan alltid "vem skrev sist", och den gick inte att
+   svara på tidigare — alla vägar var tysta. Loggen är ringbuffrad till 40 rader
+   och ligger utanför SYNC_KEYS, så den kan aldrig hamna i någons inställningar. */
+var LOGG_KEY='_logg_v1', _loggKo=[];
+function loggRad(vad,extra){
+  var o={vad:vad,namn:enhetsNamn(),id:enhetsId(),at:Date.now(),ver:APP_VERSION};
+  try{o.plats=location.host+location.pathname;}catch(e){}
+  if(extra)for(var k in extra)o[k]=extra[k];
+  return o;}
+function loggSkriv(vad,extra){
+  try{
+    _loggKo.push(loggRad(vad,extra));
+    if(_loggKo.length>5)_loggKo.shift();
+    if(!appKan())return;
+    appGet('/backup?key='+encodeURIComponent(LOGG_KEY)).then(function(raa){
+      var lista=[];
+      try{var v=(typeof raa==='string')?JSON.parse(raa):raa;if(Array.isArray(v))lista=v;}catch(e){}
+      lista=lista.concat(_loggKo);_loggKo=[];
+      if(lista.length>40)lista=lista.slice(lista.length-40);
+      var kropp={};kropp[LOGG_KEY]=JSON.stringify(lista);
+      appPost('/backup',kropp).catch(function(){});
+    }).catch(function(){});
+  }catch(e){}}
+async function loggLas(){
+  try{
+    var raa=await appGet('/backup?key='+encodeURIComponent(LOGG_KEY));
+    var v=(typeof raa==='string')?JSON.parse(raa):raa;
+    return Array.isArray(v)?v:[];
+  }catch(e){return [];}}
+function loggText(rader){
+  if(!rader||!rader.length)return 'Ingen skrivning loggad än. Loggen börjar fyllas från och med v481 — nästa gång något skrivs över står det här vem som gjorde det.';
+  return rader.slice().reverse().map(function(r){
+    var d=new Date(r.at||0);
+    var kl=('0'+d.getDate()).slice(-2)+'/'+(d.getMonth()+1)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    return kl+'  '+(r.namn||'?')+'  '+(r.vad||'?')
+      +(r.nycklar!=null?('  '+r.nycklar+' nycklar'):'')
+      +(r.tecken!=null?('  '+r.tecken+' tecken'):'')
+      +(r.orsak?('  — '+r.orsak):'')
+      +(r.ver?('  '+r.ver):'');
+  }).join('\n');}
 function agareStampel(manuell){
   return JSON.stringify({id:enhetsId(),namn:enhetsNamn(),at:Date.now(),manuell:!!manuell});}
 function agareLas(o){
@@ -10779,16 +10833,23 @@ function agareLas(o){
 /* Får DEN HÄR enheten skriva över det som ligger i Homey? */
 async function agareFarSkriva(manuell){
   if(manuell)return {ok:true};              /* ett tryck är alltid ett beslut */
+  /* FALLER STÄNGD. Tidigare gav varje fel här {ok:true}: gick nätet ner mitt i
+     kontrollen, eller svarade appen långsamt vid den nattliga körningen, drog
+     enheten slutsatsen att ingen ägde kopian och skrev över den med sina egna
+     värden. En automatisk skrivning som inte kan bevisa att den får skriva ska
+     avstå — nästa tick kommer om ett dygn, och ett manuellt tryck går alltid
+     fram ändå. */
   try{
-    if(!appKan())return {ok:true};
+    if(!appKan())return {ok:true};          /* ingen app-väg alls: gamla vägen gäller */
     var lista=await appGet('/backup');
-    if(!lista||!lista.nycklar)return {ok:true};
-    if(!(AGARE_KEY in lista.nycklar))return {ok:true};
+    if(!lista||!lista.nycklar)return {ok:false,orsak:'inget svar om vem som äger kopian'};
+    if(!(AGARE_KEY in lista.nycklar))return {ok:true};   /* ingen har gjort anspråk */
     var a=agareLas({_agare_v1:await appGet('/backup?key='+encodeURIComponent(AGARE_KEY))});
-    if(!a||!a.manuell)return {ok:true};
+    if(!a)return {ok:false,orsak:'ägarstämpeln gick inte att läsa'};
+    if(!a.manuell)return {ok:true};
     if(a.id===enhetsId())return {ok:true};
     return {ok:false,agare:a};
-  }catch(e){return {ok:true};}}
+  }catch(e){return {ok:false,orsak:'kunde inte läsa ägarstämpeln: '+((e&&e.message)||'okänt')};}}
 
 async function appBackupSpara(manuell){
   var obj={};
@@ -10817,6 +10878,8 @@ async function appBackupSpara(manuell){
   if(!r)throw (sist||new Error('ingen väg till Homey'));
   var j=await r.json();
   if(j&&j.result)j=j.result;
+  loggSkriv(manuell?'manuell sparning':'automatisk sparning',
+    {nycklar:Object.keys(obj).length,tecken:JSON.stringify(obj).length});
   return j;}
 var _appLasSist={rap:0,las:0,hopp:[],fel:[]};
 async function appBackupLas(){
@@ -11041,6 +11104,42 @@ async function doFetchSync(){const el=$('sync-status');if(el)el.textContent='Hä
   try{const r=await fetchFromHomey();const el2=$('sync-status');if(el2)el2.textContent=r.applied?('Hämtat ✓ · '+syncStatusText()):('Inget hämtat: '+r.reason);}
   catch(e){const el2=$('sync-status');if(el2)el2.textContent='Kunde inte hämta: '+((e&&e.message)||e);}}
 function backupString(){const obj={};SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)obj[k]=v;});return JSON.stringify(obj);}
+/* De nycklar som bär EGNA VAL. Loggar, inlärning och mätserier är med i den
+   stora exporten men inte här — den här listan ska gå att läsa och klistra in
+   i ett meddelande, och sedan bakas in som standard i nästa version. */
+var VAL_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','secOrder_v1','secScale_v1','secDold_v1',
+  'tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','view_mode_v1','huvudenhet_v1'];
+function valString(){
+  var o={_om:{ver:APP_VERSION,enhet:enhetsNamn(),lage:(MOBILE?'telefon':'platta'),
+               at:new Date().toISOString(),mobGapY:mobGapY()}};
+  VAL_KEYS.forEach(function(k){
+    var v=null;try{v=localStorage.getItem(k);}catch(e){}
+    if(v==null)return;
+    /* Tolka JSON så utskriften går att läsa i stället för att bli en sträng
+       inuti en sträng med alla citattecken förrymda. */
+    try{o[k]=JSON.parse(v);}catch(e){o[k]=v;}
+  });
+  return JSON.stringify(o,null,1);}
+function openVal(){
+  var h='<div class="te"><div class="te-sec">Mina inst\u00e4llningar</div>'
+    +'<div class="cfg-hint" style="margin-top:0">Layout, ordning, storlekar, knappar och avst\u00e5nd \u2014 allt du st\u00e4llt in f\u00f6r hand p\u00e5 den h\u00e4r enheten. Loggar och m\u00e4tserier \u00e4r inte med. Kopiera och klistra in i chatten s\u00e5 kan de bakas in som standard.</div>'
+    +'<textarea id="bk-out" class="bk-ta" readonly onclick="this.select()">'+esc(valString())+'</textarea>'
+    +'<div class="te-adv"><button class="te-use" onclick="valCopy()">Kopiera</button></div>'
+    +'<div class="cfg-hint" id="bk-status">'+esc(valString().length+' tecken.')+'</div></div>';
+  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
+  setT('dlg-title','Mina inst\u00e4llningar');setIcon('dlg-ic','wrench');
+  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
+  var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');dlgTop();}
+function valCopy(){
+  var t=$('bk-out');if(t&&t.select)t.select();var ok=false;
+  try{ok=document.execCommand&&document.execCommand('copy');}catch(e){}
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(valString());ok=true;}catch(e){}
+  var s2=$('bk-status');if(s2)s2.textContent=ok?'Kopierat \u2713':'Markera texten och kopiera manuellt.';}
+/* Vem skrev senast till Homey? */
+async function loggVisa(){
+  var el=$('sync-logg');if(el)el.textContent='L\u00e4ser\u2026';
+  var r=await loggLas();
+  if(el)el.textContent=loggText(r);}
 function openBackup(){
   let h='<div class="te"><div class="te-sec">Exportera – kopiera och spara undan</div>'
     +'<textarea id="bk-out" class="bk-ta" readonly onclick="this.select()">'+esc(backupString())+'</textarea>'
@@ -11865,7 +11964,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v480';
+const APP_VERSION='v481';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -12164,10 +12263,13 @@ function openConfig(){
   h+='<div class="cfg-btns synced">'
     +'<button class="cfg-opt" onclick="doSaveSync()">Spara till Homey nu</button>'
     +'<button class="cfg-opt" onclick="doFetchSync()">Hämta från Homey nu</button></div>';
-  h+='<div class="cfg-btns"><button class="cfg-opt" onclick="openBackup()">Exportera / importera inställningar</button></div>';
+  h+='<div class="cfg-btns"><button class="cfg-opt" onclick="openVal()">Visa mina inställningar</button>'
+    +'<button class="cfg-opt" onclick="openBackup()">Exportera / importera allt</button></div>';
   h+='<div class="cfg-hint" id="sync-status">'+esc(syncStatusText())+'</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Felsök synk</span><button class="te-use" onclick="syncDiag()">Visa slots</button></div>';
   h+='<pre class="cfg-diag" id="sync-diag">Visar vilken variabel varje enhet skriver till och när den senast uppdaterades.</pre>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Vem skrev senast</span><button class="te-use" onclick="loggVisa()">Visa skrivlogg</button></div>';
+  h+='<pre class="cfg-diag" id="sync-logg">Varje skrivning mot Homey antecknas här: enhet, tidpunkt, antal nycklar och om det var ett tryck eller automatiken.</pre>';
   h+='<div class="cfg-hint" style="margin-top:0">Ändrar du en knapp eller layouten skickas det till Homey automatiskt efter några sekunder. Andra enheter hämtar in det vid nästa uppdatering.</div>';
     h+='<div class="cfg-sec">Homey-variabler</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Årsdata · Homey-variabel</span><input class="cfg-inp" style="width:150px;font-size:12px;text-align:left" type="text" autocomplete="off" value="'+esc(CFG.yearVar!=null?CFG.yearVar:'energi_arsdata')+'" placeholder="t.ex. energi_arsdata" onchange="cfgYearVar(this.value)"></div>';
