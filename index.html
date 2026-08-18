@@ -11964,7 +11964,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v481';
+const APP_VERSION='v482';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13910,7 +13910,7 @@ async function checkForUpdate(){try{
 checkForUpdate();setInterval(checkForUpdate,60000);
 </script>
 <script>
-/* ===== husvakt 1.3.0 =====
+/* ===== husvakt 1.4.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -13922,7 +13922,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.3.0';
+  var VER='1.4.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -14077,7 +14077,12 @@ checkForUpdate();setInterval(checkForUpdate,60000);
      båda filerna utan att någon av dem behöver egna regler. */
   var STIL='.husvakt-knapp{width:38px;height:34px;padding:0;gap:0;font-size:0;border-radius:999px;'
     +'flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}'
-    +'.husvakt-knapp svg{width:18px;height:18px;fill:currentColor;display:block}';
+    +'.husvakt-knapp svg{width:18px;height:18px;fill:currentColor;display:block}'
+    /* Knappen ska sitta direkt till vänster om liveprickan, inte längst till
+       vänster i raden. Den tar över det automatiska marginalhoppet från statusen
+       som annars sköt sig själv åt höger. */
+    +'.en-top .husvakt-knapp{margin-left:auto!important}'
+    +'.en-top .husvakt-knapp+.en-status{margin-left:0!important}';
   var PIL='<svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,181.66l-32,32a8,8,0,0,1-11.32-11.32L188.69,184H48a8,8,0,0,1,0-16H188.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,213.66,181.66Zm-139.32-64a8,8,0,0,0,11.32-11.32L67.31,88H208a8,8,0,0,0,0-16H67.31L85.66,53.66A8,8,0,0,0,74.34,42.34l-32,32a8,8,0,0,0,0,11.32Z"/></svg>';
   function stil(){
     try{
@@ -14101,6 +14106,10 @@ checkForUpdate();setInterval(checkForUpdate,60000);
       b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();vaxla();});
       var st=rad.querySelector('.en-status');
       if(st)rad.insertBefore(b,st);else rad.appendChild(b);
+      /* Gottskär har en notisknapp med samma automatiska marginal. Två sådana
+         delar på utrymmet och båda hamnar fel — stäng av dess när vår finns. */
+      var nt=rad.querySelector('.en-notis');
+      if(nt&&nt.style)nt.style.marginLeft='0';
       return b;
     }catch(e){return null;}
   }
