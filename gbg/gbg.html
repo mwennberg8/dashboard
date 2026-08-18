@@ -248,8 +248,26 @@ body.mobile .car{padding:16px}
 .en-wx .inne{color:var(--warm)}
 @media (max-width:430px){.en-wx .wxi-inne{display:none}}
 @media (max-width:360px){.en-wx .wxi-vind{display:none}}
-/* Toppraden ligger kvar vid skroll, som Gottskärs. */
+/* Toppraden ligger kvar vid skroll. .sticky-sentinel är en 1px-rad precis
+   ovanför som talar om när raden faktiskt fastnat — först då får den skugga och
+   raka hörn, annars ligger den och skuggar i vila. Samma lösning som Gottskär. */
+.sticky-sentinel{display:none}
+body.mobile .sticky-sentinel{display:block;height:1px;margin-bottom:-1px}
 body.mobile .statusbar{position:sticky;top:0;z-index:35}
+/* Fastnad ligger raden som ett riktigt apphuvud: raka hörn och bakgrunden ut i
+   skärmkanten. De negativa marginalerna äter upp exakt den kantmarginal .wrap
+   lägger på, även när env() gjort den större än 2px. Innehållet får samtidigt
+   egen inre marginal mot det säkra området, så knapparna aldrig hamnar under en
+   rundad skärmkant fast bakgrunden gör det. */
+body.mobile .statusbar.stuck{
+  border-radius:0;
+  border-left-width:0;border-right-width:0;
+  border-top-color:transparent;
+  margin-left:calc(-1 * max(2px,env(safe-area-inset-left)));
+  margin-right:calc(-1 * max(2px,env(safe-area-inset-right)));
+  padding-left:max(14px,env(safe-area-inset-left));
+  padding-right:max(14px,env(safe-area-inset-right));
+  box-shadow:inset 0 1px 0 var(--panel-inset),0 8px 20px -6px rgba(0,0,0,.45)}
 
 /* ===== sol upp/ner =====
    Remsan från Gottskär-dashboarden: ikon, klockslag, skala med solpricken,
@@ -572,8 +590,6 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
 
   <section class="panel devswrap" data-sec="devs"><div class="grid stats" id="devs"></div></section>
 
-  <section class="panel rows clickable" id="sensors" data-sec="sensors" onclick="openSensorer()"></section>
-
   <section class="panel warns clickable" id="warns" data-sec="warns" onclick="openBatteri()"></section>
 
   <div class="foot"><span id="foot-src">–</span><span id="foot-via"></span></div>
@@ -672,7 +688,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.10.0';
+const APP_VERSION = 'v1.12.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1026,6 +1042,31 @@ function applyTheme(){
 }
 const hhmm=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
+/* Markören som avgör när toppraden fastnat. IntersectionObserver i stället för
+   en skrollyssnare: den kostar ingenting mellan lägena och missar inte heller
+   ett läge när sidan hoppar. */
+var _stickyObs=null;
+function stickyBar(){
+  try{
+    var bar=document.querySelector('.statusbar');
+    if(!bar||!window.IntersectionObserver)return;
+    var sen=bar.previousElementSibling;
+    if(!sen||!sen.classList||!sen.classList.contains('sticky-sentinel')){
+      sen=document.createElement('div');
+      sen.className='sticky-sentinel';
+      sen.setAttribute('aria-hidden','true');
+      bar.parentNode.insertBefore(sen,bar);
+    }
+    if(!_stickyObs)_stickyObs=new IntersectionObserver(function(es){
+      for(var i=0;i<es.length;i++){
+        var b=es[i].target.nextElementSibling;
+        if(b&&b.classList)b.classList.toggle('stuck',!es[i].isIntersecting);
+      }
+    },{threshold:0});
+    _stickyObs.observe(sen);
+  }catch(e){}
+}
+
 /* Solremsan. Klockslagen och pricken räknas ur solens bana för positionen.
    Till skillnad från HomeyScript kör den här filen i webbläsaren, som har rätt
    lokal tid — därför duger getHours() här. */
@@ -1126,7 +1167,7 @@ function render(){
   try{renderCar();}catch(e){}
   try{renderCam();}catch(e){}
   try{renderDevs();}catch(e){}
-  try{renderSensors();}catch(e){}
+  try{dammFolj();}catch(e){}
   try{renderWarns();}catch(e){}
   try{footVia();tickRel();setT('foot-src',SOURCE);}catch(e){}
   try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}
@@ -1446,11 +1487,7 @@ function renderDevs(){
       return v!=null?v>0.05:capOf(d,'windowcoverings_closed')===false;}).length;
     h+=stat('elevator','acc-cyan','Gardiner',oppna+'<small> / '+gard.length+'</small>','öppna','openGardiner()');
   }
-  const uttag=devs().filter(d=>klass(d)==='socket'&&har(d,'onoff'));
-  if(uttag.length){
-    const pa=uttag.filter(d=>capOf(d,'onoff')===true).length;
-    h+=stat('plug',pa?'acc-ok':'acc-dim','Uttag',pa+'<small> / '+uttag.length+'</small>','på','openUttag()');
-  }
+  /* Uttagsrutan är borttagen. openUttag() finns kvar och nås från enhetslistan. */
   const tv=DATA[DEV.tvChrome];
   if(tv){
     const pa=capOf(tv,'onoff')===true,spelar=capOf(tv,'speaker_playing')===true;
@@ -1459,6 +1496,55 @@ function renderDevs(){
       esc(String(titel).slice(0,42)),'openTV()');
   }
   el.innerHTML=h;initIcons(el);
+}
+/* SENAST STÄDAT. Dammsugaren (Dreame) rapporterar inget om tidigare städningar
+   — den har bara läge, batteri, sugstyrka, moppning och slitagelarm. Jag
+   kontrollerade capabilities i den här Homeyn innan jag byggde: det finns
+   ingen tid, inget datum och ingen körlängd att läsa.
+
+   Därför mäts det här i stället: när läget går IN i städning noteras starten,
+   och när det lämnar städning noteras slutet. Det ger rätt svar så länge
+   dashboarden är igång, och är blind för städningar som skett medan den var
+   stängd. Vill du ha det vattentätt behövs ett flow i Homey som skriver start
+   och slut till en logikvariabel — säg till så läser jag den i stället. */
+const DAMM_KEY='gbgdamm_v1';
+function dammLog(){try{return JSON.parse(localStorage.getItem(DAMM_KEY)||'{}')||{};}catch(e){return {};}}
+function dammLogSpara(o){try{localStorage.setItem(DAMM_KEY,JSON.stringify(o));}catch(e){}}
+function dammStadar(st){return st==='cleaning'||st==='spot_cleaning';}
+function dammFolj(){
+  try{
+    const d=DATA[DEV.dammsug];if(!d)return;
+    const st=capOf(d,'vacuumcleaner_state');
+    if(st==null)return;
+    const o=dammLog(),nu=Date.now();
+    if(dammStadar(st)){
+      if(!o.start){o.start=nu;o.pagar=1;delete o.slut;dammLogSpara(o);}
+      else if(o.pagar){o.sedd=nu;dammLogSpara(o);}
+      return;
+    }
+    if(o.pagar&&o.start){
+      /* Slutet sätts till den sista stund vi såg den städa, inte till nu — en
+         stunds frånvaro ska inte räknas som städtid. */
+      o.slut=o.sedd||nu;o.sekunder=Math.max(60,Math.round((o.slut-o.start)/1000));
+      delete o.pagar;delete o.sedd;dammLogSpara(o);
+    }
+  }catch(e){}
+}
+function dammVaraktighet(sek){
+  if(!sek||!isFinite(sek))return null;
+  const m=Math.round(sek/60);
+  if(m<60)return m+' min';
+  return Math.floor(m/60)+' h '+('0'+(m%60)).slice(-2)+' min';
+}
+function dammSenast(){
+  const o=dammLog();
+  if(o.pagar&&o.start)return {pagar:true,start:o.start};
+  if(!o.slut)return null;
+  return {pagar:false,start:o.start,slut:o.slut,sekunder:o.sekunder};
+}
+function dammDatum(ms){
+  const d=new Date(ms);
+  return d.toLocaleDateString('sv-SE',{weekday:'short',day:'numeric',month:'short'});
 }
 function dammText(s){
   const m={cleaning:'Städar',spot_cleaning:'Punktstäd',docked:'I dockan',charging:'Laddar',
@@ -1473,24 +1559,8 @@ function sensorLista(){
     else if(har(d,'alarm_contact'))ut.push({d:d,typ:'contact'});
   });
   return ut.sort((a,b)=>namn(a.d).localeCompare(namn(b.d),'sv'));}
-function renderSensors(){
-  const el=$('sensors');if(!el)return;
-  const lst=sensorLista();
-  if(!lst.length){el.hidden=true;return;}
-  el.hidden=false;
-  el.innerHTML=lst.map(x=>{
-    const d=x.d,z=zonNamn(d.zone);
-    let v,acc;
-    if(x.typ==='motion'){const a=capOf(d,'alarm_motion')===true;
-      v='<span class="chip '+(a?'warn':'off')+'">'+(a?'rörelse':'lugnt')+'</span>';acc=a?'acc-warm':'acc-dim';}
-    else{const a=capOf(d,'alarm_contact')===true;
-      v='<span class="chip '+(a?'crit':'on')+'">'+(a?'öppen':'stängd')+'</span>';acc=a?'acc-hot':'acc-ok';}
-    const lux=capOf(d,'measure_luminance'),t=capOf(d,'measure_temperature');
-    const extra=[];if(t!=null)extra.push(num(t,1)+'°');if(lux!=null)extra.push(num(lux,0)+' lux');
-    return '<div class="row"><span class="ri '+acc+'">'+icon(x.typ==='motion'?'sparkle':'door')+'</span>'
-      +'<span class="rk">'+esc(namn(d))+(z?('<small>'+esc(z)+(extra.length?(' · '+extra.join(' · ')):'')+'</small>'):'')+'</span>'
-      +'<span class="rv">'+v+'</span></div>';}).join('');
-}
+/* Sensoravsnittet är borttaget. sensorLista lever kvar — den används än av
+   popupen som nås från rums- och enhetsvyerna. */
 
 /* ---------- varningar ---------- */
 function battLista(){
@@ -1538,7 +1608,19 @@ function dlgRorelse(){
   clearTimeout(_dlgTimer);
   _dlgTimer=setTimeout(()=>{stangDlg();},30000);}
 function closeDlg(ev){
-  if(ev&&ev.target&&ev.target.closest&&ev.target.closest('.dlg')&&!ev.target.closest('.dlg-x'))return;
+  /* HÄR LÅG FELET med "Ordna avsnitt" och "Öppna knappinställningar".
+     Knappen byter ut hela dlg-body medan klicket fortfarande bubblar. När
+     eventet sedan når bakgrunden är ev.target en LÖSRYCKT nod — den sitter
+     inte längre i dokumentet, så closest('.dlg') ger null, undantaget föll och
+     rutan stängdes. Menyn hann öppnas och stängas i samma tryck.
+
+     Vänd på villkoret: stäng bara vid ett klick RAKT på bakgrunden, eller på
+     krysset. Allt annat, inklusive noder som hunnit försvinna, lämnas i fred. */
+  if(ev&&ev.target){
+    var t=ev.target;
+    if(t.closest&&t.closest('.dlg-x')){stangDlg();return;}
+    if(t!==$('dlg-back'))return;
+  }
   stangDlg();}
 function stangDlg(){
   clearTimeout(_dlgTimer);_dlgKey='';
@@ -1651,6 +1733,18 @@ function openDammsug(){
       +dRow('Batteri',num(capOf(d,'measure_battery'),0)+' %');
     if(capOf(d,'vacuum_dreame_fanspeed')!=null)h+=dRow('Sugstyrka',esc(String(capOf(d,'vacuum_dreame_fanspeed'))));
     if(capOf(d,'vacuum_dreame_mop_intensity')!=null)h+=dRow('Moppning',esc(String(capOf(d,'vacuum_dreame_mop_intensity'))));
+    const sen=dammSenast();
+    h+=dSec('Senast städat');
+    if(!sen){
+      h+='<div class="setup-t" style="margin-top:0">Ingen städning registrerad än. Dammsugaren själv minns ingenting, så tiden räknas här i dashboarden från och med nu.</div>';
+    }else if(sen.pagar){
+      h+=dRow('Startade',esc(dammDatum(sen.start))+' '+hhmm(new Date(sen.start)))
+        +dRow('Pågår','<span class="chip warn">'+esc(dammVaraktighet((Date.now()-sen.start)/1000)||'nyss')+'</span>');
+    }else{
+      h+=dRow('Datum',esc(dammDatum(sen.slut)))
+        +dRow('Klockslag',hhmm(new Date(sen.start))+' – '+hhmm(new Date(sen.slut)))
+        +dRow('Städtid',esc(dammVaraktighet(sen.sekunder)||'–'));
+    }
     ['alarm_main_brush_work_time','alarm_side_brush_work_time','alarm_filter_work_time'].forEach(k=>{
       if(capOf(d,k)===true)h+=dRow('Underhåll','<span class="chip warn">'+esc(k.replace('alarm_','').replace(/_/g,' '))+'</span>');});
     h+='<div class="dbtn-row">'
@@ -1882,11 +1976,11 @@ function loggaUt(){
    vill se. Skrivarrutan ingår INTE — den ska alltid ligga överst när den syns,
    och en ruta som dyker upp mitt i listan är svår att hitta.
    Toppraden ligger också fast; den är sidans ram, inte ett avsnitt. */
-const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs','sensors','warns'];
+const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs','warns'];
 const SEKT_NAMN={daystrip:'Sol upp och ner',controls:'Styrknappar',rooms:'Rum',
-  car:'Bil',cam:'Kamera',devs:'Enheter',sensors:'Sensorer',warns:'Batterivarningar'};
+  car:'Bil',cam:'Kamera',devs:'Enheter',warns:'Batterivarningar'};
 const SEKT_IC={daystrip:'sun-horizon',controls:'toggle-right',rooms:'house-line',
-  car:'car',cam:'camera',devs:'plug',sensors:'gauge',warns:'battery-low'};
+  car:'car',cam:'camera',devs:'plug',warns:'battery-low'};
 const SEKT_KEY='gbgsekt_v1';
 function sektLadda(){
   var o={ordning:SEKT_DEF.slice(),dolda:{}};
@@ -2229,6 +2323,7 @@ function start(){
   try{const t=localStorage.getItem('gbgtema_v1');if(t)CONFIG.THEME=t;}catch(e){}
   initIcons();
   applyTheme();
+  stickyBar();
   klockan();renderDaystrip();
   /* Demoläget kopplar bort både Homey och SMHI. Ingen inloggning krävs, så
      sidan går att öppna på vilken enhet som helst för att prova utseendet. */
