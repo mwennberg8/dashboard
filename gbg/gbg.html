@@ -313,6 +313,18 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 /* ===== 3D-skrivaren =====
    Rutan finns bara medan något skrivs. Den ligger överst — det är det enda
    som händer i huset just då, och den är intressant i minuter, inte timmar. */
+/* hidden är bara display:none i webbläsarens egen stilmall, och den förlorar
+   mot en klassregel med display:flex. Därför störde rutan kvar som en tom
+   ram när skrivaren vilade. Samma fälla gäller kameraruta med display. */
+.printer[hidden],.cam[hidden],.demobar[hidden]{display:none!important}
+/* Demobandet ska synas direkt utan att skrika. */
+.demobar{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-color:rgba(180,142,173,.4);background:linear-gradient(180deg,rgba(180,142,173,.14),var(--panel-b))}
+.demobar .ic-slot{width:17px;height:17px;color:var(--violet);flex:0 0 auto}
+.demobar .ic{width:100%;height:100%}
+.db-t{flex:1 1 auto;min-width:0;font-size:12px;font-weight:700;color:var(--dim)}
+.db-x{appearance:none;flex:0 0 auto;border:1px solid var(--line);background:var(--inset);
+  color:var(--ink);font:inherit;font-size:11.5px;font-weight:700;border-radius:999px;padding:5px 11px;cursor:pointer}
 .printer{padding:14px 16px;display:flex;flex-direction:column;gap:11px;cursor:pointer;
   border-color:rgba(208,135,112,.38);
   background:linear-gradient(180deg,rgba(208,135,112,.13),var(--panel-b))}
@@ -542,6 +554,12 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
     <b id="sunset">–</b><span class="ic-slot acc-violet" data-ic="moon"></span></div>
   </section>
 
+  <section class="panel demobar" id="demo-bar" hidden>
+    <span class="ic-slot" data-ic="sparkle"></span>
+    <span class="db-t">Demoläge — påhittad data, inget skickas till Homey</span>
+    <button class="db-x" onclick="demoAvsluta()">Avsluta</button>
+  </section>
+
   <section class="panel printer" id="printer" data-sec="printer" hidden onclick="openBambu()"></section>
 
   <section class="panel controls" id="controls" data-sec="controls"></section>
@@ -654,7 +672,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.8.0';
+const APP_VERSION = 'v1.10.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -688,6 +706,83 @@ const DEV = {
   tvChrome: '4a0101f1-4d9f-4b9d-818a-e4af1cd8f020'
 };
 const ZON = { modes:'22bca589-f2e4-4044-bddd-51c5e624921b', hem:'9919ee1e-ffbc-480b-bc4b-77fb047e9e68' };
+
+/* ===== demoläge =====
+   ?demo=1 kopplar bort Homey helt och fyller sidan med påhittad data. Tänkt för
+   att prova ändringar utan att vara hemma, och utan att råka tända något: alla
+   skrivningar stoppas och svarar med en notis i stället. Inga uppgifter läses
+   eller sparas — demoläget rör inte din token. */
+const DEMO = /[?&]demo=1/.test(location.search||'');
+function demoData(){
+  const nu=Date.now();
+  const zoner={};
+  const zon=(id,namn,parent)=>{zoner[id]={id:id,name:namn,parent:parent||null};return id;};
+  zon(ZON.hem,'Hem',null);
+  const kok=zon('z-kok','Kök',ZON.hem), vard=zon('z-vard','Vardagsrum',ZON.hem);
+  const sov=zon('z-sov','Sovrum',ZON.hem), bad=zon('z-bad','Badrum',ZON.hem);
+  zon(ZON.modes,'1Modes',ZON.hem);          /* filtreras bort som på riktigt */
+  const D={};
+  const dev=(id,namn,klass,zonId,caps,extra)=>{
+    const co={};
+    for(const k in caps)co[k]={value:caps[k]};
+    D[id]=Object.assign({id:id,name:namn,class:klass,zone:zonId,available:true,
+      capabilities:Object.keys(caps),capabilitiesObj:co},extra||{});
+    return D[id];};
+  /* lampor i fyra rum, några tända och dimrade */
+  dev('d-kok1','Taklampa kök','light',kok,{onoff:true,dim:0.72});
+  dev('d-kok2','Bänkbelysning','light',kok,{onoff:true,dim:0.4});
+  dev('d-vard1','Golvlampa','light',vard,{onoff:true,dim:0.55});
+  dev('d-vard2','Ambilight','light',vard,{onoff:false,dim:0.9});
+  dev('d-sov1','Sänglampa','light',sov,{onoff:false,dim:0.3});
+  dev('d-bad1','Spegelbelysning','light',bad,{onoff:false});
+  /* styrknapparnas enheter */
+  dev(DEV.auto,'Auto','other',ZON.modes,{onoff:true});
+  dev(DEV.laggdags,'Läggdags','other',ZON.modes,{onoff:false});
+  dev(DEV.flakt,'Fläkt','fan',bad,{onoff:false});
+  dev(DEV.luftren,'Luftrenare','other',vard,{onoff:true});
+  /* sensorer */
+  dev(DEV.sensVard,'Vardagsrum sensor','sensor',vard,
+    {measure_temperature:21.4,measure_humidity:38,alarm_motion:true,measure_luminance:64,measure_battery:78});
+  dev('d-sens-sov','Sovrum sensor','sensor',sov,
+    {measure_temperature:19.1,alarm_motion:false,measure_luminance:8,measure_battery:18});
+  dev(DEV.dorr,'Ytterdörr','sensor',ZON.hem,{alarm_contact:false,measure_battery:9});
+  /* bil, dammsugare, skrivare, uttag, gardiner */
+  dev(DEV.car,'Volvo C40','car',ZON.hem,
+    {measure_battery:64,range_battery:284,ev_charging_state:'plugged_in_charging',locked:true,location_human:'Hemma'});
+  dev(DEV.dammsug,'Dammsugare','vacuumcleaner',ZON.hem,{vacuumcleaner_state:'docked',measure_battery:100});
+  dev(DEV.bambu,'Bambu P1P','other',kok,
+    {bambu_progress_percentage:42,bambu_print_layers:'86/240',bambu_progress_time_remaining:'1h 12m',
+     'measure_temperature.nozzle':219,'measure_temperature.nozzle_target':220,
+     'measure_temperature.bed':60,'measure_temperature.bed_target':60,
+     'measure_temperature.chamber':31,'onoff.light_chamber':true});
+  dev(DEV.bambuUt,'Uttag skrivare','socket',kok,{onoff:true,measure_power:118});
+  dev('d-uttag2','Uttag TV','socket',vard,{onoff:true,measure_power:64});
+  dev('d-gardin','Gardin vardagsrum','curtain',vard,{windowcoverings_set:0.6});
+  /* en enhet som inte svarar, så varningsrutan har något att visa */
+  dev('d-borta','Fönstersensor kök','sensor',kok,{alarm_contact:false,measure_battery:41}).available=false;
+  return {DATA:D,ZONES:zoner,FLOWS:[
+    {id:'f1',name:'God morgon',typ:'standard',enabled:true},
+    {id:'f2',name:'Kväll',typ:'standard',enabled:true},
+    {id:'f3',name:'Allt av',typ:'advanced',enabled:true}]};
+}
+/* Påhittad prognos, så toppraden och solremsan har värden utan nät. */
+function demoVader(){
+  const ut=[],nu=Date.now();
+  for(let i=0;i<24;i++)ut.push({t:nu+i*3600000,
+    temp:14+3*Math.sin(i/4),ws:3.4+Math.sin(i/3),wd:250+i*2,gust:6.1,
+    tcc:4,p:i===5?0.4:0,rh:62,msl:1011});
+  return ut;
+}
+function demoStart(){
+  const d=demoData();
+  DATA=d.DATA;ZONES=d.ZONES;FLOWS=d.FLOWS;
+  zonesDone=true;flowsDone=true;_grupp=null;_online=true;
+  lastUpdate=Date.now();SOURCE='demo-data';BASE='demo';
+  FORECAST=demoVader();SMHI_ST={at:Date.now(),ok:true,fel:null,punkter:FORECAST.length};
+  setStatus('live','demo');
+  const b=$('demo-bar');if(b)b.hidden=false;
+  render();
+}
 const ZON_IC = {
   'Kök':'cooking-pot','Vardagsrum':'couch','Sovrum':'bed','Badrum':'shower',
   'Hall':'door','Klädkammare':'lamp','Hem':'house'
@@ -833,7 +928,14 @@ async function homeyPost(path){
     }catch(e){t.clear();sistFel=(e&&e.name==='AbortError')?'tog för lång tid':'ingen kontakt';}
   }
   throw new Error(sistFel||'ingen kontakt');}
-const satt=(id,c,v)=>homeySkriv('/api/manager/devices/device/'+id+'/capability/'+c+'/',{value:v});
+const satt=(id,c,v)=>{
+  /* I demoläget ändras bara den påhittade kopian — inget lämnar webbläsaren. */
+  if(DEMO){
+    try{const d=DATA[id];if(d&&d.capabilitiesObj[c])d.capabilitiesObj[c].value=v;}catch(e){}
+    toast('Demoläge – inget skickas till Homey');
+    return Promise.resolve({ok:true});
+  }
+  return homeySkriv('/api/manager/devices/device/'+id+'/capability/'+c+'/',{value:v});};
 /* Verifierad endpoint: vanliga flows under flow/flow, advanced under
    flow/advancedflow. Fel gren ger 404. */
 const startaFlow=(typ,id)=>homeyPost('/api/manager/flow/'+(typ==='advanced'?'advancedflow':'flow')+'/'+id+'/trigger');
@@ -1424,14 +1526,14 @@ function openDlg(titel,ic,html,key){
   _dlgKey=key||'';
   setT('dlg-title',titel);
   const i=$('dlg-ic');if(i)i.innerHTML=icon(ic||'house');
-  const b=$('dlg-body');if(b){b.innerHTML=html;initIcons(b);}
+  const b=$('dlg-body');if(b){b.innerHTML=html;initIcons(b);try{knBind();}catch(e){}}
   const back=$('dlg-back');if(back)back.classList.add('open');
   dlgRorelse();
 }
 function dlgSatt(html){const b=$('dlg-body');if(b){
   /* Behåll rullpositionen: en ruta som hoppar till toppen var 15:e sekund går
      inte att läsa. */
-  const y=b.scrollTop;b.innerHTML=html;initIcons(b);b.scrollTop=y;}}
+  const y=b.scrollTop;b.innerHTML=html;initIcons(b);b.scrollTop=y;try{knBind();}catch(e){}}}
 function dlgRorelse(){
   clearTimeout(_dlgTimer);
   _dlgTimer=setTimeout(()=>{stangDlg();},30000);}
@@ -1716,14 +1818,23 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
   h+=dSec('Avsnitt')
     +'<div class="setup-t">Ordningen p\u00e5 sidan, och vad som visas.</div>'
-    +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>';
+    +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>'
+    +'<div class="drow"><span class="dk">Ordna avsnitt (reserv)</span>'
+    +'<span class="dv"><button class="dbtn" data-sekt="meny">\u00d6ppna</button></span></div>';
   h+=dSec('Knappar')
     +'<div class="setup-t">L\u00e4gg till, flytta, byt namn, ikon och vad varje styrknapp g\u00f6r.</div>'
     +'<button class="dbtn wide" data-knapp="meny" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>'
+    +'<div class="drow"><span class="dk">Knappinst\u00e4llningar (reserv)</span>'
+    +'<span class="dv"><button class="dbtn" data-knapp="meny">\u00d6ppna</button></span></div>'
+    +dRow('Senaste tryck i rutan','<span style="font-size:11px;opacity:.8">'+esc(_sistTryck)+'</span>')
     +'<div class="setup-t">G\u00e5r det inte att \u00f6ppna h\u00e4rifr\u00e5n: h\u00e5ll inne en styrknapp p\u00e5 startsidan i en halv sekund, s\u00e5 \u00f6ppnas samma redigerare f\u00f6r just den knappen.</div>';
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
     +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
+  h+=dSec('Demoläge')
+    +'<div class="setup-t">Öppnar samma sida med påhittad data: rum, enheter, bil, sensorer och en skrivare mitt i en utskrift. Inget läses från eller skickas till Homey, och din inloggning rörs inte.</div>'
+    +'<div class="dbtn-row"><button class="dbtn" data-demo="ny" onclick="demoOppna(true)">Öppna i ny flik</button>'
+    +'<button class="dbtn" data-demo="har" onclick="demoOppna(false)">Öppna här</button></div>';
   DLG_OM.inst=null;
   openDlg('Inställningar','wrench',h,'inst');}
 function sparaKamera(){
@@ -1734,6 +1845,33 @@ function sparaKamera(){
 function temaSatt(t){
   CONFIG.THEME=t;try{localStorage.setItem('gbgtema_v1',t);}catch(e){}
   curTheme='';applyTheme();openInst();}
+/* Demoläget är en egen adress, inte ett läge som sparas — stänger du fliken är
+   du tillbaka i skarp drift. Ny flik först: då står den riktiga kvar. */
+function demoOppna(nyFlik){
+  const u=location.origin+location.pathname+'?demo=1';
+  if(nyFlik){
+    let w2=null;
+    try{w2=window.open(u,'_blank');}catch(e){}
+    if(w2){stangDlg();toast('Demoläget öppnat i ny flik');return;}
+    /* Blockerad popup, vanligt i en installerad app: gå hit i stället. */
+  }
+  location.href=u;
+}
+function demoAvsluta(){location.href=location.origin+location.pathname;}
+/* Direktbindning, av samma skäl som menyknapparna: inline-onclick har visat sig
+   opålitligt på telefonen, så både Avsluta och demoknapparna får en riktig
+   lyssnare också. */
+function demoBind(){
+  try{
+    const x=document.querySelector('.db-x');
+    if(x&&x.dataset.bunden!=='1'){x.dataset.bunden='1';x.addEventListener('click',demoAvsluta);}
+    const b=$('dlg-body');
+    if(b)b.querySelectorAll('[data-demo]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
+      el.addEventListener('click',function(){demoOppna(el.getAttribute('data-demo')==='ny');});
+    });
+  }catch(e){}
+}
 function loggaUt(){
   try{localStorage.removeItem(CRED_KEY);}catch(e){}
   stangDlg();BASE='';DATA={};location.reload();}
@@ -1890,6 +2028,34 @@ function openKnappar(){
   }catch(e){toast('Kunde inte \u00f6ppna knappmenyn: '+((e&&e.message)||'ok\u00e4nt fel'));}
 }
 function knIkoner(){const b=$('dlg-body');if(b)initIcons(b);}
+/* TREDJE vägen in. Menyknapparna i inställningarna gjorde ingenting på telefonen
+   trots att både inline-onclick och delegeringen fungerar i testmiljön. I stället
+   för att gissa vidare binder vi också en lyssnare direkt på varje knapp när den
+   ritats, och antecknar varje tryck som når rutan — se raden "Senaste tryck" i
+   inställningarna. Står den kvar på – när du tryckt, når klicket aldrig fram och
+   då vet vi att det inte är koden bakom knappen som är fel. */
+var _sistTryck='–';
+function knBind(){
+  try{
+    var b=$('dlg-body');if(!b)return;
+    b.querySelectorAll('[data-knapp],[data-sekt]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;
+      el.dataset.bunden='1';
+      el.addEventListener('click',function(e){
+        _sistTryck=(el.getAttribute('data-knapp')||el.getAttribute('data-sekt'))+' · '+hhmm(new Date());
+        knDeleg(e);sektDeleg(e);
+      });
+    });
+    b.querySelectorAll('[data-demo]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
+      el.addEventListener('click',function(){
+        _sistTryck='demo · '+hhmm(new Date());
+        demoOppna(el.getAttribute('data-demo')==='ny');
+      });
+    });
+  }catch(e){}
+}
+function knSpar(){}
 /* Reserv för inline-onclick. Vissa lägen (sträng CSP, en webbvy som strör bort
    attributhanterare) sväljer onclick tyst medan en riktig lyssnare fungerar.
    Knapparna bär båda; kommer klicket fram två gånger gör andra gången inget,
@@ -2064,6 +2230,15 @@ function start(){
   initIcons();
   applyTheme();
   klockan();renderDaystrip();
+  /* Demoläget kopplar bort både Homey och SMHI. Ingen inloggning krävs, så
+     sidan går att öppna på vilken enhet som helst för att prova utseendet. */
+  if(DEMO){
+    demoStart();
+    setInterval(()=>{klockan();renderDaystrip();applyTheme();},1000);
+    knLangtryck($('controls'));
+    demoBind();
+    return;
+  }
   if(!credFinns()){setupVisa();return;}
   load();
   fetchSmhi();
@@ -2101,7 +2276,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.4.0 =====
+/* ===== husvakt 1.5.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -2113,7 +2288,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.4.0';
+  var VER='1.5.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -2314,6 +2489,9 @@ else start();
 
   function start(){
     var q;try{q=new URLSearchParams(location.search||'');}catch(e){return;}
+    /* Demoläget ska stå still. En dashboard som hoppar till det andra huset mitt
+       i en utprovning är obrukbar, och där finns ingen påhittad data. */
+    if(q.get('demo')==='1')return;
     var hem=q.get('hem');
     if(hem==='auto'){lsSet(NYCK,'auto');}
     else if(hem==='av'){lsDel(NYCK);}
