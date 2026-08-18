@@ -140,7 +140,23 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
    Mobilläget kröp förut till 9 px, vilket gjorde luften olika i de två
    dashboarderna på samma telefon. */
 body{--pg-gap:15px;--pg-gap-y:var(--pg-gap);--ds-sun:11px;--ds-gap:4px;--ds-h:3px}
-body.mobile{--ds-h:6px;--ds-sun:14px}
+/* RÄTTELSE mot v1.2.0. Där satte jag 15 px även på telefonen efter att ha
+   jämfört Gottskärs skrivbordsregler. På mobil kör Gottskär helt andra värden:
+   body 0, .wrap 2 px och --pg-gap 3 px. 15 px gjorde alltså skillnaden större. */
+body.mobile{--pg-gap:3px;--ds-h:6px;--ds-sun:14px;padding:0}
+body.mobile .wrap{max-width:540px;padding:2px;
+  padding-left:max(2px,env(safe-area-inset-left));
+  padding-right:max(2px,env(safe-area-inset-right));
+  padding-bottom:max(2px,env(safe-area-inset-bottom))}
+body.mobile .statusbar{padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top))}
+body.mobile .daystrip{padding:12px 16px}
+/* Kortens insida, samma tal som Gottskär på telefon. */
+body.mobile .stat,body.mobile .room{padding:12px 11px}
+body.mobile .ctl{padding:12px 6px}
+body.mobile .rows,body.mobile .warns{padding:8px 16px}
+body.mobile .warn{padding:11px 0}
+body.mobile .warn.ok-row{padding:14px 0}
+body.mobile .car{padding:16px}
 .ic{width:1em;height:1em;display:inline-block;vertical-align:-.15em;fill:currentColor;flex:0 0 auto}
 .ic-slot{display:inline-flex;align-items:center;justify-content:center}
 .acc-ok{color:var(--ok)}.acc-gold{color:var(--gold)}.acc-warm{color:var(--warm)}.acc-cyan{color:var(--cyan)}
@@ -229,7 +245,7 @@ body.mobile{--ds-h:6px;--ds-sun:14px}
   transition:left .9s ease}
 
 /* ===== väder ===== */
-.wx-card{padding:clamp(13px,1.8vw,19px)}
+.wx-card{padding:clamp(16px,2vw,21px)}
 .wx-top{display:flex;align-items:center;gap:13px}
 .wx-ic{width:46px;height:46px;flex:0 0 auto;color:var(--gold)}.wx-ic .ic{width:100%;height:100%}
 .wx-temp{font-size:29px;font-weight:760;line-height:1;letter-spacing:-.02em}
@@ -562,7 +578,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.3.0';
+const APP_VERSION = 'v1.4.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1679,7 +1695,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.0.0 =====
+/* ===== husvakt 1.1.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -1691,7 +1707,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.0.0';
+  var VER='1.1.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -1699,7 +1715,7 @@ else start();
     gottskar:{namn:'Gottskär',cred:'homeycred_v1',fil:''},
     gbg:     {namn:'Göteborg',cred:'gbgcred_v1',  fil:'gbg/gbg.html'}
   };
-  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp';
+  var NYCK='husval_v1', SIST='sisthus_v1', HOPP='hushopp', LAS='huslas';
   var POS_MS=3000, SOND_MS=2500, TOTAL_MS=4000;
 
   function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
@@ -1724,6 +1740,15 @@ else start();
   ['pointerdown','keydown','touchstart'].forEach(function(t){
     try{addEventListener(t,function(){rort=true;},{once:true,passive:true});}catch(e){}});
 
+  /* Ett manuellt val låser sessionen. Annars kastar bakgrundssignalerna tillbaka
+     dig till huset du står i några sekunder efter att du bytt med flit. Låset
+     gäller bara sessionen — nästa start är automatiken igång igen. */
+  function vaxla(){
+    var andra=jag()==='gbg'?'gottskar':'gbg';
+    ssSet(LAS,'1');ssSet(HOPP,'0');lsSet(SIST,andra);
+    API.navigera(url(andra),'manuellt');
+    return andra;
+  }
   function hoppa(h,varfor){
     if(!HUS[h]||h===jag())return false;
     var n=parseInt(ss(HOPP)||'0',10)||0;
@@ -1815,8 +1840,27 @@ else start();
       skriv();});});
   }
 
+  /* Knappen ritas av modulen själv, inte av respektive fils HTML — då finns den
+     på båda hållen med exakt samma kod. .en-cmp finns i båda filerna. */
+  function knapp(){
+    try{
+      if(document.getElementById('husvakt-knapp'))return null;
+      var rad=document.querySelector('.statusbar .en-top')||document.querySelector('.en-top');
+      if(!rad)return null;
+      var andra=jag()==='gbg'?'gottskar':'gbg';
+      var b=document.createElement('button');
+      b.id='husvakt-knapp';b.className='en-cmp husvakt-knapp';b.type='button';
+      b.title='Växla till '+HUS[andra].namn;
+      b.textContent='\u21c4 '+HUS[andra].namn;
+      b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();vaxla();});
+      var st=rad.querySelector('.en-status');
+      if(st)rad.insertBefore(b,st);else rad.appendChild(b);
+      return b;
+    }catch(e){return null;}
+  }
+
   var API={
-    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa,
+    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
     position:position, sond:sond, forst:forst, lokal:lokal, diag:diag,
     navigera:function(u){location.replace(u);}
   };
@@ -1830,6 +1874,9 @@ else start();
     else if(hem==='diag'){diag();return;}
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
     if(!pa())return;
+    knapp();
+    /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler. */
+    if(ss(LAS)==='1')return;
     var sist=ls(SIST);
     if(sist&&HUS[sist]&&sist!==jag()){if(hoppa(sist,'minne'))return;}
     if(!sist)lsSet(SIST,jag());
