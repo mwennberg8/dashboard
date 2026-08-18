@@ -259,10 +259,13 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 .wx-temp{font-size:29px;font-weight:760;line-height:1;letter-spacing:-.02em}
 .wx-temp small{font-size:13px;font-weight:600;color:var(--dim);letter-spacing:0}
 .wx-sit{font-size:12.5px;color:var(--dim);font-weight:600;margin-top:3px}
-.wx-row{display:flex;align-items:center;gap:12px}
-.wx-now{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:11px}
-.wx-div{flex:0 0 auto;width:1px;align-self:stretch;background:var(--line);margin:2px 4px}
-.wx-windblock{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:11px}
+/* Väder och vind är två rutor bredvid varandra, med innehållet centrerat i var
+   och en. Raden med regn, luftfuktighet, tryck och innetemperatur är borttagen. */
+.wx-pair{display:flex;gap:var(--pg-gap);align-items:stretch}
+.wx-pair>.panel{flex:1 1 0;min-width:0;display:flex;align-items:center;justify-content:center}
+.wx-pair>.panel>div{width:100%}
+.wx-now{display:flex;align-items:center;justify-content:center;gap:11px;min-width:0}
+.wx-windblock{display:flex;align-items:center;justify-content:center;gap:11px;min-width:0}
 .wx-arrow{width:42px;height:42px;flex:0 0 auto;color:var(--wind);display:inline-flex;transition:transform .3s}.wx-arrow .ic{width:100%;height:100%}
 .wx-wind{display:flex;flex-direction:column;gap:1px;min-width:0}
 .wx-wind .wv{font-size:17px;font-weight:730}
@@ -288,8 +291,12 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
 .sec-h .ic{width:15px;height:15px;color:var(--dim)}
 
 /* ===== rumskort ===== */
-.rooms{grid-template-columns:repeat(auto-fit,minmax(158px,1fr))}
-.room{padding:13px 14px;display:flex;flex-direction:column;gap:9px;cursor:pointer;transition:.16s}
+/* Rumskorten ligger i EN ruta, precis som styrknapparna: ytterpanelen håller
+   luften, korten inuti är infällda i stället för att vara egna paneler. */
+.roomswrap{padding:var(--kn-luft)}
+.rooms{grid-template-columns:repeat(auto-fit,minmax(158px,1fr));column-gap:var(--kn-luft);row-gap:var(--kn-luft)}
+.room{padding:13px 14px;display:flex;flex-direction:column;gap:9px;cursor:pointer;transition:.16s;
+  background:var(--inset);border:1px solid var(--line);border-radius:18px;margin:0;box-shadow:none}
 .room:hover{border-color:var(--svg-stroke)}
 .room.on{background:linear-gradient(180deg,rgba(235,203,139,.13),var(--panel-b));border-color:rgba(235,203,139,.32)}
 .room-h{display:flex;align-items:center;gap:9px}
@@ -490,12 +497,15 @@ body.mobile .statusbar{position:sticky;top:0;z-index:35}
     <b id="sunset">–</b><span class="ic-slot acc-violet" data-ic="moon"></span></div>
   </section>
 
-  <section class="panel wx-card clickable" id="wx-card" onclick="openVader()"><div id="wx-body"></div></section>
+  <div class="wx-pair">
+    <section class="panel wx-card clickable" id="wx-card" onclick="openVader()"><div id="wx-body"></div></section>
+    <section class="panel wx-card clickable" id="wind-card" onclick="openVader()"><div id="wind-body"></div></section>
+  </div>
 
   <section class="panel controls" id="controls"></section>
 
   <div class="sec-h"><span class="ic-slot" data-ic="house-line"></span><span class="label">Rum</span></div>
-  <section class="grid rooms" id="rooms"></section>
+  <section class="panel roomswrap"><div class="grid rooms" id="rooms"></div></section>
 
   <section class="panel car clickable" id="car" onclick="openBil()"></section>
 
@@ -604,7 +614,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.6.0';
+const APP_VERSION = 'v1.7.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -990,31 +1000,27 @@ function renderVader(){
     b.innerHTML='<div class="wx-top"><div class="wx-ic ic-slot" data-ic="cloud"></div>'
       +'<div><div class="wx-temp">–</div><div class="wx-sit">'
       +(SMHI_ST.at?('prognos: '+esc(SMHI_ST.fel||'inget svar')):'hämtar prognos…')+'</div></div></div>';
-    initIcons(b);return;}
+    initIcons(b);
+    const v0=$('wind-body');
+    if(v0){v0.innerHTML='<div class="wx-windblock"><div class="wx-arrow ic-slot" data-ic="navigation-arrow"></div>'
+      +'<div class="wx-wind"><div class="wv">–</div><div class="wl">vind</div></div></div>';initIcons(v0);}
+    return;}
   const kann=kannsSom(f.temp,f.ws,f.rh);
   const visaKann=(f.temp!=null&&kann!=null&&Math.abs(kann-f.temp)>=1.5);
   const ic=wxIcon(f.tcc,f.p,natt);
   const rot=(f.wd==null)?0:((((f.wd+180-135)%360)+360)%360);   /* pilen pekar dit vinden BLÅSER */
-  let h1='<div class="wx-row">'
-    +'<div class="wx-now"><div class="wx-ic ic-slot" data-ic="'+ic+'"></div>'
+  b.innerHTML='<div class="wx-now"><div class="wx-ic ic-slot" data-ic="'+ic+'"></div>'
     +'<div><div class="wx-temp">'+num(f.temp,1)+'<small>°</small></div>'
     +'<div class="wx-sit">'+esc(molnText(f.tcc)||'–')
-    +(visaKann?(' · känns '+num(kann,0)+'°'):'')+'</div></div></div>'
-    +'<div class="wx-div"></div>'
-    +'<div class="wx-windblock"><div class="wx-arrow ic-slot" style="transform:rotate('+rot.toFixed(0)+'deg)" data-ic="navigation-arrow"></div>'
-    +'<div class="wx-wind"><div class="wv">'+num(f.ws,1)+' <small style="font-size:11px;color:var(--dim)">m/s</small></div>'
-    +'<div class="wl">'+esc(vindNamn(f.wd)||'vind')+(f.gust!=null?(' · by '+num(f.gust,0)):'')+'</div></div></div>'
-    +'</div>';
-  /* Upp och ner står i solremsan ovanför, inte som chips här med. */
-  const chips=[];
-  if(f.p!=null)chips.push(['drop',num(f.p,1)+' mm','/h']);
-  if(f.rh!=null)chips.push(['waves',num(f.rh,0)+' %','luftfukt']);
-  if(f.msl!=null)chips.push(['gauge',num(f.msl,0),'hPa']);
-  const inne=innetemp();
-  if(inne!=null)chips.push(['thermometer',num(inne,1)+'°','inne']);
-  h1+='<div class="wx-chips">'+chips.map(c=>'<span class="wx-chip"><span class="ic-slot" data-ic="'+c[0]
-    +'"></span><b>'+esc(c[1])+'</b> '+esc(c[2])+'</span>').join('')+'</div>';
-  b.innerHTML=h1;initIcons(b);
+    +(visaKann?(' · känns '+num(kann,0)+'°'):'')+'</div></div></div>';
+  initIcons(b);
+  const v=$('wind-body');
+  if(v){
+    v.innerHTML='<div class="wx-windblock"><div class="wx-arrow ic-slot" style="transform:rotate('+rot.toFixed(0)+'deg)" data-ic="navigation-arrow"></div>'
+      +'<div class="wx-wind"><div class="wv">'+num(f.ws,1)+' <small style="font-size:11px;color:var(--dim)">m/s</small></div>'
+      +'<div class="wl">'+esc(vindNamn(f.wd)||'vind')+(f.gust!=null?(' · by '+num(f.gust,0)):'')+'</div></div></div>';
+    initIcons(v);
+  }
 }
 function innetemp(){
   const v=cap(DEV.sensVard,'measure_temperature');
@@ -1061,6 +1067,25 @@ function renderControls(){
       +'<span class="ctl-s">'+(b.typ==='flow'?'starta':(b.typ==='allt'?(pa?'tända':'släckt'):(pa?'på':'av')))+'</span>'
       +'</button>';}).join('');
   initIcons(el);
+  knLangtryck(el);
+}
+/* Långtryck på en styrknapp öppnar redigeraren för just den. Samma mönster som
+   huset i toppraden: 550 ms, kort vibration, och det vanliga trycket avbryts. */
+function knLangtryck(el){
+  if(!el)return;
+  el.querySelectorAll('.ctl').forEach(function(b){
+    var i=+b.getAttribute('data-k'),tid=null,lang=false;
+    var start=function(){lang=false;clearTimeout(tid);tid=setTimeout(function(){lang=true;
+      try{if(navigator.vibrate)navigator.vibrate(12);}catch(e){}
+      b.dataset.lang='1';knRed(i);},550);};
+    var slut=function(){clearTimeout(tid);};
+    b.addEventListener('pointerdown',start);
+    ['pointerup','pointerleave','pointercancel'].forEach(function(t){b.addEventListener(t,slut);});
+    b.addEventListener('contextmenu',function(e){e.preventDefault();});
+    b.addEventListener('click',function(e){
+      if(b.dataset.lang==='1'){delete b.dataset.lang;e.preventDefault();e.stopPropagation();}
+    },true);
+  });
 }
 function blink(i,msg,fel){
   const el=$('controls');if(!el)return;
@@ -1116,7 +1141,7 @@ function renderRooms(){
     meta.push('<b>'+pa.length+'</b>/'+lj.length+' tända');
     if(t.length)meta.push('<b>'+num(t[0],1)+'°</b>');
     if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
-    return '<div class="panel room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
+    return '<div class="room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
       +'<div class="room-h"><span class="room-ic ic-slot" data-ic="'+(ZON_IC[z.name]||'lightbulb')+'"></span>'
       +'<span class="room-n">'+esc(z.name)+'</span>'
       +'<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();zonTanda(\''+z.id+'\')" aria-label="tänd/släck"><i></i></button></div>'
@@ -1632,7 +1657,8 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
   h+=dSec('Knappar')
     +'<div class="setup-t">L\u00e4gg till, flytta, byt namn, ikon och vad varje styrknapp g\u00f6r.</div>'
-    +'<button class="dbtn wide" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>';
+    +'<button class="dbtn wide" data-knapp="meny" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>'
+    +'<div class="setup-t">G\u00e5r det inte att \u00f6ppna h\u00e4rifr\u00e5n: h\u00e5ll inne en styrknapp p\u00e5 startsidan i en halv sekund, s\u00e5 \u00f6ppnas samma redigerare f\u00f6r just den knappen.</div>';
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
     +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
@@ -1678,21 +1704,51 @@ function knapparHTML(){
   h+='<div class="kn-lista">';
   KNAPPAR.forEach((b,i)=>{
     h+='<div class="kn-rad">'
-      +'<button class="kn-namn" onclick="knRed('+i+')">'
+      +'<button class="kn-namn" data-knapp="red:'+i+'" onclick="knRed('+i+')">'
       +'<span class="kn-ic ic-slot" data-ic="'+esc(b.ic||'toggle-right')+'"></span>'
       +'<span class="kn-txt"><b>'+esc(b.l||'(utan namn)')+'</b><small>'+esc(knTypNamn(b))+'</small></span></button>'
-      +'<button class="kn-mini" onclick="knFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
-      +'<button class="kn-mini" onclick="knFlytta('+i+',1)"'+(i===KNAPPAR.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
-      +'<button class="kn-mini kn-bort" onclick="knTaBort('+i+')" title="Ta bort">\u00d7</button>'
+      +'<button class="kn-mini" data-knapp="upp:'+i+'" onclick="knFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
+      +'<button class="kn-mini" data-knapp="ner:'+i+'" onclick="knFlytta('+i+',1)"'+(i===KNAPPAR.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
+      +'<button class="kn-mini kn-bort" data-knapp="bort:'+i+'" onclick="knTaBort('+i+')" title="Ta bort">\u00d7</button>'
       +'</div>';
   });
   h+='</div>';
-  h+='<button class="dbtn wide" onclick="knNy()">L\u00e4gg till knapp</button>';
-  h+='<button class="dbtn wide" onclick="knAterstall()">\u00c5terst\u00e4ll till original</button>';
+  h+='<button class="dbtn wide" data-knapp="ny" onclick="knNy()">L\u00e4gg till knapp</button>';
+  h+='<button class="dbtn wide" data-knapp="aterstall" onclick="knAterstall()">\u00c5terst\u00e4ll till original</button>';
   return h;
 }
-function openKnappar(){DLG_OM.knappar=null;openDlg('Knappar','toggle-right',knapparHTML(),'knappar');knIkoner();}
+/* Två vägar in, och ett synligt fel om något kastar. Menyn öppnade inte alls på
+   telefonen medan den gjorde det i testmiljön, och då duger inte en tyst väg:
+   händer ingenting ska det stå varför. Andra vägen är långtryck på själva
+   styrknappen, som öppnar redigeraren för just den. */
+function openKnappar(){
+  try{
+    DLG_OM.knappar=null;
+    openDlg('Knappar','toggle-right',knapparHTML(),'knappar');
+    knIkoner();
+  }catch(e){toast('Kunde inte \u00f6ppna knappmenyn: '+((e&&e.message)||'ok\u00e4nt fel'));}
+}
 function knIkoner(){const b=$('dlg-body');if(b)initIcons(b);}
+/* Reserv för inline-onclick. Vissa lägen (sträng CSP, en webbvy som strör bort
+   attributhanterare) sväljer onclick tyst medan en riktig lyssnare fungerar.
+   Knapparna bär båda; kommer klicket fram två gånger gör andra gången inget,
+   för _knKlickAt stänger dörren i 400 ms. */
+var _knKlickAt=0;
+function knDeleg(e){
+  var t=e.target&&e.target.closest?e.target.closest('[data-knapp]'):null;
+  if(!t)return;
+  var nu=Date.now();if(nu-_knKlickAt<400)return;_knKlickAt=nu;
+  var v=t.getAttribute('data-knapp');
+  try{
+    if(v==='meny')openKnappar();
+    else if(v==='ny')knNy();
+    else if(v==='aterstall')knAterstall();
+    else if(v.indexOf('red:')===0)knRed(+v.slice(4));
+    else if(v.indexOf('upp:')===0)knFlytta(+v.slice(4),-1);
+    else if(v.indexOf('ner:')===0)knFlytta(+v.slice(4),1);
+    else if(v.indexOf('bort:')===0)knTaBort(+v.slice(5));
+  }catch(err){toast('Fel: '+((err&&err.message)||'ok\u00e4nt'));}
+}
 function knOm(){dlgSatt(knapparHTML());knIkoner();}
 function knFlytta(i,d){
   const j=i+d;if(j<0||j>=KNAPPAR.length)return;
@@ -1874,13 +1930,15 @@ function start(){
   }
   const db=$('dlg-back');
   if(db){['click','touchstart','wheel','keydown'].forEach(ev=>db.addEventListener(ev,dlgRorelse,{passive:true}));}
+  /* Reservvägen för knappmenyns klick — se knDeleg. */
+  const dbo=$('dlg-body');if(dbo)dbo.addEventListener('click',knDeleg);
   if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches)document.body.classList.add('mobile');
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
 else start();
 </script>
 <script>
-/* ===== husvakt 1.3.0 =====
+/* ===== husvakt 1.4.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -1892,7 +1950,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.3.0';
+  var VER='1.4.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -2047,7 +2105,12 @@ else start();
      båda filerna utan att någon av dem behöver egna regler. */
   var STIL='.husvakt-knapp{width:38px;height:34px;padding:0;gap:0;font-size:0;border-radius:999px;'
     +'flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}'
-    +'.husvakt-knapp svg{width:18px;height:18px;fill:currentColor;display:block}';
+    +'.husvakt-knapp svg{width:18px;height:18px;fill:currentColor;display:block}'
+    /* Knappen ska sitta direkt till vänster om liveprickan, inte längst till
+       vänster i raden. Den tar över det automatiska marginalhoppet från statusen
+       som annars sköt sig själv åt höger. */
+    +'.en-top .husvakt-knapp{margin-left:auto!important}'
+    +'.en-top .husvakt-knapp+.en-status{margin-left:0!important}';
   var PIL='<svg viewBox="0 0 256 256" aria-hidden="true"><path d="M213.66,181.66l-32,32a8,8,0,0,1-11.32-11.32L188.69,184H48a8,8,0,0,1,0-16H188.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,213.66,181.66Zm-139.32-64a8,8,0,0,0,11.32-11.32L67.31,88H208a8,8,0,0,0,0-16H67.31L85.66,53.66A8,8,0,0,0,74.34,42.34l-32,32a8,8,0,0,0,0,11.32Z"/></svg>';
   function stil(){
     try{
@@ -2071,6 +2134,10 @@ else start();
       b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();vaxla();});
       var st=rad.querySelector('.en-status');
       if(st)rad.insertBefore(b,st);else rad.appendChild(b);
+      /* Gottskär har en notisknapp med samma automatiska marginal. Två sådana
+         delar på utrymmet och båda hamnar fel — stäng av dess när vår finns. */
+      var nt=rad.querySelector('.en-notis');
+      if(nt&&nt.style)nt.style.marginLeft='0';
       return b;
     }catch(e){return null;}
   }
