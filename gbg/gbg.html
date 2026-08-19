@@ -528,7 +528,9 @@ body.mobile .statusbar.stuck{
 .rum-master .sl-h{font-size:11.5px;color:var(--dim)}
 .rum-master.vantar,.dv-row.vantar{outline:1px solid var(--warm);outline-offset:2px;border-radius:12px}
 .dv-bekr{font-size:10px;font-weight:700;color:var(--warm);white-space:nowrap;margin-left:6px}
-.sl{appearance:none;width:100%;max-width:100%;box-sizing:border-box;height:5px;border-radius:3px;background:var(--inset);outline:none;border:1px solid var(--line)}
+/* touch-action:pan-y är halva skyddet: en lodrät dragning tolkas som skroll och
+   når aldrig reglaget. Andra halvan är slVakt() — man måste ta tag i pricken. */
+.sl{touch-action:pan-y;appearance:none;width:100%;max-width:100%;box-sizing:border-box;height:5px;border-radius:3px;background:var(--inset);outline:none;border:1px solid var(--line)}
 .sl::-webkit-slider-thumb{appearance:none;width:19px;height:19px;border-radius:50%;background:var(--gold);
   border:2px solid var(--marker-ring);cursor:pointer}
 .sl::-moz-range-thumb{width:19px;height:19px;border-radius:50%;background:var(--gold);border:2px solid var(--marker-ring);cursor:pointer}
@@ -583,6 +585,13 @@ body.mobile .statusbar.stuck{
 .tv-b:active{background:rgba(129,161,193,.18);border-color:var(--blue)}
 .tv-b .ic-slot,.tv-b .ic{width:16px;height:16px;flex:0 0 auto}
 /* Samma rad som Gottskärs .te-chk: liten, dämpad, utan ruta omkring. */
+/* Väljaren sitter till höger om namnet, i toppradens pillerstil fast mindre. */
+.gd-h{align-items:center}
+.gd-val{display:flex;gap:4px;flex:0 0 auto;margin-left:auto}
+.gd-v{appearance:none;border:1px solid var(--line);background:var(--inset);color:var(--dim);
+  font:inherit;font-size:10.5px;font-weight:700;border-radius:999px;padding:5px 9px;cursor:pointer;
+  white-space:nowrap;box-sizing:border-box}
+.gd-v.on{background:rgba(129,161,193,.18);border-color:var(--blue);color:var(--blue)}
 /* Fasta lägen. Knapparna delar bredden jämnt och wrappar hellre än skrollar. */
 .gd{margin-bottom:6px}
 .gd-in{margin-left:38px;opacity:.94}
@@ -756,7 +765,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.21.0';
+const APP_VERSION = 'v1.22.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1214,6 +1223,26 @@ function stickyBar(){
     },{threshold:0});
     _stickyObs.observe(sen);
   }catch(e){}
+}
+
+/* Ett reglage ändrar sig annars av minsta tryck var som helst på skåran, och ett
+   svep förbi räcker för att släcka lampan. Här krävs att man tar tag i PRICKEN:
+   börjar trycket mer än en tumsbredd från den avbryts det, och reglaget får
+   aldrig veta om det. Tangentbord fungerar som förut, och lodrät dragning
+   skrollar sidan tack vare touch-action:pan-y. */
+var SL_GREPP=26;                       /* px runt pricken som räknas som "på den" */
+function slVakt(e){
+  const el=e.target;
+  if(!el||!el.classList||!el.classList.contains('sl'))return;
+  const r=el.getBoundingClientRect();
+  if(!r.width)return;
+  const min=parseFloat(el.min||'0'),max=parseFloat(el.max||'100');
+  const v=parseFloat(el.value);
+  if(!isFinite(v)||max<=min)return;
+  /* Pricken är 18 px bred, så dess mitt rör sig mellan 9 px och bredd-9 px. */
+  const kant=9,spann=Math.max(1,r.width-kant*2);
+  const x=r.left+kant+((v-min)/(max-min))*spann;
+  if(Math.abs(e.clientX-x)>SL_GREPP){e.preventDefault();e.stopPropagation();}
 }
 
 /* Solremsan. Klockslagen och pricken räknas ur solens bana för positionen.
@@ -2136,10 +2165,43 @@ async function gardLage(id,v){
     render();setTimeout(load,1200);
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
+/* Vilken av gruppens gardiner lägesknapparna gäller: 'bada' eller ett enhets-id.
+   Valet lever bara medan popupen är öppen — nästa gång börjar man på båda, som
+   är det man vill nio gånger av tio. */
+var _gardVal={};
+function gardValt(gid){
+  const v=_gardVal[gid];
+  const med=GARD_GRUPP[gid]||[];
+  return (v&&(v==='bada'||med.indexOf(v)>=0))?v:'bada';
+}
+function gardValj(gid,v){
+  _gardVal[gid]=v;
+  if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();
+}
+/* Kort etikett ur namnet: "Rullgardin Vänster" blir "Vänster". */
+function gardKort(d){
+  const n=namn(d);
+  const bit=n.split(/\s+/).slice(-1)[0];
+  return (bit&&bit.length>2)?bit:n;
+}
+function gardValjare(gid){
+  const med=(GARD_GRUPP[gid]||[]).map(id=>DATA[id]).filter(Boolean);
+  if(med.length<2)return '';
+  const v=gardValt(gid);
+  let h='<div class="gd-val">';
+  med.forEach(m=>{h+='<button class="gd-v'+(v===m.id?' on':'')+'" onclick="gardValj(\''+gid+'\',\''+m.id+'\')">'+esc(gardKort(m))+'</button>';});
+  h+='<button class="gd-v'+(v==='bada'?' on':'')+'" onclick="gardValj(\''+gid+'\',\'bada\')">B\u00e5da</button>';
+  return h+'</div>';
+}
+/* Lägesraden. För en grupp styr den det som är valt vid namnet. */
 function gardKnappar(d){
-  const akt=gardAktivt(d);
+  const gid=GARD_GRUPP[d.id]?d.id:null;
+  const val=gid?gardValt(gid):null;
+  const mal=(val&&val!=='bada')?(DATA[val]||d):d;   /* vems läge som ska visas */
+  const akt=gardAktivt(mal);
+  const till=(val&&val!=='bada')?val:d.id;
   return '<div class="gd-lagen">'+gardLagen(d).map((x,i)=>
-    '<button class="gd-l'+(i===akt?' on':'')+'" onclick="gardLage(\''+d.id+'\','+x.v+')">'+esc(x.l)+'</button>'
+    '<button class="gd-l'+(i===akt?' on':'')+'" onclick="gardLage(\''+till+'\','+x.v+')">'+esc(x.l)+'</button>'
   ).join('')+'</div>';
 }
 function gardRad(d,indragen){
@@ -2147,13 +2209,21 @@ function gardRad(d,indragen){
   const p=(v==null)?null:Math.round(v*100);
   const b=capOf(d,'measure_battery');
   const med=GARD_GRUPP[d.id];
+  /* En grupp visar EN rad: namn med väljare till höger, sedan en rad lägen.
+     Medlemmarna listas inte var för sig — de nås genom väljaren. */
+  const val=med?gardValt(d.id):null;
+  const visa=(val&&val!=='bada')?(DATA[val]||d):d;
+  const vp=(capOf(visa,'windowcoverings_set')==null)?null:Math.round(capOf(visa,'windowcoverings_set')*100);
+  const vb=capOf(visa,'measure_battery');
   let h='<div class="gd'+(indragen?' gd-in':'')+'">'
-    +'<div class="dv-row"><span class="dv-ic">'+icon('elevator')+'</span>'
-    +'<span class="dv-n">'+esc(namn(d))+'<small>'+(p==null?'–':(p+' % öppen'))
-    +(med?(' · styr '+med.length+' st'):'')
-    +(b!=null?(' · '+num(b,0)+' % batt'):'')+'</small></span></div>'
+    +'<div class="dv-row gd-h"><span class="dv-ic">'+icon('elevator')+'</span>'
+    +'<span class="dv-n">'+esc(namn(d))+'<small>'
+    +(med&&val!=='bada'?(esc(gardKort(visa))+' · '):'')
+    +(vp==null?'–':(vp+' % öppen'))
+    +(med&&val==='bada'?(' · båda'):'')
+    +(vb!=null?(' · '+num(vb,0)+' % batt'):'')+'</small></span>'
+    +(med?gardValjare(d.id):'')+'</div>'
     +gardKnappar(d)+'</div>';
-  if(med)h+=med.map(id=>DATA[id]).filter(Boolean).map(x=>gardRad(x,true)).join('');
   return h;}
 
 /* ---- övriga popups ---- */
@@ -2860,6 +2930,10 @@ function start(){
   initIcons();
   applyTheme();
   stickyBar();
+  /* Reglagevakten registreras FÖRE alla tidiga returer — den behövs i
+     demoläget och på inloggningssidan lika mycket. Capture-läget krävs,
+     annars hinner reglaget ta emot trycket först. */
+  document.addEventListener('pointerdown',slVakt,true);
   klockan();renderDaystrip();
   /* Demoläget kopplar bort både Homey och SMHI. Ingen inloggning krävs, så
      sidan går att öppna på vilken enhet som helst för att prova utseendet. */
