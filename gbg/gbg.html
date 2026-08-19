@@ -511,7 +511,8 @@ body.mobile .statusbar.stuck{
 /* Dimmern börjar där NAMNET börjar, inte vid radens kant: ikonen är 28 px och
    mellanrummet 10, alltså 38 px in. Då står reglagets början lodrätt under
    första bokstaven i enhetens namn. */
-.dv-dim{width:calc(100% - 38px);margin:2px 0 10px 38px}
+.dv-dim{width:calc(100% - 38px);margin-left:38px}
+.dv-dim .slx{margin:0 0 6px}
 /* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
    listan under — inte är ännu en lampa i mängden. */
 .rum-master{border:1px solid var(--line);border-radius:16px;padding:4px 13px 11px;
@@ -528,8 +529,23 @@ body.mobile .statusbar.stuck{
 .rum-master .sl-h{font-size:11.5px;color:var(--dim)}
 .rum-master.vantar,.dv-row.vantar{outline:1px solid var(--warm);outline-offset:2px;border-radius:12px}
 .dv-bekr{font-size:10px;font-weight:700;color:var(--warm);white-space:nowrap;margin-left:6px}
-/* touch-action:pan-y är halva skyddet: en lodrät dragning tolkas som skroll och
-   når aldrig reglaget. Andra halvan är slVakt() — man måste ta tag i pricken. */
+/* Kvar för kamerans och andra ställens vanliga reglage. */
+/* EGET REGLAGE. Försöket att tygla <input type="range"> med preventDefault på
+   pointerdown höll inte: på telefonen sätter Chrome värdet ändå, och ett svep
+   förbi kunde ändra ljuset. Det här är i stället vanliga element utan eget
+   beteende — ingenting händer som inte koden här gör. Värdet ändras BARA om
+   dragningen börjar på pricken och är mer vågrät än lodrät. */
+.slx{position:relative;height:34px;margin:2px 0 10px;touch-action:pan-y;user-select:none;
+  max-width:100%;box-sizing:border-box}
+.slx-spar{position:absolute;top:50%;left:0;right:0;height:5px;transform:translateY(-50%);
+  border-radius:3px;background:var(--inset);border:1px solid var(--line);box-sizing:border-box}
+.slx-fyll{position:absolute;top:50%;left:0;height:5px;transform:translateY(-50%);
+  border-radius:3px;background:linear-gradient(90deg,rgba(235,203,139,.55),var(--gold));pointer-events:none}
+.slx-prick{position:absolute;top:50%;width:26px;height:26px;margin-left:-13px;transform:translateY(-50%);
+  border-radius:50%;background:var(--gold);border:2px solid var(--marker-ring);
+  box-shadow:0 2px 6px rgba(0,0,0,.3);touch-action:none;cursor:grab}
+.slx.drar .slx-prick{cursor:grabbing;box-shadow:0 0 0 7px rgba(235,203,139,.18),0 2px 6px rgba(0,0,0,.3)}
+.slx-v{position:absolute;right:0;top:-1px;font-size:10.5px;font-weight:700;color:var(--faint)}
 .sl{touch-action:pan-y;appearance:none;width:100%;max-width:100%;box-sizing:border-box;height:5px;border-radius:3px;background:var(--inset);outline:none;border:1px solid var(--line)}
 .sl::-webkit-slider-thumb{appearance:none;width:19px;height:19px;border-radius:50%;background:var(--gold);
   border:2px solid var(--marker-ring);cursor:pointer}
@@ -765,7 +781,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.22.0';
+const APP_VERSION = 'v1.23.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1230,19 +1246,78 @@ function stickyBar(){
    börjar trycket mer än en tumsbredd från den avbryts det, och reglaget får
    aldrig veta om det. Tangentbord fungerar som förut, och lodrät dragning
    skrollar sidan tack vare touch-action:pan-y. */
-var SL_GREPP=26;                       /* px runt pricken som räknas som "på den" */
-function slVakt(e){
-  const el=e.target;
-  if(!el||!el.classList||!el.classList.contains('sl'))return;
-  const r=el.getBoundingClientRect();
+/* Bygger ett reglage. handling är namnet på funktionen som ska anropas med
+   (id, värde) när man släpper — inte under dragningen, så Homey får ett anrop
+   och inte femtio. */
+function slxHTML(id,varde,handling,min,max){
+  const mn=(min==null?1:min),mx=(max==null?100:max);
+  const v=Math.max(mn,Math.min(mx,Math.round(varde)));
+  const p=((v-mn)/Math.max(1,mx-mn))*100;
+  return '<div class="slx" data-slx="'+esc(id)+'" data-act="'+esc(handling)+'"'
+    +' data-min="'+mn+'" data-max="'+mx+'" data-v="'+v+'"'
+    +' role="slider" aria-valuemin="'+mn+'" aria-valuemax="'+mx+'" aria-valuenow="'+v+'" tabindex="0">'
+    +'<div class="slx-spar"></div>'
+    +'<div class="slx-fyll" style="width:'+p.toFixed(1)+'%"></div>'
+    +'<div class="slx-prick" style="left:'+p.toFixed(1)+'%"></div></div>';
+}
+function slxSatt(el,v,rita){
+  const mn=+el.dataset.min,mx=+el.dataset.max;
+  v=Math.max(mn,Math.min(mx,Math.round(v)));
+  el.dataset.v=String(v);
+  el.setAttribute('aria-valuenow',String(v));
+  if(rita!==false){
+    const p=((v-mn)/Math.max(1,mx-mn))*100;
+    const f=el.querySelector('.slx-fyll'),k=el.querySelector('.slx-prick');
+    if(f)f.style.width=p.toFixed(1)+'%';
+    if(k)k.style.left=p.toFixed(1)+'%';
+  }
+  return v;
+}
+/* Dragningen. Den startar bara på pricken; ett tryck på skåran gör ingenting
+   alls. Först när fingret rört sig mer vågrät än lodrät tas greppet — annars
+   får sidan behålla skrollningen. */
+var _slxDrag=null;
+function slxNer(e){
+  const k=e.target&&e.target.closest?e.target.closest('.slx-prick'):null;
+  if(!k)return;
+  const el=k.closest('.slx');if(!el)return;
+  _slxDrag={el:el,x0:e.clientX,y0:e.clientY,tagit:false,pid:e.pointerId,start:+el.dataset.v};
+  e.preventDefault();
+}
+function slxRor(e){
+  const d=_slxDrag;if(!d)return;
+  const dx=e.clientX-d.x0,dy=e.clientY-d.y0;
+  if(!d.tagit){
+    if(Math.abs(dx)<6&&Math.abs(dy)<6)return;      /* för litet för att betyda något */
+    if(Math.abs(dy)>Math.abs(dx)){_slxDrag=null;return;}  /* lodrätt = skroll */
+    d.tagit=true;d.el.classList.add('drar');
+    try{d.el.setPointerCapture&&d.el.setPointerCapture(d.pid);}catch(err){}
+  }
+  const r=d.el.getBoundingClientRect();
   if(!r.width)return;
-  const min=parseFloat(el.min||'0'),max=parseFloat(el.max||'100');
-  const v=parseFloat(el.value);
-  if(!isFinite(v)||max<=min)return;
-  /* Pricken är 18 px bred, så dess mitt rör sig mellan 9 px och bredd-9 px. */
-  const kant=9,spann=Math.max(1,r.width-kant*2);
-  const x=r.left+kant+((v-min)/(max-min))*spann;
-  if(Math.abs(e.clientX-x)>SL_GREPP){e.preventDefault();e.stopPropagation();}
+  const mn=+d.el.dataset.min,mx=+d.el.dataset.max;
+  slxSatt(d.el,mn+((e.clientX-r.left)/r.width)*(mx-mn));
+  e.preventDefault();
+}
+function slxUpp(){
+  const d=_slxDrag;_slxDrag=null;
+  if(!d||!d.tagit)return;
+  d.el.classList.remove('drar');
+  const v=+d.el.dataset.v;
+  if(v===d.start)return;
+  const f=window[d.el.dataset.act];
+  if(typeof f==='function')f(d.el.dataset.slx,v);
+}
+/* Piltangenter för den som styr med tangentbord. */
+function slxTangent(e){
+  const el=e.target&&e.target.closest?e.target.closest('.slx'):null;
+  if(!el)return;
+  const steg=(e.key==='ArrowRight'||e.key==='ArrowUp')?5:((e.key==='ArrowLeft'||e.key==='ArrowDown')?-5:0);
+  if(!steg)return;
+  const v=slxSatt(el,(+el.dataset.v)+steg);
+  const f=window[el.dataset.act];
+  if(typeof f==='function')f(el.dataset.slx,v);
+  e.preventDefault();
 }
 
 /* Solremsan. Klockslagen och pricken räknas ur solens bana för positionen.
@@ -2060,8 +2135,7 @@ function devRad(d){
       +(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
   if(bekraftVantar('dev'+d.id))h=h.replace('</div>','<span class="dv-bekr">tryck igen</span></div>');
-  if(dim!=null&&pa)h+='<input class="sl dv-dim" type="range" min="1" max="100" value="'+Math.round(dim*100)
-    +'" onchange="devDim(\''+d.id+'\',this.value)">';
+  if(dim!=null&&pa)h+='<div class="dv-dim">'+slxHTML(d.id,dim*100,'devDim')+'</div>';
   return h;}
 
 /* ---- rum ---- */
@@ -2088,7 +2162,7 @@ function rumHTML(){
     +'</div>';
   if(lj.some(d=>har(d,'dim'))){
     h+='<div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka i rummet<b>'+medel+' %</b></div>'
-      +'<input class="sl" type="range" min="1" max="100" value="'+medel+'" onchange="zonDim(\''+zid+'\',this.value)">';
+      +slxHTML(zid,medel,'zonDim');
   }
   h+='</div>';
   h+=dSec('Lampor ('+pa.length+' av '+lj.length+' tända)');
@@ -2930,10 +3004,13 @@ function start(){
   initIcons();
   applyTheme();
   stickyBar();
-  /* Reglagevakten registreras FÖRE alla tidiga returer — den behövs i
-     demoläget och på inloggningssidan lika mycket. Capture-läget krävs,
-     annars hinner reglaget ta emot trycket först. */
-  document.addEventListener('pointerdown',slVakt,true);
+  /* Reglagen registreras FÖRE alla tidiga returer — de behövs i demoläget och
+     på inloggningssidan lika mycket. */
+  document.addEventListener('pointerdown',slxNer,true);
+  document.addEventListener('pointermove',slxRor,true);
+  document.addEventListener('pointerup',slxUpp,true);
+  document.addEventListener('pointercancel',slxUpp,true);
+  document.addEventListener('keydown',slxTangent);
   klockan();renderDaystrip();
   /* Demoläget kopplar bort både Homey och SMHI. Ingen inloggning krävs, så
      sidan går att öppna på vilken enhet som helst för att prova utseendet. */
