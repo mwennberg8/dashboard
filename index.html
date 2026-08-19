@@ -1392,7 +1392,10 @@ body.tabprev.cmp-open{overflow:auto}
    så en detaljruta med mycket innehåll — sol-popupen med prognoskurvan — bara
    växte utanför skärmen utan att gå att nå. Att lägga taket på grundregeln i
    stället för att räkna upp klasser gör att en ny ruta inte kan glömmas bort. */
-.dlg-body{scrollbar-width:none;-ms-overflow-style:none;
+/* Ingen sidled-skroll i någon dialog. Anpassa knapp gled några pixlar i sidled
+   — rutnäten där räknar bredd i procent med negativa marginaler, och ett
+   avrundat pixelvärde räcker för att ge en skrollbar bredd. Höjdled rörs inte. */
+.dlg-body{overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;
   max-height:calc(100vh - 190px);overflow-y:auto;overscroll-behavior:contain}
 .dlg-body::-webkit-scrollbar{display:none}
 /* Bredden följer skärmen: smal telefon får nästan hela, en platta får mer än
@@ -11146,6 +11149,25 @@ function valCopy(){
   try{ok=document.execCommand&&document.execCommand('copy');}catch(e){}
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(valString());ok=true;}catch(e){}
   var s2=$('bk-status');if(s2)s2.textContent=ok?'Kopierat \u2713':'Markera texten och kopiera manuellt.';}
+/* Kopiera innehållet i ett diagnostikfält. execCommand först: den fungerar även
+   utan säker kontext, vilket kopian på Homeys egen HTTP-server kör i. */
+function kopieraFalt(id,btn){
+  var el=document.getElementById(id);if(!el)return;
+  var txt=el.textContent||'',ok=false;
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=txt;ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;top:-1000px;left:0;opacity:0';
+    document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,txt.length);
+    ok=document.execCommand&&document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){}
+  try{if(!ok&&navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt);ok=true;}}catch(e){}
+  if(btn){
+    var f=btn.textContent;btn.textContent=ok?'Kopierat \u2713':'Markera och kopiera';
+    setTimeout(function(){btn.textContent=f;},1800);
+  }
+}
 /* Vem skrev senast till Homey? */
 async function loggVisa(){
   var el=$('sync-logg');if(el)el.textContent='L\u00e4ser\u2026';
@@ -11975,7 +11997,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v484';
+const APP_VERSION='v485';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -12277,9 +12299,11 @@ function openConfig(){
   h+='<div class="cfg-btns"><button class="cfg-opt" onclick="openVal()">Visa mina inställningar</button>'
     +'<button class="cfg-opt" onclick="openBackup()">Exportera / importera allt</button></div>';
   h+='<div class="cfg-hint" id="sync-status">'+esc(syncStatusText())+'</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Felsök synk</span><button class="te-use" onclick="syncDiag()">Visa slots</button></div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Felsök synk</span><span class="dv"><button class="te-use" onclick="syncDiag()">Visa slots</button>'
+    +'<button class="te-alt" onclick="kopieraFalt(\'sync-diag\',this)">Kopiera</button></span></div>';
   h+='<pre class="cfg-diag" id="sync-diag">Visar vilken variabel varje enhet skriver till och när den senast uppdaterades.</pre>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Vem skrev senast</span><button class="te-use" onclick="loggVisa()">Visa skrivlogg</button></div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Vem skrev senast</span><span class="dv"><button class="te-use" onclick="loggVisa()">Visa skrivlogg</button>'
+    +'<button class="te-alt" onclick="kopieraFalt(\'sync-logg\',this)">Kopiera</button></span></div>';
   h+='<pre class="cfg-diag" id="sync-logg">Varje skrivning mot Homey antecknas här: enhet, tidpunkt, antal nycklar och om det var ett tryck eller automatiken.</pre>';
   h+='<div class="cfg-hint" style="margin-top:0">Ändrar du en knapp eller layouten skickas det till Homey automatiskt efter några sekunder. Andra enheter hämtar in det vid nästa uppdatering.</div>';
     h+='<div class="cfg-sec">Homey-variabler</div>';
