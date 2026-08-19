@@ -495,7 +495,26 @@ body.mobile .statusbar.stuck{
 .dv-sw i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--faint);transition:.2s}
 .dv-sw.on{background:rgba(235,203,139,.28);border-color:rgba(235,203,139,.5)}
 .dv-sw.on i{left:20px;background:var(--gold)}
-.dv-dim{width:100%;margin:2px 0 10px}
+/* Dimmern börjar där NAMNET börjar, inte vid radens kant: ikonen är 28 px och
+   mellanrummet 10, alltså 38 px in. Då står reglagets början lodrätt under
+   första bokstaven i enhetens namn. */
+.dv-dim{width:calc(100% - 38px);margin:2px 0 10px 38px}
+/* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
+   listan under — inte är ännu en lampa i mängden. */
+.rum-master{border:1px solid var(--line);border-radius:16px;padding:4px 13px 11px;
+  background:linear-gradient(180deg,rgba(129,161,193,.10),transparent);margin-bottom:4px}
+.rum-master.on{border-color:rgba(235,203,139,.45);
+  background:linear-gradient(180deg,rgba(235,203,139,.13),transparent)}
+.rum-master .dv-row{border-bottom:0;padding:11px 0 6px}
+.rum-master .dv-n{font-size:15px;font-weight:780;letter-spacing:-.01em}
+.rum-master .dv-n small{font-size:10.5px;font-weight:650}
+.rum-master .dv-ic{width:32px;height:32px;border-radius:11px}
+.rum-master .dv-ic .ic{width:18px;height:18px}
+.rum-master.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.18)}
+.rum-master .sl{height:7px}
+.rum-master .sl-h{font-size:11.5px;color:var(--dim)}
+.rum-master.vantar,.dv-row.vantar{outline:1px solid var(--warm);outline-offset:2px;border-radius:12px}
+.dv-bekr{font-size:10px;font-weight:700;color:var(--warm);white-space:nowrap;margin-left:6px}
 .sl{appearance:none;width:100%;height:5px;border-radius:3px;background:var(--inset);outline:none;border:1px solid var(--line)}
 .sl::-webkit-slider-thumb{appearance:none;width:19px;height:19px;border-radius:50%;background:var(--gold);
   border:2px solid var(--marker-ring);cursor:pointer}
@@ -541,6 +560,15 @@ body.mobile .statusbar.stuck{
   background:transparent;color:var(--dim);border-radius:11px;font:inherit;font-size:15px;cursor:pointer}
 .kn-mini:disabled{opacity:.35;cursor:default}
 .kn-bort{color:var(--hot)}
+/* Knapprader i mediapopupen. Wrap i stället för sidled-skroll: knapparna ska
+   aldrig hamna utanför kanten. */
+.tv-rad{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.tv-b{appearance:none;flex:1 1 auto;min-width:64px;display:inline-flex;align-items:center;
+  justify-content:center;gap:6px;border:1px solid var(--line);background:var(--inset);
+  color:var(--ink);font:inherit;font-size:12px;font-weight:700;border-radius:13px;
+  padding:10px 8px;cursor:pointer}
+.tv-b:active{background:rgba(129,161,193,.18);border-color:var(--blue)}
+.tv-b .ic-slot,.tv-b .ic{width:16px;height:16px;flex:0 0 auto}
 .kn-ikoner{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-top:8px}
 .kn-ikon{appearance:none;aspect-ratio:1;display:inline-flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:12px;cursor:pointer}
@@ -683,13 +711,25 @@ Object.assign(ICONS,{'arrow-fat-up':'<path d="M224,120H176v88a8,8,0,0,1-8,8H88a8
 Object.assign(ICONS,{'lock-simple':"<path d=\"M216,96V208a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V96a8,8,0,0,1,8-8H208A8,8,0,0,1,216,96Z\" opacity=\"0.2\"/><path d=\"M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z\"/>",'lock-simple-open':"<path d=\"M216,96V208a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V96a8,8,0,0,1,8-8H208A8,8,0,0,1,216,96Z\" opacity=\"0.2\"/><path d=\"M208,80H96V56a32,32,0,0,1,32-32c15.37,0,29.2,11,32.16,25.59a8,8,0,0,0,15.68-3.18C171.32,24.15,151.2,8,128,8A48.05,48.05,0,0,0,80,56V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80Zm0,128H48V96H208V208Z\"/>",'flame':"<path d=\"M208,144A80,80,0,0,1,130.06,224,40,40,0,0,0,168,184c0-40-40-64-40-64s-40,24-40,64A40,40,0,0,0,125.94,224,80,80,0,0,1,48,144c0-72,80-120,80-120S208,72,208,144Z\" opacity=\"0.2\"/><path d=\"M173.79,51.48a221.25,221.25,0,0,0-41.67-34.34,8,8,0,0,0-8.24,0A221.25,221.25,0,0,0,82.21,51.48C54.59,80.48,40,112.47,40,144a88,88,0,0,0,176,0C216,112.47,201.41,80.48,173.79,51.48ZM96,184c0-27.67,22.53-47.28,32-54.3,9.48,7,32,26.63,32,54.3a32,32,0,0,1-64,0Zm77.27,15.93A47.8,47.8,0,0,0,176,184c0-44-42.09-69.79-43.88-70.86a8,8,0,0,0-8.24,0C122.09,114.21,80,140,80,184a47.8,47.8,0,0,0,2.73,15.93A71.88,71.88,0,0,1,56,144c0-34.41,20.4-63.15,37.52-81.19A216.21,216.21,0,0,1,128,33.54a215.77,215.77,0,0,1,34.48,29.27C193.49,95.5,200,125,200,144A71.88,71.88,0,0,1,173.27,199.93Z\"/>"});
 Object.assign(ICONS,{'waves':'<path d="M228.42,155.19a52.71,52.71,0,0,1-24.28,7.4c-13.21.61-25.71-4.15-36.11-13.11a48.53,48.53,0,0,0-64.06,0c-8.53,7.35-18.5,11.5-28.86,12s-20.85-2.75-30.24-9.42a8,8,0,0,0-9.29,13c11.53,8.2,24.72,12.36,38.25,12.36q1.51,0,3-.09c13.21-.61,25.71-5.75,36.11-14.71a32.52,32.52,0,0,1,43.06,0c10.4,9,22.9,14.1,36.11,14.71a53.29,53.29,0,0,0,3.17.09c13.53,0,26.72-4.16,38.25-12.36a8,8,0,1,0-9.29-13ZM40.44,116.19c10.36-.49,20.33-4.64,28.86-12a48.53,48.53,0,0,1,64.06,0c10.4,9,22.9,13.72,36.11,13.11a52.71,52.71,0,0,0,24.28-7.4l.36-.22a8,8,0,0,0-8.93-13.16,36.67,36.67,0,0,1-16.45,5c-9,.41-17.66-2.9-25-9.25a64.54,64.54,0,0,0-85.14,0c-6.26,5.39-13.24,8.55-20.19,9.14a8,8,0,0,0,.67,16Q39.71,116.23,40.44,116.19ZM40,68.19c10.36-.49,20.33-4.64,28.86-12a48.52,48.52,0,0,1,64.06,0c10.4,9,22.9,13.73,36.11,13.11a52.71,52.71,0,0,0,24.28-7.4l.36-.22a8,8,0,1,0-8.93-13.16,36.67,36.67,0,0,1-16.45,5c-9,.41-17.66-2.9-25-9.25a64.54,64.54,0,0,0-85.14,0c-6.26,5.39-13.24,8.55-20.19,9.14a8,8,0,0,0,.67,16Q39.27,68.23,40,68.19Z"/>'});
 Object.assign(ICONS,{'navigation-arrow':'<path d="M237.33,106.21,61.41,41l-.16-.05A16,16,0,0,0,40.9,61.25a1,1,0,0,0,.05.16l65.26,175.92A15.77,15.77,0,0,0,121.28,248h.3a15.77,15.77,0,0,0,15-11.29l.06-.2,21.84-78,78-21.84.2-.06a16,16,0,0,0,.62-30.38ZM149.84,144.3a8,8,0,0,0-5.54,5.54L121.3,232l-.06-.17L56,56l175.82,65.22.16.06Z"/>'});
+ICONS['minus']='<path d="M216,128a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,128Z"/>';
+ICONS['plus']='<path d="M216,128a8,8,0,0,1-8,8H136v72a8,8,0,0,1-16,0V136H48a8,8,0,0,1,0-16h72V48a8,8,0,0,1,16,0v72h72A8,8,0,0,1,216,128Z"/>';
+ICONS['speaker-x']='<path d="M158,80.7V48a8,8,0,0,0-13.1-6.1L85.2,92H40a16,16,0,0,0-16,16v40a16,16,0,0,0,16,16H85.2l59.7,50.1A8,8,0,0,0,158,208V80.7ZM142,190.9l-48.9-41A8,8,0,0,0,88,148H40V108H88a8,8,0,0,0,5.1-1.9L142,65.1ZM235.7,120.3a8,8,0,0,1,0,11.4L217.4,150l18.3,18.3a8,8,0,0,1-11.4,11.4L206,161.4l-18.3,18.3a8,8,0,0,1-11.4-11.4L194.6,150l-18.3-18.3a8,8,0,0,1,11.4-11.4L206,138.6l18.3-18.3A8,8,0,0,1,235.7,120.3Z"/>';
+ICONS['caret-up']='<path d="M213.7,163.7a8,8,0,0,1-11.4,0L128,89.4,53.7,163.7a8,8,0,0,1-11.4-11.4l80-80a8,8,0,0,1,11.4,0l80,80A8,8,0,0,1,213.7,163.7Z"/>';
+ICONS['caret-down']='<path d="M213.7,103.7l-80,80a8,8,0,0,1-11.4,0l-80-80A8,8,0,0,1,53.7,92.3L128,166.6l74.3-74.3a8,8,0,0,1,11.4,11.4Z"/>';
+ICONS['play']='<path d="M208.5,113.4,88.5,41.4A17,17,0,0,0,64,56V200a17,17,0,0,0,24.5,14.6l120-72a17,17,0,0,0,0-29.2ZM80,197.9V58.1L196.6,128Z"/>';
+ICONS['pause']='<path d="M200,40H176a16,16,0,0,0-16,16V200a16,16,0,0,0,16,16h24a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,160H176V56h24ZM80,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H80a16,16,0,0,0,16-16V56A16,16,0,0,0,80,40Zm0,160H56V56H80Z"/>';
+ICONS['rewind']='<path d="M120,56v144a8,8,0,0,1-12.6,6.5l-96-72a8,8,0,0,1,0-13l96-72A8,8,0,0,1,120,56Zm-16,16L29.3,128,104,184ZM248,56v144a8,8,0,0,1-12.6,6.5l-96-72a8,8,0,0,1,0-13l96-72A8,8,0,0,1,248,56Zm-16,16L157.3,128,232,184Z"/>';
+ICONS['fast-forward']='<path d="M136,56v144a8,8,0,0,0,12.6,6.5l96-72a8,8,0,0,0,0-13l-96-72A8,8,0,0,0,136,56Zm16,16,74.7,56L152,184ZM8,56v144a8,8,0,0,0,12.6,6.5l96-72a8,8,0,0,0,0-13l-96-72A8,8,0,0,0,8,56Zm16,16,74.7,56L24,184Z"/>';
+ICONS['skip-back']='<path d="M208,47.9V208.1a16,16,0,0,1-24.4,13.6L72,152.4V208a8,8,0,0,1-16,0V48a8,8,0,0,1,16,0v55.6L183.6,34.3A16,16,0,0,1,208,47.9Zm-16,0L74.9,128,192,208.1Z"/>';
+ICONS['skip-forward']='<path d="M200,40a8,8,0,0,0-8,8v55.6L80.4,34.3A16,16,0,0,0,56,47.9V208.1a16,16,0,0,0,24.4,13.6L192,152.4V208a8,8,0,0,0,16,0V48A8,8,0,0,0,200,40ZM72,208.1V47.9L181.1,128Z"/>';
+ICONS['circle']='<path d="M128,24A104,104,0,1,0,232,128,104.2,104.2,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Z"/>';
 ICONS['lava-lamp']='<path d="M92,32h72a8,8,0,0,1,0,16H150.6l6.9,34.6a72,72,0,0,1,26.3,74.7L172,208H84L72.2,157.3A72,72,0,0,1,98.5,82.6L105.4,48H92a8,8,0,0,1,0-16Z" opacity="0.2"/><path d="M92,24a16,16,0,0,0,0,32h3.6l-5.2,26.1A80,80,0,0,0,64.4,161l10.9,46.9A16,16,0,0,0,90.9,220h74.2a16,16,0,0,0,15.6-12.1L191.6,161a80,80,0,0,0-26-78.9L160.4,56H164a16,16,0,0,0,0-32Zm73.2,192H90.9L80.1,169.2a64,64,0,0,1,21-63.1,8,8,0,0,0,2.6-7.7L112,56h32l8.3,42.4a8,8,0,0,0,2.6,7.7,64,64,0,0,1,21,63.1Z"/><circle cx="128" cy="112" r="14"/><circle cx="108" cy="152" r="10"/><circle cx="146" cy="166" r="12"/><path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Z"/>';
 ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>';
 /* ==================================================================
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.14.0';
+const APP_VERSION = 'v1.15.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -720,7 +760,8 @@ const DEV = {
   dorr:     '9dfc61a9-1710-435c-98cb-a72bb49247a9',
   sensVard: '249884ea-5b2f-415f-96aa-8dc3422a3eed',
   syncbox:  'fc57c029-eb82-4c17-9434-70957e3c6aa7',
-  tvChrome: '4a0101f1-4d9f-4b9d-818a-e4af1cd8f020'
+  tvChrome: '4a0101f1-4d9f-4b9d-818a-e4af1cd8f020',   /* Google TV-streamer: uppspelning */
+  tvPanel:  'a34d1cf0-e658-4443-a808-4c55b9fabfd6'    /* själva TV:n: på/av och volym */
 };
 const ZON = { modes:'22bca589-f2e4-4044-bddd-51c5e624921b', hem:'9919ee1e-ffbc-480b-bc4b-77fb047e9e68' };
 
@@ -1309,6 +1350,31 @@ const KNAPPAR_DEF=[
   {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'}
 ];
 const KN_KEY='gbgknappar_v1';
+/* Bekräftelse med två tryck, som på Gottskär: första trycket beär knappen och
+   väntar, andra trycket inom fem sekunder utför. Skyddar mot fickorna och mot
+   att råka släcka hela huset när man menade att scrolla. */
+const BEKR_KEY='gbgbekraft_v1';
+function bekraftPa(){try{return localStorage.getItem(BEKR_KEY)==='1';}catch(e){return false;}}
+function bekraftSatt(v){try{localStorage.setItem(BEKR_KEY,v?'1':'0');}catch(e){}
+  toast(v?'Bekräftelse på – tryck två gånger':'Bekräftelse av');
+  try{renderControls();}catch(e){}}
+var _bekrVantar={},_bekrTid={};
+/* Returnerar true när handlingen ska utföras. */
+function bekraftKlar(nyckel,visa){
+  if(!bekraftPa())return true;
+  if(_bekrVantar[nyckel]){
+    clearTimeout(_bekrTid[nyckel]);delete _bekrVantar[nyckel];delete _bekrTid[nyckel];
+    return true;
+  }
+  _bekrVantar[nyckel]=1;
+  if(visa)visa(true);
+  _bekrTid[nyckel]=setTimeout(function(){
+    delete _bekrVantar[nyckel];delete _bekrTid[nyckel];
+    if(visa)visa(false);
+  },5000);
+  return false;
+}
+function bekraftVantar(nyckel){return !!_bekrVantar[nyckel];}
 /* Egna knappar ligger i webbläsaren. Saknas de, eller är listan trasig, faller
    vi tillbaka på originaluppställningen — en tom kontrollpanel är värre än en
    uppställning man inte valt själv. */
@@ -1368,6 +1434,9 @@ function blink(i,msg,fel){
 async function knappTryck(i){
   const b=KNAPPAR[i];if(!b)return;
   if(!BASE){blink(i,'ingen kontakt',true);return;}
+  if(!bekraftKlar('kn'+i,function(pa){
+      if(pa)blink(i,'tryck igen');else try{renderControls();}catch(e){}
+    }))return;
   try{
     blink(i,'skickar…');
     if(b.typ==='dev'){
@@ -1447,6 +1516,11 @@ async function zonDim(zid,v){
 }
 async function devTanda(id){
   const d=DATA[id];if(!d)return;
+  if(!bekraftKlar('dev'+id,function(pa){
+      const el=document.querySelector('[data-bekr="'+id+'"]');
+      if(el)el.classList.toggle('vantar',pa);
+      if(!pa&&_dlgKey&&DLG_OM[_dlgKey])try{DLG_OM[_dlgKey]();}catch(e){}
+    }))return;
   const ny=!(capOf(d,'onoff')===true);
   try{
     await satt(id,'onoff',ny);
@@ -1559,11 +1633,15 @@ function renderDevs(){
     h+=stat('elevator','acc-cyan','Gardiner',oppna+'<small> / '+gard.length+'</small>','öppna','openGardiner()');
   }
   /* Uttagsrutan är borttagen. openUttag() finns kvar och nås från enhetslistan. */
-  const tv=DATA[DEV.tvChrome];
-  if(tv){
-    const pa=capOf(tv,'onoff')===true,spelar=capOf(tv,'speaker_playing')===true;
-    const titel=capOf(tv,'speaker_track')||capOf(tv,'current_application')||'';
-    h+=stat('television',pa?'acc-violet':'acc-dim','TV',pa?(spelar?'Spelar':'På'):'Av',
+  /* TV-rutan väger samman två enheter: själva TV:n äger på/av och volym,
+     streamern äger uppspelningen. Rutan visar det som händer — spelar något
+     står det, annars om TV:n är på. */
+  const strm=DATA[DEV.tvChrome],panel=DATA[DEV.tvPanel];
+  if(strm||panel){
+    const pa=capOf(panel,'onoff')===true||capOf(strm,'onoff')===true;
+    const spelar=capOf(strm,'speaker_playing')===true;
+    const titel=capOf(strm,'speaker_track')||tvApp(strm)||'';
+    h+=stat('television',pa?'acc-violet':'acc-dim','TV',spelar?'Spelar':(pa?'På':'Av'),
       esc(String(titel).slice(0,42)),'openTV()');
   }
   el.innerHTML=h;initIcons(el);
@@ -1701,12 +1779,13 @@ function dRow(k,v){return '<div class="drow"><span class="dk">'+esc(k)+'</span><
 function dSec(t){return '<div class="dsec">'+esc(t)+'</div>';}
 function devRad(d){
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
-  let h='<div class="dv-row'+(pa?' on':'')+'">'
+  let h='<div class="dv-row'+(pa?' on':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
     +'<span class="dv-ic">'+icon(lampIkon(d))+'</span>'
     +'<span class="dv-n">'+esc(namn(d))
       +(arGrupp(d)&&grpMedlemmar(d).length?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
       +(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
+  if(bekraftVantar('dev'+d.id))h=h.replace('</div>','<span class="dv-bekr">tryck igen</span></div>');
   if(dim!=null&&pa)h+='<input class="sl dv-dim" type="range" min="1" max="100" value="'+Math.round(dim*100)
     +'" onchange="devDim(\''+d.id+'\',this.value)">';
   return h;}
@@ -1723,13 +1802,21 @@ function rumHTML(){
   const pa=lj.filter(d=>capOf(d,'onoff')===true);
   const dimbara=pa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
   const medel=dimbara.length?Math.round(dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length*100):50;
-  let h='<div class="dbtn-row">'
-    +'<button class="dbtn pri" onclick="zonAlla(\''+zid+'\',true)">Tänd alla</button>'
-    +'<button class="dbtn" onclick="zonAlla(\''+zid+'\',false)">Släck alla</button></div>';
+  /* Rummet som master: samma radform som lamporna under, men tydligt upphöjd —
+     egen ram, kraftigare text och en strecklinje ner mot listan den styr. */
+  const nagonPa=pa.length>0;
+  let h='<div class="rum-master'+(nagonPa?' on':'')+(bekraftVantar('zon'+zid)?' vantar':'')+'" data-bekr="zon'+zid+'">'
+    +'<div class="dv-row">'
+    +'<span class="dv-ic">'+icon('lightbulb-filament')+'</span>'
+    +'<span class="dv-n">Alla lampor<small>'+pa.length+' av '+lj.length+' tända'
+      +(bekraftVantar('zon'+zid)?' · tryck igen':'')+'</small></span>'
+    +'<button class="dv-sw'+(nagonPa?' on':'')+'" onclick="zonAlla(\''+zid+'\','+(nagonPa?'false':'true')+')" aria-label="alla på eller av"><i></i></button>'
+    +'</div>';
   if(lj.some(d=>har(d,'dim'))){
     h+='<div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka i rummet<b>'+medel+' %</b></div>'
       +'<input class="sl" type="range" min="1" max="100" value="'+medel+'" onchange="zonDim(\''+zid+'\',this.value)">';
   }
+  h+='</div>';
   h+=dSec('Lampor ('+pa.length+' av '+lj.length+' tända)');
   h+=lj.map(devRad).join('');
   const gard=devsIZon(zid).filter(d=>['curtain','windowcoverings','blinds'].indexOf(klass(d))>=0);
@@ -1749,6 +1836,9 @@ function rumHTML(){
   }
   return h;}
 async function zonAlla(zid,pa){
+  if(!bekraftKlar('zon'+zid,function(){
+      if(_dlgKey&&DLG_OM[_dlgKey])try{DLG_OM[_dlgKey]();}catch(e){}
+    }))return;
   const lj=ljusIZon(zid);
   try{
     await Promise.all(lj.map(d=>satt(d.id,'onoff',pa).catch(()=>{})));
@@ -1781,15 +1871,54 @@ function openUttag(){
     .map(d=>devRad(d)).join('');
   DLG_OM.uttag=()=>dlgSatt(g());
   openDlg('Uttag','plug',g(),'uttag');}
+/* "Android TV launcher (system)" är hemskärmen, inte en app man tittar på. */
+function tvApp(d){
+  const a=capOf(d,'current_application');
+  if(!a)return '';
+  return /launcher/i.test(String(a))?'':String(a);
+}
+function tvKnapp(id,cap,ic,txt){
+  return '<button class="tv-b" onclick="tvTryck(\''+id+'\',\''+cap+'\')">'
+    +'<span class="ic-slot" data-ic="'+ic+'"></span>'+(txt?('<span>'+esc(txt)+'</span>'):'')+'</button>';
+}
+/* Knapp-capabilities skickas som true; Homey struntar i värdet men vill ha ett. */
+function tvTryck(id,cap){
+  const d=DATA[id];if(!d)return;
+  if(cap==='onoff'){devTanda(id);return;}
+  if(cap==='volume_mute'){satt(id,cap,!(capOf(d,'volume_mute')===true)).then(load).catch(()=>{});return;}
+  satt(id,cap,true).then(()=>setTimeout(load,400)).catch(()=>{});
+}
 function openTV(){
   const g=()=>{
-    const t=DATA[DEV.tvChrome],s=DATA[DEV.syncbox];let h='';
+    const t=DATA[DEV.tvChrome],p=DATA[DEV.tvPanel],s=DATA[DEV.syncbox];let h='';
+    /* TV:n: på/av och volym. Den rapporterar ingen volymnivå, bara upp och ner. */
+    if(p){
+      h+=dSec('TV');
+      h+=dRow('Läge',capOf(p,'onoff')===true?'<span class="chip on">på</span>':'<span class="chip off">av</span>');
+      h+='<div class="tv-rad">'+tvKnapp(p.id,'onoff','power','På/av')
+        +tvKnapp(p.id,'volume_down','minus','Volym')
+        +tvKnapp(p.id,'volume_up','plus','Volym')
+        +tvKnapp(p.id,'volume_mute','speaker-x','Tyst')+'</div>';
+      if(har(p,'channel_up'))h+='<div class="tv-rad">'+tvKnapp(p.id,'channel_down','caret-down','Kanal')
+        +tvKnapp(p.id,'channel_up','caret-up','Kanal')+'</div>';
+    }
+    /* Streamern: uppspelning, app och den volym som faktiskt går att läsa av. */
     if(t){
-      h+=dRow('Läge',capOf(t,'onoff')===true?'<span class="chip on">på</span>':'<span class="chip off">av</span>');
-      if(capOf(t,'current_application'))h+=dRow('App',esc(capOf(t,'current_application')));
+      h+=dSec('Uppspelning');
+      const app=tvApp(t);
+      if(app)h+=dRow('App',esc(app));
       if(capOf(t,'speaker_track'))h+=dRow('Spelar',esc(String(capOf(t,'speaker_track')).slice(0,60)));
       if(capOf(t,'speaker_artist'))h+=dRow('Av',esc(String(capOf(t,'speaker_artist')).slice(0,60)));
       if(capOf(t,'measure_volume')!=null)h+=dRow('Volym',num(capOf(t,'measure_volume'),0));
+      h+='<div class="tv-rad">'+tvKnapp(t.id,'key_previous','skip-back','')
+        +tvKnapp(t.id,'key_rewind','rewind','')
+        +tvKnapp(t.id,'key_play','play','Spela')
+        +tvKnapp(t.id,'key_pause','pause','Paus')
+        +tvKnapp(t.id,'key_fast_forward','fast-forward','')
+        +tvKnapp(t.id,'key_next','skip-forward','')+'</div>';
+      h+='<div class="tv-rad">'+tvKnapp(t.id,'key_back','arrow-left','Bakåt')
+        +tvKnapp(t.id,'key_home','house','Hem')
+        +tvKnapp(t.id,'key_confirm','circle','OK')+'</div>';
     }
     if(s){h+=dSec('Sync Box');
       h+=devRad(s);
@@ -1982,6 +2111,10 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='auto'?' pri':'')+'" onclick="temaSatt(\'auto\')">Auto</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='light'?' pri':'')+'" onclick="temaSatt(\'light\')">Ljust</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
+  h+=dSec('Bekräftelse')
+    +'<div class="setup-t">Med bekräftelse på krävs två tryck för att slå på eller av något: det första väntar, det andra utför. Ångrar du dig släpper den efter fem sekunder.</div>'
+    +'<div class="dbtn-row"><button class="dbtn'+(bekraftPa()?' pri':'')+'" data-bekr-val="1" onclick="bekraftSatt(true)">På</button>'
+    +'<button class="dbtn'+(bekraftPa()?'':' pri')+'" data-bekr-val="0" onclick="bekraftSatt(false)">Av</button></div>';
   h+=dSec('Lampgrupper')
     +'<div class="setup-t">Lampor som ing\u00e5r i en grupp d\u00f6ljs i rumsrutan \u2014 gruppen styr dem \u00e4nd\u00e5. H\u00e4r ser du vad som r\u00e4knas som vad.</div>'
     +'<button class="dbtn wide" data-sekt="grupper" onclick="openGrupper()">Visa grupper</button>';
@@ -2238,6 +2371,11 @@ function knBind(){
         _sistTryck=(el.getAttribute('data-knapp')||el.getAttribute('data-sekt'))+' · '+hhmm(new Date());
         knDeleg(e);sektDeleg(e);
       });
+    });
+    b.querySelectorAll('[data-bekr-val]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
+      el.addEventListener('click',function(){bekraftSatt(el.getAttribute('data-bekr-val')==='1');
+        try{openInst();}catch(e){}});
     });
     b.querySelectorAll('[data-demo]').forEach(function(el){
       if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
