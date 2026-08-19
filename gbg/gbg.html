@@ -472,14 +472,15 @@ body.mobile .statusbar.stuck{
 @media (min-width:700px){.dlg{max-width:clamp(340px,72vw,520px)}}
 @media (min-width:1000px){.dlg{max-width:560px}}
 @keyframes dlgin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
-/* Bara krysset, ingen platta bakom. Ramen, den grå bakgrunden och skuggan är
-   borta — träffytan på 32x32 finns kvar. */
-.dlg-x{position:absolute;top:10px;right:10px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  border:0;background:none;color:var(--dim);opacity:.85;cursor:pointer;padding:0;z-index:6;
-  border-radius:999px;box-shadow:none;-webkit-tap-highlight-color:transparent}
-.dlg-x:hover{color:var(--ink)}
-.dlg-x:hover{opacity:1}.dlg-x:active{transform:scale(.94)}
-.dlg-x .ic{width:17px;height:17px}
+/* RÄTTELSE. Fyrkanten satt i IKONEN, inte i knappen: ikonen "x" ritar en fylld
+   ruta med opacity .2 bakom krysset. Jag tog bort knappens platta i stället,
+   vilket både löste fel problem och gjorde den olik Gottskär. Nu används ikonen
+   "close" — bara krysset — och knappen är Gottskärs, tal för tal. */
+.dlg-x{position:absolute;top:10px;right:10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--inset);color:var(--ink);opacity:.92;cursor:pointer;padding:0;z-index:6;border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.dlg-x:hover{opacity:1;background:var(--panel-a,var(--card))}
+.dlg-x:active{transform:scale(.94)}
+.dlg-x:active{opacity:.9}
+.dlg-x .ic{width:18px;height:18px}
 .dlg-h{display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:740;margin-bottom:13px}
 .dlg-ic{width:23px;height:23px}.dlg-ic .ic{width:100%;height:100%}
 .dlg-body{scrollbar-width:none;-ms-overflow-style:none;max-height:calc(100vh - 180px);overflow-y:auto;overscroll-behavior:contain}
@@ -638,7 +639,7 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
 
 <div class="dlg-back" id="dlg-back" onclick="closeDlg(event)">
   <div class="dlg" id="dlg" role="dialog" aria-modal="true">
-    <button class="dlg-x" onclick="closeDlg(event)" aria-label="stäng"><span class="ic-slot" data-ic="x"></span></button>
+    <button class="dlg-x" onclick="closeDlg(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button>
     <div class="dlg-h"><span class="dlg-ic ic-slot" id="dlg-ic"></span><span id="dlg-title">–</span></div>
     <div class="dlg-body" id="dlg-body"></div>
   </div>
@@ -742,7 +743,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.18.0';
+const APP_VERSION = 'v1.19.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -837,6 +838,10 @@ function demoData(){
   dev('d-gardin','Gardin vardagsrum','curtain',vard,{windowcoverings_set:0.6});
   dev(DEV.kamera,'Kamera','sensor',vard,
     {motion_enabled:true,alarm_motion:true,alarm_person:false,alarm_tamper:false,event_time:'7:16 19-08'});
+  /* dev() bygger i en lokal tabell, inte i DATA — bilderna hängs på den. */
+  D[DEV.kamera].images=[
+    {type:'camera',id:'Now',title:'\u00d6gonblicksbild',image:{id:'demo-now',ownerUri:'homey:app:com.onvif'}},
+    {type:'camera',id:'Event',title:'R\u00f6relseh\u00e4ndelse',image:{id:'demo-event',ownerUri:'homey:app:com.onvif'}}];
   /* en enhet som inte svarar, så varningsrutan har något att visa */
   dev('d-borta','Fönstersensor kök','sensor',kok,{alarm_contact:false,measure_battery:41}).available=false;
   return {DATA:D,ZONES:zoner,FLOWS:[
@@ -1414,7 +1419,9 @@ function renderControls(){
     const finns=(b.typ!=='dev')||!!DATA[b.id];
     const armerad=bekraftVantar('kn'+i);
     return '<button class="ctl'+(pa?' on':'')+(armerad?' arm':'')+'" data-k="'+i+'"'+(finns?'':' disabled')+' onclick="knappTryck('+i+')">'
-      +'<span class="ctl-ic ic-slot" data-ic="'+b.ic+'"></span>'
+      /* Tänd/släck-knappen bär läget i ikonen: lyser något är det en tänd lampa,
+         annars en släckt. Samma grepp som Gottskärs moodtoggle. */
+      +'<span class="ctl-ic ic-slot" data-ic="'+(b.typ==='allt'?(pa?'lightbulb':'lightbulb-off'):b.ic)+'"></span>'
       +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':b.l)+'</span>'
       +'<span class="ctl-s">'+(b.typ==='flow'?'starta':(b.typ==='allt'?(pa?'tända':'släckt'):(pa?'på':'av')))+'</span>'
       +'</button>';}).join('');
@@ -1714,12 +1721,51 @@ function openKamera(){
         : (url
           ? 'Bilden h\u00e4mtas direkt fr\u00e5n '+esc(url)+' och uppdateras var tjugonde sekund. Den adressen n\u00e5s bara hemifr\u00e5n.'
           : 'Ingen bildadress sparad.'))+'</div>'
-      +'<div class="dbtn-row"><button class="dbtn" onclick="camSokVisa()">S\u00f6k bild via Homey</button>'
+      +'<div class="dbtn-row"><button class="dbtn pri" onclick="camStallInVisa()">H\u00e4mta bild via Homey</button>'
+      +'<button class="dbtn" onclick="camSokVisa()">Fels\u00f6k</button>'
       +(hv?'<button class="dbtn" onclick="camHomeyVagSatt(\'\');toast(\'Tillbaka till egen adress\');openKamera();">Sluta anv\u00e4nda Homey</button>':'')
       +'</div><pre class="cfg-diag" id="cam-sok" style="white-space:pre-wrap;font-size:11px;margin-top:8px">Visar vad Homey svarar p\u00e5 bildf\u00f6rfr\u00e5gningar \u2014 skicka resultatet s\u00e5 kan r\u00e4tt s\u00f6kv\u00e4g l\u00e4ggas in.</pre>';
     return h;};
   DLG_OM.kam=()=>dlgSatt(g());
   openDlg('Kamera','camera',g(),'kam');}
+/* Kameran registrerar sina bilder i enhetens images-lista, och de ligger under
+   /api/manager/images/image/<id>/. Bekräftat i din Homey: den vägen svarar 200
+   medan /api/manager/image/image/ ger 404. Ögonblicksbilden heter "Now",
+   rörelsehändelsen "Event" — ögonblicksbilden tas i första hand. */
+function camBildKandidater(){
+  const k=DATA[DEV.kamera],ut=[];
+  const bilder=(k&&Array.isArray(k.images))?k.images.slice():[];
+  const rang=x=>(x&&x.id==='Now')?0:((x&&x.id==='Event')?1:2);
+  bilder.sort((a,b)=>rang(a)-rang(b));
+  bilder.forEach(b=>{
+    if(b&&b.type&&b.type!=='camera')return;
+    const im=b&&b.image,id=im&&im.id,u=im&&im.url;
+    if(typeof u==='string'&&u.charAt(0)==='/')ut.push(u);
+    if(id)ut.push('/api/manager/images/image/'+id+'/');
+  });
+  return ut;
+}
+async function camStallIn(){
+  const kand=camBildKandidater();
+  if(!kand.length)return {ok:false,text:'Kameran listar inga bilder i Homey.'};
+  const rader=[];
+  for(const vag of kand){
+    const u=await camHamta(vag);
+    rader.push(vag+' \u2192 '+(u?'bild \u2713':'ingen bild'));
+    if(u){
+      camHomeyVagSatt(vag);_camN=Date.now();
+      const im=$('cam-img');if(im)im.src=u;
+      return {ok:true,vag:vag,text:rader.join('\n')};
+    }
+  }
+  return {ok:false,text:rader.join('\n')};
+}
+async function camStallInVisa(){
+  const el=$('cam-sok');if(el)el.textContent='Provar kamerans bilder\u2026';
+  const r=await camStallIn();
+  const e2=$('cam-sok');if(e2)e2.textContent=r.text;
+  if(r.ok){toast('Bilden h\u00e4mtas nu via Homey');try{renderCam();openKamera();}catch(e){}}
+}
 async function camSokVisa(){
   const el=$('cam-sok');if(el)el.textContent='S\u00f6ker\u2026';
   const t=await camSok();
@@ -1945,7 +1991,7 @@ function rumHTML(){
   const nagonPa=pa.length>0;
   let h='<div class="rum-master'+(nagonPa?' on':'')+(bekraftVantar('zon'+zid)?' vantar':'')+'" data-bekr="zon'+zid+'">'
     +'<div class="dv-row">'
-    +'<span class="dv-ic">'+icon('lightbulb-filament')+'</span>'
+    +'<span class="dv-ic">'+icon(nagonPa?'lightbulb':'lightbulb-off')+'</span>'
     +'<span class="dv-n">Alla lampor<small>'+pa.length+' av '+lj.length+' tända'
       +(bekraftVantar('zon'+zid)?' · tryck igen':'')+'</small></span>'
     +'<button class="dv-sw'+(nagonPa?' on':'')+'" onclick="zonAlla(\''+zid+'\','+(nagonPa?'false':'true')+')" aria-label="alla på eller av"><i></i></button>'
