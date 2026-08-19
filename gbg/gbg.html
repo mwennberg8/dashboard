@@ -395,6 +395,10 @@ body.mobile .statusbar.stuck{
   font-family:var(--sans);font-weight:650;font-size:13px;padding:12px 10px;cursor:pointer;display:flex;
   flex-direction:column;align-items:center;gap:6px;transition:.18s;min-height:78px;justify-content:center}
 .ctl:hover{border-color:var(--svg-stroke)}
+/* Armerad knapp: samma färger och samma etikett som Gottskär. */
+.ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}
+.ctl.arm .ctl-l{color:var(--warm-t)}
+.ctl.arm .ctl-ic{color:var(--warm)}
 .ctl-ic{width:23px;height:23px;color:var(--dim);display:inline-flex}.ctl-ic .ic{width:100%;height:100%}
 .ctl-l{font-size:12.5px;text-align:center;line-height:1.25}
 .ctl-s{font-size:9.5px;color:var(--faint);letter-spacing:.1em;text-transform:uppercase}
@@ -574,10 +578,10 @@ body.mobile .statusbar.stuck{
   padding:10px 8px;cursor:pointer}
 .tv-b:active{background:rgba(129,161,193,.18);border-color:var(--blue)}
 .tv-b .ic-slot,.tv-b .ic{width:16px;height:16px;flex:0 0 auto}
-.kn-kryss{display:flex;align-items:center;gap:10px;margin-top:8px;padding:11px 13px;
-  border:1px solid var(--line);background:var(--inset);border-radius:13px;
-  font-size:13px;font-weight:650;cursor:pointer}
-.kn-kryss input{width:19px;height:19px;flex:0 0 auto;accent-color:var(--blue);margin:0}
+/* Samma rad som Gottskärs .te-chk: liten, dämpad, utan ruta omkring. */
+.kn-kryss{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);
+  margin:10px 2px 2px;cursor:pointer}
+.kn-kryss input{accent-color:var(--blue);margin:0}
 .kn-ikoner{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-top:8px}
 .kn-ikon{appearance:none;aspect-ratio:1;display:inline-flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:12px;cursor:pointer}
@@ -738,7 +742,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.16.0';
+const APP_VERSION = 'v1.17.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1379,7 +1383,7 @@ function bekraftKlar(nyckel,visa,pa){
   _bekrTid[nyckel]=setTimeout(function(){
     delete _bekrVantar[nyckel];delete _bekrTid[nyckel];
     if(visa)visa(false);
-  },5000);
+  },4000);        /* samma fyra sekunder som Gottskär */
   return false;
 }
 function bekraftVantar(nyckel){return !!_bekrVantar[nyckel];}
@@ -1408,9 +1412,10 @@ function renderControls(){
   el.innerHTML=KNAPPAR.map((b,i)=>{
     const pa=knappPa(b);
     const finns=(b.typ!=='dev')||!!DATA[b.id];
-    return '<button class="ctl'+(pa?' on':'')+'" data-k="'+i+'"'+(finns?'':' disabled')+' onclick="knappTryck('+i+')">'
+    const armerad=bekraftVantar('kn'+i);
+    return '<button class="ctl'+(pa?' on':'')+(armerad?' arm':'')+'" data-k="'+i+'"'+(finns?'':' disabled')+' onclick="knappTryck('+i+')">'
       +'<span class="ctl-ic ic-slot" data-ic="'+b.ic+'"></span>'
-      +'<span class="ctl-l">'+esc(b.l)+'</span>'
+      +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':b.l)+'</span>'
       +'<span class="ctl-s">'+(b.typ==='flow'?'starta':(b.typ==='allt'?(pa?'tända':'släckt'):(pa?'på':'av')))+'</span>'
       +'</button>';}).join('');
   initIcons(el);
@@ -1442,9 +1447,7 @@ function blink(i,msg,fel){
 async function knappTryck(i){
   const b=KNAPPAR[i];if(!b)return;
   if(!BASE){blink(i,'ingen kontakt',true);return;}
-  if(!bekraftKlar('kn'+i,function(v){
-      if(v)blink(i,'tryck igen');else try{renderControls();}catch(e){}
-    },bekraftPaKn(i)))return;
+  if(!bekraftKlar('kn'+i,function(){try{renderControls();}catch(e){}},bekraftPaKn(i)))return;
   try{
     blink(i,'skickar…');
     if(b.typ==='dev'){
@@ -2372,7 +2375,7 @@ function knapparHTML(){
       +'<button class="kn-namn" data-knapp="red:'+i+'" onclick="knRed('+i+')">'
       +'<span class="kn-ic ic-slot" data-ic="'+esc(b.ic||'toggle-right')+'"></span>'
       +'<span class="kn-txt"><b>'+esc(b.l||'(utan namn)')+'</b><small>'+esc(knTypNamn(b))
-      +(b.bekr?' \u00b7 tv\u00e5 tryck':'')+'</small></span></button>'
+      +(b.bekr?' \u00b7 bekr\u00e4ftelse':'')+'</small></span></button>'
       +'<button class="kn-mini" data-knapp="upp:'+i+'" onclick="knFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
       +'<button class="kn-mini" data-knapp="ner:'+i+'" onclick="knFlytta('+i+',1)"'+(i===KNAPPAR.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
       +'<button class="kn-mini kn-bort" data-knapp="bort:'+i+'" onclick="knTaBort('+i+')" title="Ta bort">\u00d7</button>'
@@ -2487,10 +2490,8 @@ function knRedOm(i){
   }else{
     h+=dSec('Handling')+'<div class="setup-t">Sl\u00e4cker alla lampor i hemmet med ett tryck. Inget att st\u00e4lla in.</div>';
   }
-  h+=dSec('Bekräftelse')
-    +'<label class="kn-kryss"><input type="checkbox" id="kn-bekr"'+(b.bekr?' checked':'')+' onchange="knBekr('+i+',this.checked)">'
-    +'<span>Kräv två tryck för den här knappen</span></label>'
-    +'<div class="setup-t">Första trycket väntar och knappen märks, andra utför. Släpper efter fem sekunder.</div>';
+  h+='<label class="kn-kryss"><input type="checkbox" id="kn-bekr"'+(b.bekr?' checked':'')+' onchange="knBekr('+i+',this.checked)">'
+    +' Kräv bekräftelse (tryck två gånger)</label>';
   h+=dSec('Ikon')+'<div class="kn-ikoner">'
     +KN_IKONER.map(n=>'<button class="kn-ikon'+(n===_knIkon?' on':'')+'" onclick="knValjIkon(\''+n+'\')" title="'+n+'"><span class="ic-slot" data-ic="'+n+'"></span></button>').join('')
     +'</div>';
@@ -2503,7 +2504,7 @@ function knRedOm(i){
 function knBekr(i,v){
   const b=KNAPPAR[i];if(!b)return;
   b.bekr=!!v;knSpara();
-  toast(v?'Två tryck krävs för '+(b.l||'knappen'):'Ett tryck räcker');
+  toast(v?'Bekräftelse på för '+(b.l||'knappen'):'Bekräftelse av');
 }
 function knTyp(i,t){
   const b=KNAPPAR[i];if(!b)return;
