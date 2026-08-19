@@ -742,7 +742,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.17.0';
+const APP_VERSION = 'v1.18.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1586,12 +1586,75 @@ function ladText(s){
     plugged_in_done:'klar',plugged_in_fault:'fel'};
   return esc(m[s]||String(s||'–'));}
 
-/* ---------- kamera ---------- */
-let _camN=0;
+/* ---------- kamera ----------
+   Homey KAN leverera bilden. Kameraappar registrerar en ögonblicksbild som
+   Homey lägger upp under sitt bild-API, och den nås med samma token som resten
+   av dashboarden — alltså också via molnvägen när du inte är hemma, över https
+   och utan att något öppnas mot internet.
+
+   Två svårigheter, båda lösta här:
+   1. En <img src> kan inte skicka en Authorization-rubrik. Därför hämtas bilden
+      med fetch och visas som blob — då följer token med.
+   2. Jag VET INTE om just din Tapo-app registrerar en bild, och vilken
+      sökväg den i så fall har. Knappen "Sök bild via Homey" prövar därför ett
+      antal kandidater och visar exakt vad var och en svarar. Hittas en bild
+      sparas sökvägen och används i stället för den egna adressen. */
+let _camN=0,_camBlob=null;
+const CAMH_KEY='gbgcamhomey_v1';
+function camHomeyVag(){try{return localStorage.getItem(CAMH_KEY)||'';}catch(e){return '';}}
+function camHomeyVagSatt(v){try{v?localStorage.setItem(CAMH_KEY,v):localStorage.removeItem(CAMH_KEY);}catch(e){}}
+/* Hämtar en bild från Homey med token och ger en blob-URL, eller null. */
+async function camHamta(vag){
+  const lista=(BASE?[BASE].concat(vagar().filter(v=>v!==BASE)):vagar());
+  for(const b of lista){
+    const t=withTimeout(9000);
+    try{
+      const r=await fetch(b.replace(/\/$/,'')+vag,
+        {headers:{Authorization:'Bearer '+CONFIG.TOKEN},cache:'no-store',signal:t.signal});
+      t.clear();
+      if(!r.ok)continue;
+      const typ=r.headers.get('content-type')||'';
+      if(typ.indexOf('image')<0)continue;
+      const bl=await r.blob();
+      if(_camBlob)try{URL.revokeObjectURL(_camBlob);}catch(e){}
+      _camBlob=URL.createObjectURL(bl);
+      return _camBlob;
+    }catch(e){t.clear();}
+  }
+  return null;
+}
+/* Kandidaterna. Homeys bild-API har hetat olika saker; i stället för att lita
+   på minnet frågar vi alla och redovisar svaren. */
+const CAM_KANDIDATER=['/api/manager/image/image/','/api/manager/images/image/'];
+async function camSok(){
+  const ut=[];
+  const k=DATA[DEV.kamera];
+  ut.push('Enhetens f\u00e4lt: '+(k?Object.keys(k).join(', '):'kameran syns inte'));
+  if(k&&k.images)ut.push('images: '+JSON.stringify(k.images));
+  if(k&&k.ui)ut.push('ui: '+JSON.stringify(k.ui).slice(0,200));
+  for(const vag of CAM_KANDIDATER){
+    const b=(BASE||vagar()[0]||'').replace(/\/$/,'');
+    if(!b){ut.push(vag+' \u2192 ingen v\u00e4g till Homey');continue;}
+    const t=withTimeout(9000);
+    try{
+      const r=await fetch(b+vag,{headers:{Authorization:'Bearer '+CONFIG.TOKEN},cache:'no-store',signal:t.signal});
+      t.clear();
+      const typ=r.headers.get('content-type')||'?';
+      let extra='';
+      if(r.ok&&typ.indexOf('json')>=0){
+        try{const j=await r.json();
+          const ids=Array.isArray(j)?j.map(x=>x&&x.id):Object.keys(j||{});
+          extra=' \u00b7 '+ids.length+' bilder: '+ids.slice(0,6).join(', ');}catch(e){}
+      }
+      ut.push(vag+' \u2192 HTTP '+r.status+' ('+typ+')'+extra);
+    }catch(e){t.clear();ut.push(vag+' \u2192 ingen kontakt');}
+  }
+  return ut.join('\n');
+}
 function renderCam(){
   const el=$('cam');if(!el)return;
   const url=(credGet().kamera||'').trim();
-  if(!url){el.hidden=true;return;}
+  if(!url&&!camHomeyVag()){el.hidden=true;return;}
   el.hidden=false;
   const rorelse=cap(DEV.kamera,'alarm_motion')===true||cap(DEV.kamera,'alarm_person')===true;
   const nar=cap(DEV.kamera,'event_time');
@@ -1605,8 +1668,17 @@ function renderCam(){
   }
   setT('cam-t',(rorelse?'rörelse nu':'ingen rörelse')+(nar?(' · '+nar):''));
   const im=$('cam-img');
-  if(im&&Date.now()-_camN>20000){_camN=Date.now();
-    im.src=url+(url.indexOf('?')>0?'&':'?')+'t='+_camN;}
+  if(im&&Date.now()-_camN>20000){
+    _camN=Date.now();
+    const hv=camHomeyVag();
+    if(hv){
+      /* Via Homey: fungerar hemma och borta, över https, med token. */
+      camHamta(hv).then(u=>{if(u&&$('cam-img'))$('cam-img').src=u;
+        else{const t=$('cam-t');if(t)t.textContent='Homey gav ingen bild';}});
+    }else{
+      im.src=url+(url.indexOf('?')>0?'&':'?')+'t='+_camN;
+    }
+  }
 }
 
 /* Kamerans egna uppgifter. Tapo C120 rapporterar rörelse, person, manipulation,
@@ -1635,14 +1707,30 @@ function openKamera(){
     if(har(k,'motion_enabled'))
       h+='<div class="dbtn-row"><button class="dbtn" onclick="kamBevakning('+(capOf(k,'motion_enabled')===true?'false':'true')+')">'
         +(capOf(k,'motion_enabled')===true?'Stäng av bevakning':'Slå på bevakning')+'</button></div>';
-    const url=(credGet().kamera||'').trim();
+    const url=(credGet().kamera||'').trim(),hv=camHomeyVag();
     h+=dSec('Bild')
-      +'<div class="setup-t" style="margin-top:0">'+(url
-        ? 'Bilden h\u00e4mtas fr\u00e5n adressen du sparat under Inst\u00e4llningar \u2192 Kamera och uppdateras var tjugonde sekund. Homey skickar ingen bild.'
-        : 'Ingen bildadress sparad. L\u00e4gg in en under Inst\u00e4llningar \u2192 Kamera.')+'</div>';
+      +'<div class="setup-t" style="margin-top:0">'+(hv
+        ? 'Bilden h\u00e4mtas via Homey ('+esc(hv)+') med din token. Det fungerar ocks\u00e5 n\u00e4r du inte \u00e4r hemma, \u00f6ver molnv\u00e4gen, utan att n\u00e5got \u00f6ppnas mot internet.'
+        : (url
+          ? 'Bilden h\u00e4mtas direkt fr\u00e5n '+esc(url)+' och uppdateras var tjugonde sekund. Den adressen n\u00e5s bara hemifr\u00e5n.'
+          : 'Ingen bildadress sparad.'))+'</div>'
+      +'<div class="dbtn-row"><button class="dbtn" onclick="camSokVisa()">S\u00f6k bild via Homey</button>'
+      +(hv?'<button class="dbtn" onclick="camHomeyVagSatt(\'\');toast(\'Tillbaka till egen adress\');openKamera();">Sluta anv\u00e4nda Homey</button>':'')
+      +'</div><pre class="cfg-diag" id="cam-sok" style="white-space:pre-wrap;font-size:11px;margin-top:8px">Visar vad Homey svarar p\u00e5 bildf\u00f6rfr\u00e5gningar \u2014 skicka resultatet s\u00e5 kan r\u00e4tt s\u00f6kv\u00e4g l\u00e4ggas in.</pre>';
     return h;};
   DLG_OM.kam=()=>dlgSatt(g());
   openDlg('Kamera','camera',g(),'kam');}
+async function camSokVisa(){
+  const el=$('cam-sok');if(el)el.textContent='S\u00f6ker\u2026';
+  const t=await camSok();
+  const e2=$('cam-sok');if(e2)e2.textContent=t;
+}
+/* När vi vet sökvägen sätts den härifrån — också från konsolen. */
+function camAnvandHomey(vag){
+  camHomeyVagSatt(String(vag||'').trim());
+  _camN=0;toast(vag?'Bilden h\u00e4mtas via Homey':'Tillbaka till egen adress');
+  try{renderCam();openKamera();}catch(e){}
+}
 function kamBevakning(pa){
   const k=DATA[DEV.kamera];if(!k)return;
   satt(k.id,'motion_enabled',!!pa).then(()=>{
