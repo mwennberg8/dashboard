@@ -437,7 +437,9 @@ body.mobile .statusbar.stuck{
 
 /* ===== kamera ===== */
 .cam{padding:0;overflow:hidden}
-.cam img{width:100%;display:block;background:var(--inset);min-height:120px}
+.cam img{width:100%;display:block;background:var(--inset);min-height:120px;cursor:pointer}
+.cam-f{cursor:pointer}
+.cam-mer{margin-left:auto;font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap}
 .cam-f{display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:11.5px;color:var(--dim);font-weight:600}
 .cam-f .ic{width:14px;height:14px}
 
@@ -466,9 +468,12 @@ body.mobile .statusbar.stuck{
 @media (min-width:700px){.dlg{max-width:clamp(340px,72vw,520px)}}
 @media (min-width:1000px){.dlg{max-width:560px}}
 @keyframes dlgin{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+/* Bara krysset, ingen platta bakom. Ramen, den grå bakgrunden och skuggan är
+   borta — träffytan på 32x32 finns kvar. */
 .dlg-x{position:absolute;top:10px;right:10px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--inset);color:var(--ink);opacity:.92;cursor:pointer;padding:0;z-index:6;
-  border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+  border:0;background:none;color:var(--dim);opacity:.85;cursor:pointer;padding:0;z-index:6;
+  border-radius:999px;box-shadow:none;-webkit-tap-highlight-color:transparent}
+.dlg-x:hover{color:var(--ink)}
 .dlg-x:hover{opacity:1}.dlg-x:active{transform:scale(.94)}
 .dlg-x .ic{width:17px;height:17px}
 .dlg-h{display:flex;align-items:center;justify-content:center;gap:10px;font-size:16px;font-weight:740;margin-bottom:13px}
@@ -569,6 +574,10 @@ body.mobile .statusbar.stuck{
   padding:10px 8px;cursor:pointer}
 .tv-b:active{background:rgba(129,161,193,.18);border-color:var(--blue)}
 .tv-b .ic-slot,.tv-b .ic{width:16px;height:16px;flex:0 0 auto}
+.kn-kryss{display:flex;align-items:center;gap:10px;margin-top:8px;padding:11px 13px;
+  border:1px solid var(--line);background:var(--inset);border-radius:13px;
+  font-size:13px;font-weight:650;cursor:pointer}
+.kn-kryss input{width:19px;height:19px;flex:0 0 auto;accent-color:var(--blue);margin:0}
 .kn-ikoner{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;margin-top:8px}
 .kn-ikon{appearance:none;aspect-ratio:1;display:inline-flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:12px;cursor:pointer}
@@ -729,7 +738,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.15.0';
+const APP_VERSION = 'v1.16.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -822,6 +831,8 @@ function demoData(){
   dev(DEV.bambuUt,'Uttag skrivare','socket',kok,{onoff:true,measure_power:118});
   dev('d-uttag2','Uttag TV','socket',vard,{onoff:true,measure_power:64});
   dev('d-gardin','Gardin vardagsrum','curtain',vard,{windowcoverings_set:0.6});
+  dev(DEV.kamera,'Kamera','sensor',vard,
+    {motion_enabled:true,alarm_motion:true,alarm_person:false,alarm_tamper:false,event_time:'7:16 19-08'});
   /* en enhet som inte svarar, så varningsrutan har något att visa */
   dev('d-borta','Fönstersensor kök','sensor',kok,{alarm_contact:false,measure_battery:41}).available=false;
   return {DATA:D,ZONES:zoner,FLOWS:[
@@ -1350,18 +1361,15 @@ const KNAPPAR_DEF=[
   {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'}
 ];
 const KN_KEY='gbgknappar_v1';
-/* Bekräftelse med två tryck, som på Gottskär: första trycket beär knappen och
-   väntar, andra trycket inom fem sekunder utför. Skyddar mot fickorna och mot
-   att råka släcka hela huset när man menade att scrolla. */
-const BEKR_KEY='gbgbekraft_v1';
-function bekraftPa(){try{return localStorage.getItem(BEKR_KEY)==='1';}catch(e){return false;}}
-function bekraftSatt(v){try{localStorage.setItem(BEKR_KEY,v?'1':'0');}catch(e){}
-  toast(v?'Bekräftelse på – tryck två gånger':'Bekräftelse av');
-  try{renderControls();}catch(e){}}
+/* Bekräftelse med två tryck, som på Gottskär, men PER KNAPP: kryssrutan sitter
+   i knappens egen meny (håll inne knappen). Första trycket väntar och märks,
+   andra inom fem sekunder utför. En global inställning fanns i v1.15.0 — den
+   är borta, en knapp åt gången är både tydligare och mindre i vägen. */
+function bekraftPaKn(i){const b=KNAPPAR[i];return !!(b&&b.bekr);}
 var _bekrVantar={},_bekrTid={};
-/* Returnerar true när handlingen ska utföras. */
-function bekraftKlar(nyckel,visa){
-  if(!bekraftPa())return true;
+/* Returnerar true när handlingen ska utföras. pa=false hoppar över spärren. */
+function bekraftKlar(nyckel,visa,pa){
+  if(!pa)return true;
   if(_bekrVantar[nyckel]){
     clearTimeout(_bekrTid[nyckel]);delete _bekrVantar[nyckel];delete _bekrTid[nyckel];
     return true;
@@ -1434,9 +1442,9 @@ function blink(i,msg,fel){
 async function knappTryck(i){
   const b=KNAPPAR[i];if(!b)return;
   if(!BASE){blink(i,'ingen kontakt',true);return;}
-  if(!bekraftKlar('kn'+i,function(pa){
-      if(pa)blink(i,'tryck igen');else try{renderControls();}catch(e){}
-    }))return;
+  if(!bekraftKlar('kn'+i,function(v){
+      if(v)blink(i,'tryck igen');else try{renderControls();}catch(e){}
+    },bekraftPaKn(i)))return;
   try{
     blink(i,'skickar…');
     if(b.typ==='dev'){
@@ -1516,11 +1524,6 @@ async function zonDim(zid,v){
 }
 async function devTanda(id){
   const d=DATA[id];if(!d)return;
-  if(!bekraftKlar('dev'+id,function(pa){
-      const el=document.querySelector('[data-bekr="'+id+'"]');
-      if(el)el.classList.toggle('vantar',pa);
-      if(!pa&&_dlgKey&&DLG_OM[_dlgKey])try{DLG_OM[_dlgKey]();}catch(e){}
-    }))return;
   const ny=!(capOf(d,'onoff')===true);
   try{
     await satt(id,'onoff',ny);
@@ -1590,8 +1593,9 @@ function renderCam(){
   const rorelse=cap(DEV.kamera,'alarm_motion')===true||cap(DEV.kamera,'alarm_person')===true;
   const nar=cap(DEV.kamera,'event_time');
   if(!el.dataset.byggd){
-    el.innerHTML='<img id="cam-img" alt="kamerabild" referrerpolicy="no-referrer">'
-      +'<div class="cam-f"><span class="ic-slot" data-ic="camera"></span><span id="cam-t"></span></div>';
+    el.innerHTML='<img id="cam-img" alt="kamerabild" referrerpolicy="no-referrer" onclick="openKamera()">'
+      +'<div class="cam-f" onclick="openKamera()"><span class="ic-slot" data-ic="camera"></span><span id="cam-t"></span>'
+      +'<span class="cam-mer">detaljer</span></div>';
     initIcons(el);el.dataset.byggd='1';
     const im=$('cam-img');
     if(im)im.onerror=function(){const t=$('cam-t');if(t)t.textContent='bilden kunde inte hämtas';};
@@ -1600,6 +1604,49 @@ function renderCam(){
   const im=$('cam-img');
   if(im&&Date.now()-_camN>20000){_camN=Date.now();
     im.src=url+(url.indexOf('?')>0?'&':'?')+'t='+_camN;}
+}
+
+/* Kamerans egna uppgifter. Tapo C120 rapporterar rörelse, person, manipulation,
+   om bevakningen är påslagen och när det senast hände något — men ingen bild via
+   Homey. Bilden i rutan kommer från adressen du sparat i inställningarna. */
+function openKamera(){
+  const g=()=>{
+    const k=DATA[DEV.kamera];
+    let h='';
+    if(!k)return 'Kameran syns inte i Homey just nu.';
+    const chip=(v,pa,av,kritisk)=>v===true
+      ? '<span class="chip '+(kritisk?'crit':'warn')+'">'+pa+'</span>'
+      : '<span class="chip off">'+av+'</span>';
+    h+=dRow('Rörelse',chip(capOf(k,'alarm_motion'),'ja','nej'));
+    if(har(k,'alarm_person'))h+=dRow('Person',chip(capOf(k,'alarm_person'),'ja','nej'));
+    if(har(k,'motion_enabled'))h+=dRow('Bevakning',capOf(k,'motion_enabled')===true
+      ? '<span class="chip on">på</span>' : '<span class="chip off">av</span>');
+    if(capOf(k,'event_time'))h+=dRow('Senaste händelse',esc(String(capOf(k,'event_time'))));
+    if(har(k,'alarm_tamper'))h+=dRow('Manipulation',chip(capOf(k,'alarm_tamper'),'ja','nej',true));
+    if(capOf(k,'measure_battery')!=null)h+=dRow('Batteri',num(capOf(k,'measure_battery'),0)+' %');
+    h+=dSec('Enhet');
+    h+=dRow('Namn',esc(namn(k)))
+      +dRow('Rum',esc(zonNamn(k.zone)||'–'))
+      +dRow('Kontakt',k.available===false
+        ? '<span class="chip crit">svarar inte</span>' : '<span class="chip on">ok</span>');
+    if(har(k,'motion_enabled'))
+      h+='<div class="dbtn-row"><button class="dbtn" onclick="kamBevakning('+(capOf(k,'motion_enabled')===true?'false':'true')+')">'
+        +(capOf(k,'motion_enabled')===true?'Stäng av bevakning':'Slå på bevakning')+'</button></div>';
+    const url=(credGet().kamera||'').trim();
+    h+=dSec('Bild')
+      +'<div class="setup-t" style="margin-top:0">'+(url
+        ? 'Bilden h\u00e4mtas fr\u00e5n adressen du sparat under Inst\u00e4llningar \u2192 Kamera och uppdateras var tjugonde sekund. Homey skickar ingen bild.'
+        : 'Ingen bildadress sparad. L\u00e4gg in en under Inst\u00e4llningar \u2192 Kamera.')+'</div>';
+    return h;};
+  DLG_OM.kam=()=>dlgSatt(g());
+  openDlg('Kamera','camera',g(),'kam');}
+function kamBevakning(pa){
+  const k=DATA[DEV.kamera];if(!k)return;
+  satt(k.id,'motion_enabled',!!pa).then(()=>{
+    if(k.capabilitiesObj&&k.capabilitiesObj.motion_enabled)k.capabilitiesObj.motion_enabled.value=!!pa;
+    if(DLG_OM.kam)DLG_OM.kam();
+    setTimeout(load,900);
+  }).catch(()=>toast('Kunde inte nå Homey'));
 }
 
 /* ---------- enheter ---------- */
@@ -1836,9 +1883,6 @@ function rumHTML(){
   }
   return h;}
 async function zonAlla(zid,pa){
-  if(!bekraftKlar('zon'+zid,function(){
-      if(_dlgKey&&DLG_OM[_dlgKey])try{DLG_OM[_dlgKey]();}catch(e){}
-    }))return;
   const lj=ljusIZon(zid);
   try{
     await Promise.all(lj.map(d=>satt(d.id,'onoff',pa).catch(()=>{})));
@@ -2111,10 +2155,6 @@ function openInst(){
     +'<button class="dbtn'+(CONFIG.THEME==='auto'?' pri':'')+'" onclick="temaSatt(\'auto\')">Auto</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='light'?' pri':'')+'" onclick="temaSatt(\'light\')">Ljust</button>'
     +'<button class="dbtn'+(CONFIG.THEME==='dark'?' pri':'')+'" onclick="temaSatt(\'dark\')">Mörkt</button></div>';
-  h+=dSec('Bekräftelse')
-    +'<div class="setup-t">Med bekräftelse på krävs två tryck för att slå på eller av något: det första väntar, det andra utför. Ångrar du dig släpper den efter fem sekunder.</div>'
-    +'<div class="dbtn-row"><button class="dbtn'+(bekraftPa()?' pri':'')+'" data-bekr-val="1" onclick="bekraftSatt(true)">På</button>'
-    +'<button class="dbtn'+(bekraftPa()?'':' pri')+'" data-bekr-val="0" onclick="bekraftSatt(false)">Av</button></div>';
   h+=dSec('Lampgrupper')
     +'<div class="setup-t">Lampor som ing\u00e5r i en grupp d\u00f6ljs i rumsrutan \u2014 gruppen styr dem \u00e4nd\u00e5. H\u00e4r ser du vad som r\u00e4knas som vad.</div>'
     +'<button class="dbtn wide" data-sekt="grupper" onclick="openGrupper()">Visa grupper</button>';
@@ -2331,7 +2371,8 @@ function knapparHTML(){
     h+='<div class="kn-rad">'
       +'<button class="kn-namn" data-knapp="red:'+i+'" onclick="knRed('+i+')">'
       +'<span class="kn-ic ic-slot" data-ic="'+esc(b.ic||'toggle-right')+'"></span>'
-      +'<span class="kn-txt"><b>'+esc(b.l||'(utan namn)')+'</b><small>'+esc(knTypNamn(b))+'</small></span></button>'
+      +'<span class="kn-txt"><b>'+esc(b.l||'(utan namn)')+'</b><small>'+esc(knTypNamn(b))
+      +(b.bekr?' \u00b7 tv\u00e5 tryck':'')+'</small></span></button>'
       +'<button class="kn-mini" data-knapp="upp:'+i+'" onclick="knFlytta('+i+',-1)"'+(i===0?' disabled':'')+' title="Flytta upp">\u2191</button>'
       +'<button class="kn-mini" data-knapp="ner:'+i+'" onclick="knFlytta('+i+',1)"'+(i===KNAPPAR.length-1?' disabled':'')+' title="Flytta ner">\u2193</button>'
       +'<button class="kn-mini kn-bort" data-knapp="bort:'+i+'" onclick="knTaBort('+i+')" title="Ta bort">\u00d7</button>'
@@ -2371,11 +2412,6 @@ function knBind(){
         _sistTryck=(el.getAttribute('data-knapp')||el.getAttribute('data-sekt'))+' · '+hhmm(new Date());
         knDeleg(e);sektDeleg(e);
       });
-    });
-    b.querySelectorAll('[data-bekr-val]').forEach(function(el){
-      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
-      el.addEventListener('click',function(){bekraftSatt(el.getAttribute('data-bekr-val')==='1');
-        try{openInst();}catch(e){}});
     });
     b.querySelectorAll('[data-demo]').forEach(function(el){
       if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
@@ -2451,6 +2487,10 @@ function knRedOm(i){
   }else{
     h+=dSec('Handling')+'<div class="setup-t">Sl\u00e4cker alla lampor i hemmet med ett tryck. Inget att st\u00e4lla in.</div>';
   }
+  h+=dSec('Bekräftelse')
+    +'<label class="kn-kryss"><input type="checkbox" id="kn-bekr"'+(b.bekr?' checked':'')+' onchange="knBekr('+i+',this.checked)">'
+    +'<span>Kräv två tryck för den här knappen</span></label>'
+    +'<div class="setup-t">Första trycket väntar och knappen märks, andra utför. Släpper efter fem sekunder.</div>';
   h+=dSec('Ikon')+'<div class="kn-ikoner">'
     +KN_IKONER.map(n=>'<button class="kn-ikon'+(n===_knIkon?' on':'')+'" onclick="knValjIkon(\''+n+'\')" title="'+n+'"><span class="ic-slot" data-ic="'+n+'"></span></button>').join('')
     +'</div>';
@@ -2459,6 +2499,11 @@ function knRedOm(i){
   DLG_OM.knapp=null;
   openDlg('\u00c4ndra knapp','wrench',h,'knapp');
   knIkoner();
+}
+function knBekr(i,v){
+  const b=KNAPPAR[i];if(!b)return;
+  b.bekr=!!v;knSpara();
+  toast(v?'Två tryck krävs för '+(b.l||'knappen'):'Ett tryck räcker');
 }
 function knTyp(i,t){
   const b=KNAPPAR[i];if(!b)return;
@@ -2477,6 +2522,7 @@ function knLasIn(i){
   const d=$('kn-dev');if(d&&d.value){b.id=d.value;b.cap='onoff';}
   const f=$('kn-flow');
   if(f&&f.value){const p=f.value.split(':');b.ftyp=p[0];b.flow=p.slice(1).join(':');}
+  const kr=$('kn-bekr');if(kr)b.bekr=!!kr.checked;
   if(_knIkon)b.ic=_knIkon;
 }
 function knSparaRed(i){
