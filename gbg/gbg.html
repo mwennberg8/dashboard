@@ -743,7 +743,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.19.0';
+const APP_VERSION = 'v1.20.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1637,7 +1637,12 @@ async function camSok(){
   const ut=[];
   const k=DATA[DEV.kamera];
   ut.push('Enhetens f\u00e4lt: '+(k?Object.keys(k).join(', '):'kameran syns inte'));
-  if(k&&k.images)ut.push('images: '+JSON.stringify(k.images));
+  if(k&&k.images){
+    ut.push('images: '+JSON.stringify(k.images));
+    if(Array.isArray(k.images)&&k.images[0])
+      ut.push('f\u00f6rsta postens f\u00e4lt: '+Object.keys(k.images[0]).join(', '));
+    ut.push('kandidater: '+(camBildKandidater().join('  |  ')||'inga'));
+  }
   if(k&&k.ui)ut.push('ui: '+JSON.stringify(k.ui).slice(0,200));
   for(const vag of CAM_KANDIDATER){
     const b=(BASE||vagar()[0]||'').replace(/\/$/,'');
@@ -1732,6 +1737,23 @@ function openKamera(){
    /api/manager/images/image/<id>/. Bekräftat i din Homey: den vägen svarar 200
    medan /api/manager/image/image/ ger 404. Ögonblicksbilden heter "Now",
    rörelsehändelsen "Event" — ögonblicksbilden tas i första hand. */
+/* Letar igenom hela posten i stället för att gå på ett antaget fältnamn.
+   Första försöket letade efter b.image.id och hittade ingenting fast bilderna
+   fanns — jag visste inte vad den nivån heter, och gissade. Nu plockas varje
+   uuid och varje sökväg som finns någonstans i posten, oavsett var. */
+function camPlocka(o,uuid,vagar,djup){
+  if(!o||typeof o!=='object'||(djup||0)>4)return;
+  for(const n in o){
+    const v=o[n];
+    if(typeof v==='string'){
+      if(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v))uuid.push(v);
+      else if(v.charAt(0)==='/'&&v.indexOf('/api/')===0)vagar.push(v);
+      /* Ett id på en INRE nivå duger även om det inte ser ut som ett uuid. De
+         yttre etiketterna Now och Event är bildens roll, inte dess id. */
+      else if(n==='id'&&(djup||0)>0&&v.length>3&&v!=='Now'&&v!=='Event')uuid.push(v);
+    }else if(v&&typeof v==='object')camPlocka(v,uuid,vagar,(djup||0)+1);
+  }
+}
 function camBildKandidater(){
   const k=DATA[DEV.kamera],ut=[];
   const bilder=(k&&Array.isArray(k.images))?k.images.slice():[];
@@ -1739,16 +1761,38 @@ function camBildKandidater(){
   bilder.sort((a,b)=>rang(a)-rang(b));
   bilder.forEach(b=>{
     if(b&&b.type&&b.type!=='camera')return;
-    const im=b&&b.image,id=im&&im.id,u=im&&im.url;
-    if(typeof u==='string'&&u.charAt(0)==='/')ut.push(u);
-    if(id)ut.push('/api/manager/images/image/'+id+'/');
+    const uuid=[],vagar=[];
+    camPlocka(b,uuid,vagar,0);
+    vagar.forEach(v=>ut.push(v));
+    uuid.forEach(id=>ut.push('/api/manager/images/image/'+id+'/'));
   });
-  return ut;
+  /* Sista utvägen: alla bilder Homey känner till, om enheten inte listar några. */
+  return ut.filter((v,i)=>ut.indexOf(v)===i);
+}
+/* Om enheten inte ger något: fråga Homey om hela bildlistan och prova de som
+   inte heter dummy. Fyra bilder fanns där när du felsökte. */
+async function camAllaBilder(){
+  const b=(BASE||vagar()[0]||'').replace(/\/$/,'');
+  if(!b)return [];
+  const t=withTimeout(9000);
+  try{
+    const r=await fetch(b+'/api/manager/images/image/',
+      {headers:{Authorization:'Bearer '+CONFIG.TOKEN},cache:'no-store',signal:t.signal});
+    t.clear();
+    if(!r.ok)return [];
+    const j=await r.json();
+    const ids=Array.isArray(j)?j.map(x=>x&&x.id):Object.keys(j||{});
+    return ids.filter(id=>id&&id!=='dummy').map(id=>'/api/manager/images/image/'+id+'/');
+  }catch(e){t.clear();return [];}
 }
 async function camStallIn(){
-  const kand=camBildKandidater();
-  if(!kand.length)return {ok:false,text:'Kameran listar inga bilder i Homey.'};
+  let kand=camBildKandidater();
   const rader=[];
+  if(!kand.length){
+    rader.push('Kameran listade inga bilder \u2014 fr\u00e5gar Homey om alla.');
+    kand=await camAllaBilder();
+  }
+  if(!kand.length)return {ok:false,text:rader.concat(['Homey gav inga bilder heller.']).join('\n')};
   for(const vag of kand){
     const u=await camHamta(vag);
     rader.push(vag+' \u2192 '+(u?'bild \u2713':'ingen bild'));
