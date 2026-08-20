@@ -10789,6 +10789,12 @@ var AGARE_KEY='_agare_v1';
    svara på tidigare — alla vägar var tysta. Loggen är ringbuffrad till 40 rader
    och ligger utanför SYNC_KEYS, så den kan aldrig hamna i någons inställningar. */
 var LOGG_KEY='_logg_v1', _loggKo=[];
+/* När kopian på Homey senast skrevs, och när DEN HÄR enheten senast bidrog med
+   något. Båda behövs: den första för att jämföra kopior, den andra för att
+   veta om en hämtning skulle kasta bort något den här enheten just gjort. */
+var TS_KEY='_ts_v1', EGET_TS='egen_spar_ts';
+function egetTs(){var v=0;try{v=parseInt(localStorage.getItem(EGET_TS)||'0',10)||0;}catch(e){}return v;}
+function egetTsSatt(t){try{localStorage.setItem(EGET_TS,String(t||Date.now()));}catch(e){}}
 function loggRad(vad,extra){
   var o={vad:vad,namn:enhetsNamn(),id:enhetsId(),at:Date.now(),ver:APP_VERSION};
   try{o.plats=location.host+location.pathname;}catch(e){}
@@ -10864,6 +10870,10 @@ async function appBackupSpara(manuell){
   if(!Object.keys(obj).length)return null;
   /* Stämpla ALLTID, men bara en manuell sparning låser. */
   obj[AGARE_KEY]=agareStampel(manuell);
+  /* TIDSSTÄMPEL. Utan den går det inte att avgöra om en kopia man hämtar är
+     nyare eller äldre än det man redan har — och då kan en gammal kopia skriva
+     över en ny utan att någon märker det. */
+  obj[TS_KEY]=String(Date.now());
   /* Samma vägval som resten — annars fungerar sparningen inte borta hemifrån. */
   var r=null,sist=null,vagar=brvVagar();
   for(var vi=0;vi<vagar.length;vi++){
@@ -10881,18 +10891,32 @@ async function appBackupSpara(manuell){
   if(!r)throw (sist||new Error('ingen väg till Homey'));
   var j=await r.json();
   if(j&&j.result)j=j.result;
+  egetTsSatt(Date.now());
   loggSkriv(manuell?'manuell sparning':'automatisk sparning',
     {nycklar:Object.keys(obj).length,tecken:JSON.stringify(obj).length});
   return j;}
 var _appLasSist={rap:0,las:0,hopp:[],fel:[]};
 async function appBackupLas(){
   var lista=await appGet('/backup');
-  _appLasSist={rap:0,las:0,hopp:[],fel:[]};
-  if(!lista||!lista.nycklar||!Object.keys(lista.nycklar).length)return 0;
+  _appLasSist={rap:0,las:0,hopp:[],fel:[],aldre:false,tom:false};
+  if(!lista||!lista.nycklar||!Object.keys(lista.nycklar).length){_appLasSist.tom=true;return 0;}
+  /* ÄR KOPIAN ÄLDRE ÄN DET DU SJÄLV SPARADE? Då hämtas den inte. Det var så
+     knapparna försvann: en hämtning lade tillbaka ett äldre läge över ett
+     nyare, tyst, och båda såg lika giltiga ut. */
+  if(TS_KEY in lista.nycklar){
+    var ts=0;
+    try{ts=parseInt(await appGet('/backup?key='+encodeURIComponent(TS_KEY)),10)||0;}catch(e){}
+    var eget=egetTs();
+    if(ts&&eget&&ts<eget-60000){
+      _appLasSist.aldre=true;
+      loggSkriv('vägrade läsa',{orsak:'kopian är äldre än enhetens egen sparning'});
+      return 0;
+    }
+  }
   var n=0;
-  _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY;}).length;
+  _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
   for(var k in lista.nycklar){
-    if(k===AGARE_KEY)continue;               /* stämpeln är inte en inställning */
+    if(k===AGARE_KEY||k===TS_KEY)continue;   /* stämpel och tidsmärke är inte inställningar */
     if(SYNC_KEYS.indexOf(k)<0){_appLasSist.hopp.push(k);continue;}
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(k));
@@ -10907,6 +10931,7 @@ async function appBackupLas(){
     }catch(e){_appLasSist.fel.push(k);}
   }
   _appLasSist.las=n;
+  if(n>0){egetTsSatt(Date.now());loggSkriv('läste från appen',{nycklar:n});}
   return n;}
 async function saveToHomey(){
   /* Homey-variabler har begränsat utrymme. Vi delar upp datan i bitar. Om allt inte får
@@ -10965,19 +10990,34 @@ async function bootSync(){
      localStorage — det gav ett hopp någon sekund efter start, och en öppen meny
      stängdes mitt i handen. */
   var fore=syncSign();
+  var appSvarade=false;
   try{
     if(appKan()){
       var n=await appBackupLas();
+      appSvarade=true;
       if(n>0){
         if(syncSign()===fore)return;   /* inget nytt: rör inte skärmen */
         loadCfg();applyCfg();var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
         applySecOrder();try{ritaOmSakert();}catch(e){}
         return;
       }
+      /* Appen svarade men vi tog inte kopian: antingen fanns inget, eller så
+         var den äldre än vad enheten själv sparat. I båda fallen ska vi INTE
+         falla tillbaka på logikvariablerna — den vägen bär en äldre kopia och
+         skulle skriva över det nyare. Det var den som åt upp knapparna. */
+      if(_appLasSist&&(_appLasSist.aldre||_appLasSist.rap>0))return;
     }
-  }catch(e){}
+  }catch(e){
+    /* Appen kraschade eller svarade inte. Att då hämta från logikvariablerna
+       är att gissa att den gamla kopian är bättre än den lokala. Det är den
+       nästan aldrig. Stå still och logga i stället. */
+    loggSkriv('vägrade läsa',{orsak:'appen svarade inte: '+((e&&e.message)||'okänt')});
+    return;
+  }
+  if(appKan()&&appSvarade===false)return;
   try{
     await fetchFromHomey();
+    loggSkriv('läste från logikvariabler',{});
     if(syncSign()!==fore)try{ritaOmSakert();}catch(e){}
   }catch(e){}}
 
@@ -11997,7 +12037,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v485';
+const APP_VERSION='v486';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
