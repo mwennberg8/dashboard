@@ -817,7 +817,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.25.0';
+const APP_VERSION = 'v1.27.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -829,7 +829,7 @@ const CONFIG = {
   LAT: 57.6570, LON: 11.9176,
   ORT: "Göteborg",
   LAN: "västra götaland",       /* för SMHI:s varningar */
-  BATTERY_WARN: 25,
+  BATTERY_WARN: 15,          /* under detta hamnar enheten i varningslistan */
   THEME: "auto"
 };
 
@@ -1783,6 +1783,45 @@ function ladText(s){
     plugged_in_done:'klar',plugged_in_fault:'fel'};
   return esc(m[s]||String(s||'–'));}
 
+/* ===== loggarna från Homey-appen =====
+   se.mawe.gbgdash kör ett varv i minuten oavsett om den här sidan är öppen.
+   Därför kommer historiken därifrån när appen svarar, och från webbläsarens
+   egna anteckningar bara som reserv. Samma token, samma vägval lokalt före
+   moln — alltså fungerar det också när du inte är hemma. */
+const APP_ID='se.mawe.gbgdash';
+var APPDATA=null,_appAt=0,_appFel=null;
+async function appGet(vag){
+  const lista=(BASE?[BASE].concat(vagar().filter(v=>v!==BASE)):vagar());
+  let sist=null;
+  for(const b of lista){
+    const t=withTimeout(9000);
+    try{
+      const r=await fetch(b.replace(/\/$/,'')+'/api/app/'+APP_ID+vag,
+        {headers:{Authorization:'Bearer '+CONFIG.TOKEN},cache:'no-store',signal:t.signal});
+      t.clear();
+      if(!r.ok){sist='HTTP '+r.status;continue;}
+      const j=await r.json();
+      return (j&&j.result!==undefined)?j.result:j;
+    }catch(e){t.clear();sist=(e&&e.name==='AbortError')?'tidsgräns':'ingen kontakt';}
+  }
+  throw new Error(sist||'ingen väg till appen');
+}
+async function appHamta(){
+  try{
+    const j=await appGet('/allt');
+    if(j&&typeof j==='object'){APPDATA=j;_appAt=Date.now();_appFel=null;}
+  }catch(e){
+    _appFel=(e&&e.message)||'okänt fel';
+    /* Gammal data får stå kvar: en tappad hämtning är inget skäl att glömma. */
+  }
+  try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}
+}
+function appStatus(){
+  if(APPDATA)return 'appen svarar · v'+esc(String(APPDATA.version||'?'))
+    +(APPDATA.senastVarv?(' · varv '+hhmm(new Date(APPDATA.senastVarv))):'');
+  return 'appen svarar inte'+(_appFel?(' ('+esc(_appFel)+')'):'');
+}
+
 /* ===== lämna hemmet =====
    Bilen rapporterar avstånd hem som text ("82 m", "3,4 km"). När den är på väg
    bort och något fortfarande är på dyker rutan upp överst. Den släcker
@@ -2170,10 +2209,23 @@ function dammVaraktighet(sek){
   return Math.floor(m/60)+' h '+('0'+(m%60)).slice(-2)+' min';
 }
 function dammSenast(){
+  /* Appens logg vinner: den ser städningar som skett medan sidan var stängd. */
+  const a=APPDATA&&Array.isArray(APPDATA.damm)?APPDATA.damm:null;
   const o=dammLog();
-  if(o.pagar&&o.start)return {pagar:true,start:o.start};
+  if(o.pagar&&o.start)return {pagar:true,start:o.start,kalla:'sidan'};
+  if(a&&a.length){
+    const x=a[a.length-1];
+    /* Har sidan sett en senare körning än appen hunnit skriva, ta den. */
+    if(!o.slut||o.slut<=x.slut)
+      return {pagar:false,start:x.start,slut:x.slut,sekunder:x.sekunder,kalla:'appen'};
+  }
   if(!o.slut)return null;
-  return {pagar:false,start:o.start,slut:o.slut,sekunder:o.sekunder};
+  return {pagar:false,start:o.start,slut:o.slut,sekunder:o.sekunder,kalla:'sidan'};
+}
+/* De senaste körningarna, nyast först. */
+function dammHistorik(){
+  const a=APPDATA&&Array.isArray(APPDATA.damm)?APPDATA.damm.slice():[];
+  return a.reverse();
 }
 function dammDatum(ms){
   const d=new Date(ms);
@@ -2211,9 +2263,15 @@ function renderWarns(){
       +'<span class="lvl">'+esc(zonNamn(d.zone))+'</span></div>';});
   laga.slice(0,5).forEach(x=>{
     const kri=x.p<=10;
+    /* Appen har följt nivån i upp till 90 dygn och kan säga hur fort den
+       faller. Ett batteri på 24 % som tappar 0,4 %/dygn är en annan sak än
+       ett som legat på 24 % sedan i våras. */
+    const b=APPDATA&&APPDATA.batteri&&APPDATA.batteri[x.d.id];
+    const takt=(b&&b.dygnKvar!=null)?(' · ~'+b.dygnKvar+' dygn kvar'):'';
     h+='<div class="warn '+(kri?'crit':'med')+'"><span class="wi">'
       +icon(kri?'battery-empty':'battery-low')+'</span>'
-      +'<span class="wt"><b>'+esc(namn(x.d))+'</b> '+num(x.p,0)+' % batteri</span>'
+      +'<span class="wt"><b>'+esc(namn(x.d))+'</b> '+num(x.p,0)+' % batteri'
+      +'<small style="color:var(--faint)">'+takt+'</small></span>'
       +'<span class="lvl">'+esc(zonNamn(x.d.zone))+'</span></div>';});
   if(!h)h='<div class="warn ok-row"><span class="wi">'+icon('shield-check')+'</span>'
     +'<span class="wt">Inget att åtgärda</span></div>';
@@ -2541,6 +2599,16 @@ function openDammsug(){
         +dRow('Klockslag',hhmm(new Date(sen.start))+' – '+hhmm(new Date(sen.slut)))
         +dRow('Städtid',esc(dammVaraktighet(sen.sekunder)||'–'));
     }
+    const hist=dammHistorik();
+    if(hist.length>1){
+      h+=dSec('Tidigare')
+        +hist.slice(1,6).map(x=>dRow(esc(dammDatum(x.slut)),
+          hhmm(new Date(x.start))+' – '+hhmm(new Date(x.slut))
+          +' <span style="color:var(--faint)">'+esc(dammVaraktighet(x.sekunder)||'')+'</span>')).join('');
+    }
+    h+='<div class="setup-t">'+(APPDATA
+      ? 'Historiken kommer från Homey-appen och fylls på även när dashboarden är stängd.'
+      : 'Homey-appen svarar inte, så det här är bara vad den här webbläsaren hunnit se.')+'</div>';
     ['alarm_main_brush_work_time','alarm_side_brush_work_time','alarm_filter_work_time'].forEach(k=>{
       if(capOf(d,k)===true)h+=dRow('Underhåll','<span class="chip warn">'+esc(k.replace('alarm_','').replace(/_/g,' '))+'</span>');});
     h+='<div class="dbtn-row">'
@@ -2724,6 +2792,10 @@ function openInst(){
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
     +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
+  h+=dSec('Bakgrundsloggning')
+    +dRow('Homey-appen','<span style="font-size:11px">'+appStatus()+'</span>')
+    +'<div class="setup-t">Städningar, utskrifter, batterinivåer och när bilen åker loggas av appen '+esc(APP_ID)+', som kör även när dashboarden är stängd.</div>'
+    +'<div class="dbtn-row"><button class="dbtn" data-app="hamta" onclick="appHamta().then(()=>{toast(APPDATA?\'Hämtat\':\'Appen svarar inte\');openInst();})">Hämta nu</button></div>';
   h+=dSec('Demoläge')
     +'<div class="setup-t">Öppnar samma sida med påhittad data: rum, enheter, bil, sensorer och en skrivare mitt i en utskrift. Inget läses från eller skickas till Homey, och din inloggning rörs inte.</div>'
     +'<div class="dbtn-row"><button class="dbtn" data-demo="ny" onclick="demoOppna(true)">Öppna i ny flik</button>'
@@ -3176,8 +3248,11 @@ function start(){
   if(!credFinns()){setupVisa();return;}
   load();
   fetchSmhi();
+  appHamta();
   clearInterval(_refreshTimer);
   _refreshTimer=setInterval(()=>{load();},CONFIG.REFRESH_SECONDS*1000);
+  /* Loggarna ändras långsamt — två minuter räcker gott. */
+  setInterval(()=>{appHamta();},120000);
   setInterval(()=>{klockan();renderDaystrip();tickRel();applyTheme();},1000);
   setInterval(()=>{fetchSmhi();},5*60000);
   /* Tillbaka i förgrunden: hämta direkt i stället för att vänta ut intervallet. */
