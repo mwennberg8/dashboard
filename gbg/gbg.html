@@ -817,7 +817,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.27.0';
+const APP_VERSION = 'v1.28.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1602,9 +1602,25 @@ let KNAPPAR=knLadda();
 /* let hamnar inte på window i ett vanligt skript — den här ger testerna
    (och felsökning i konsolen) åtkomst till listan. */
 function knLista(){return KNAPPAR;}
+/* ===== tänd/släck allt =====
+   Lamporna knappen råder över: alla lampor utom gruppmedlemmar (gruppen står
+   för dem) men MED de uttag som egentligen är lampor. Förr räknades bara
+   klass 'light', vilket missade lavalampan och badrumsskåpet. */
+function alltLampor(){
+  return devs().filter(d=>arLampa(d)&&har(d,'onoff')&&!iGrupp(d));
+}
+function alltTanda(){return alltLampor().filter(d=>capOf(d,'onoff')===true);}
+/* Taklamporna känns igen på namnet. Det är en HEURISTIK — Homey vet inget om
+   vad en lampa sitter i för tak. Alla dina heter "<rum> tak" eller "Taklampa
+   <rum>", så regeln träffar, men döper du om något slutar den gälla. */
+function arTak(d){return /\btak/i.test(namn(d));}
+function alltTakPa(){return alltLampor().some(d=>arTak(d)&&capOf(d,'onoff')===true);}
+/* Vad ett tryck skulle göra: lyser en taklampa släcker vi allt, annars tänder
+   vi allt. En enstaka lavalampa ska inte hindra en från att tända i rummet. */
+function alltNasta(){return alltTakPa()?false:true;}
 function knappPa(b){
   if(b.typ==='dev')return cap(b.id,b.cap)===true;
-  if(b.typ==='allt')return devs().some(d=>klass(d)==='light'&&capOf(d,'onoff')===true);
+  if(b.typ==='allt')return alltTakPa();
   return false;}
 function renderControls(){
   const el=$('controls');if(!el)return;
@@ -1616,8 +1632,10 @@ function renderControls(){
       /* Tänd/släck-knappen bär läget i ikonen: lyser något är det en tänd lampa,
          annars en släckt. Samma grepp som Gottskärs moodtoggle. */
       +'<span class="ctl-ic ic-slot" data-ic="'+(b.typ==='allt'?(pa?'lightbulb':'lightbulb-off'):b.ic)+'"></span>'
-      +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':b.l)+'</span>'
-      +'<span class="ctl-s">'+(b.typ==='flow'?'starta':(b.typ==='allt'?(pa?'tända':'släckt'):(pa?'på':'av')))+'</span>'
+      +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':(b.typ==='allt'?(alltNasta()?'Tänd':'Släck'):b.l))+'</span>'
+      +'<span class="ctl-s">'+(b.typ==='flow'?'starta'
+        :(b.typ==='allt'?(alltTanda().length+' av '+alltLampor().length+' tända')
+        :(pa?'på':'av')))+'</span>'
       +'</button>';}).join('');
   initIcons(el);
   knLangtryck(el);
@@ -1645,10 +1663,16 @@ function blink(i,msg,fel){
   const b=el.querySelectorAll('.ctl')[i];if(!b)return;
   const l=b.querySelector('.ctl-l');if(l)l.textContent=msg;
   b.classList.toggle('err',!!fel);}
+var _knSkickar={};
 async function knappTryck(i){
   const b=KNAPPAR[i];if(!b)return;
   if(!BASE){blink(i,'ingen kontakt',true);return;}
+  /* Ett tryck i taget per knapp. Utan det staplas skrivningarna på varandra och
+     den långsammaste avgör vad som syns. Spärren släpper när skrivningen är
+     klar, inte efter en tid. */
+  if(_knSkickar[i])return;
   if(!bekraftKlar('kn'+i,function(){try{renderControls();}catch(e){}},bekraftPaKn(i)))return;
+  _knSkickar[i]=1;
   try{
     blink(i,'skickar…');
     if(b.typ==='dev'){
@@ -1656,15 +1680,21 @@ async function knappTryck(i){
       await satt(b.id,b.cap,v);
       if(DATA[b.id]&&DATA[b.id].capabilitiesObj[b.cap])DATA[b.id].capabilitiesObj[b.cap].value=v;
     }else if(b.typ==='allt'){
-      const ps=devs().filter(d=>klass(d)==='light'&&capOf(d,'onoff')===true)
-        .map(d=>satt(d.id,'onoff',false).catch(()=>{}));
-      await Promise.all(ps);
+      const v=alltNasta();
+      const mal=alltLampor().filter(d=>(capOf(d,'onoff')===true)!==v);
+      await Promise.all(mal.map(d=>satt(d.id,'onoff',v).catch(()=>{})));
+      /* HÄR LÅG BUGGEN: 'dev' skrev tillbaka det nya värdet i DATA, men 'allt'
+         gjorde det inte. Knappen ritades därför om med gamla värden och stod
+         kvar i fel läge tills nästa hämtning — och ett nytt tryck skickade om
+         samma sak, vilket såg ut som att ingenting hände. */
+      mal.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=v;});
     }else if(b.typ==='flow'){
       await startaFlow(b.ftyp,b.flow);
       blink(i,'startad ✓');setTimeout(renderControls,1500);return;
     }
     renderControls();setTimeout(load,900);
   }catch(e){blink(i,'fel: '+(e.message||'okänt'),true);setTimeout(renderControls,2500);}
+  finally{delete _knSkickar[i];}
 }
 
 /* ---------- rum ---------- */
