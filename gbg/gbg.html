@@ -335,6 +335,11 @@ body.mobile .statusbar.stuck{
    mot en klassregel med display:flex. Därför störde rutan kvar som en tom
    ram när skrivaren vilade. Samma fälla gäller kameraruta med display. */
 .printer[hidden],.cam[hidden],.demobar[hidden],.lamna[hidden]{display:none!important}
+/* Varningsrutan bär två sorters innehåll. Finns inget av dem syns ingenting
+   alls — en tom ruta som säger "inget att åtgärda" är en rad man slutar läsa. */
+.lamna .warn{border-bottom:0;padding:8px 0}
+.lamna .warn:first-child{padding-top:2px}
+.lm-del+.lm-del{border-top:1px solid var(--line-soft);padding-top:11px;margin-top:1px}
 /* Lämna-hemmet-rutan. Varm ton, men inte skrikig — den ska gå att ignorera när
    man tände med flit. */
 .lamna{padding:14px 16px;display:flex;flex-direction:column;gap:10px;
@@ -690,7 +695,7 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
     <button class="db-x" onclick="demoAvsluta()">Avsluta</button>
   </section>
 
-  <section class="panel lamna" id="lamna" hidden></section>
+  <section class="panel lamna" id="varning" hidden></section>
 
   <section class="panel printer" id="printer" data-sec="printer" hidden onclick="openBambu()"></section>
 
@@ -703,8 +708,6 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
   <section class="panel cam" id="cam" data-sec="cam" hidden></section>
 
   <section class="panel devswrap" data-sec="devs"><div class="grid stats" id="devs"></div></section>
-
-  <section class="panel warns clickable" id="warns" data-sec="warns" onclick="openBatteri()"></section>
 
   <div class="foot"><span id="foot-src">–</span><span id="foot-via"></span></div>
 </div>
@@ -817,7 +820,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.28.0';
+const APP_VERSION = 'v1.29.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1456,14 +1459,14 @@ function render(){
   try{applyTheme();}catch(e){}
   try{renderTopWx();}catch(e){}
   try{renderPrinter();}catch(e){}
-  try{renderLamna();}catch(e){}
+
   try{renderControls();}catch(e){}
   try{renderRooms();}catch(e){}
   try{renderCar();}catch(e){}
   try{renderCam();}catch(e){}
   try{renderDevs();}catch(e){}
   try{dammFolj();}catch(e){}
-  try{renderWarns();}catch(e){}
+  try{renderVarning();}catch(e){}
   try{footVia();tickRel();setT('foot-src',SOURCE);}catch(e){}
   try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}
 }
@@ -1889,24 +1892,10 @@ function lamnaPa(){
   /* Enheter som bara speglar ett läge hör inte hit. */
   return ut.filter(d=>d.zone!==ZON.modes&&d.id!==DEV.bambuUt);
 }
-function renderLamna(){
-  const el=$('lamna');if(!el)return;
-  const m=lamnaAvstand(),pa=lamnaPa();
-  if(m!=null&&m<LAMNA_GRANS)_lamnaTyst=false;
-  if(m==null||m<LAMNA_GRANS||!pa.length||_lamnaTyst){el.hidden=true;el.innerHTML='';return;}
-  el.innerHTML='<div class="lm-h"><span class="lm-ic ic-slot" data-ic="car-profile"></span>'
-    +'<span class="lm-t">Bilen är '+esc(lamnaText(m))+' hemifrån'
-    +'<small>'+pa.length+' '+(pa.length===1?'sak är':'saker är')+' på hemma</small></span></div>'
-    +'<div class="lm-lista">'+pa.slice(0,8).map(d=>'<span class="lm-c">'+esc(namn(d))+'</span>').join('')
-    +(pa.length>8?('<span class="lm-c">+'+(pa.length-8)+'</span>'):'')+'</div>'
-    +'<div class="lm-knappar"><button class="lm-b pri" onclick="lamnaSlack()">Stäng av allt</button>'
-    +'<button class="lm-b" onclick="lamnaTyst()">Inte nu</button></div>';
-  el.hidden=false;initIcons(el);
-}
 /* "Inte nu" tystar rutan tills bilen kommit hem igen — inte i evighet, och inte
    bara några minuter. Kommer du hem och åker igen är frågan relevant på nytt. */
 var _lamnaTyst=false;
-function lamnaTyst(){_lamnaTyst=true;renderLamna();toast('Tyst tills bilen varit hemma');}
+function lamnaTyst(){_lamnaTyst=true;renderVarning();toast('Tyst tills bilen varit hemma');}
 async function lamnaSlack(){
   const pa=lamnaPa();
   if(!pa.length)return;
@@ -2282,8 +2271,12 @@ function battLista(){
   return devs().filter(d=>har(d,'measure_battery')&&capOf(d,'measure_battery')!=null)
     .map(d=>({d:d,p:capOf(d,'measure_battery')}))
     .sort((a,b)=>a.p-b.p);}
-function renderWarns(){
-  const el=$('warns');if(!el)return;
+/* ===== varningsrutan =====
+   Glömt-något och låga batterier i samma ruta, överst, och helt osynlig när
+   det inte finns något att säga. Två rutor som var för sig ofta var tomma tog
+   mer plats i huvudet än på skärmen. */
+var _varnDemo=false;
+function varnBatterier(){
   const laga=battLista().filter(x=>x.p<=CONFIG.BATTERY_WARN);
   const borta=devs().filter(d=>d.available===false);
   let h='';
@@ -2293,19 +2286,66 @@ function renderWarns(){
       +'<span class="lvl">'+esc(zonNamn(d.zone))+'</span></div>';});
   laga.slice(0,5).forEach(x=>{
     const kri=x.p<=10;
-    /* Appen har följt nivån i upp till 90 dygn och kan säga hur fort den
-       faller. Ett batteri på 24 % som tappar 0,4 %/dygn är en annan sak än
-       ett som legat på 24 % sedan i våras. */
+    /* Appen har f\u00f6ljt niv\u00e5n i upp till 90 dygn och kan s\u00e4ga hur fort den
+       faller. Ett batteri p\u00e5 12 % som tappar 0,4 %/dygn \u00e4r en annan sak \u00e4n ett
+       som legat p\u00e5 12 % sedan i v\u00e5ras. */
     const b=APPDATA&&APPDATA.batteri&&APPDATA.batteri[x.d.id];
-    const takt=(b&&b.dygnKvar!=null)?(' · ~'+b.dygnKvar+' dygn kvar'):'';
+    const takt=(b&&b.dygnKvar!=null)?(' \u00b7 ~'+b.dygnKvar+' dygn kvar'):'';
     h+='<div class="warn '+(kri?'crit':'med')+'"><span class="wi">'
       +icon(kri?'battery-empty':'battery-low')+'</span>'
       +'<span class="wt"><b>'+esc(namn(x.d))+'</b> '+num(x.p,0)+' % batteri'
       +'<small style="color:var(--faint)">'+takt+'</small></span>'
       +'<span class="lvl">'+esc(zonNamn(x.d.zone))+'</span></div>';});
-  if(!h)h='<div class="warn ok-row"><span class="wi">'+icon('shield-check')+'</span>'
-    +'<span class="wt">Inget att åtgärda</span></div>';
-  el.innerHTML=h;
+  return h;
+}
+function varnLamna(){
+  const m=lamnaAvstand(),pa=lamnaPa();
+  /* Hemma igen: tystnaden släpper, så frågan kommer tillbaka nästa utfärd. */
+  if(m!=null&&m<LAMNA_GRANS)_lamnaTyst=false;
+  if(m==null||m<LAMNA_GRANS||!pa.length||_lamnaTyst)return '';
+  return '<div class="lm-h"><span class="lm-ic ic-slot" data-ic="car-profile"></span>'
+    +'<span class="lm-t">Bilen \u00e4r '+esc(lamnaText(m))+' hemifr\u00e5n'
+    +'<small>'+pa.length+' '+(pa.length===1?'sak \u00e4r':'saker \u00e4r')+' p\u00e5 hemma</small></span></div>'
+    +'<div class="lm-lista">'+pa.slice(0,8).map(d=>'<span class="lm-c">'+esc(namn(d))+'</span>').join('')
+    +(pa.length>8?('<span class="lm-c">+'+(pa.length-8)+'</span>'):'')+'</div>'
+    +'<div class="lm-knappar"><button class="lm-b pri" onclick="lamnaSlack()">St\u00e4ng av allt</button>'
+    +'<button class="lm-b" onclick="lamnaTyst()">Inte nu</button></div>';
+}
+/* Ett p\u00e5hittat inneh\u00e5ll f\u00f6r att se hur rutan ser ut n\u00e4r den v\u00e4l dyker upp \u2014
+   annars f\u00e5r man v\u00e4nta p\u00e5 ett tomt batteri f\u00f6r att kunna bed\u00f6ma den. */
+function varnDemoHTML(){
+  return '<div class="lm-del"><div class="lm-h"><span class="lm-ic ic-slot" data-ic="car-profile"></span>'
+    +'<span class="lm-t">Bilen \u00e4r 2,4 km hemifr\u00e5n<small>3 saker \u00e4r p\u00e5 hemma</small></span></div>'
+    +'<div class="lm-lista"><span class="lm-c">Golvlampa</span><span class="lm-c">K\u00f6k tak</span>'
+    +'<span class="lm-c">Uttag TV</span></div>'
+    +'<div class="lm-knappar"><button class="lm-b pri" onclick="toast(\'F\u00f6rhandsvisning\')">St\u00e4ng av allt</button>'
+    +'<button class="lm-b" onclick="varnDemoAv()">Inte nu</button></div></div>'
+    +'<div class="lm-del">'
+    +'<div class="warn crit"><span class="wi">'+icon('battery-empty')+'</span>'
+    +'<span class="wt"><b>Rullgardin V\u00e4nster</b> 4 % batteri<small style="color:var(--faint)"> \u00b7 ~9 dygn kvar</small></span>'
+    +'<span class="lvl">Vardagsrum</span></div>'
+    +'<div class="warn med"><span class="wi">'+icon('battery-low')+'</span>'
+    +'<span class="wt"><b>Sensor sovrum</b> 13 % batteri</span>'
+    +'<span class="lvl">Sovrum</span></div>'
+    +'<div class="warn crit"><span class="wi">'+icon('wifi-high')+'</span>'
+    +'<span class="wt"><b>F\u00f6nstersensor k\u00f6k</b> svarar inte</span>'
+    +'<span class="lvl">K\u00f6k</span></div></div>'
+    +'<div class="setup-t" style="margin:2px 0 0">F\u00f6rhandsvisning \u2014 st\u00e4ngs av i inst\u00e4llningarna.</div>';
+}
+function varnDemoAv(){_varnDemo=false;renderVarning();toast('F\u00f6rhandsvisning av');}
+function varnDemoPa(v){
+  _varnDemo=!!v;renderVarning();
+  toast(v?'F\u00f6rhandsvisning p\u00e5':'F\u00f6rhandsvisning av');
+  try{openInst();}catch(e){}
+}
+function renderVarning(){
+  const el=$('varning');if(!el)return;
+  if(_varnDemo){el.innerHTML=varnDemoHTML();el.hidden=false;initIcons(el);return;}
+  const a=varnLamna(),b=varnBatterier();
+  if(!a&&!b){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML=(a?('<div class="lm-del">'+a+'</div>'):'')
+    +(b?('<div class="lm-del" onclick="openBatteri()">'+b+'</div>'):'');
+  el.hidden=false;initIcons(el);
 }
 
 /* ================= popups ================= */
@@ -2822,6 +2862,10 @@ function openInst(){
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
     +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
+  h+=dSec('Varningsrutan')
+    +'<div class="setup-t">Rutan högst upp visar om något är på hemma när bilen åkt, och batterier under '+CONFIG.BATTERY_WARN+' %. Finns inget av det syns ingen ruta alls.</div>'
+    +'<div class="dbtn-row"><button class="dbtn'+(_varnDemo?' pri':'')+'" data-varn="1" onclick="varnDemoPa(true)">Förhandsvisa</button>'
+    +'<button class="dbtn'+(_varnDemo?'':' pri')+'" data-varn="0" onclick="varnDemoPa(false)">Av</button></div>';
   h+=dSec('Bakgrundsloggning')
     +dRow('Homey-appen','<span style="font-size:11px">'+appStatus()+'</span>')
     +'<div class="setup-t">Städningar, utskrifter, batterinivåer och när bilen åker loggas av appen '+esc(APP_ID)+', som kör även när dashboarden är stängd.</div>'
@@ -2900,11 +2944,11 @@ function loggaUt(){
    vill se. Skrivarrutan ingår INTE — den ska alltid ligga överst när den syns,
    och en ruta som dyker upp mitt i listan är svår att hitta.
    Toppraden ligger också fast; den är sidans ram, inte ett avsnitt. */
-const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs','warns'];
+const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs'];
 const SEKT_NAMN={daystrip:'Sol upp och ner',controls:'Styrknappar',rooms:'Rum',
-  car:'Bil',cam:'Kamera',devs:'Enheter',warns:'Batterivarningar'};
+  car:'Bil',cam:'Kamera',devs:'Enheter'};
 const SEKT_IC={daystrip:'sun-horizon',controls:'toggle-right',rooms:'house-line',
-  car:'car',cam:'camera',devs:'plug',warns:'battery-low'};
+  car:'car',cam:'camera',devs:'plug'};
 const SEKT_KEY='gbgsekt_v1';
 function sektLadda(){
   var o={ordning:SEKT_DEF.slice(),dolda:{}};
@@ -3065,6 +3109,10 @@ function knBind(){
         _sistTryck=(el.getAttribute('data-knapp')||el.getAttribute('data-sekt'))+' · '+hhmm(new Date());
         knDeleg(e);sektDeleg(e);
       });
+    });
+    b.querySelectorAll('[data-varn]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
+      el.addEventListener('click',function(){varnDemoPa(el.getAttribute('data-varn')==='1');});
     });
     b.querySelectorAll('[data-demo]').forEach(function(el){
       if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
