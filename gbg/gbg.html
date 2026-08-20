@@ -334,7 +334,23 @@ body.mobile .statusbar.stuck{
 /* hidden är bara display:none i webbläsarens egen stilmall, och den förlorar
    mot en klassregel med display:flex. Därför störde rutan kvar som en tom
    ram när skrivaren vilade. Samma fälla gäller kameraruta med display. */
-.printer[hidden],.cam[hidden],.demobar[hidden]{display:none!important}
+.printer[hidden],.cam[hidden],.demobar[hidden],.lamna[hidden]{display:none!important}
+/* Lämna-hemmet-rutan. Varm ton, men inte skrikig — den ska gå att ignorera när
+   man tände med flit. */
+.lamna{padding:14px 16px;display:flex;flex-direction:column;gap:10px;
+  border-color:rgba(235,203,139,.4);background:linear-gradient(180deg,rgba(235,203,139,.13),var(--panel-b))}
+.lm-h{display:flex;align-items:center;gap:10px;min-width:0}
+.lm-ic{width:22px;height:22px;color:var(--gold);flex:0 0 auto;display:inline-flex}
+.lm-ic .ic{width:100%;height:100%}
+.lm-t{flex:1 1 auto;min-width:0;font-size:13px;font-weight:750;letter-spacing:-.01em}
+.lm-t small{display:block;font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0}
+.lm-lista{display:flex;flex-wrap:wrap;gap:6px}
+.lm-c{background:var(--inset);border:1px solid var(--line-soft);border-radius:11px;padding:4px 9px;
+  font-size:11.5px;font-weight:650;color:var(--dim)}
+.lm-knappar{display:flex;gap:8px;flex-wrap:wrap}
+.lm-b{appearance:none;flex:1 1 auto;border:1px solid var(--line);background:var(--inset);color:var(--ink);
+  font:inherit;font-size:12.5px;font-weight:700;border-radius:13px;padding:10px 12px;cursor:pointer;box-sizing:border-box}
+.lm-b.pri{background:var(--gold);border-color:var(--gold);color:#2e3440}
 /* Demobandet ska synas direkt utan att skrika. */
 .demobar{display:flex;align-items:center;gap:10px;padding:11px 14px;
   border-color:rgba(180,142,173,.4);background:linear-gradient(180deg,rgba(180,142,173,.14),var(--panel-b))}
@@ -351,6 +367,11 @@ body.mobile .statusbar.stuck{
 .pr-ic .ic{width:100%;height:100%}
 .pr-n{font-size:13px;font-weight:750;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-n small{display:block;font-size:11px;font-weight:600;color:var(--dim);white-space:normal}
+/* Klar-läget är lugnare än en pågående utskrift — inget brådskar. */
+.printer.pr-klar{border-color:rgba(163,190,140,.38);
+  background:linear-gradient(180deg,rgba(163,190,140,.12),var(--panel-b))}
+.printer.pr-klar .pr-ic{color:var(--ok)}
 .pr-p{font-size:19px;font-weight:780;letter-spacing:-.02em;color:var(--ink);flex:0 0 auto}
 .pr-p small{font-size:11px;font-weight:650;color:var(--dim);margin-left:2px}
 .pr-bar{height:7px;border-radius:999px;background:var(--inset);overflow:hidden;border:1px solid var(--line-soft)}
@@ -669,6 +690,8 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
     <button class="db-x" onclick="demoAvsluta()">Avsluta</button>
   </section>
 
+  <section class="panel lamna" id="lamna" hidden></section>
+
   <section class="panel printer" id="printer" data-sec="printer" hidden onclick="openBambu()"></section>
 
   <section class="panel controls" id="controls" data-sec="controls"></section>
@@ -794,7 +817,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.24.0';
+const APP_VERSION = 'v1.25.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -877,7 +900,8 @@ function demoData(){
   dev(DEV.dorr,'Ytterdörr','sensor',ZON.hem,{alarm_contact:false,measure_battery:9});
   /* bil, dammsugare, skrivare, uttag, gardiner */
   dev(DEV.car,'Volvo C40','car',ZON.hem,
-    {measure_battery:64,range_battery:284,ev_charging_state:'plugged_in_charging',locked:true,location_human:'Hemma'});
+    {measure_battery:64,range_battery:284,ev_charging_state:'plugged_in_charging',locked:true,
+     location_human:'Mandolingatan, Gothenburg',distance:'2,4 km'});
   dev(DEV.dammsug,'Dammsugare','vacuumcleaner',ZON.hem,{vacuumcleaner_state:'docked',measure_battery:100});
   dev(DEV.bambu,'Bambu P1P','other',kok,
     {bambu_progress_percentage:42,bambu_print_layers:'86/240',bambu_progress_time_remaining:'1h 12m',
@@ -885,6 +909,7 @@ function demoData(){
      'measure_temperature.bed':60,'measure_temperature.bed_target':60,
      'measure_temperature.chamber':31,'onoff.light_chamber':true});
   dev(DEV.bambuUt,'Uttag skrivare','socket',kok,{onoff:true,measure_power:118});
+  /* Bilen en bit bort, så lämna-hemmet-rutan går att se i demoläget. */
   dev('d-uttag2','Uttag TV','socket',vard,{onoff:true,measure_power:64});
   dev('a0e58ca6-b5bb-46bf-8a77-4d6bf9032ad8','Rullgardiner vardagsrum','curtain',vard,{windowcoverings_set:0.14});
   dev('606911d1-50b9-42fa-969d-014896e8e4a9','Rullgardin V\u00e4nster','curtain',vard,{windowcoverings_set:0.14,measure_battery:0});
@@ -1431,6 +1456,7 @@ function render(){
   try{applyTheme();}catch(e){}
   try{renderTopWx();}catch(e){}
   try{renderPrinter();}catch(e){}
+  try{renderLamna();}catch(e){}
   try{renderControls();}catch(e){}
   try{renderRooms();}catch(e){}
   try{renderCar();}catch(e){}
@@ -1470,10 +1496,41 @@ function bambuSkriver(d){
   const p=capOf(d,'bambu_progress_percentage'),noz=capOf(d,'measure_temperature.nozzle');
   return (p!=null&&p<100&&noz!=null&&noz>60);
 }
+/* Utskriften klar men uttaget kvar. Skrivaren drar ström i vila, och den här
+   rutan är enda stället man tittar när man tänker på den. Villkoret är 100 %,
+   kallt munstycke och ett uttag som fortfarande står på. */
+function bambuKlarKvar(){
+  const d=DATA[DEV.bambu],u=DATA[DEV.bambuUt];
+  if(!d||!u)return false;
+  if(capOf(u,'onoff')!==true)return false;
+  const p=capOf(d,'bambu_progress_percentage'),noz=capOf(d,'measure_temperature.nozzle');
+  return (p!=null&&p>=100&&noz!=null&&noz<50);
+}
+async function bambuStang(){
+  const u=DATA[DEV.bambuUt];if(!u)return;
+  try{
+    await satt(u.id,'onoff',false);
+    if(u.capabilitiesObj&&u.capabilitiesObj.onoff)u.capabilitiesObj.onoff.value=false;
+    toast('Uttaget avstängt');render();setTimeout(load,1200);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
 function renderPrinter(){
   const el=$('printer');if(!el)return;
   const d=DATA[DEV.bambu];
-  if(!bambuSkriver(d)){el.hidden=true;el.innerHTML='';return;}
+  if(!bambuSkriver(d)){
+    if(bambuKlarKvar()){
+      const noz=capOf(d,'measure_temperature.nozzle');
+      el.classList.add('pr-klar');
+      el.innerHTML='<div class="pr-h"><span class="pr-ic ic-slot" data-ic="printer"></span>'
+        +'<span class="pr-n">Utskriften är klar<small>uttaget står kvar på'
+        +(noz!=null?(' · munstycket '+num(noz,0)+'°'):'')+'</small></span></div>'
+        +'<div class="lm-knappar"><button class="lm-b pri" onclick="event.stopPropagation();bambuStang()">Stäng av uttaget</button></div>';
+      el.hidden=false;initIcons(el);return;
+    }
+    el.classList.remove('pr-klar');
+    el.hidden=true;el.innerHTML='';return;
+  }
+  el.classList.remove('pr-klar');
   const p=capOf(d,'bambu_progress_percentage')||0;
   const lag=capOf(d,'bambu_print_layers'),tid=capOf(d,'bambu_progress_time_remaining');
   const noz=capOf(d,'measure_temperature.nozzle'),nozM=capOf(d,'measure_temperature.nozzle_target');
@@ -1725,6 +1782,72 @@ function ladText(s){
   const m={plugged_out:'urkopplad',plugged_in:'inkopplad',plugged_in_charging:'laddar',
     plugged_in_done:'klar',plugged_in_fault:'fel'};
   return esc(m[s]||String(s||'–'));}
+
+/* ===== lämna hemmet =====
+   Bilen rapporterar avstånd hem som text ("82 m", "3,4 km"). När den är på väg
+   bort och något fortfarande är på dyker rutan upp överst. Den släcker
+   ingenting själv — den frågar. Automatik som släcker åt en är utmärkt tills
+   den gör det medan man står i garaget.
+
+   Gäller bara medan dashboarden är öppen. Ska den fungera när telefonen ligger
+   i fickan måste den bo i Homey. */
+const LAMNA_GRANS=400;                     /* meter innan vi anser att du åkt */
+function lamnaAvstand(){
+  const d=DATA[DEV.car];if(!d)return null;
+  const r=capOf(d,'distance');
+  if(r==null)return null;
+  if(typeof r==='number')return r;
+  const m=String(r).replace(',','.').match(/([\d.]+)\s*(km|m)?/i);
+  if(!m)return null;
+  const v=parseFloat(m[1]);
+  if(!isFinite(v))return null;
+  return (m[2]&&m[2].toLowerCase()==='km')?v*1000:v;
+}
+function lamnaText(meter){
+  if(meter==null)return '';
+  return meter>=1000?(num(meter/1000,1)+' km'):(Math.round(meter)+' m');
+}
+/* Vad som är igång: lampor, uttag och TV:n. Gruppmedlemmar räknas inte särskilt
+   — gruppen står för dem, annars ser det ut som fler saker än det är. */
+function lamnaPa(){
+  const ut=[];
+  devs().forEach(d=>{
+    if(iGrupp(d))return;
+    if(capOf(d,'onoff')!==true)return;
+    const k=klass(d);
+    if(arLampa(d)||k==='socket'||k==='tv'||k==='fan')ut.push(d);
+  });
+  /* Enheter som bara speglar ett läge hör inte hit. */
+  return ut.filter(d=>d.zone!==ZON.modes&&d.id!==DEV.bambuUt);
+}
+function renderLamna(){
+  const el=$('lamna');if(!el)return;
+  const m=lamnaAvstand(),pa=lamnaPa();
+  if(m!=null&&m<LAMNA_GRANS)_lamnaTyst=false;
+  if(m==null||m<LAMNA_GRANS||!pa.length||_lamnaTyst){el.hidden=true;el.innerHTML='';return;}
+  el.innerHTML='<div class="lm-h"><span class="lm-ic ic-slot" data-ic="car-profile"></span>'
+    +'<span class="lm-t">Bilen är '+esc(lamnaText(m))+' hemifrån'
+    +'<small>'+pa.length+' '+(pa.length===1?'sak är':'saker är')+' på hemma</small></span></div>'
+    +'<div class="lm-lista">'+pa.slice(0,8).map(d=>'<span class="lm-c">'+esc(namn(d))+'</span>').join('')
+    +(pa.length>8?('<span class="lm-c">+'+(pa.length-8)+'</span>'):'')+'</div>'
+    +'<div class="lm-knappar"><button class="lm-b pri" onclick="lamnaSlack()">Stäng av allt</button>'
+    +'<button class="lm-b" onclick="lamnaTyst()">Inte nu</button></div>';
+  el.hidden=false;initIcons(el);
+}
+/* "Inte nu" tystar rutan tills bilen kommit hem igen — inte i evighet, och inte
+   bara några minuter. Kommer du hem och åker igen är frågan relevant på nytt. */
+var _lamnaTyst=false;
+function lamnaTyst(){_lamnaTyst=true;renderLamna();toast('Tyst tills bilen varit hemma');}
+async function lamnaSlack(){
+  const pa=lamnaPa();
+  if(!pa.length)return;
+  try{
+    await Promise.all(pa.map(d=>satt(d.id,'onoff',false).catch(()=>{})));
+    pa.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=false;});
+    toast('Släckte '+pa.length+' st');
+    render();setTimeout(load,1200);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
 
 /* ---------- kamera ----------
    Homey KAN leverera bilden. Kameraappar registrerar en ögonblicksbild som
