@@ -12037,7 +12037,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v487';
+const APP_VERSION='v488';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13985,7 +13985,7 @@ async function checkForUpdate(){try{
 checkForUpdate();setInterval(checkForUpdate,60000);
 </script>
 <script>
-/* ===== husvakt 1.6.0 =====
+/* ===== husvakt 1.7.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -13997,7 +13997,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.6.0';
+  var VER='1.7.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -14017,6 +14017,11 @@ checkForUpdate();setInterval(checkForUpdate,60000);
      första uppslagningen tog längre tid än så. Diagnostiken visade
      "sond-gottskar – 2501 ms tidsgräns" medan telefonen stod i huset. */
   var POS_MS=8000, SOND_MS=6000, TOTAL_MS=9000;
+  /* Hur länge en sondering får hålla tillbaka en giltig position. Sonderingen
+     väger fortfarande tyngst, men bara om den svarar snabbt: en som ändå
+     kommer att gå i tidsgräns ska inte låta dashboarden stå kvar i fel hus i
+     sex sekunder — och hinner du röra skärmen dessförinnan uteblir bytet helt. */
+  var POS_GRACE=2500;
   /* En position som är gammal eller suddig duger inte för att välja hus.
      Wifi-baserad positionering kan peka på fel ort. */
   var POS_MAX_M=3000, POS_MAX_ALDER=120000;
@@ -14109,6 +14114,7 @@ checkForUpdate();setInterval(checkForUpdate,60000);
   function sond(h){
     var t0=Date.now(), c=lokal(h);
     if(!c)return Promise.resolve({sig:'sond-'+h,hus:null,fel:'ingen lokal adress'});
+    var vart=c.bas.replace(/^https?:\/\//,'');
     var ac=null,tid=null;
     try{ac=new AbortController();tid=setTimeout(function(){ac.abort();},SOND_MS);}catch(e){}
     var o={headers:{Authorization:'Bearer '+c.token},cache:'no-store'};
@@ -14117,10 +14123,11 @@ checkForUpdate();setInterval(checkForUpdate,60000);
        adress i det andra nätet kan alltså inte förväxlas med huset. */
     return fetch(c.bas+'/api/manager/zones/zone/',o).then(function(r){
       if(tid)clearTimeout(tid);
-      return {sig:'sond-'+h,hus:r&&r.ok?h:null,ms:Date.now()-t0,fel:(r&&r.ok)?null:('HTTP '+(r?r.status:'?'))};
+      return {sig:'sond-'+h,hus:r&&r.ok?h:null,ms:Date.now()-t0,vart:vart,
+              fel:(r&&r.ok)?null:('HTTP '+(r?r.status:'?'))};
     },function(e){
       if(tid)clearTimeout(tid);
-      return {sig:'sond-'+h,hus:null,ms:Date.now()-t0,
+      return {sig:'sond-'+h,hus:null,ms:Date.now()-t0,vart:vart,
               fel:(e&&e.name==='AbortError')?'tidsgräns':'ingen kontakt'};
     });
   }
@@ -14132,11 +14139,17 @@ checkForUpdate();setInterval(checkForUpdate,60000);
      Svarar ingen alls blir det inget byte — att stanna är ett giltigt utfall. */
   function forst(sonder,pos,ms){
     return new Promise(function(klar){
-      var kvar=sonder.length,klart=false,posSvar=null,posKlar=false;
-      function avsluta(r){if(klart)return;klart=true;clearTimeout(t);klar(r||null);}
+      var kvar=sonder.length,klart=false,posSvar=null,posKlar=false,nadig=false;
+      function avsluta(r){if(klart)return;klart=true;clearTimeout(t);clearTimeout(g);klar(r||null);}
       function provaPosition(){
-        if(kvar<=0&&posKlar)avsluta(posSvar&&posSvar.hus?posSvar:null);
+        if(!posKlar)return;
+        /* Nådatiden släpper bara fram en position som FAKTISKT pekar ut ett hus.
+           En nekad eller suddig position ska inte avbryta en sondering som ännu
+           kan svara — då vore nådatiden bara ett kortare tak. */
+        if(nadig&&posSvar&&posSvar.hus)return avsluta(posSvar);
+        if(kvar<=0)avsluta(posSvar&&posSvar.hus?posSvar:null);
       }
+      var g=setTimeout(function(){nadig=true;provaPosition();},POS_GRACE);
       var t=setTimeout(function(){avsluta(posSvar&&posSvar.hus?posSvar:null);},ms);
       sonder.forEach(function(p){p.then(function(r){
         if(klart)return;
@@ -14166,12 +14179,17 @@ checkForUpdate();setInterval(checkForUpdate,60000);
     (document.body||document.documentElement).appendChild(d);
     d.addEventListener('click',function(){d.remove();});
     rader.pop();
+    /* Vad husvakten SKULLE ha valt just nu, med samma regler som vid start. */
+    forst([sond('gottskar'),sond('gbg')],position(),TOTAL_MS).then(function(r){
+      rader.push('beslut: '+((r&&r.hus)||'stanna kvar')+(r&&r.sig?(' via '+r.sig):''));
+      skriv();});
     [sond('gottskar'),sond('gbg'),position()].forEach(function(p){p.then(function(r){
       rader.push(r.sig+': '+(r.hus||'–')+' · '+(r.ms==null?'–':r.ms+' ms')
         +(r.lat!=null?(' · lat '+Number(r.lat).toFixed(5)):'')
         +(r.noja!=null?(' · ±'+Math.round(r.noja)+' m'):'')
         +(r.alder!=null?(' · '+Math.round(r.alder/1000)+' s gammal'):'')
-        +(r.fel?(' · '+r.fel):''));
+        +(r.fel?(' · '+r.fel):'')
+        +(r.vart?('\n    ' + r.vart):''));
       skriv();});});
   }
 
