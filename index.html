@@ -7761,7 +7761,8 @@ function toggleEnergyVariant(){_energyAlt=!_energyAlt;var bd=$('dlg-body');if(bd
    tvärtom, energy_power rätt. */
 function energiSerier(kalla){
   var P=(PAL&&PAL[curTheme])||{};
-  var H=(kalla==='hist')?HIST7:HIST;
+  /* För idag och igår finns tätare serier hämtade var för sig. */
+  var H=(kalla==='hist')?((HIST7D['d'+_histDag]&&HIST7D['d'+_histDag].solar)?HIST7D['d'+_histDag]:HIST7):HIST;
   var bp=(kalla==='hist')?(H['battpow']||[]):battPowSerie();
   return {
     linjer:[
@@ -7794,7 +7795,7 @@ function battPowSerie(){
    Batterieffekten hämtas här ur energy_power, INTE measure_power. De två har
    motsatt tecken; energy_power är den som stämmer med nivåkurvan (kontrollerat
    2026-08-21, se battPowSerie). Därför vänds ingenting på den här vägen. */
-var HIST7={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null, _hist7Info={};
+var HIST7={}, HIST7D={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null, _hist7Info={};
 const HIST7_VILL={
   solar:  [function(){return DEV.solar;},   ['measure_power','watt']],
   house:  [function(){return DEV.consume;}, ['measure_power','watt']],
@@ -7812,6 +7813,30 @@ async function insGet(path,ms){
     if(!r.ok)return {fel:'HTTP '+r.status};
     return {data:await r.json()};
   }catch(e){clearTimeout(id);return {fel:(e&&e.name==='AbortError')?'tidsgräns':'ingen kontakt'};}
+}
+/* UPPLÖSNING PER DYGN. last7Days är hårt sammanfattad och innehåller långa
+   stråk av null — Homeys egen validering rasar till och med på den serien för
+   solpanelen. today och yesterday är egna, tätare serier, så de hämtas var för
+   sig. Äldre dygn får last7Days, som är det enda som finns. */
+async function histDygnHamta(bak){
+  var res=(bak===0)?'today':((bak===1)?'yesterday':null);
+  if(res===null)return false;
+  var nyckel='d'+bak;
+  if(HIST7D[nyckel]&&Date.now()-(HIST7D[nyckel]._at||0)<10*60000)return true;
+  var lr=await insGet('/api/manager/insights/log/',15000);
+  if(!lr.data)return false;
+  var ut={_at:Date.now()};
+  for(var k in HIST7_VILL){
+    var lg=findLog(lr.data,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
+    if(!lg){_hist7Info[k]={fel:'ingen logg hittad'};continue;}
+    var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res);
+    var pts=e.data?parseEntries(e.data):[];
+    _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:'tomt svar'),res:res};
+    if(pts.length)ut[k]=pts;
+  }
+  HIST7D[nyckel]=ut;
+  try{if(_popupRebuild===buildHistPopup){var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();}}catch(e2){}
+  return true;
 }
 async function hist7Hamta(force){
   if(_hist7Laddar)return;
@@ -7869,11 +7894,16 @@ function hist7Status(){
   var rader=[];
   for(var k in namn){
     var i=_hist7Info[k];
-    rader.push(namn[k]+': '+(!i?'ej hämtad':(i.fel?i.fel:(i.n+' punkter'))));
+    rader.push(namn[k]+': '+(!i?'ej hämtad':(i.fel?i.fel:(i.n+' punkter'+(i.res?(' · '+i.res):'')))));
   }
   return '<div style="margin-top:7px;font-size:11px;opacity:.85">'+esc(rader.join(' · '))+'</div>';
 }
-function histValj(n){_histDag=Math.max(0,Math.min(6,n|0));var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();try{dlgTop();}catch(e){}}
+function histValj(n){
+  _histDag=Math.max(0,Math.min(6,n|0));
+  var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();
+  try{dlgTop();}catch(e){}
+  histDygnHamta(_histDag);
+}
 function histSammanfattning(f){
   var ut=[];
   var maxAv=function(k){var a=(HIST7[k]||[]).filter(function(p){return p.t>=f.t0&&p.t<=f.t1;});
@@ -8185,7 +8215,7 @@ function openDetail(which){
     _popupRebuild=buildHistPopup;
     const bdh=$('dlg-body');if(bdh)bdh.innerHTML=buildHistPopup();
     const bkh=$('dlg-back');if(bkh&&bkh.classList)bkh.classList.add('open');dlgTop();
-    hist7Hamta(false);
+    hist7Hamta(false);histDygnHamta(_histDag);
     return;
   }else if(which==='wxwind'){const dlgw=$('dlg');if(dlgw&&dlgw.classList){dlgw.classList.add('wide');dlgw.classList.add('nohead');}
     _popupRebuild=buildWxWindPopup;setT('dlg-title','Väder & vind');setIcon('dlg-ic','cloud-sun');
@@ -12278,7 +12308,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v493';
+const APP_VERSION='v494';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
