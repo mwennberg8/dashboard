@@ -1355,6 +1355,9 @@ body.tabprev.cmp-open{overflow:auto}
 .alt-hint{text-align:center;font-size:10px;color:var(--faint);margin-top:16px;opacity:.7}
 .g2-main{display:flex;gap:4px;align-items:stretch}
 .g2-yax{width:30px;flex:0 0 auto;display:flex;flex-direction:column;justify-content:space-between;text-align:right;font-size:9px;color:var(--faint);padding:1px 0;font-variant-numeric:tabular-nums}
+/* Absolut placering: etiketten sitter på samma höjd som sin egen rutnätslinje. */
+.g2-yax.abs{position:relative;display:block;padding:0}
+.g2-yax.abs span{position:absolute;right:0;transform:translateY(-50%);white-space:nowrap}
 .g2-plot{flex:1 1 0;min-width:0}
 .g2-plot svg{width:100%;height:132px;display:block}
 .g2-xax{position:relative;height:12px;margin:3px 0 0 34px;font-size:9px;color:var(--faint)}
@@ -4201,8 +4204,28 @@ function niceMax(v){if(v<=0)return 1;var p=Math.pow(10,Math.floor(Math.log10(v))
 function niceMin(v){if(v>=0)return 0;return -niceMax(-v);}
 function fmtW(v){var a=Math.abs(v);if(a>=1000)return (v/1000).toFixed(a%1000===0?0:1).replace('.',',')+' kW';return Math.round(v)+' W';}
 function fmtKw(v){return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');}
-function yTicksHtml(vals,fmt){var h='<div class="g2-yax">';vals.forEach(function(v){h+='<span>'+fmt(v)+'</span>';});return h+'</div>';}
-function gridLines(vals,vmin,vmax,H,padT,padB){var g='';vals.forEach(function(v){var yy=(H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB));g+='<line x1="0" y1="'+yy.toFixed(1)+'" x2="300" y2="'+yy.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/>';});return g;}
+/* Y-ETIKETTERNA LÅG FEL. De radades ut jämnt med space-between medan linjerna
+   räknades ur värdena — står skalan på t.ex. +6 kW … −2 kW hamnar "0" mitt i
+   rutan fast nollinjen ligger på en fjärdedel. Därför såg det ut som att
+   förbrukningen gick under noll: kurvan låg rätt, etiketten lög.
+   Med skalan angiven placeras varje etikett på exakt samma höjd som sin linje. */
+function yTicksHtml(vals,fmt,vmin,vmax,H,padT,padB){
+  if(vmin==null||vmax==null||!H){
+    var h0='<div class="g2-yax">';vals.forEach(function(v){h0+='<span>'+fmt(v)+'</span>';});return h0+'</div>';
+  }
+  var h='<div class="g2-yax abs">';
+  vals.forEach(function(v){
+    var yy=H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB);
+    h+='<span style="top:'+((yy/H)*100).toFixed(2)+'%">'+fmt(v)+'</span>';
+  });
+  return h+'</div>';}
+function gridLines(vals,vmin,vmax,H,padT,padB){var g='';vals.forEach(function(v){
+  var yy=(H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB));
+  /* Nollinjen är den enda som betyder något när skalan går åt båda håll — den
+     får därför kraftigare streck än de andra. */
+  var noll=(Math.abs(v)<1e-9);
+  g+='<line x1="0" y1="'+yy.toFixed(1)+'" x2="300" y2="'+yy.toFixed(1)+'" stroke="var(--'+(noll?'dim':'line')+')" stroke-width="'+(noll?1:0.5)+'"/>';});
+  return g;}
 /* Mjuk kurva (cardinal spline). Kontrollpunktens x-handtag kortas av om det skulle
    sträcka sig förbi nästa punkt – annars viker kurvan bakåt och krullar sig där
    punkterna är ojämnt samplade (luckor i mätdata). Handtagets riktning behålls, så
@@ -4229,7 +4252,10 @@ function areaGrad(col,topOp){var id='grd'+(_grN++);return {id:id,def:'<linearGra
 
 /* Övre grafen: sol, förbrukning, batteri – allt i watt, per-timme tidsaxel */
 function daySeg(pts){if(!pts||pts.length<3)return null;var now=Date.now(),cut=now-24*3600000;var seg=pts.filter(function(p){return p.t>=cut;});if(seg.length<3)seg=pts.slice(-48);return (seg&&seg.length>=3)?seg:null;}
-function dayChart(series){
+/* pctSerie ritas på EGEN skala: 0 % vid nollinjen, 100 % högst upp. Watt och
+   procent har inget gemensamt mått, så att lägga dem på samma axel vore att
+   ljuga med en snygg kurva. Den här linjen är streckad för att skilja sig. */
+function dayChart(series,pctSerie){
   var cid='g2-day';
   var segs=series.map(function(s){return {s:s,seg:daySeg(s.pts)};}).filter(function(o){return o.seg;});
   if(!segs.length)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
@@ -4259,8 +4285,26 @@ function dayChart(series){
     }
     lines+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+o.s.col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+(on?1:0.09)+'"/>';
   });
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+'</svg>';
-  var yax=yTicksHtml(ticks,fmtW);
+  /* Batteriets laddningsnivå. Y0 är nollinjen när skalan går under noll,
+     annars grafens botten — i båda fallen "0 %". */
+  var pctLinje='',pctText='';
+  if(pctSerie&&pctSerie.pts&&pctSerie.pts.length){
+    var pseg=daySeg(pctSerie.pts);
+    if(pseg&&pseg.length>1){
+      var Y0=(vmin<0)?Y(0):(H-padB);
+      var YP=function(v){return Y0-(Math.max(0,Math.min(100,v))/100)*(Y0-padT);};
+      var ppts=pseg.map(function(p){return [X(p.t),YP(p.v)];});
+      var pk=pctSerie.key,pon=(!active||sel[pk]);
+      pctLinje='<path data-k="'+pk+'" data-bw="1.6" d="'+smoothPath(ppts)+'" fill="none" stroke="'+pctSerie.col
+        +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"'
+        +' style="opacity:'+(pon?0.95:0.09)+'"/>';
+      pctText='<text x="298" y="'+(padT+7).toFixed(1)+'" text-anchor="end" font-size="8" fill="'+pctSerie.col
+        +'" style="opacity:.75">100 %</text>';
+      segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
+    }
+  }
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+pctLinje+pctText+'</svg>';
+  var yax=yTicksHtml(ticks,fmtW,vmin,vmax,H,padT,padB);
   var xl=hourTicks(t0,t1);
   var xax='<div class="g2-xax">'+xl.map(function(o){return '<span style="left:'+(o.frac*100).toFixed(1)+'%">'+o.label+'</span>';}).join('')+'</div>';
   var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+o.s.col+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
@@ -4296,7 +4340,7 @@ function yearOverlayChart(key,colMap,cid){
     if((isC||sel[k])&&on){var g=areaGrad(col,0.26);defs+=g.def;var area=line+' L'+pts[pts.length-1][0].toFixed(1)+' '+(H-padB)+' L'+pts[0][0].toFixed(1)+' '+(H-padB)+' Z';body+='<path d="'+area+'" fill="url(#'+g.id+')"/>';}
     body+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+(on?1:0.09)+'"/>';});
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,0,vmax,H,padT,padB)+body+'</svg>';
-  var yax=yTicksHtml(ticks,fmtKw);
+  var yax=yTicksHtml(ticks,fmtKw,0,vmax,H,padT,padB);
   var xax='<div class="g2-xax g2-xax-even"><span>jan</span><span>apr</span><span>jul</span><span>okt</span><span>dec</span></div>';
   var lg='<div class="mchart-lg2">'+byYear.map(function(o){var col=colMap[o.year]||'var(--dim)',isC=(o.year===cy),k=''+o.year;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':(isC?' class="cur"':'')))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+col+';height:'+(isC?4:3)+'px"></i>'+o.year+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main">'+yax+'<div class="g2-plot">'+svg+'</div></div>'+xax+lg+'</div>';
@@ -7687,11 +7731,11 @@ function buildEnergyPopup(){
   h+='<div class="ww-box"><span class="ww-ic" style="color:var(--ok)">'+icon('sun')+'</span><div class="ww-bt"><div class="ww-line"><span class="ww-big">'+pw(sol)+'</span></div><div class="ww-sub">solproduktion</div></div></div>';
   h+='</div>';
   h+='<div class="ww-insight"><span class="ww-insight-ic">'+icon(_isAI?'sparkle':'leaf')+'</span><span>'+esc(energyInsight())+'</span></div>';
-  h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W</span></div>'+dayChart([
+  h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W · streckad = batteriets nivå, 0 % vid nollinjen</span></div>'+dayChart([
     {key:'solar',pts:HIST['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
     {key:'house',pts:HIST['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
     {key:'batt',pts:HIST['battpow']||[],col:(P.green||'#7bc47f'),label:'Batteri'}
-  ]);
+  ],{key:'battpct',pts:HIST['batt']||[],col:(P.cyan||'#57b6c2'),label:'Batteri %'});
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
@@ -12037,7 +12081,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v488';
+const APP_VERSION='v489';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
