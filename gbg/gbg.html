@@ -830,7 +830,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.31.0';
+const APP_VERSION = 'v1.32.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3382,7 +3382,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.5.0 =====
+/* ===== husvakt 1.6.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -3394,7 +3394,7 @@ else start();
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
    faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
 (function(){
-  var VER='1.5.0';
+  var VER='1.6.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -3409,7 +3409,14 @@ else start();
      Låset försvann, automatiken körde, och du kastades rakt tillbaka. Därför
      localStorage med tidsstämpel i stället. */
   var LAS_MS=45*60*1000;
-  var POS_MS=3000, SOND_MS=2500, TOTAL_MS=4000;
+  /* TIDERNA HÖJDA. 2,5 s räckte inte för sonderingen: homeylocal-namnet måste
+     slås upp i publik DNS innan paketet ens går till grannrummet, och den
+     första uppslagningen tog längre tid än så. Diagnostiken visade
+     "sond-gottskar – 2501 ms tidsgräns" medan telefonen stod i huset. */
+  var POS_MS=8000, SOND_MS=6000, TOTAL_MS=9000;
+  /* En position som är gammal eller suddig duger inte för att välja hus.
+     Wifi-baserad positionering kan peka på fel ort. */
+  var POS_MAX_M=3000, POS_MAX_ALDER=120000;
 
   function ls(k){try{return localStorage.getItem(k);}catch(e){return null;}}
   function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
@@ -3464,11 +3471,21 @@ else start();
     return new Promise(function(klar){
       if(!navigator.geolocation)return klar({sig:'position',hus:null,fel:'saknas'});
       navigator.geolocation.getCurrentPosition(
-        function(p){var la=p&&p.coords?p.coords.latitude:null;
-          klar({sig:'position',hus:(la==null||!isFinite(la))?null:(la>GRANS?'gbg':'gottskar'),
-                ms:Date.now()-t0,lat:la});},
+        function(p){
+          var c=p&&p.coords,la=c?c.latitude:null;
+          var noja=(c&&c.accuracy!=null)?c.accuracy:null;
+          var alder=(p&&p.timestamp)?(Date.now()-p.timestamp):null;
+          var svar={sig:'position',ms:Date.now()-t0,lat:la,noja:noja,alder:alder};
+          if(la==null||!isFinite(la)){svar.hus=null;svar.fel='ingen latitud';return klar(svar);}
+          /* Den här spärren kom till efter att en cachad position på 15 ms
+             pekade ut Göteborg medan telefonen stod i Gottskär. */
+          if(noja!=null&&noja>POS_MAX_M){svar.hus=null;svar.fel='onoggrann ('+Math.round(noja)+' m)';return klar(svar);}
+          if(alder!=null&&alder>POS_MAX_ALDER){svar.hus=null;svar.fel='gammal ('+Math.round(alder/1000)+' s)';return klar(svar);}
+          svar.hus=(la>GRANS?'gbg':'gottskar');
+          klar(svar);
+        },
         function(e){klar({sig:'position',hus:null,ms:Date.now()-t0,fel:(e&&e.message)||'nekad'});},
-        {maximumAge:300000,timeout:POS_MS,enableHighAccuracy:false});
+        {maximumAge:60000,timeout:POS_MS,enableHighAccuracy:true});
     });
   }
 
@@ -3505,17 +3522,27 @@ else start();
     });
   }
 
-  /* Första svaret som pekar ut ett hus vinner. Svarar ingen inom tiden blir det
-     inget byte alls — att stanna är alltid ett giltigt utfall. */
-  function forst(lista,ms){
+  /* SONDERINGEN GÅR FÖRE POSITIONEN. Att Homeyn svarar på sin lokala adress är
+     ett bevis: du är på husets nät. Positionen är en uppskattning som kan komma
+     ur ett cachat wifi-svar och peka på fel ort. Först väntar vi alltså in
+     sonderingarna; positionen får bestämma bara om ingen av dem svarade.
+     Svarar ingen alls blir det inget byte — att stanna är ett giltigt utfall. */
+  function forst(sonder,pos,ms){
     return new Promise(function(klar){
-      var kvar=lista.length,klart=false;
-      var t=setTimeout(function(){if(!klart){klart=true;klar(null);}},ms);
-      lista.forEach(function(p){p.then(function(r){
+      var kvar=sonder.length,klart=false,posSvar=null,posKlar=false;
+      function avsluta(r){if(klart)return;klart=true;clearTimeout(t);klar(r||null);}
+      function provaPosition(){
+        if(kvar<=0&&posKlar)avsluta(posSvar&&posSvar.hus?posSvar:null);
+      }
+      var t=setTimeout(function(){avsluta(posSvar&&posSvar.hus?posSvar:null);},ms);
+      sonder.forEach(function(p){p.then(function(r){
         if(klart)return;
-        if(r&&r.hus){klart=true;clearTimeout(t);klar(r);return;}
-        if(!--kvar){klart=true;clearTimeout(t);klar(null);}
-      },function(){if(!klart&&!--kvar){klart=true;clearTimeout(t);klar(null);}});});
+        if(r&&r.hus){avsluta(r);return;}
+        kvar--;provaPosition();
+      },function(){if(klart)return;kvar--;provaPosition();});});
+      if(pos)pos.then(function(r){posSvar=r;posKlar=true;provaPosition();},
+                      function(){posKlar=true;provaPosition();});
+      else{posKlar=true;provaPosition();}
     });
   }
 
@@ -3536,9 +3563,12 @@ else start();
     (document.body||document.documentElement).appendChild(d);
     d.addEventListener('click',function(){d.remove();});
     rader.pop();
-    [position(),sond('gottskar'),sond('gbg')].forEach(function(p){p.then(function(r){
+    [sond('gottskar'),sond('gbg'),position()].forEach(function(p){p.then(function(r){
       rader.push(r.sig+': '+(r.hus||'–')+' · '+(r.ms==null?'–':r.ms+' ms')
-        +(r.lat!=null?(' · lat '+Number(r.lat).toFixed(5)):'')+(r.fel?(' · '+r.fel):''));
+        +(r.lat!=null?(' · lat '+Number(r.lat).toFixed(5)):'')
+        +(r.noja!=null?(' · ±'+Math.round(r.noja)+' m'):'')
+        +(r.alder!=null?(' · '+Math.round(r.alder/1000)+' s gammal'):'')
+        +(r.fel?(' · '+r.fel):''));
       skriv();});});
   }
 
@@ -3612,7 +3642,7 @@ else start();
     var sist=ls(SIST);
     if(sist&&HUS[sist]&&sist!==jag()){if(hoppa(sist,'minne'))return;}
     if(!sist)lsSet(SIST,jag());
-    forst([position(),sond('gottskar'),sond('gbg')],TOTAL_MS).then(function(r){
+    forst([sond('gottskar'),sond('gbg')],position(),TOTAL_MS).then(function(r){
       if(!r||!r.hus)return;
       lsSet(SIST,r.hus);
       /* Har du redan tryckt på något ska sidan inte byta under fingret. Minnet
