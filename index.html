@@ -7811,15 +7811,42 @@ function battPowSerie(){
    motsatt tecken; energy_power är den som stämmer med nivåkurvan (kontrollerat
    2026-08-21, se battPowSerie). Därför vänds ingenting på den här vägen. */
 var HIST7={}, HIST7D={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null, _hist7Info={};
+/* KAPACITETEN HETER energy_power. Uppmätt 2026-08-21: solpanelens
+   measure_power-logg har 277 punkter där alla är null, medan energy_power ger
+   riktiga tal. Samma för förbrukningen och för Pulse. Det är också där Homey
+   själv visar kurvorna, under Energianvändning.
+   Listorna är ordnade: första kandidaten som ger en logg med värden vinner. */
 const HIST7_VILL={
-  solar:  [function(){return DEV.solar;},   ['measure_power','watt']],
-  house:  [function(){return DEV.consume;}, ['measure_power','watt']],
+  solar:  [function(){return DEV.solar;},   ['energy_power','measure_power','watt']],
+  house:  [function(){return DEV.consume;}, ['energy_power','measure_power','watt']],
   battpow:[function(){return DEV.battery;}, ['energy_power']],
   battpct:[function(){return DEV.battery;}, ['measure_battery']]
 };
+/* findLog tar en lista och tar första loggen som matchar NÅGON av strängarna —
+   då avgör loggarnas ordning, inte vår. Här frågar vi en kandidat i taget, så
+   att energy_power verkligen provas först. */
+function hittaLogg(logs,devId,kandidater){
+  for(var i=0;i<kandidater.length;i++){
+    var lg=findLog(logs,devId,[kandidater[i]]);
+    if(lg)return lg;
+  }
+  return null;
+}
 /* Egen hämtare med längre tidsgräns. Sju dygns effektlogg är mycket mer data än
    ett dygn, och homeyGet ger upp efter åtta sekunder — rimligt för allt annat,
    men kan vara för kort just här. */
+/* Skiljer "Homey svarade inte" från "loggen finns men är tom". Uppmätt
+   2026-08-21: sol, förbrukning och Pulse ger 277 poster där ALLA är null,
+   medan batteriets loggar ger 277 riktiga tal. Det är alltså Homey som inte
+   sparar något för de effektloggarna — inte dashboarden som läser fel. */
+function antalNull(d){
+  var v=d&&(Array.isArray(d)?d:(d.entries||d.values||d.data));
+  if(!Array.isArray(v)||!v.length)return 'tomt svar';
+  var nullar=v.filter(function(p){return p&&p.v===null;}).length;
+  return (nullar===v.length)
+    ? ('loggen är tom i Homey ('+v.length+' punkter, alla utan värde)')
+    : ('inga brukbara värden av '+v.length);
+}
 async function insGet(path,ms){
   var c=new AbortController(),id=setTimeout(function(){c.abort();},ms||25000);
   try{
@@ -7842,11 +7869,11 @@ async function histDygnHamta(bak){
   if(!lr.data)return false;
   var ut={_at:Date.now()};
   for(var k in HIST7_VILL){
-    var lg=findLog(lr.data,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
+    var lg=hittaLogg(lr.data,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
     if(!lg){_hist7Info[k]={fel:'ingen logg hittad'};continue;}
     var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res);
     var pts=e.data?parseEntries(e.data):[];
-    _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:'tomt svar'),res:res};
+    _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:antalNull(e.data)),res:res};
     if(pts.length)ut[k]=pts;
   }
   HIST7D[nyckel]=ut;
@@ -7863,11 +7890,11 @@ async function hist7Hamta(force){
     if(!logs){_hist7Fel='Insights svarade inte'+(lr.fel?(' ('+lr.fel+')'):'');return;}
     var ut={};
     for(var k in HIST7_VILL){
-      var lg=findLog(logs,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
+      var lg=hittaLogg(logs,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
       if(!lg){_hist7Info[k]={fel:'ingen logg hittad'};continue;}
       var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last7Days');
       var pts=e.data?parseEntries(e.data):[];
-      _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:'tomt svar')};
+      _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:antalNull(e.data))};
       if(pts.length)ut[k]=pts;
     }
     if(Object.keys(ut).length){HIST7=ut;_hist7At=Date.now();}
@@ -12323,7 +12350,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v495';
+const APP_VERSION='v497';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
