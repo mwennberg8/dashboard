@@ -521,7 +521,12 @@ body.mobile .statusbar.stuck{
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 
 /* enhetsrad i popup */
-.dv-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft)}
+/* EN LODRÄT LINJE till höger. Masterns reglage slutar 19 px från rutans kant
+   (13 px boxpadding + 6 px marginal), så lampraderna dras in lika mycket —
+   både reglagen och på/av-vipporna. Masterns egen vippa får samma linje, annars
+   står den 6 px längre ut än allt annat i rutan. */
+:root{--rad-h:19px}
+.dv-row{display:flex;align-items:center;gap:10px;padding:9px var(--rad-h) 9px 0;border-bottom:1px solid var(--line-soft)}
 .dv-row:last-child{border-bottom:0}
 .dv-ic{width:28px;height:28px;border-radius:9px;background:var(--inset);display:inline-flex;align-items:center;
   justify-content:center;flex:0 0 auto;color:var(--faint)}
@@ -537,7 +542,7 @@ body.mobile .statusbar.stuck{
 /* Dimmern börjar där NAMNET börjar, inte vid radens kant: ikonen är 28 px och
    mellanrummet 10, alltså 38 px in. Då står reglagets början lodrätt under
    första bokstaven i enhetens namn. */
-.dv-dim{width:calc(100% - 38px);margin-left:38px}
+.dv-dim{width:calc(100% - 38px - var(--rad-h));margin-left:38px}
 .dv-dim .slx{margin:0 0 6px}
 /* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
    listan under — inte är ännu en lampa i mängden. */
@@ -545,7 +550,7 @@ body.mobile .statusbar.stuck{
   background:linear-gradient(180deg,rgba(129,161,193,.10),transparent);margin-bottom:4px}
 .rum-master.on{border-color:rgba(235,203,139,.45);
   background:linear-gradient(180deg,rgba(235,203,139,.13),transparent)}
-.rum-master .dv-row{border-bottom:0;padding:11px 0 6px}
+.rum-master .dv-row{border-bottom:0;padding:11px 6px 6px 0}
 .rum-master .dv-n{font-size:15px;font-weight:780;letter-spacing:-.01em}
 .rum-master .dv-n small{font-size:10.5px;font-weight:650}
 .rum-master .dv-ic{width:32px;height:32px;border-radius:11px}
@@ -825,7 +830,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.30.0';
+const APP_VERSION = 'v1.31.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
