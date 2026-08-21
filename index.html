@@ -1358,19 +1358,9 @@ body.tabprev.cmp-open{overflow:auto}
 .hist-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
 .hist-titel{flex:1 1 auto;min-width:0;font-size:19px;font-weight:780;letter-spacing:-.02em}
 .hist-titel small{display:block;font-size:11px;font-weight:600;color:var(--faint);letter-spacing:0;margin-top:1px}
-.hist-om{appearance:none;flex:0 0 auto;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:999px;cursor:pointer;padding:0}
-.hist-om .ic{width:16px;height:16px}
-.hist-om:hover{color:var(--ink)}
 .hist-graf{border:1px solid var(--line);border-radius:16px;padding:11px 10px 6px;background:var(--inset);margin-top:10px}
-/* Infoknapp och dess text — samma överallt. */
-.info-b{appearance:none;width:26px;height:26px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);background:transparent;color:var(--faint);border-radius:999px;cursor:pointer;padding:0;margin-left:6px}
-.info-b .ic{width:14px;height:14px}
-.info-b:hover{color:var(--ink)}
-.info-t{flex-basis:100%;margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--dim);
-  background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:9px 11px;
-  text-transform:none;letter-spacing:0;font-weight:500}
+/* Infotexten i de här rutorna ligger på egen rad under rubriken. */
+.hist-h .drow-info,.ww-h .drow-info{flex-basis:100%}
 .ww-h{flex-wrap:wrap}
 .hist-dagar{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
 .hist-d{appearance:none;flex:1 1 auto;min-width:64px;border:1px solid var(--line);background:var(--inset);
@@ -7783,13 +7773,15 @@ function energiSerier(kalla){
              col:(P.cyan||'#57b6c2'),label:'Batteri %'}
   };
 }
-/* All infotext ligger bakom en knapp. En ruta full av förklaringar läser man
-   en gång och sedan aldrig mer — men den tar plats varje gång. */
+/* All infotext ligger bakom en knapp — och det är husets EGEN infoknapp, samma
+   lilla "i" i en ring som resten av dashboarden använder (.di-q + .drow-info,
+   öppnas av diTog). Första försöket ritade en egen sorts knapp, vilket bara gav
+   dashboarden två utseenden för samma sak. */
 function infoBlock(id,text){
-  return '<button class="info-b" onclick="infoVisa(\''+id+'\')" aria-label="Förklaring">'+icon('info')+'</button>'
-    +'<div class="info-t" id="info-'+id+'" hidden>'+text+'</div>';
+  return '<span class="di-q" onclick="diTog(\'info-'+id+'\')">i</span>'
+    +'<div class="drow-info" id="info-'+id+'">'+text+'</div>';
 }
-function infoVisa(id){var e=$('info-'+id);if(e)e.hidden=!e.hidden;}
+function infoVisa(id){diTog('info-'+id);}
 function battPowSerie(){
   var a=HIST['battpow']||[];
   return a.map(function(p){return {t:p.t,v:(p.v==null?null:-p.v)};});
@@ -7802,30 +7794,44 @@ function battPowSerie(){
    Batterieffekten hämtas här ur energy_power, INTE measure_power. De två har
    motsatt tecken; energy_power är den som stämmer med nivåkurvan (kontrollerat
    2026-08-21, se battPowSerie). Därför vänds ingenting på den här vägen. */
-var HIST7={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null;
+var HIST7={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null, _hist7Info={};
 const HIST7_VILL={
   solar:  [function(){return DEV.solar;},   ['measure_power','watt']],
   house:  [function(){return DEV.consume;}, ['measure_power','watt']],
   battpow:[function(){return DEV.battery;}, ['energy_power']],
   battpct:[function(){return DEV.battery;}, ['measure_battery']]
 };
+/* Egen hämtare med längre tidsgräns. Sju dygns effektlogg är mycket mer data än
+   ett dygn, och homeyGet ger upp efter åtta sekunder — rimligt för allt annat,
+   men kan vara för kort just här. */
+async function insGet(path,ms){
+  var c=new AbortController(),id=setTimeout(function(){c.abort();},ms||25000);
+  try{
+    var r=await fetch(BASE.replace(/\/$/,'')+path,{headers:{Authorization:'Bearer '+CONFIG.TOKEN},signal:c.signal});
+    clearTimeout(id);
+    if(!r.ok)return {fel:'HTTP '+r.status};
+    return {data:await r.json()};
+  }catch(e){clearTimeout(id);return {fel:(e&&e.name==='AbortError')?'tidsgräns':'ingen kontakt'};}
+}
 async function hist7Hamta(force){
   if(_hist7Laddar)return;
   if(!force&&_hist7At&&Date.now()-_hist7At<10*60000)return;
-  _hist7Laddar=true;_hist7Fel=null;
+  _hist7Laddar=true;_hist7Fel=null;_hist7Info={};
   try{
-    var logs=await homeyGet('/api/manager/insights/log/');
-    if(!logs){_hist7Fel='Insights svarade inte';return;}
+    var lr=await insGet('/api/manager/insights/log/',15000);
+    var logs=lr.data;
+    if(!logs){_hist7Fel='Insights svarade inte'+(lr.fel?(' ('+lr.fel+')'):'');return;}
     var ut={};
     for(var k in HIST7_VILL){
       var lg=findLog(logs,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
-      if(!lg){_hist7Fel=(_hist7Fel||'')+' saknar logg: '+k;continue;}
-      var e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last7Days');
-      var pts=parseEntries(e);
+      if(!lg){_hist7Info[k]={fel:'ingen logg hittad'};continue;}
+      var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last7Days');
+      var pts=e.data?parseEntries(e.data):[];
+      _hist7Info[k]={id:lg.id,n:pts.length,fel:e.fel||(pts.length?null:'tomt svar')};
       if(pts.length)ut[k]=pts;
     }
     if(Object.keys(ut).length){HIST7=ut;_hist7At=Date.now();}
-  }catch(e){_hist7Fel=(e&&e.message)||'fel vid h\u00e4mtning';}
+  }catch(e){_hist7Fel=(e&&e.message)||'fel vid hämtning';}
   finally{_hist7Laddar=false;try{if(_popupRebuild===buildHistPopup){var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();}}catch(e2){}}
 }
 /* Dygnsgränser i svensk tid. Webbläsaren har visserligen rätt lokaltid, men
@@ -7855,6 +7861,18 @@ function dygnNamn(bak){
     return s.charAt(0).toUpperCase()+s.slice(1);
   }catch(e){return bak+' dygn sedan';}
 }
+/* Vad som faktiskt hämtades, per kurva. Saknas sol eller förbrukning står det
+   här varför — loggen hittades inte, svaret var tomt, eller anropet tog för
+   lång tid. Utan den raden är en tom graf omöjlig att felsöka på avstånd. */
+function hist7Status(){
+  var namn={solar:'Sol',house:'Förbrukning',battpow:'Batterieffekt',battpct:'Batterinivå'};
+  var rader=[];
+  for(var k in namn){
+    var i=_hist7Info[k];
+    rader.push(namn[k]+': '+(!i?'ej hämtad':(i.fel?i.fel:(i.n+' punkter'))));
+  }
+  return '<div style="margin-top:7px;font-size:11px;opacity:.85">'+esc(rader.join(' · '))+'</div>';
+}
 function histValj(n){_histDag=Math.max(0,Math.min(6,n|0));var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();try{dlgTop();}catch(e){}}
 function histSammanfattning(f){
   var ut=[];
@@ -7873,8 +7891,8 @@ function buildHistPopup(){
      enda man behöver veta hela tiden. Resten ligger bakom infoknappen. */
   var h='<div class="hist-h"><div class="hist-titel">'+esc(dygnNamn(_histDag))
     +'<small>'+esc(f.dag)+'</small></div>'
-    +'<button class="hist-om" onclick="hist7Hamta(true)" aria-label="Hämta om">'+icon('arrows-clockwise')+'</button>'
-    +infoBlock('hist','Samma fyra kurvor som i dygnsvyn: solproduktion, förbrukning och batteriets effekt i watt, plus batteriets laddningsnivå som streckad linje på egen skala. Uppgifterna hämtas ur Homeys Insights och täcker sju dygn bakåt. Batteriets effekt kommer här ur energy_power och är positiv när batteriet laddas.')
+    +infoBlock('hist','Samma fyra kurvor som i dygnsvyn: solproduktion, förbrukning och batteriets effekt i watt, plus batteriets laddningsnivå som streckad linje på egen skala. Uppgifterna hämtas ur Homeys Insights och täcker sju dygn bakåt. Batteriets effekt kommer här ur energy_power och är positiv när batteriet laddas.'
+      +hist7Status())
     +'</div>';
   h+='<div class="hist-dagar">';
   for(var i=0;i<7;i++)h+='<button class="hist-d'+(i===_histDag?' on':'')+'" onclick="histValj('+i+')">'+esc(dygnNamn(i))+'</button>';
@@ -7905,10 +7923,10 @@ function buildEnergyPopup(){
   h+='</div>';
   h+='<div class="ww-insight"><span class="ww-insight-ic">'+icon(_isAI?'sparkle':'leaf')+'</span><span>'+esc(energyInsight())+'</span></div>';
   var se=energiSerier('live');
+  h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
   h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri'
     +infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. Batteriets effekt är positiv när det laddas och negativ när det laddar ur.')
     +'</div>'+dayChart(se.linjer,se.procent);
-  h+='<button class="dbtn wide" onclick="openDetail(\'energihist\')">Historik \u00b7 sju dygn</button>';
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
@@ -12260,7 +12278,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v492';
+const APP_VERSION='v493';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
