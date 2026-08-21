@@ -1353,6 +1353,16 @@ body.tabprev.cmp-open{overflow:auto}
 .cmpb-v{flex:0 0 auto;min-width:66px;text-align:right;font-size:12.5px;font-weight:720;color:var(--ink);font-variant-numeric:tabular-nums}
 .cmp-badge.altpct{padding:1px 6px;font-size:10px;margin-left:5px}
 .alt-hint{text-align:center;font-size:10px;color:var(--faint);margin-top:16px;opacity:.7}
+/* Dygnsväljaren i historikrutan. Wrap i stället för sidled-skroll. */
+.hist-dagar{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
+.hist-d{appearance:none;flex:1 1 auto;min-width:64px;border:1px solid var(--line);background:var(--inset);
+  color:var(--dim);font:inherit;font-size:11.5px;font-weight:700;border-radius:999px;padding:7px 10px;cursor:pointer;
+  box-sizing:border-box;white-space:nowrap}
+.hist-d.on{background:rgba(129,161,193,.18);border-color:var(--blue);color:var(--blue)}
+.hs-rad{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.hs-c{background:var(--inset);border:1px solid var(--line);border-radius:11px;padding:5px 9px;
+  font-size:11.5px;font-weight:650;color:var(--dim)}
+.hs-c b{color:var(--ink);font-weight:750}
 .g2-main{display:flex;gap:4px;align-items:stretch}
 .g2-yax{width:30px;flex:0 0 auto;display:flex;flex-direction:column;justify-content:space-between;text-align:right;font-size:9px;color:var(--faint);padding:1px 0;font-variant-numeric:tabular-nums}
 /* Absolut placering: etiketten sitter på samma höjd som sin egen rutnätslinje. */
@@ -4255,13 +4265,22 @@ function daySeg(pts){if(!pts||pts.length<3)return null;var now=Date.now(),cut=no
 /* pctSerie ritas på EGEN skala: 0 % vid nollinjen, 100 % högst upp. Watt och
    procent har inget gemensamt mått, så att lägga dem på samma axel vore att
    ljuga med en snygg kurva. Den här linjen är streckad för att skilja sig. */
-function dayChart(series,pctSerie){
-  var cid='g2-day';
-  var segs=series.map(function(s){return {s:s,seg:daySeg(s.pts)};}).filter(function(o){return o.seg;});
-  if(!segs.length)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
+function dayChart(series,pctSerie,fonster){
+  var cid=(fonster&&fonster.cid)||'g2-day';
+  /* Med ett fönster ritas exakt det dygnet, även om serien saknar punkter i
+     början eller slutet — annars skulle x-axeln krympa till det som råkar
+     finnas och två dygn bli osjämförbara. */
+  var klipp=function(pts){
+    if(!fonster)return daySeg(pts);
+    if(!pts||!pts.length)return null;
+    var seg=pts.filter(function(p){return p.t>=fonster.t0&&p.t<=fonster.t1;});
+    return seg.length>=2?seg:null;
+  };
+  var segs=series.map(function(s){return {s:s,seg:klipp(s.pts)};}).filter(function(o){return o.seg;});
+  if(!segs.length)return '<div class="viz-empty">'+(fonster?'Ingen data för det dygnet.':'Samlar in data… grafen fylls på efter hand.')+'</div>';
   var now=Date.now();
-  var t0=Math.min.apply(null,segs.map(function(o){return o.seg[0].t;}));
-  var t1=Math.max.apply(null,segs.map(function(o){return o.seg[o.seg.length-1].t;}))||now;
+  var t0=fonster?fonster.t0:Math.min.apply(null,segs.map(function(o){return o.seg[0].t;}));
+  var t1=fonster?fonster.t1:(Math.max.apply(null,segs.map(function(o){return o.seg[o.seg.length-1].t;}))||now);
   var tr=(t1-t0)||1,W=300,H=132,padT=8,padB=6;
   var vs=[];segs.forEach(function(o){o.seg.forEach(function(p){vs.push(p.v);});});
   var vmax=niceMax(Math.max.apply(null,vs)),vmin=niceMin(Math.min.apply(null,vs));
@@ -4289,7 +4308,7 @@ function dayChart(series,pctSerie){
      annars grafens botten — i båda fallen "0 %". */
   var pctLinje='',pctText='';
   if(pctSerie&&pctSerie.pts&&pctSerie.pts.length){
-    var pseg=daySeg(pctSerie.pts);
+    var pseg=klipp(pctSerie.pts);
     if(pseg&&pseg.length>1){
       var Y0=(vmin<0)?Y(0):(H-padB);
       var YP=function(v){return Y0-(Math.max(0,Math.min(100,v))/100)*(Y0-padT);};
@@ -7716,6 +7735,119 @@ function buildEnergyPopupAlt(){
 }
 function energyPopupRender(){return _energyAlt?buildEnergyPopupAlt():buildEnergyPopup();}
 function toggleEnergyVariant(){_energyAlt=!_energyAlt;var bd=$('dlg-body');if(bd)bd.innerHTML=energyPopupRender();try{dlgTop();}catch(e){}}
+/* BATTERIETS TECKEN. measure_power från batteriet räknar tvärtom mot hur man
+   tänker: negativt när batteriet LADDAS. Kontrollerat mot Insights 2026-08-21:
+     12:20–13:33  energy_power ≈ +2650 W   och nivån steg 24 % → 34 %
+     14:20–15:28  energy_power ≈ −3900 W   och nivån föll 30 % → 13 %
+   Grafen ritade measure_power rått, därför pekade kurvan neråt samtidigt som
+   procentlinjen steg — fysiskt omöjligt, och just det Markus såg. Här vänds
+   tecknet vid ritningen: positivt = laddar, negativt = laddar ur.
+   Rutorna på startsidan rörs inte; de tar redan beloppet och hämtar tecknet ur
+   battery_charging_state. */
+function battPowSerie(){
+  var a=HIST['battpow']||[];
+  return a.map(function(p){return {t:p.t,v:(p.v==null?null:-p.v)};});
+}
+/* ===================== historik, sju dygn =====================
+   Dashboarden sparar själv bara ett dygn. Homeys Insights har mer, och samma
+   väg används redan av seedHistory — alltså ingen ny sorts anrop, bara en annan
+   upplösning och ett urval per dygn.
+
+   Batterieffekten hämtas här ur energy_power, INTE measure_power. De två har
+   motsatt tecken; energy_power är den som stämmer med nivåkurvan (kontrollerat
+   2026-08-21, se battPowSerie). Därför vänds ingenting på den här vägen. */
+var HIST7={}, _hist7At=0, _hist7Laddar=false, _histDag=0, _hist7Fel=null;
+const HIST7_VILL={
+  solar:  [function(){return DEV.solar;},   ['measure_power','watt']],
+  house:  [function(){return DEV.consume;}, ['measure_power','watt']],
+  battpow:[function(){return DEV.battery;}, ['energy_power']],
+  battpct:[function(){return DEV.battery;}, ['measure_battery']]
+};
+async function hist7Hamta(force){
+  if(_hist7Laddar)return;
+  if(!force&&_hist7At&&Date.now()-_hist7At<10*60000)return;
+  _hist7Laddar=true;_hist7Fel=null;
+  try{
+    var logs=await homeyGet('/api/manager/insights/log/');
+    if(!logs){_hist7Fel='Insights svarade inte';return;}
+    var ut={};
+    for(var k in HIST7_VILL){
+      var lg=findLog(logs,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
+      if(!lg){_hist7Fel=(_hist7Fel||'')+' saknar logg: '+k;continue;}
+      var e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last7Days');
+      var pts=parseEntries(e);
+      if(pts.length)ut[k]=pts;
+    }
+    if(Object.keys(ut).length){HIST7=ut;_hist7At=Date.now();}
+  }catch(e){_hist7Fel=(e&&e.message)||'fel vid h\u00e4mtning';}
+  finally{_hist7Laddar=false;try{if(_popupRebuild===buildHistPopup){var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();}}catch(e2){}}
+}
+/* Dygnsgränser i svensk tid. Webbläsaren har visserligen rätt lokaltid, men
+   uttryckt explicit är det uppenbart vad som menas — och rätt även om plattan
+   någon gång ställs i en annan zon. */
+function dygnFonster(bak){
+  var f=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});
+  var d=new Date(Date.now()-(bak||0)*86400000);
+  var delar={};f.formatToParts(d).forEach(function(p){delar[p.type]=p.value;});
+  var dagStr=delar.year+'-'+delar.month+'-'+delar.day;
+  /* Midnatt i Stockholm är 22:00 eller 23:00 UTC beroende på sommartid. Prova
+     båda och ta den som faktiskt landar på rätt datum lokalt. */
+  var kand=[Date.parse(dagStr+'T00:00:00+02:00'),Date.parse(dagStr+'T00:00:00+01:00')];
+  var t0=kand[0];
+  for(var i=0;i<kand.length;i++){
+    var p={};f.formatToParts(new Date(kand[i])).forEach(function(x){p[x.type]=x.value;});
+    if(p.year+'-'+p.month+'-'+p.day===dagStr){t0=kand[i];break;}
+  }
+  return {t0:t0,t1:t0+86400000,dag:dagStr};
+}
+function dygnNamn(bak){
+  if(bak===0)return 'Idag';
+  if(bak===1)return 'Ig\u00e5r';
+  var d=new Date(Date.now()-bak*86400000);
+  try{
+    var s=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',weekday:'short',day:'numeric',month:'numeric'}).format(d);
+    return s.charAt(0).toUpperCase()+s.slice(1);
+  }catch(e){return bak+' dygn sedan';}
+}
+function histValj(n){_histDag=Math.max(0,Math.min(6,n|0));var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();try{dlgTop();}catch(e){}}
+function histSammanfattning(f){
+  var ut=[];
+  var maxAv=function(k){var a=(HIST7[k]||[]).filter(function(p){return p.t>=f.t0&&p.t<=f.t1;});
+    if(!a.length)return null;var m=a[0].v,mn=a[0].v;a.forEach(function(p){if(p.v>m)m=p.v;if(p.v<mn)mn=p.v;});
+    return {max:m,min:mn,n:a.length};};
+  var so=maxAv('solar'),hu=maxAv('house'),bp=maxAv('battpct');
+  if(so)ut.push('<span class="hs-c">Sol h\u00f6gst <b>'+fmtW(so.max)+'</b></span>');
+  if(hu)ut.push('<span class="hs-c">F\u00f6rbrukning h\u00f6gst <b>'+fmtW(hu.max)+'</b></span>');
+  if(bp)ut.push('<span class="hs-c">Batteri <b>'+Math.round(bp.min)+'\u2013'+Math.round(bp.max)+' %</b></span>');
+  return ut.length?('<div class="hs-rad">'+ut.join('')+'</div>'):'';
+}
+function buildHistPopup(){
+  var P=(PAL&&PAL[curTheme])||{};
+  var f=dygnFonster(_histDag);
+  var h='<div class="ww-head"><div class="ww-box"><span class="ww-ic" style="color:var(--blue)">'+icon('chart-line')
+    +'</span><div class="ww-bt"><div class="ww-line"><span class="ww-big">'+esc(dygnNamn(_histDag))+'</span></div>'
+    +'<div class="ww-sub">'+esc(f.dag)+'</div></div></div></div>';
+  h+='<div class="hist-dagar">';
+  for(var i=0;i<7;i++)h+='<button class="hist-d'+(i===_histDag?' on':'')+'" onclick="histValj('+i+')">'+esc(dygnNamn(i))+'</button>';
+  h+='</div>';
+  if(!Object.keys(HIST7).length){
+    h+='<div class="viz-empty">'+(_hist7Laddar?'H\u00e4mtar fr\u00e5n Insights\u2026':(_hist7Fel?esc(_hist7Fel):'Ingen historik h\u00e4mtad \u00e4n.'))+'</div>';
+    h+='<button class="dbtn wide" onclick="hist7Hamta(true)">H\u00e4mta igen</button>';
+    return h;
+  }
+  h+='<div class="ww-h">Dygn · sol, f\u00f6rbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W · streckad = batteriets niv\u00e5</span></div>';
+  h+=dayChart([
+    {key:'solar',pts:HIST7['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
+    {key:'house',pts:HIST7['house']||[],col:(P.warm||'#e8933a'),label:'F\u00f6rbrukning'},
+    {key:'batt', pts:HIST7['battpow']||[],col:(P.green||'#7bc47f'),label:'Batteri'}
+  ],{key:'battpct',pts:HIST7['battpct']||[],col:(P.cyan||'#57b6c2'),label:'Batteri %'},
+    {t0:f.t0,t1:f.t1,cid:'g2-hist'});
+  h+=histSammanfattning(f);
+  h+='<div class="cfg-hint">H\u00e4mtat ur Homeys Insights'+(_hist7At?(' \u00b7 '+hm(new Date(_hist7At))):'')+'. Batterieffekten kommer h\u00e4r ur energy_power, som har r\u00e4tt tecken fr\u00e5n b\u00f6rjan.</div>';
+  h+='<button class="dbtn wide" onclick="hist7Hamta(true)">H\u00e4mta om</button>';
+  return h;
+}
+
 function buildEnergyPopup(){
   const pw=w=>(w==null?'–':(Math.abs(w)>=1000?num(w/1000,1)+' kW':Math.round(w)+' W'));
   const house=cap(DEV.consume,'measure_power'),sol=cap(DEV.solar,'measure_power');
@@ -7734,8 +7866,9 @@ function buildEnergyPopup(){
   h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W · streckad = batteriets nivå, 0 % vid nollinjen</span></div>'+dayChart([
     {key:'solar',pts:HIST['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
     {key:'house',pts:HIST['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
-    {key:'batt',pts:HIST['battpow']||[],col:(P.green||'#7bc47f'),label:'Batteri'}
+    {key:'batt',pts:battPowSerie(),col:(P.green||'#7bc47f'),label:'Batteri'}
   ],{key:'battpct',pts:HIST['batt']||[],col:(P.cyan||'#57b6c2'),label:'Batteri %'});
+  h+='<button class="dbtn wide" onclick="openDetail(\'energihist\')">Historik \u00b7 sju dygn</button>';
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
@@ -7990,6 +8123,12 @@ function openDetail(which){
     _energyAlt=false;_energyOpen=true;_popupRebuild=energyPopupRender;
     const bde=$('dlg-body');if(bde)bde.innerHTML=energyPopupRender();
     const bke=$('dlg-back');if(bke&&bke.classList)bke.classList.add('open');dlgTop();return;
+  }else if(which==='energihist'){const dlgh=$('dlg');if(dlgh&&dlgh.classList){dlgh.classList.add('wide');dlgh.classList.add('nohead');}
+    _popupRebuild=buildHistPopup;
+    const bdh=$('dlg-body');if(bdh)bdh.innerHTML=buildHistPopup();
+    const bkh=$('dlg-back');if(bkh&&bkh.classList)bkh.classList.add('open');dlgTop();
+    hist7Hamta(false);
+    return;
   }else if(which==='wxwind'){const dlgw=$('dlg');if(dlgw&&dlgw.classList){dlgw.classList.add('wide');dlgw.classList.add('nohead');}
     _popupRebuild=buildWxWindPopup;setT('dlg-title','Väder & vind');setIcon('dlg-ic','cloud-sun');
     const bdw=$('dlg-body');if(bdw)bdw.innerHTML=buildWxWindPopup();
@@ -12081,7 +12220,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v489';
+const APP_VERSION='v491';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
