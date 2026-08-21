@@ -1354,6 +1354,24 @@ body.tabprev.cmp-open{overflow:auto}
 .cmp-badge.altpct{padding:1px 6px;font-size:10px;margin-left:5px}
 .alt-hint{text-align:center;font-size:10px;color:var(--faint);margin-top:16px;opacity:.7}
 /* Dygnsväljaren i historikrutan. Wrap i stället för sidled-skroll. */
+/* Historikrutan: dagen störst, sedan väljaren, sedan grafen i egen ram. */
+.hist-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.hist-titel{flex:1 1 auto;min-width:0;font-size:19px;font-weight:780;letter-spacing:-.02em}
+.hist-titel small{display:block;font-size:11px;font-weight:600;color:var(--faint);letter-spacing:0;margin-top:1px}
+.hist-om{appearance:none;flex:0 0 auto;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--dim);border-radius:999px;cursor:pointer;padding:0}
+.hist-om .ic{width:16px;height:16px}
+.hist-om:hover{color:var(--ink)}
+.hist-graf{border:1px solid var(--line);border-radius:16px;padding:11px 10px 6px;background:var(--inset);margin-top:10px}
+/* Infoknapp och dess text — samma överallt. */
+.info-b{appearance:none;width:26px;height:26px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:transparent;color:var(--faint);border-radius:999px;cursor:pointer;padding:0;margin-left:6px}
+.info-b .ic{width:14px;height:14px}
+.info-b:hover{color:var(--ink)}
+.info-t{flex-basis:100%;margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--dim);
+  background:var(--inset);border:1px solid var(--line);border-radius:12px;padding:9px 11px;
+  text-transform:none;letter-spacing:0;font-weight:500}
+.ww-h{flex-wrap:wrap}
 .hist-dagar{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}
 .hist-d{appearance:none;flex:1 1 auto;min-width:64px;border:1px solid var(--line);background:var(--inset);
   color:var(--dim);font:inherit;font-size:11.5px;font-weight:700;border-radius:999px;padding:7px 10px;cursor:pointer;
@@ -2478,7 +2496,9 @@ const CONFIG = {
     {label:"Hall",       icon:"lightbulb", device:"7cc59323-b19d-4986-88a3-01702cc16dcc", cap:"onoff", type:"toggle"},
     {label:"Värmefläkt", icon:"sparkle",   type:"flow", flowId:"b8dd9208-7fe9-4a99-ae42-6867a560e2d3", flowType:"standard", confirm:false},
     {label:"Släck allt", icon:"moon",      type:"allLightsOff"}
-  ]
+  ],
+  'info':'<path d="M128,24A104,104,0,1,0,232,128,104.2,104.2,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/>',
+  'arrows-clockwise':'<path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.8,71.4a80,80,0,0,0-113.2.6,8,8,0,0,1-11.4-11.2,96,96,0,0,1,135.8-.6L224,84.7V56a8,8,0,0,1,16,0ZM195.8,184a80,80,0,0,1-113.2.6L56,157.7H72a8,8,0,0,0,0-16H24a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V171.3l26.6,26.5a96,96,0,0,0,135.8-.6,8,8,0,0,0-11.4-11.2Z"/>'
 };
 /* ================================================== */
 
@@ -7744,6 +7764,32 @@ function toggleEnergyVariant(){_energyAlt=!_energyAlt;var bd=$('dlg-body');if(bd
    tecknet vid ritningen: positivt = laddar, negativt = laddar ur.
    Rutorna på startsidan rörs inte; de tar redan beloppet och hämtar tecknet ur
    battery_charging_state. */
+/* DE FYRA KURVORNA DEFINIERAS EN GÅNG. Dygnsvyn och historiken ritade samma
+   sak från två ställen, och det är bara en tidsfråga innan de glider isär.
+   kalla='live' tar dashboardens egen dygnshistorik, 'hist' tar Insights.
+   Skillnaden i tecken hör till källan, inte till grafen: measure_power räknar
+   tvärtom, energy_power rätt. */
+function energiSerier(kalla){
+  var P=(PAL&&PAL[curTheme])||{};
+  var H=(kalla==='hist')?HIST7:HIST;
+  var bp=(kalla==='hist')?(H['battpow']||[]):battPowSerie();
+  return {
+    linjer:[
+      {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
+      {key:'house',pts:H['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
+      {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'}
+    ],
+    procent:{key:'battpct',pts:(kalla==='hist'?(H['battpct']||[]):(H['batt']||[])),
+             col:(P.cyan||'#57b6c2'),label:'Batteri %'}
+  };
+}
+/* All infotext ligger bakom en knapp. En ruta full av förklaringar läser man
+   en gång och sedan aldrig mer — men den tar plats varje gång. */
+function infoBlock(id,text){
+  return '<button class="info-b" onclick="infoVisa(\''+id+'\')" aria-label="Förklaring">'+icon('info')+'</button>'
+    +'<div class="info-t" id="info-'+id+'" hidden>'+text+'</div>';
+}
+function infoVisa(id){var e=$('info-'+id);if(e)e.hidden=!e.hidden;}
 function battPowSerie(){
   var a=HIST['battpow']||[];
   return a.map(function(p){return {t:p.t,v:(p.v==null?null:-p.v)};});
@@ -7822,32 +7868,27 @@ function histSammanfattning(f){
   return ut.length?('<div class="hs-rad">'+ut.join('')+'</div>'):'';
 }
 function buildHistPopup(){
-  var P=(PAL&&PAL[curTheme])||{};
   var f=dygnFonster(_histDag);
-  var h='<div class="ww-head"><div class="ww-box"><span class="ww-ic" style="color:var(--blue)">'+icon('chart-line')
-    +'</span><div class="ww-bt"><div class="ww-line"><span class="ww-big">'+esc(dygnNamn(_histDag))+'</span></div>'
-    +'<div class="ww-sub">'+esc(f.dag)+'</div></div></div></div>';
+  /* Rubriken bär dagen, inte en förklaring: vilken dag man tittar på är det
+     enda man behöver veta hela tiden. Resten ligger bakom infoknappen. */
+  var h='<div class="hist-h"><div class="hist-titel">'+esc(dygnNamn(_histDag))
+    +'<small>'+esc(f.dag)+'</small></div>'
+    +'<button class="hist-om" onclick="hist7Hamta(true)" aria-label="Hämta om">'+icon('arrows-clockwise')+'</button>'
+    +infoBlock('hist','Samma fyra kurvor som i dygnsvyn: solproduktion, förbrukning och batteriets effekt i watt, plus batteriets laddningsnivå som streckad linje på egen skala. Uppgifterna hämtas ur Homeys Insights och täcker sju dygn bakåt. Batteriets effekt kommer här ur energy_power och är positiv när batteriet laddas.')
+    +'</div>';
   h+='<div class="hist-dagar">';
   for(var i=0;i<7;i++)h+='<button class="hist-d'+(i===_histDag?' on':'')+'" onclick="histValj('+i+')">'+esc(dygnNamn(i))+'</button>';
   h+='</div>';
   if(!Object.keys(HIST7).length){
-    h+='<div class="viz-empty">'+(_hist7Laddar?'H\u00e4mtar fr\u00e5n Insights\u2026':(_hist7Fel?esc(_hist7Fel):'Ingen historik h\u00e4mtad \u00e4n.'))+'</div>';
-    h+='<button class="dbtn wide" onclick="hist7Hamta(true)">H\u00e4mta igen</button>';
+    h+='<div class="viz-empty">'+(_hist7Laddar?'Hämtar från Insights…':(_hist7Fel?esc(_hist7Fel):'Ingen historik hämtad än.'))+'</div>';
+    h+='<button class="dbtn wide" onclick="hist7Hamta(true)">Hämta igen</button>';
     return h;
   }
-  h+='<div class="ww-h">Dygn · sol, f\u00f6rbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W · streckad = batteriets niv\u00e5</span></div>';
-  h+=dayChart([
-    {key:'solar',pts:HIST7['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
-    {key:'house',pts:HIST7['house']||[],col:(P.warm||'#e8933a'),label:'F\u00f6rbrukning'},
-    {key:'batt', pts:HIST7['battpow']||[],col:(P.green||'#7bc47f'),label:'Batteri'}
-  ],{key:'battpct',pts:HIST7['battpct']||[],col:(P.cyan||'#57b6c2'),label:'Batteri %'},
-    {t0:f.t0,t1:f.t1,cid:'g2-hist'});
+  var se=energiSerier('hist');
+  h+='<div class="hist-graf">'+dayChart(se.linjer,se.procent,{t0:f.t0,t1:f.t1,cid:'g2-hist'})+'</div>';
   h+=histSammanfattning(f);
-  h+='<div class="cfg-hint">H\u00e4mtat ur Homeys Insights'+(_hist7At?(' \u00b7 '+hm(new Date(_hist7At))):'')+'. Batterieffekten kommer h\u00e4r ur energy_power, som har r\u00e4tt tecken fr\u00e5n b\u00f6rjan.</div>';
-  h+='<button class="dbtn wide" onclick="hist7Hamta(true)">H\u00e4mta om</button>';
   return h;
 }
-
 function buildEnergyPopup(){
   const pw=w=>(w==null?'–':(Math.abs(w)>=1000?num(w/1000,1)+' kW':Math.round(w)+' W'));
   const house=cap(DEV.consume,'measure_power'),sol=cap(DEV.solar,'measure_power');
@@ -7863,11 +7904,10 @@ function buildEnergyPopup(){
   h+='<div class="ww-box"><span class="ww-ic" style="color:var(--ok)">'+icon('sun')+'</span><div class="ww-bt"><div class="ww-line"><span class="ww-big">'+pw(sol)+'</span></div><div class="ww-sub">solproduktion</div></div></div>';
   h+='</div>';
   h+='<div class="ww-insight"><span class="ww-insight-ic">'+icon(_isAI?'sparkle':'leaf')+'</span><span>'+esc(energyInsight())+'</span></div>';
-  h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri <span style="color:var(--faint);font-weight:600;text-transform:none;letter-spacing:0"> · W · streckad = batteriets nivå, 0 % vid nollinjen</span></div>'+dayChart([
-    {key:'solar',pts:HIST['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
-    {key:'house',pts:HIST['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
-    {key:'batt',pts:battPowSerie(),col:(P.green||'#7bc47f'),label:'Batteri'}
-  ],{key:'battpct',pts:HIST['batt']||[],col:(P.cyan||'#57b6c2'),label:'Batteri %'});
+  var se=energiSerier('live');
+  h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri'
+    +infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. Batteriets effekt är positiv när det laddas och negativ när det laddar ur.')
+    +'</div>'+dayChart(se.linjer,se.procent);
   h+='<button class="dbtn wide" onclick="openDetail(\'energihist\')">Historik \u00b7 sju dygn</button>';
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
@@ -12220,7 +12260,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v491';
+const APP_VERSION='v492';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
