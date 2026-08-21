@@ -2760,7 +2760,22 @@ async function homeyGet(path){const c=new AbortController(),id=setTimeout(()=>c.
 async function loadZones(){if(zonesDone||!BASE)return;const z=await homeyGet('/api/manager/zones/zone/');if(z){ZONES=z;zonesDone=true;render();}}
 function findLog(logs,devId,m){const owner='homey:device:'+devId,arr=Array.isArray(logs)?logs:Object.values(logs||{});
   for(const lg of arr){const lid=lg.id||'',lo=lg.uri||lg.ownerUri||'';if(lo!==owner&&lid.indexOf(owner)!==0)continue;if(m.some(x=>lid.indexOf(x)!==-1))return{uri:owner,id:lid};}return null;}
-function parseEntries(d){if(!d)return[];const v=d.values||(Array.isArray(d)?d:[]);return v.map(p=>({t:new Date(p.t||p.date||p.x).getTime(),v:Number(p.v!=null?p.v:p.y)})).filter(p=>!isNaN(p.t)&&!isNaN(p.v));}
+/* SVARET HETER "entries", INTE BARA "values". Jag hämtade solpanelens logg rakt
+   ur Homey och fick tillbaka ett objekt med fältet entries — det syntes i
+   felmeddelandet: path ["entries", 194, "v"]. Den här funktionen letade bara
+   efter values och gav därför tom lista. Vilka serier som drabbas beror på
+   vilken app som skrivit loggen, vilket förklarar varför batteriet kom fram
+   men inte sol och förbrukning.
+   Nullvärden är vanliga i de här loggarna (gap i mätningen) och sorteras bort. */
+function parseEntries(d){
+  if(!d)return[];
+  var v=Array.isArray(d)?d:(d.entries||d.values||d.data||[]);
+  if(!Array.isArray(v))return[];
+  return v.map(function(p){
+    return {t:new Date(p.t||p.date||p.x).getTime(),
+            v:Number(p.v!=null?p.v:(p.y!=null?p.y:NaN))};
+  }).filter(function(p){return !isNaN(p.t)&&!isNaN(p.v);});
+}
 async function seedHistory(){if(seeded)return;seeded=true;const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
   const want={solar:[DEV.solar,['measure_power','watt']],house:[DEV.consume,['measure_power','watt']],price:[DEV.tibber,['measure_price_total','price_total','price']],
     batt:[DEV.battery,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
@@ -12308,7 +12323,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v494';
+const APP_VERSION='v495';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
