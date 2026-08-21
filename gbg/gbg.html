@@ -551,6 +551,8 @@ body.mobile .statusbar.stuck{
 .rum-master .dv-ic{width:32px;height:32px;border-radius:11px}
 .rum-master .dv-ic .ic{width:18px;height:18px}
 .rum-master.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.18)}
+/* Masterns reglage låg kant i kant med rutans insida. Lite luft på båda sidor. */
+.rum-master .slx{margin-left:6px;margin-right:6px}
 .rum-master .sl{height:7px}
 .rum-master .sl-h{font-size:11.5px;color:var(--dim)}
 .rum-master.vantar,.dv-row.vantar{outline:1px solid var(--warm);outline-offset:2px;border-radius:12px}
@@ -565,9 +567,12 @@ body.mobile .statusbar.stuck{
   max-width:100%;box-sizing:border-box}
 .slx-spar{position:absolute;top:50%;left:0;right:0;height:5px;transform:translateY(-50%);
   border-radius:3px;background:var(--inset);border:1px solid var(--line);box-sizing:border-box}
-.slx-fyll{position:absolute;top:50%;left:0;height:5px;transform:translateY(-50%);
+.slx-fyll{position:absolute;top:50%;left:0;height:5px;transform:translateY(-50%);max-width:100%;
   border-radius:3px;background:linear-gradient(90deg,rgba(235,203,139,.55),var(--gold));pointer-events:none}
-.slx-prick{position:absolute;top:50%;width:26px;height:26px;margin-left:-13px;transform:translateY(-50%);
+/* Pricken räknas från sin MITT, och mitten får bara röra sig mellan 13 px och
+   bredd−13 px. Förut satt left rakt på procenten med en negativ marginal, så
+   vid 100 % hängde halva pricken utanför rutan — syns på skärmdumpen. */
+.slx-prick{position:absolute;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
   border-radius:50%;background:var(--gold);border:2px solid var(--marker-ring);
   box-shadow:0 2px 6px rgba(0,0,0,.3);touch-action:none;cursor:grab}
 .slx.drar .slx-prick{cursor:grabbing;box-shadow:0 0 0 7px rgba(235,203,139,.18),0 2px 6px rgba(0,0,0,.3)}
@@ -820,7 +825,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.29.0';
+const APP_VERSION = 'v1.30.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1293,16 +1298,22 @@ function stickyBar(){
 /* Bygger ett reglage. handling är namnet på funktionen som ska anropas med
    (id, värde) när man släpper — inte under dragningen, så Homey får ett anrop
    och inte femtio. */
+/* Pricken är 26 px, alltså 13 px radie. Både fyllningen och prickens mitt
+   räknas i den krängda skalan 13 … bredd−13, så ingenting hamnar utanför. */
+const SLX_R=13;
+function slxPos(andel){
+  return 'calc('+SLX_R+'px + (100% - '+(SLX_R*2)+'px) * '+andel.toFixed(4)+')';
+}
 function slxHTML(id,varde,handling,min,max){
   const mn=(min==null?1:min),mx=(max==null?100:max);
   const v=Math.max(mn,Math.min(mx,Math.round(varde)));
-  const p=((v-mn)/Math.max(1,mx-mn))*100;
+  const a=(v-mn)/Math.max(1,mx-mn);
   return '<div class="slx" data-slx="'+esc(id)+'" data-act="'+esc(handling)+'"'
     +' data-min="'+mn+'" data-max="'+mx+'" data-v="'+v+'"'
     +' role="slider" aria-valuemin="'+mn+'" aria-valuemax="'+mx+'" aria-valuenow="'+v+'" tabindex="0">'
     +'<div class="slx-spar"></div>'
-    +'<div class="slx-fyll" style="width:'+p.toFixed(1)+'%"></div>'
-    +'<div class="slx-prick" style="left:'+p.toFixed(1)+'%"></div></div>';
+    +'<div class="slx-fyll" style="width:'+slxPos(a)+'"></div>'
+    +'<div class="slx-prick" style="left:'+slxPos(a)+'"></div></div>';
 }
 function slxSatt(el,v,rita){
   const mn=+el.dataset.min,mx=+el.dataset.max;
@@ -1310,10 +1321,10 @@ function slxSatt(el,v,rita){
   el.dataset.v=String(v);
   el.setAttribute('aria-valuenow',String(v));
   if(rita!==false){
-    const p=((v-mn)/Math.max(1,mx-mn))*100;
+    const a=(v-mn)/Math.max(1,mx-mn);
     const f=el.querySelector('.slx-fyll'),k=el.querySelector('.slx-prick');
-    if(f)f.style.width=p.toFixed(1)+'%';
-    if(k)k.style.left=p.toFixed(1)+'%';
+    if(f)f.style.width=slxPos(a);
+    if(k)k.style.left=slxPos(a);
   }
   return v;
 }
@@ -1340,7 +1351,10 @@ function slxRor(e){
   const r=d.el.getBoundingClientRect();
   if(!r.width)return;
   const mn=+d.el.dataset.min,mx=+d.el.dataset.max;
-  slxSatt(d.el,mn+((e.clientX-r.left)/r.width)*(mx-mn));
+  /* Samma krängda skala som ritningen använder, annars släpar pricken efter
+     fingret i ändarna. */
+  const spann=Math.max(1,r.width-SLX_R*2);
+  slxSatt(d.el,mn+((e.clientX-r.left-SLX_R)/spann)*(mx-mn));
   e.preventDefault();
 }
 function slxUpp(){
