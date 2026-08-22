@@ -8146,6 +8146,8 @@ function openDetail(which){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
+      +'<div class="cfg-hint" style="margin:2px 0 8px">Kurvans form kommer från Tibbers timpriser, nivån från '
+      +(_prisKal?'elprislägst och elprishögst — samma skala som raderna nedan.':'Tibber orört, eftersom facitvärdena saknas just nu.')+'</div>'
       +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',num(elprisNow(),2)+' kr/kWh')+dRow('Lägsta idag',num(elprisLo(),2)+' kr/kWh')+dRow('Högsta idag',num(elprisHi(),2)+' kr/kWh')+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
       +dayBarsHTML('cost','kr per dag','warm');
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
@@ -9612,8 +9614,43 @@ async function prisVarHamta(){
     try{if(typeof _popupRebuild==='function'){var b=$('dlg-body');if(b)b.innerHTML=_popupRebuild();}}catch(e){}
   }catch(e){_prisFel=(e&&e.message)||'fel vid hämtning';}
 }
+/* KALIBRERING MOT DE AUKTORITATIVA SIFFRORNA.
+   Tibbers "total" och logikvariabeln Elpris är inte samma tal: total saknar det
+   som läggs på ovanpå spotpriset. Kurvan hamnade därför för lågt medan raderna
+   under grafen visade rätt — samma dygn, två olika skalor.
+
+   Sambandet är affint: pålägg som räknas i procent blir en faktor, avgifter i
+   ören blir en konstant. Två kända punkter räcker alltså för att lägga om hela
+   kurvan: dygnets lägsta och högsta enligt elprislägst och elprishögst, som
+   projektet räknar som facit. Formen är Tibbers, nivån är din.
+
+   Morgondagen kalibreras med SAMMA faktor och konstant — avgifter ändras inte
+   över en natt, och imorgon finns inga facitvärden att passa mot.
+   Saknas facit ritas Tibbers tal orörda, och infotexten säger det. */
+var _prisKal=null;
+function prisKalibrering(pts){
+  var lo=elprisLo(),hi=elprisHi();
+  if(pts&&pts.length>1&&lo!=null&&hi!=null&&isFinite(lo)&&isFinite(hi)){
+    var vs=pts.map(function(p){return p[1];});
+    var tlo=Math.min.apply(null,vs),thi=Math.max.apply(null,vs);
+    /* Ett för litet spann gör lutningen orimlig — då är en ren förskjutning
+       ärligare än en uppblåst faktor. */
+    if(thi-tlo>0.05){
+      var a=(hi-lo)/(thi-tlo);
+      if(a>0.2&&a<8){_prisKal={a:a,b:lo-a*tlo};return _prisKal;}
+    }
+    _prisKal={a:1,b:lo-tlo};return _prisKal;
+  }
+  return _prisKal;                        /* gårdagens passning duger för imorgon */
+}
+function prisKalibrera(pts,offset){
+  var k=(offset===0)?prisKalibrering(pts):(_prisKal||prisKalibrering(pts));
+  if(!k)return pts;
+  return pts.map(function(p){return [p[0],k.a*p[1]+k.b];});
+}
 function dayPriceGraphSVG(offset){offset=offset||0;
   var franTibber=prisDygn(offset);
+  if(franTibber)franTibber=prisKalibrera(franTibber,offset);
   var o=plogDays(),key=dayKey(new Date(Date.now()+offset*86400000));
   var pts=franTibber?franTibber:(o.days[key]||[]).slice();
   if((pts.length<3)&&SOURCE==='demo-data'&&offset===0){pts=[];for(var hh=0;hh<=23.5;hh+=0.5)pts.push([hh,0.55+0.5*Math.sin((hh-3)/24*2*Math.PI)+(hh>16&&hh<21?0.75:0)+0.12*Math.sin(hh*1.7)]);}
@@ -12399,7 +12436,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v499';
+const APP_VERSION='v500';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
