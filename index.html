@@ -4350,16 +4350,50 @@ function daySeg(pts){if(!pts||pts.length<3)return null;var now=Date.now(),cut=no
 /* pctSerie ritas på EGEN skala: 0 % vid nollinjen, 100 % högst upp. Watt och
    procent har inget gemensamt mått, så att lägga dem på samma axel vore att
    ljuga med en snygg kurva. Den här linjen är streckad för att skilja sig. */
+/* GLESA UT FÖRE RITNING.
+   Ett dygn med en punkt i minuten är 1440 värden — grafen är 300 enheter bred,
+   så fem punkter trängs på varje pixel. Resultatet blir en luddig linje som
+   inte går att läsa. Här slås punkterna ihop i lika breda tidsfack.
+
+   Medelvärde per fack, inte första eller sista: en effektkurva hoppar mellan
+   avläsningar, och ett stickprov skulle bevara bruset i stället för formen.
+   Facken är tidsbaserade och inte antalsbaserade, så en lucka i mätningen
+   förblir en lucka och trycks inte ihop. */
+var GLES_MAX=150;
+function glesa(seg,max){
+  var tak=max||GLES_MAX;
+  if(!seg||seg.length<=tak)return seg;
+  var t0=seg[0].t,t1=seg[seg.length-1].t,spann=t1-t0;
+  if(!(spann>0))return seg;
+  var fack=[],ut=[];
+  seg.forEach(function(p){
+    var i=Math.min(tak-1,Math.floor((p.t-t0)/spann*tak));
+    (fack[i]=fack[i]||[]).push(p);
+  });
+  fack.forEach(function(grupp){
+    if(!grupp||!grupp.length)return;
+    var sv=0,st=0;
+    grupp.forEach(function(p){sv+=p.v;st+=p.t;});
+    ut.push({t:Math.round(st/grupp.length),v:sv/grupp.length});
+  });
+  /* Ändpunkterna behålls orörda så kurvan börjar och slutar där datan gör. */
+  if(ut.length){ut[0]=seg[0];ut[ut.length-1]=seg[seg.length-1];}
+  return ut;
+}
 function dayChart(series,pctSerie,fonster){
   var cid=(fonster&&fonster.cid)||'g2-day';
   /* Med ett fönster ritas exakt det dygnet, även om serien saknar punkter i
      början eller slutet — annars skulle x-axeln krympa till det som råkar
      finnas och två dygn bli osjämförbara. */
   var klipp=function(pts){
-    if(!fonster)return daySeg(pts);
-    if(!pts||!pts.length)return null;
-    var seg=pts.filter(function(p){return p.t>=fonster.t0&&p.t<=fonster.t1;});
-    return seg.length>=2?seg:null;
+    var seg;
+    if(!fonster)seg=daySeg(pts);
+    else{
+      if(!pts||!pts.length)return null;
+      seg=pts.filter(function(p){return p.t>=fonster.t0&&p.t<=fonster.t1;});
+      if(seg.length<2)return null;
+    }
+    return seg?glesa(seg):seg;
   };
   var segs=series.map(function(s){return {s:s,seg:klipp(s.pts)};}).filter(function(o){return o.seg;});
   if(!segs.length)return '<div class="viz-empty">'+(fonster?'Ingen data för det dygnet.':'Samlar in data… grafen fylls på efter hand.')+'</div>';
@@ -12607,7 +12641,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v506';
+const APP_VERSION='v507';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
