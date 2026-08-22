@@ -10199,7 +10199,7 @@ async function brvTryck(){
     try{renderTiles('flode');renderControls();}catch(e){}return;}
   /* Variabeln uppdateras inom någon sekund. Hämta om några gånger i stället
      för att vänta på nästa ordinarie cykel. */
-  [2000,5000,10000].forEach(function(ms){setTimeout(function(){brvHamta();},ms);});
+  [2000,5000,10000].forEach(function(ms){setTimeout(function(){brvHamta();diskHamta();},ms);});
   setTimeout(function(){_brvVanta=0;try{renderTiles('flode');}catch(e){}},11000);}
 
 async function homeyTriggerFlow(type,id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(8000);
@@ -11695,6 +11695,9 @@ async function bootSync(){
   try{huvudAuto();}catch(e){}
   /* Breveden hämtas en gång vid öppning så kortet har ett värde direkt. */
   try{brvHamta();}catch(e){}
+  /* Diskbokningen läses vid samma tillfällen som Breveden. Utan det här skulle
+     knappen stå släckt trots en bokning, tills man tryckte på den. */
+  try{diskHamta();}catch(e){}
   if(CFG.sync===false)return;if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
   /* Appen först vid uppstart också. Har den något sparat är det färskare och
      fullständigare än logikvariabeln, som kan ha tappat loggar till DROPPABLE. */
@@ -12714,6 +12717,12 @@ function beSave(i){
     cfg={label:label||'På / Av',type:'moodtoggle',moodOn:on.value,moodOff:off.value};
     if(rf&&rf.value){cfg.refDev=rf.value;cfg.refCap='onoff';}
     if(_beIcon)cfg.icon=_beIcon;
+  }else if(T==='disk'){
+    /* HÄR SAKNADES GRENEN i v510. Typen fanns i listan, i beTypeOf och i
+       ritningen — men inte här, så knappen sparades som en enhetsknapp utan
+       enhet. Den kunde därför varken tändas eller göra något.
+       Som Breveden: inget att spara utöver namnet, flows och variabel är fasta. */
+    cfg={label:label||'Diskmaskin',type:'disk',icon:_beIcon||'dishwasher'};
   }else if(T==='breveden'){
     /* Inget att spara utöver namnet: flows och logikvariabel är fasta, och
        skriptet äger all bedömning. */
@@ -12758,7 +12767,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v510';
+const APP_VERSION='v511';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -14607,7 +14616,7 @@ setInterval(function(){try{kronKoll();}catch(e){}},60000);
 /* Breveden var femte minut — variabeln uppdateras var 15:e i Homey, men även
    vid varje temperaturändring på Attefall, så tätare läsning ger färskare kort
    utan att kosta något nämnvärt. */
-setInterval(function(){try{if(!document.hidden&&appKan())brvHamta();}catch(e){}},300000);
+setInterval(function(){try{if(!document.hidden&&appKan()){brvHamta();diskHamta();}}catch(e){}},300000);
 /* DYGNSBYTE. kronKoll ritar bara om när notisernas id ändras, så "idag" stod
    kvar på gårdagens notiser tills en ny kom — vilket kan dröja till klockan
    åtta. En gång i minuten räcker för att fånga midnatt. */
