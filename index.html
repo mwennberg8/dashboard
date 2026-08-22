@@ -8146,8 +8146,9 @@ function openDetail(which){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +'<div class="cfg-hint" style="margin:2px 0 8px">Kurvans form kommer från Tibbers timpriser, nivån från '
-      +(_prisKal?'elprislägst och elprishögst — samma skala som raderna nedan.':'Tibber orört, eftersom facitvärdena saknas just nu.')+'</div>'
+      +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
+      +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
+        +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
       +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',num(elprisNow(),2)+' kr/kWh')+dRow('Lägsta idag',num(elprisLo(),2)+' kr/kWh')+dRow('Högsta idag',num(elprisHi(),2)+' kr/kWh')+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
       +dayBarsHTML('cost','kr per dag','warm');
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
@@ -9648,6 +9649,40 @@ function prisKalibrera(pts,offset){
   if(!k)return pts;
   return pts.map(function(p){return [p[0],k.a*p[1]+k.b];});
 }
+/* En etikett mitt över sin punkt hamnar utanför rutan när punkten ligger vid
+   kanten — "271 öre" blev "1 öre" i vänsterkanten. Här byts förankringen nära
+   kanterna i stället, så hela texten alltid får plats. */
+/* ===================== TVÅ GENOMGÅENDE REGLER =====================
+   GRAFREGEL: alla grafer i dashboarden ritas likadant. Färger tas ur PAL för
+   aktuellt tema — aldrig hårdkodade hex utanför paletten. Linjer är 2,2–2,4 px
+   med runda hörn och ändar, ytan under en kurva är samma toning från 28 % till
+   noll, markörer är 3,6 px cirklar, och etiketter använder .pg-tag med
+   förankring som byts nära kanterna så texten aldrig klipps. Nya grafer ska
+   följa det här utan undantag; avviker något är det en bugg, inte en variant.
+
+   INFOREGEL: förklarande text ligger ALLTID bakom en infoknapp — infoBlock()
+   med husets .di-q och .drow-info. Ingen lös brödtext i en popup. En ruta full
+   av förklaringar läser man en gång och sedan aldrig mer, men den tar plats
+   varje gång.
+   ================================================================= */
+function pgTagg(x,y,txt,kl,W){
+  var a='middle',xx=x;
+  if(x<30){a='start';xx=2;}
+  else if(x>W-30){a='end';xx=W-2;}
+  return '<text class="pg-tag '+kl+'" x="'+xx.toFixed(1)+'" y="'+y.toFixed(1)+'" text-anchor="'+a+'">'+txt+'</text>';
+}
+/* Blandar två hexfärger. Används av prisgrafens färgskala. */
+function blanda(a,b,t){
+  var p=function(h){h=String(h||'').replace('#','');
+    if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    return [parseInt(h.slice(0,2),16)||0,parseInt(h.slice(2,4),16)||0,parseInt(h.slice(4,6),16)||0];};
+  var A=p(a),B=p(b),o='#';
+  for(var i=0;i<3;i++){
+    var v=Math.round(A[i]+(B[i]-A[i])*Math.max(0,Math.min(1,t)));
+    o+=('0'+v.toString(16)).slice(-2);
+  }
+  return o;
+}
 function dayPriceGraphSVG(offset){offset=offset||0;
   var franTibber=prisDygn(offset);
   if(franTibber)franTibber=prisKalibrera(franTibber,offset);
@@ -9671,13 +9706,27 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   var s='<svg class="pgraph-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
   s+='<defs><linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+P.blue+'" stop-opacity=".28"/><stop offset="100%" stop-color="'+P.blue+'" stop-opacity="0"/></linearGradient></defs>';
   s+='<path d="'+area+'" fill="url(#pgFill)"/>';
-  s+='<path d="'+line+'" fill="none" stroke="'+P.blue+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  /* FÄRGSKALA LÄNGS LINJEN: grönt där det är billigast, gult däremellan, rött
+     där det är dyrast. Gradienten följer x-led i användarkoordinater och får en
+     stopp per timme, så färgen byter där priset gör det. */
+  var farg=function(v){
+    var t=(yhi>ylo)?((v-ylo)/(yhi-ylo)):0;
+    if(t<0)t=0;if(t>1)t=1;
+    return (t<0.5)?blanda(P.green,P.sun,t*2):blanda(P.sun,P.hot,(t-0.5)*2);
+  };
+  var stops='';
+  pts.forEach(function(pp,i){
+    var off=((X(pp[0])-padL)/Math.max(1,(W-padL-padR))*100);
+    stops+='<stop offset="'+Math.max(0,Math.min(100,off)).toFixed(2)+'%" stop-color="'+farg(pp[1])+'"/>';
+  });
+  s=s.replace('</defs>','<linearGradient id="pgLine" gradientUnits="userSpaceOnUse" x1="'+padL+'" y1="0" x2="'+(W-padR)+'" y2="0">'+stops+'</linearGradient></defs>');
+  s+='<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
   /* högsta */
-  s+='<circle cx="'+X(xs[iHi]).toFixed(1)+'" cy="'+Y(ys[iHi]).toFixed(1)+'" r="3.6" fill="'+P.warm+'"/>';
-  s+='<text class="pg-tag pg-hi" x="'+X(xs[iHi]).toFixed(1)+'" y="'+(Y(ys[iHi])-6).toFixed(1)+'" text-anchor="middle">'+Math.round(ys[iHi]*100)+' öre</text>';
+  s+='<circle cx="'+X(xs[iHi]).toFixed(1)+'" cy="'+Y(ys[iHi]).toFixed(1)+'" r="3.6" fill="'+P.hot+'"/>';
+  s+=pgTagg(X(xs[iHi]),Y(ys[iHi])-6,Math.round(ys[iHi]*100)+' öre','pg-hi',W);
   /* lägsta */
   s+='<circle cx="'+X(xs[iLo]).toFixed(1)+'" cy="'+Y(ys[iLo]).toFixed(1)+'" r="3.6" fill="'+P.green+'"/>';
-  s+='<text class="pg-tag pg-lo" x="'+X(xs[iLo]).toFixed(1)+'" y="'+(Y(ys[iLo])+13).toFixed(1)+'" text-anchor="middle">'+Math.round(ys[iLo]*100)+' öre</text>';
+  s+=pgTagg(X(xs[iLo]),Y(ys[iLo])+13,Math.round(ys[iLo]*100)+' öre','pg-lo',W);
   /* nuläge (bara idag) */
   if(offset===0){var now=new Date(),hNow=now.getHours()+now.getMinutes()/60,cur=elprisNow();if(cur==null)cur=ys[ys.length-1];
     if(hNow<=24)s+='<line class="pg-now" x1="'+X(hNow).toFixed(1)+'" y1="'+padT+'" x2="'+X(hNow).toFixed(1)+'" y2="'+(H-padB)+'"/><circle cx="'+X(hNow).toFixed(1)+'" cy="'+Y(cur).toFixed(1)+'" r="3" fill="'+P.ink+'" stroke="'+P.panel+'" stroke-width="1.5"/>';}
@@ -12436,7 +12485,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v500';
+const APP_VERSION='v501';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13482,6 +13531,9 @@ function cacheVisa(){
   DATA=r.dev;
   if(r.zon&&Object.keys(r.zon).length&&!Object.keys(ZONES).length)ZONES=r.zon;
   VISAR_CACHE=true;
+  /* Foten sa "demo data" vid första öppningen, för SOURCE står på demo tills
+     nätet svarat. Visar vi sparad data ska det stå det. */
+  SOURCE='sparad data';
   lastUpdate=r.at;
   setStatus('cache','Sparat '+hhmm(new Date(r.at)));
   try{render();}catch(e){}
@@ -13490,6 +13542,13 @@ function cacheVisa(){
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 async function load(){
   credTillCONFIG();
+  /* GUL MEDAN DET LADDAS. Regeln är: rött = ingen kontakt, gult = sparad data
+     eller hämtning pågår, grönt = färska värden från Homey. Utan det här stod
+     punkten kvar på grönt medan hämtningen pågick och ljög i några sekunder. */
+  try{
+    if(!isDemo()&&credFinns())
+      setStatus('cache',VISAR_CACHE?('Sparat '+hhmm(new Date(lastUpdate||Date.now()))):'Hämtar…');
+  }catch(e){}
   let map=null;const notConf=!credFinns();
   /* Utan uppgifter: visa rutan i stallet for en dashboard full av streck. */
   if(notConf&&!isDemo()&&!CONFIG.DATA_URL){try{setupVisa();}catch(e){}}
