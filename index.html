@@ -2508,7 +2508,7 @@ const DEV={tibber:'291ba3e3-c5e2-4542-bad8-a67a5ecc8611',solar:'b47e45d7-9485-4e
   consume:'f01cb4ed-5f43-4e19-84b1-6bcec40e1049',pulse:'b72898a2-1222-456a-877b-018918f9dd34',
   battery:'331c4824-2fc0-4ebb-90e3-2c6591bba254',car:'9587cbcd-4c57-4313-9390-8319ce1c052d',car2:'cc4d7397-3ccf-4ab3-82fd-d4f8c3ddf5f8',
   dish:'a6a9eccb-4d40-4eff-837a-4242bb564180',awning:'98c55155-7e0b-450c-9b12-0dea9762a120',
-  smhi:'173bed19-d5fa-4f9d-90b3-42cb8f28fce9',windMs:'2b98bca1-14cc-4d3b-85eb-1f42ec89a1e1',windNet:'193d9b83-d332-483d-9142-e3ad24e8a269',
+  smhi:'173bed19-d5fa-4f9d-90b3-42cb8f28fce9',windMs:'193d9b83-d332-483d-9142-e3ad24e8a269',windNet:'193d9b83-d332-483d-9142-e3ad24e8a269',
   rain:'e202369e-2016-4a28-b012-b75215450ff4',pooltemp:'d6e3c81b-e500-4124-a068-16d8bda43a9e',
   outdoor:'b99ccbd5-fdb8-41ff-b10d-04a30a1eb2ff',vader:'2412f387-2c86-4264-8354-7c2393860576',poolheat:'e97d77e7-c4e5-407d-8d7c-b03edb95a63e',laddbox:'e882dce2-fe2f-4064-9d02-c973d6d0b999',
   vard:'1a3527b2-8e53-4551-9d36-f92793f2256a',uterum:'824908de-f6ef-408c-9228-8107511938f6',
@@ -2688,7 +2688,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
   ['batt',()=>capLive(DEV.battery,'measure_battery')],['t_kok',()=>capLive(DEV.vader,'measure_temperature')],
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>capLive(DEV.battery,'measure_power')],
-  ['wind',()=>capLive(DEV.windMs,'measure_wind_strength')],['gust',()=>capLive(DEV.windMs,'measure_gust_strength')],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
+  ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
   ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')]];
 /* ===== Historik ur v2-appen =====
@@ -2706,6 +2706,8 @@ var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar
   t_ute:[()=>DEV.outdoor,'measure_temperature'],co2:[()=>DEV.vader,'measure_co2'],
   grid:[()=>DEV.pulse,'measure_power'],pool:[()=>DEV.pooltemp,'measure_temperature'],
   hum:[()=>DEV.outdoor,'measure_humidity'],press:[()=>DEV.vader,'measure_pressure'],
+  /* Appen loggar rådata i km/h — omräkningen sker när vi läser, inte när den
+     skrivs, så att en redan sparad serie inte behöver röras. */
   wind:[()=>DEV.windMs,'measure_wind_strength'],gust:[()=>DEV.windMs,'measure_gust_strength'],
   winddir:[()=>DEV.windNet,'measure_wind_angle'],rain:[()=>DEV.rain,'measure_rain.24h'],
   t_uterum:[()=>DEV.uterum,'measure_temperature'],t_poolrum:[()=>DEV.poolrum,'measure_temperature'],
@@ -2752,6 +2754,9 @@ async function appSerierHamta(){
              runt; webbläsaren bara när sidan är öppen. Sammanslagning i stället
              för överskrivning betyder att ingen källa tappas — men vi noterar
              VILKEN som når längst bakåt, så kurvorna kan säga det. */
+          /* Vind och byar kommer i km/h från enheten. Allt annat i HIST är i
+             den enhet dashboarden visar, så de räknas om här. */
+          if(k==='wind'||k==='gust')p=p.map(function(x){return {t:x.t,v:x.v/3.6};});
           var tidigast=p.length?Math.min.apply(null,p.map(function(x){return x.t;})):null;
           _serKalla[k]={app:p.length,fran:tidigast};
           HIST[k]=histMerge(HIST[k],p,cut);
@@ -2797,7 +2802,10 @@ async function seedHistory(){if(seeded)return;seeded=true;const logs=await homey
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']]};
   for(const k in want){const lg=findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
-    const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=today'),pts=parseEntries(e);
+    const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=today');
+    let pts=parseEntries(e);
+    /* Vindloggen ligger i km/h i Homey. Allt annat i dashboarden är m/s. */
+    if(k==='wind'||k==='gust')pts=pts.map(p=>({t:p.t,v:p.v/3.6}));
     if(pts.length)HIST[k]=histMerge(HIST[k],pts,Date.now()-CONFIG.HISTORY_HOURS*3600*1000);}
   saveHist();render();}
 
@@ -3584,6 +3592,7 @@ async function windInsFetch(force){
       var lg=findLog(logs,vill[k][0],vill[k][1]); if(!lg)continue;
       var e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=today');
       var p=parseEntries(e);
+      if(k==='wind'||k==='gust')p=p.map(function(x){return {t:x.t,v:x.v/3.6};});
       if(p.length){ny[k]=p.sort(function(a,b){return a.t-b.t;});hittade++;}}
     if(!hittade)throw new Error('hittade ingen logg för '+((DATA[DEV.windMs]||{}).name||'vindmätaren'));
     _windSeries=ny;_windInsFel=null;
@@ -3737,6 +3746,28 @@ function pressureTrend(cur){
 function forecastPressureTrend(h){if(h==null)return 0;const a=forecastAt(dayStart()+h*3600000),b=forecastAt(dayStart()+(h-2)*3600000);if(!a||!b||a.msl==null||b.msl==null)return 0;const d=a.msl-b.msl;return d>0.5?1:d<-0.5?-1:0;}
 function histPressureTrend(h){if(h==null)return 0;const T=dayStart()+h*3600000,a=histValueAt('press',T),b=histValueAt('press',T-2*3600000);if(a==null||b==null)return 0;const d=a-b;return d>0.5?1:d<-0.5?-1:0;}
 /* En gemensam väg till vindriktningen: egen vindmätare först, SMHI som reserv. */
+/* ===== vind: en enda källa =====
+   All vind kommer från VindmätareNet (193d9b83). Den rapporterar i KM/H —
+   avläst ur enheten 2026-08-22: measure_wind_strength 25 och
+   measure_gust_strength 61, medan SMHI samtidigt sa 6,7 respektive 13,9 m/s.
+   25/3,6 = 6,9 och 61/3,6 = 16,9, alltså samma väder i två enheter.
+   Dashboarden räknar i m/s överallt, så omräkningen sker här — på ETT ställe,
+   inte i varje ruta. Riktningen kommer ur measure_wind_angle i grader och
+   översätts till text; den gamla enhetens textfält används inte längre. */
+function kmhTillMs(v){return (v==null||!isFinite(v))?null:(v/3.6);}
+function vindMs(live){
+  var v=live?capLive(DEV.windMs,'measure_wind_strength'):cap(DEV.windMs,'measure_wind_strength');
+  return kmhTillMs(v);}
+function byMs(live){
+  var v=live?capLive(DEV.windMs,'measure_gust_strength'):cap(DEV.windMs,'measure_gust_strength');
+  return kmhTillMs(v);}
+/* 16 strålar à 22,5°. 0° är nord, och vinkeln anger varifrån vinden blåser. */
+var VIND_STRECK=['N','NNO','NO','ONO','O','OSO','SO','SSO','S','SSV','SV','VSV','V','VNV','NV','NNV'];
+function gradTillText(d){
+  if(d==null||!isFinite(d))return null;
+  var i=Math.round((((d%360)+360)%360)/22.5)%16;
+  return VIND_STRECK[i];
+}
 function windDeg(){var d=cap(DEV.windNet,'measure_wind_angle');
   if(d==null)d=cap(DEV.smhi,'measure_wind_direction_cp');
   return (d!=null&&isFinite(d))?d:null;}
@@ -3747,7 +3778,11 @@ function windDeg(){var d=cap(DEV.windNet,'measure_wind_angle');
 function windDirTxt(deg){
   var d=(deg===undefined)?windDeg():deg;
   return windAbbr(d)||windText();}
-function windText(){if(_timeActive)return null;const d=DATA[DEV.windMs];if(d&&d.capabilitiesObj){for(const k in d.capabilitiesObj){if(k.indexOf('devicecapabilities_text')===0){const v=d.capabilitiesObj[k].value;if(v!=null&&(''+v).trim()!=='')return (''+v).trim();}}}return null;}
+function windText(){
+  if(_timeActive)return null;
+  /* Ur grader, inte ur ett textfält på den gamla enheten. */
+  return gradTillText(cap(DEV.windNet,'measure_wind_angle'));
+}
 function indoorAvgTemp(){const a=cap(DEV.vard,'measure_temperature'),b=cap(DEV.vader,'measure_temperature');const xs=[a,b].filter(v=>v!=null&&isFinite(v));if(!xs.length)return null;return xs.reduce((s,v)=>s+v,0)/xs.length;}
 function gustDesc(g){if(g==null)return '';if(g<8)return 'svaga byar';if(g<11)return 'måttliga byar';if(g<14)return 'friska byar';if(g<17)return 'kraftiga byar';if(g<21)return 'hårda byar';if(g<25)return 'mycket hårda byar';return 'stormbyar';}
 function indoorAvgSeries(){const a=HIST['t_vard']||[],b=HIST['t_kok']||[];const out=[];let j=0;
@@ -3829,7 +3864,7 @@ function ptsLineSVG(pts,colKey,unit){const now=Date.now();
 function buildWeatherHTML(){
   const sit=cap(DEV.smhi,'measure_weather_situation_cp');
   const tOut=cap(DEV.outdoor,'measure_temperature'),feels=cap(DEV.smhi,'air_temperature_feels_like_cp');
-  const wspd=cap(DEV.windMs,'measure_wind_strength'),wgust=cap(DEV.windMs,'measure_gust_strength');
+  const wspd=vindMs(),wgust=byMs();
   let wdir=cap(DEV.windNet,'measure_wind_angle');if(wdir==null)wdir=cap(DEV.smhi,'measure_wind_direction_cp');
   const whead=cap(DEV.smhi,'measure_wind_direction_heading_cp');
   const hum=cap(DEV.outdoor,'measure_humidity'),rain=cap(DEV.rain,'measure_rain.24h'),pres=cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp');
@@ -4075,7 +4110,7 @@ function buildWxWindPopup(){
   const g=k=>cap(DEV.smhi,k);
   const sit=g('measure_weather_situation_cp'),feels=g('air_temperature_feels_like_cp'),ftime=g('forecast_for_cp');
   const tOut=cap(DEV.outdoor,'measure_temperature');
-  const wspd=cap(DEV.windMs,'measure_wind_strength'),wgust=cap(DEV.windMs,'measure_gust_strength'),wdir=cap(DEV.windNet,'measure_wind_angle');
+  const wspd=vindMs(),wgust=byMs(),wdir=cap(DEV.windNet,'measure_wind_angle');
   const wh=g('measure_wind_direction_heading_cp'),smhiWs=g('measure_wind_speed_cp');
   const hum=cap(DEV.outdoor,'measure_humidity'),press=cap(DEV.vader,'measure_pressure')||g('measure_air_pressure_cp'),rain=cap(DEV.rain,'measure_rain.24h');
   const cloud=g('mean_value_of_total_cloud_cover_cp'),vis=g('horizontal_visibility_cp'),prec=g('measure_precipitation_situation_cp'),thun=g('measure_thunder_probability_cp');
@@ -4769,8 +4804,8 @@ function buildInsState(){
   S.tempOut=cap(DEV.outdoor,'measure_temperature'); if(S.tempOut==null)S.tempOut=cap(DEV.vader,'measure_temperature');
   S.feels=cap(DEV.smhi,'air_temperature_feels_like_cp');
   S.humOut=cap(DEV.outdoor,'measure_humidity');
-  S.wind=cap(DEV.windMs,'measure_wind_strength'); if(S.wind==null)S.wind=cap(DEV.smhi,'measure_wind_speed_cp');
-  S.gust=cap(DEV.windMs,'measure_gust_strength');
+  S.wind=vindMs(); if(S.wind==null)S.wind=cap(DEV.smhi,'measure_wind_speed_cp');
+  S.gust=byMs();
   S.rain24=cap(DEV.rain,'measure_rain.24h'); if(S.rain24==null)S.rain24=cap(DEV.rain,'measure_rain');
   S.thunder=cap(DEV.smhi,'measure_thunder_probability_cp');
   S.press=cap(DEV.vader,'measure_pressure'); if(S.press==null)S.press=cap(DEV.smhi,'measure_air_pressure_cp');
@@ -5745,7 +5780,7 @@ function wxMapSVG(){
   var W=VW.W, H=VW.H, Z=syn?SYN_VIEW.z:radarViewZ();
   var G=osmGrid(VW.lat, VW.lon, Z, W, H);
   var wdir=cap(DEV.windNet,'measure_wind_angle'); if(wdir==null)wdir=cap(DEV.smhi,'measure_wind_direction_cp');
-  var wspd=cap(DEV.windMs,'measure_wind_strength'); if(wspd==null)wspd=cap(DEV.smhi,'measure_wind_speed_cp');
+  var wspd=vindMs(); if(wspd==null)wspd=cap(DEV.smhi,'measure_wind_speed_cp');
   var P=PAL[curTheme]||PAL.dark;
   var hm=G.xy(WX_HOME.lat,WX_HOME.lon);
   var outline='#fff';
@@ -5877,8 +5912,8 @@ function wxTrend(k,hours){var now=wxPts(k);if(!now.length)return null;var last=n
 /* ---- Serier som går att följa över dygnet ---- */
 var WXSER=[
  {k:'t_ute',lab:'Temperatur',u:'°C',c:'warm',dec:1,val:function(){return cap(DEV.outdoor,'measure_temperature');}},
- {k:'wind', lab:'Vind',      u:'m/s',c:'cyan',dec:1,val:function(){return cap(DEV.windMs,'measure_wind_strength');}},
- {k:'gust', lab:'Byvind',    u:'m/s',c:'gold',dec:1,val:function(){return cap(DEV.windMs,'measure_gust_strength');}},
+ {k:'wind', lab:'Vind',      u:'m/s',c:'cyan',dec:1,val:function(){return vindMs();}},
+ {k:'gust', lab:'Byvind',    u:'m/s',c:'gold',dec:1,val:function(){return byMs();}},
  {k:'press',lab:'Lufttryck', u:'hPa',c:'violet',dec:0,val:function(){return cap(DEV.vader,'measure_pressure');}},
  {k:'hum',  lab:'Luftfuktighet',u:'%',c:'blue',dec:0,val:function(){return cap(DEV.outdoor,'measure_humidity');}},
  {k:'rain', lab:'Regn',      u:'mm',c:'rain',dec:1,val:function(){return cap(DEV.rain,'measure_rain.24h');}}
@@ -5946,7 +5981,7 @@ function wxInsightList(){
   var pt=wxTrend('press',3);
   if(pt&&Math.abs(pt.d)>=1)out.push({ic:'gauge',c:'violet',lab:'Trycket '+(pt.d>0?'stiger':'faller'),
     txt:(pt.d>0?'Stigande':'Fallande')+' tryck, '+num(Math.abs(pt.d),1)+' hPa på tre timmar. '+(pt.d>0?'Ofta tecken på uppklarnande.':'Ofta tecken på att ett väderomslag är på väg.')});
-  var w=cap(DEV.windMs,'measure_wind_strength'),g=cap(DEV.windMs,'measure_gust_strength');
+  var w=vindMs(),g=byMs();
   if(w!=null&&g!=null&&w>0.5&&g>=w*1.7)out.push({ic:'wind',c:'gold',lab:'Byigt',
     txt:'Byvindarna är '+num(g/w,1)+' gånger medelvinden ('+num(g,1)+' mot '+num(w,1)+' m/s). Ojämn vind.'});
   var ws=wxStats('wind');
@@ -5979,8 +6014,8 @@ function wxKeyHTML(){
   var t=cap(DEV.outdoor,'measure_temperature'),feels=g('air_temperature_feels_like_cp');
   var hum=cap(DEV.outdoor,'measure_humidity');
   var press=cap(DEV.vader,'measure_pressure'); if(press==null)press=g('measure_air_pressure_cp');
-  var w=cap(DEV.windMs,'measure_wind_strength'); if(w==null)w=g('measure_wind_speed_cp');
-  var gu=cap(DEV.windMs,'measure_gust_strength'),wd=cap(DEV.windNet,'measure_wind_angle');
+  var w=vindMs(); if(w==null)w=g('measure_wind_speed_cp');
+  var gu=byMs(),wd=cap(DEV.windNet,'measure_wind_angle');
   var r24=cap(DEV.rain,'measure_rain.24h'),cloud=g('mean_value_of_total_cloud_cover_cp');
   var vis=g('horizontal_visibility_cp'),th=g('measure_thunder_probability_cp');
   var dew=wxDew(t,hum);
@@ -6003,7 +6038,7 @@ function renderVader(){
   var el=$('vdr-body');if(!el)return;
   var P=PAL[curTheme]||PAL.dark;
   var wd=cap(DEV.windNet,'measure_wind_angle'); if(wd==null)wd=cap(DEV.smhi,'measure_wind_direction_cp');
-  var w=cap(DEV.windMs,'measure_wind_strength'); if(w==null)w=cap(DEV.smhi,'measure_wind_speed_cp');
+  var w=vindMs(); if(w==null)w=cap(DEV.smhi,'measure_wind_speed_cp');
   var h='';
   /* 1. Nuläget – samma väderkort som startsidan */
   h+='<section class="panel wx-card"><div class="wx">'+buildWeatherHTML()+'</div></section>';
@@ -8217,7 +8252,7 @@ function openDetail(which){
     const bkb=$('dlg-back');if(bkb&&bkb.classList)bkb.classList.add('open');dlgTop();return;
   }else if(which==='weather'){title='Väder · Onsala';
     const wd=windDeg(),wab=windDirTxt(wd);
-    body=dRow('Läge',esc(cap(DEV.smhi,'measure_weather_situation_cp')||'–'))+dRow('Temperatur',num(cap(DEV.outdoor,'measure_temperature'),1)+' °C')+dRow('Känns som',num(cap(DEV.smhi,'air_temperature_feels_like_cp'),0)+' °C')+dRow('Vind',num(cap(DEV.windMs,'measure_wind_strength'),1)+' m/s'+(wab?' '+wab:''))+dRow('Byvind',num(cap(DEV.windMs,'measure_gust_strength'),1)+' m/s')+dRow('Luftfukt',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Regn 24h',num(cap(DEV.rain,'measure_rain.24h'),1)+' mm')+dRow('Lufttryck',num(cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),0)+' hPa')
+    body=dRow('Läge',esc(cap(DEV.smhi,'measure_weather_situation_cp')||'–'))+dRow('Temperatur',num(cap(DEV.outdoor,'measure_temperature'),1)+' °C')+dRow('Känns som',num(cap(DEV.smhi,'air_temperature_feels_like_cp'),0)+' °C')+dRow('Vind',num(vindMs(),1)+' m/s'+(wab?' '+wab:''))+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Luftfukt',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Regn 24h',num(cap(DEV.rain,'measure_rain.24h'),1)+' mm')+dRow('Lufttryck',num(cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),0)+' hPa')
       +smhiStatusRad();
   }else if(which==='humidity'){title='Luftfuktighet';
     body=dRow('Utomhus',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Inne · kök',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
@@ -8230,7 +8265,7 @@ function openDetail(which){
    något annat än den uppmätta vinkeln. Den lades till i v291 för att spåra
    den fastnade VSV-texten. Vanligtvis är skillnaden bara att texten släpar
    efter någon minut, så raden är borttagen. Vinkeln styr fortfarande. */
-    body=dRow('Hastighet',num(cap(DEV.windMs,'measure_wind_strength'),1)+' m/s')+dRow('Byvind',num(cap(DEV.windMs,'measure_gust_strength'),1)+' m/s')+dRow('Riktning',(windDirTxt(wdir)||'–')+(wdir!=null?' · '+num(wdir,0)+'°':''))+dRow('SMHI-vind',num(cap(DEV.smhi,'measure_wind_speed_cp'),1)+' m/s');
+    body=dRow('Hastighet',num(vindMs(),1)+' m/s')+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Riktning',(windDirTxt(wdir)||'–')+(wdir!=null?' · '+num(wdir,0)+'°':''))+dRow('SMHI-vind',num(cap(DEV.smhi,'measure_wind_speed_cp'),1)+' m/s');
     body+='<div id="wind-sec">'+windSectionHTML()+'</div>';
     windInsFetch();                                  /* dygnets toppar ur Insights */
     _dlgWide=true;                                   /* grafen behöver bredden */
@@ -9774,7 +9809,7 @@ function dayLogTick(){const day=dayKey(),sol=cap(DEV.solar,'meter_power.day'),co
   /* dygnets extremer – underlag för rekord längre fram */
   const t=cap(DEV.outdoor,'measure_temperature');
   if(t!=null&&isFinite(t)){if(e.tx==null||t>e.tx)e.tx=Math.round(t*10)/10;if(e.tn==null||t<e.tn)e.tn=Math.round(t*10)/10;}
-  const g=cap(DEV.windMs,'measure_gust_strength');if(g!=null&&isFinite(g)&&(e.g==null||g>e.g))e.g=Math.round(g*10)/10;
+  const g=byMs();if(g!=null&&isFinite(g)&&(e.g==null||g>e.g))e.g=Math.round(g*10)/10;
   const pl=cap(DEV.pooltemp,'measure_temperature');if(pl!=null&&isFinite(pl)&&(e.px==null||pl>e.px))e.px=Math.round(pl*10)/10;
   const keys=Object.keys(o).sort();while(keys.length>DAYS_KEEP){delete o[keys.shift()];}
   try{localStorage.setItem('days_v1',JSON.stringify(o));}catch(e2){}}
@@ -11251,6 +11286,31 @@ var LOGG_KEY='_logg_v1', _loggKo=[];
    något. Båda behövs: den första för att jämföra kopior, den andra för att
    veta om en hämtning skulle kasta bort något den här enheten just gjort. */
 var TS_KEY='_ts_v1', EGET_TS='egen_spar_ts';
+/* NÄR DEN HÄR ENHETEN SENAST ÄNDRADE NÅGOT SJÄLV.
+   Tidsstämpeln i v486 jämförde bara mot enhetens senaste SPARNING. Loggen
+   22/8 visar vad som då händer:
+     12:27  telefonen sparar (kopian på Homey får den tiden)
+     ~13    nya knappar skapas i telefonen, i localStorage
+     15:14  telefonen läser från appen — kopian är från 12:27, alltså inte
+            äldre än senaste sparningen, så den tilläts skriva över
+     15:15  det urholkade läget sparas tillbaka
+   Knapparna fanns lokalt men hade inte hunnit sparas, och ingenting visste om
+   dem. Här stämplas därför varje LOKAL ändring, inte bara sparningar. */
+var ANDRAD_TS='lokal_andrad_ts';
+function andradTs(){var v=0;try{v=parseInt(localStorage.getItem(ANDRAD_TS)||'0',10)||0;}catch(e){}return v;}
+function andradSatt(t){try{localStorage.setItem(ANDRAD_TS,String(t||Date.now()));}catch(e){}}
+/* En krok i stället för trettio anropsställen: skrivs en synkad nyckel är det
+   per definition en lokal ändring. Missar inget, och kan inte glömmas bort
+   när en ny nyckel läggs till i SYNC_KEYS. */
+(function(){
+  try{
+    var raw=localStorage.setItem.bind(localStorage);
+    localStorage.setItem=function(k,v){
+      try{if(typeof SYNC_KEYS!=='undefined'&&SYNC_KEYS.indexOf(k)>=0)raw(ANDRAD_TS,String(Date.now()));}catch(e){}
+      return raw(k,v);
+    };
+  }catch(e){}
+})();
 function egetTs(){var v=0;try{v=parseInt(localStorage.getItem(EGET_TS)||'0',10)||0;}catch(e){}return v;}
 function egetTsSatt(t){try{localStorage.setItem(EGET_TS,String(t||Date.now()));}catch(e){}}
 function loggRad(vad,extra){
@@ -11364,10 +11424,19 @@ async function appBackupLas(){
   if(TS_KEY in lista.nycklar){
     var ts=0;
     try{ts=parseInt(await appGet('/backup?key='+encodeURIComponent(TS_KEY)),10)||0;}catch(e){}
-    var eget=egetTs();
+    var eget=egetTs(), andrad=andradTs();
     if(ts&&eget&&ts<eget-60000){
       _appLasSist.aldre=true;
       loggSkriv('vägrade läsa',{orsak:'kopian är äldre än enhetens egen sparning'});
+      return 0;
+    }
+    /* Osparade lokala ändringar väger tyngst av allt. Då ska kopian inte läsas —
+       och den ska dessutom ersättas, annars står Homey kvar med det gamla och
+       samma sak händer vid nästa öppning. */
+    if(ts&&andrad&&ts<andrad-60000){
+      _appLasSist.aldre=true;
+      loggSkriv('vägrade läsa',{orsak:'lokala ändringar är nyare än kopian'});
+      try{syncPushSoon();}catch(e){}
       return 0;
     }
   }
@@ -11389,7 +11458,14 @@ async function appBackupLas(){
     }catch(e){_appLasSist.fel.push(k);}
   }
   _appLasSist.las=n;
-  if(n>0){egetTsSatt(Date.now());loggSkriv('läste från appen',{nycklar:n});}
+  if(n>0){
+    egetTsSatt(Date.now());
+    /* Nu är lokalt och fjärran samma sak. Skrivningarna ovan har satt
+       ändringsstämpeln via kroken; nolla den till samma tid så att nästa
+       jämförelse inte tror att vi har något nyare. */
+    andradSatt(Date.now());
+    loggSkriv('läste från appen',{nycklar:n});
+  }
   return n;}
 async function saveToHomey(){
   /* Homey-variabler har begränsat utrymme. Vi delar upp datan i bitar. Om allt inte får
@@ -12495,7 +12571,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v503';
+const APP_VERSION='v505';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13163,7 +13239,7 @@ function render(){
      if(_bon&&!_known)addRow(sl,'lightning','acc-blue','Gäst','laddbox','<span class="chip on">laddar'+(_bw!=null?' '+W(_bw):'')+'</span>');}
     const dOn=cap(DEV.dish,'onoff'),dProg=cap(DEV.dish,'bshc_string.progress');addRow(sl,'fork-knife','acc-cyan','Diskmaskin','',dOn?'<span class="chip on">igång</span> '+(dProg||''):'<span class="chip off">av</span>');
     const aw=cap(DEV.awning,'windowcoverings_state'),awMap={up:'indragen',down:'utfälld',idle:'stilla'};addRow(sl,'umbrella','acc-warm','Markis','','<span class="chip '+(aw==='down'?'on':'off')+'">'+(awMap[aw]||aw||'–')+'</span>');
-    const ws=cap(DEV.windMs,'measure_wind_strength'),gs=cap(DEV.windMs,'measure_gust_strength'),wh=(ws>8||gs>11);addRow(sl,'wind','acc-cyan','Vind','by '+(gs==null?'–':num(gs,1))+' m/s','<span class="'+(wh?'chip warn':'')+'">'+(ws==null?'–':num(ws,1))+' m/s</span>');
+    const ws=vindMs(),gs=byMs(),wh=(ws>8||gs>11);addRow(sl,'wind','acc-cyan','Vind','by '+(gs==null?'–':num(gs,1))+' m/s','<span class="'+(wh?'chip warn':'')+'">'+(ws==null?'–':num(ws,1))+' m/s</span>');
     const r24=cap(DEV.rain,'measure_rain.24h'),sit=cap(DEV.smhi,'measure_weather_situation_cp');addRow(sl,'cloud-sun','acc-gold','Väder','regn 24h '+(r24==null?'–':num(r24,1))+' mm',esc(sit||'–'));
     let lon=0;for(const id in DATA){const d=DATA[id];if((d.class||d.type)==='light'&&capOf(d,'onoff')===true)lon++;}addRow(sl,'lightbulb','acc-gold','Lampor på','','<span class="rv">'+lon+' st</span>');}
 
@@ -13175,7 +13251,7 @@ function render(){
   const wd=$('warns');
   if(wd){const wn=[];
     for(const id in DATA){const d=DATA[id];if(!isSensorBatt(d))continue;const b=capOf(d,'measure_battery');if(b!=null&&b<CONFIG.BATTERY_WARN)wn.push(['crit','battery-charging','<b>'+esc(d.name||'En sensor')+'</b>'+(zoneName(d.zone)?' ('+esc(zoneName(d.zone))+')':'')+' har kritiskt lågt batteri',Math.round(b)+' %']);}
-    const awn=cap(DEV.awning,'windowcoverings_state'),gs2=cap(DEV.windMs,'measure_gust_strength');if(awn==='down'&&(gs2>15||(gs2==null&&cap(DEV.windMs,'measure_wind_strength')>15)))wn.push(['crit','wind','Markisen är utfälld i hård vind',num(gs2,0)+' m/s by']);
+    const awn=cap(DEV.awning,'windowcoverings_state'),gs2=byMs();if(awn==='down'&&(gs2>15||(gs2==null&&vindMs()>15)))wn.push(['crit','wind','Markisen är utfälld i hård vind',num(gs2,0)+' m/s by']);
     [DEV.car,DEV.car2].forEach(cid=>{const d=DATA[cid];if(!d)return;const lk=capOf(d,'locked'),dist=capOf(d,'distance');
       if(lk===false){let km=null;if(dist!=null){const mm=(''+dist).match(/([\d.]+)\s*(km|m)\b/);if(mm)km=mm[2]==='km'?parseFloat(mm[1]):parseFloat(mm[1])/1000;}
         if(km!=null&&km>0.3)wn.push(['crit','lock-simple-open','<b>'+esc(d.name||'Bilen')+'</b> är olåst '+esc(capOf(d,'location_human')||'borta'),num(km,1)+' km bort']);}});
