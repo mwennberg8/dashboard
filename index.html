@@ -178,6 +178,8 @@ body.kiosk{--pg-gap:7px}
 .theme-ic{width:17px;height:17px;color:var(--gold);display:inline-flex}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:0 0 auto}
 .dot.live{animation:pulse 2.6s ease-out infinite}.dot.stale{background:var(--warm)}.dot.dead{background:var(--hot)}
+/* Gul utan puls: skärmen visar sparad data medan Homey svarar. */
+.dot.cache{background:var(--warm)}
 .rel{color:var(--faint);font-size:11.5px}.rel.stale{color:var(--warm)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(166,227,161,.45)}70%{box-shadow:0 0 0 7px rgba(166,227,161,0)}100%{box-shadow:0 0 0 0 rgba(166,227,161,0)}}
 
@@ -9567,11 +9569,58 @@ function priceLogTick(){const pr=elprisNow();if(pr==null)return;const now=new Da
     try{localStorage.setItem('plog_v1',JSON.stringify(o));}catch(e){}}}
 /* Tydlig dygnsgraf: ytfyllnad + linje, med dygnets högsta och lägsta tydligt markerade
    och en punkt för nuläget. offset 0=idag, 1=imorgon. */
+/* ===== timpriser från Tibber =====
+   Kurvan ritades förr ur plog_v1, som dashboarden fyller på SJÄLV medan den är
+   öppen. Öppnar man appen 07:48 finns bara punkter kring 07 — därav den enda
+   lodräta strecken, och därav att grafens spann (154–235 öre) motsade raderna
+   under (91–271 öre), som kommer från logikvariablerna och gäller hela dygnet.
+
+   Tibbers timpriser finns inte i Homeys Insights: appens egen prislogg har 96
+   punkter där alla är null (uppmätt 2026-08-21). Dashboarden kan heller inte
+   ringa Tibber själv — User-Agent är en förbjuden header i fetch(), och
+   api.tibber.com skickar inga CORS-huvuden.
+
+   Alltså samma mönster som tibber_kr: HomeyScriptet tibberpris skriver
+   logikvariabeln tibber_pris, vi läser den. Formatet är
+     {"v":1,"at":ms,"d":{"2026-08-22":[24 tal eller null]}}
+   plog_v1 finns kvar som reserv om variabeln saknas. */
+var PRIS_VAR='tibber_pris';
+var _prisJ=null,_prisAt=0,_prisFel=null;
+function prisDygn(offset){
+  if(!_prisJ||!_prisJ.d)return null;
+  var key=dayKey(new Date(Date.now()+(offset||0)*86400000));
+  var rad=_prisJ.d[key];
+  if(!Array.isArray(rad))return null;
+  var pts=[];
+  for(var h=0;h<rad.length;h++)if(typeof rad[h]==='number')pts.push([h,rad[h]]);
+  /* Sista punkten dras ut till dygnets slut, annars slutar kurvan vid 23 och
+     ser ut att sakna en timme. */
+  if(pts.length>1)pts.push([24,pts[pts.length-1][1]]);
+  return pts.length>=2?pts:null;
+}
+async function prisVarHamta(){
+  if(!appKan())return;
+  if(_prisAt&&Date.now()-_prisAt<15*60000)return;
+  try{
+    var list=await logicList(),v=null;
+    logicArr(list).forEach(function(x){if(x&&x.name===PRIS_VAR)v=x;});
+    if(!v){_prisFel='logikvariabeln '+PRIS_VAR+' finns inte';return;}
+    var j=null;try{j=JSON.parse(String(v.value||''));}catch(e){}
+    if(!j||!j.d){_prisFel='kunde inte tolka '+PRIS_VAR;return;}
+    _prisJ=j;_prisAt=Date.now();_prisFel=null;
+    /* Står prispopupen öppen ska den fyllas i direkt, inte vid nästa tryck. */
+    try{if(typeof _popupRebuild==='function'){var b=$('dlg-body');if(b)b.innerHTML=_popupRebuild();}}catch(e){}
+  }catch(e){_prisFel=(e&&e.message)||'fel vid hämtning';}
+}
 function dayPriceGraphSVG(offset){offset=offset||0;
-  var o=plogDays(),key=dayKey(new Date(Date.now()+offset*86400000)),pts=(o.days[key]||[]).slice();
+  var franTibber=prisDygn(offset);
+  var o=plogDays(),key=dayKey(new Date(Date.now()+offset*86400000));
+  var pts=franTibber?franTibber:(o.days[key]||[]).slice();
   if((pts.length<3)&&SOURCE==='demo-data'&&offset===0){pts=[];for(var hh=0;hh<=23.5;hh+=0.5)pts.push([hh,0.55+0.5*Math.sin((hh-3)/24*2*Math.PI)+(hh>16&&hh<21?0.75:0)+0.12*Math.sin(hh*1.7)]);}
   if(pts.length<2){
-    var msg=offset>0?'Morgondagens priser blir tillgängliga senare (publiceras oftast runt kl 13).':'Prisdatan byggs upp under dygnet.';
+    var msg=offset>0?'Morgondagens priser blir tillgängliga senare (publiceras oftast runt kl 13).'
+      :(_prisFel?('Timpriser saknas: '+_prisFel+'. Kör HomeyScriptet tibberpris.')
+                :'Prisdatan byggs upp under dygnet.');
     return '<div class="pgraph-empty">'+msg+'</div>';}
   var P=PAL[curTheme]||PAL.dark,W=280,H=110,padL=6,padR=6,padT=16,padB=16;
   var ys=pts.map(function(p){return p[1];}),xs=pts.map(function(p){return p[0];});
@@ -12350,7 +12399,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v497';
+const APP_VERSION='v499';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13364,6 +13413,43 @@ function footVia(){
 function footKalla(){
   var s=String(SOURCE||'');
   return s.split(' · ')[0].split(' — ')[0].trim()||s;}
+/* ===== rita ur cachen först =====
+   Enhetslistan sparas efter varje lyckad hämtning. Nästa öppning ritar den
+   direkt, innan första anropet ens gått iväg, så skärmen är ifylld på en
+   tiondels sekund i stället för tom i flera sekunder. Indikatorn står på gult
+   tills riktiga värden kommit — sparade siffror ska aldrig se färska ut.
+
+   Bara enhetslistan cachas. HIST och inställningar ligger redan i localStorage
+   och läses som förut. */
+var CACHE_KEY='datacache_v1', _cacheAt=0, VISAR_CACHE=false;
+function cacheSpara(map){
+  if(!map||!Object.keys(map).length)return;
+  var nu=Date.now();
+  if(nu-_cacheAt<60000)return;            /* en gång i minuten räcker */
+  _cacheAt=nu;
+  try{localStorage.setItem(CACHE_KEY,JSON.stringify({at:nu,zon:ZONES,dev:map}));}catch(e){}
+}
+function cacheLas(){
+  try{
+    var r=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+    if(!r||!r.dev||!Object.keys(r.dev).length)return null;
+    /* Äldre än ett dygn är inte värt att visa — då är streck ärligare. */
+    if(!r.at||Date.now()-r.at>86400000)return null;
+    return r;
+  }catch(e){return null;}
+}
+function cacheVisa(){
+  if(Object.keys(DATA).length)return false;   /* redan ifyllt */
+  var r=cacheLas();
+  if(!r)return false;
+  DATA=r.dev;
+  if(r.zon&&Object.keys(r.zon).length&&!Object.keys(ZONES).length)ZONES=r.zon;
+  VISAR_CACHE=true;
+  lastUpdate=r.at;
+  setStatus('cache','Sparat '+hhmm(new Date(r.at)));
+  try{render();}catch(e){}
+  return true;
+}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 async function load(){
   credTillCONFIG();
@@ -13399,12 +13485,19 @@ async function load(){
       }
     }
   }
-  if(map){DATA=map;setStatus('live','LIVE');lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  else if(VISAR_CACHE){
+    /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
+       besked: det står redan siffror där, och de är gamla — vilket är precis
+       vad den gula punkten och klockslaget säger. */
+    _online=false;
+    setStatus('cache','Sparat '+hhmm(new Date(lastUpdate||Date.now())));
+  }
   else{_online=false;const wasLive=(SOURCE.indexOf('Homey')===0||SOURCE==='lokal data.json')&&Object.keys(DATA).length>0;
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
   render();tickRel();setT('foot-src',footKalla());footVia();
-  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
+  if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();prisVarHamta();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
     /* Krönikelistan hämtas HÄR, inte bara när Insikter ritas. Notisknappen sitter
        i toppraden på startsidan, och utan det här stod den tom tills man råkat
        öppna Insikter en gång. */
@@ -14110,6 +14203,9 @@ lpAttach($('weather-flow'));lpAttach($('controls'));
      ganger: en gang fran timern och en gang fran click som foljer pa pointerup. */
   hh.style.cursor='pointer';}});})();
 try{if(localStorage.getItem('yearhist_v1')==null){yearHistSave(SEED_YEARS.map(function(x){return Object.assign({},x);}));}}catch(e){}
+/* Cachen ritas FÖRE load(), annars hinner nätet ändå bestämma hur länge
+   skärmen står tom. */
+try{cacheVisa();}catch(e){}
 load();
 if(typeof bootSync==='function')bootSync();
 if(typeof fetchSmhiForecast==='function'){fetchSmhiForecast();setInterval(fetchSmhiForecast,25*60000);}
