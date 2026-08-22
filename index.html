@@ -2519,7 +2519,8 @@ const CONFIG = {
     {label:"Släck allt", icon:"moon",      type:"allLightsOff"}
   ],
   'info':'<path d="M128,24A104,104,0,1,0,232,128,104.2,104.2,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/>',
-  'arrows-clockwise':'<path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.8,71.4a80,80,0,0,0-113.2.6,8,8,0,0,1-11.4-11.2,96,96,0,0,1,135.8-.6L224,84.7V56a8,8,0,0,1,16,0ZM195.8,184a80,80,0,0,1-113.2.6L56,157.7H72a8,8,0,0,0,0-16H24a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V171.3l26.6,26.5a96,96,0,0,0,135.8-.6,8,8,0,0,0-11.4-11.2Z"/>'
+  'arrows-clockwise':'<path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.8,71.4a80,80,0,0,0-113.2.6,8,8,0,0,1-11.4-11.2,96,96,0,0,1,135.8-.6L224,84.7V56a8,8,0,0,1,16,0ZM195.8,184a80,80,0,0,1-113.2.6L56,157.7H72a8,8,0,0,0,0-16H24a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V171.3l26.6,26.5a96,96,0,0,0,135.8-.6,8,8,0,0,0-11.4-11.2Z"/>',
+  'dishwasher':'<path d="M208,26H48A22,22,0,0,0,26,48V208a22,22,0,0,0,22,22H208a22,22,0,0,0,22-22V48A22,22,0,0,0,208,26Zm6,182a6,6,0,0,1-6,6H48a6,6,0,0,1-6-6V88H214ZM42,72V48a6,6,0,0,1,6-6H208a6,6,0,0,1,6,6V72Zm26-12a8,8,0,1,1,8,8A8,8,0,0,1,68,60Zm40,0a8,8,0,1,1,8,8A8,8,0,0,1,108,60Zm20,52a44,44,0,1,0,44,44A44,44,0,0,0,128,112Zm0,76a32,32,0,1,1,32-32A32,32,0,0,1,128,188Z"/>'
 };
 /* ================================================== */
 
@@ -3024,6 +3025,7 @@ function btnState(b){ // returnerar true om "på/aktiv"
   /* BREVEDEN: läget kommer från logikvariabeln, inte från något lokalt minne.
      Skriptet är auktoritativt — knappen speglar bara vad det säger. */
   if(b.type==='breveden'){var Bs=brvState();return !!(Bs&&Bs.aktiv);}
+  if(b.type==='disk')return diskBokad();
   if(b.type==='flowtoggle'){
     /* Följ-enhet går före: den vet vad som faktiskt hände, även om flowet
        startats från Homey-appen. Utan den återstår minnet av senaste tryck. */
@@ -3062,6 +3064,12 @@ function renderControls(){
     const on=btnState(b),isArm=armed.i===i;
     var ic=b.icon,lbl=b.label;
     if(b.type==='moodtoggle'){ic=on?'lightbulb':'lightbulb-off';lbl=on?'Släck':'Tänd';}
+    /* DISKMASKINEN: släckt knapp = ingen bokning, bara namnet. Tänd knapp =
+       bokad, och då står klockslaget där namnet stod — det är det man vill veta. */
+    else if(b.type==='disk'){
+      ic=on?'clock-countdown':'dishwasher';
+      lbl=on?(diskNar()||'Bokad'):(b.label||'Diskmaskin');
+    }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
          gör härnäst — samma logik som moodtoggle. */
@@ -3114,6 +3122,12 @@ async function btnTap(i){
     }else if(b.type==='mood'){
       await homeySetMood(b.moodId);
       flashCtl(i,'aktiverad ✓');setTimeout(renderControls,1400);
+      return;
+    }else if(b.type==='disk'){
+      var varBokad=diskBokad();
+      await diskTryck();
+      flashCtl(i,varBokad?'avbokar…':'bokar…');
+      setTimeout(renderControls,2600);
       return;
     }else if(b.type==='breveden'){
       /* Trycket blockeras ALDRIG här, inte ens när nastaLage är 'ok' —
@@ -10030,6 +10044,81 @@ var BRV_FLOW_PA='063fb9f7-37e9-41c0-a114-eba03f1914a1';
 var BRV_FLOW_AV='435b6694-67c4-4b5c-a7e6-1b796ffa0dd4';
 var _brv=null,_brvAt=0,_brvVanta=0,_brvHamtar=false;
 
+/* ===== DISKMASKIN =====
+   Knappen speglar logikvariabeln disk_bokning, precis som Breveden speglar sin.
+   Skriptet är auktoritativt: dashboarden bokar och avbokar via flows och läser
+   resultatet, den räknar aldrig själv. Flödena skapade 2026-08-22. */
+var DISK_VAR='disk_bokning';
+var DISK_FLOW_BOKA='62a64da0-c29e-405d-b542-ff49429cdb5c';
+var DISK_FLOW_AVBOKA='ed4897f3-e73d-49ba-8740-642b7ceae893';
+var _disk=null,_diskAt=0,_diskHamtar=false,_diskVanta=0;
+function diskState(){return _disk;}
+/* Bokad = ett objekt med en starttid som inte redan passerat med marginal.
+   Vakten städar bort gamla bokningar, men den går bara var 15:e minut. */
+function diskBokad(){
+  var b=_disk;
+  if(!b||!b.start)return false;
+  return Date.now()<b.start+2*3600000;
+}
+function diskKl(){
+  var b=_disk;
+  if(!b||!b.start)return '';
+  return hhmm(new Date(b.start));
+}
+/* "03:00" om det är idag, annars "sön 03:00" — en bokning till natten efter
+   ska inte se ut som om den startar om en kvart. */
+function diskNar(){
+  var b=_disk;if(!b||!b.start)return '';
+  var idag=dayKey(new Date()), da=dayKey(new Date(b.start));
+  if(idag===da)return diskKl();
+  var v=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',weekday:'short'}).format(new Date(b.start));
+  return v.replace('.','')+' '+diskKl();
+}
+async function diskHamta(){
+  if(_diskHamtar)return _disk;
+  _diskHamtar=true;
+  var tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN, vagar=brvVagar();
+  for(var i=0;i<vagar.length;i++){
+    try{
+      var t=withTimeout(8000);
+      var r=await fetch(vagar[i]+'/api/manager/logic/variable/'+DISK_VAR,
+        {headers:{Authorization:'Bearer '+tk},signal:t.signal});
+      t.clear();
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      var j=await r.json();
+      var raa=(j&&j.value!=null)?j.value:'';
+      /* Tom sträng är ett giltigt svar: ingen bokning. Den ska nolla knappen,
+         inte lämna den tänd med gammal tid. */
+      if(typeof raa==='string'&&!raa.trim()){_disk=null;_diskAt=Date.now();break;}
+      var o=(typeof raa==='string')?JSON.parse(raa):raa;
+      if(o&&typeof o==='object'){_disk=o;_diskAt=Date.now();break;}
+    }catch(e){/* nästa väg; faller alla behålls senast kända läge */}
+  }
+  _diskHamtar=false;
+  try{renderControls();}catch(e){}
+  return _disk;}
+/* Bokar eller avbokar. Samma vägval som Breveden: ett misslyckat anrop över
+   lokalt nät ska inte betyda att knappen är död när man är borta. */
+async function diskTryck(){
+  var flow=diskBokad()?DISK_FLOW_AVBOKA:DISK_FLOW_BOKA;
+  _diskVanta=Date.now();
+  try{renderControls();}catch(e){}
+  var tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN, vagar=brvVagar(), ok=false;
+  for(var i=0;i<vagar.length&&!ok;i++){
+    try{
+      var t=withTimeout(9000);
+      var r=await fetch(vagar[i]+'/api/manager/flow/flow/'+flow+'/trigger',
+        {method:'POST',headers:{Authorization:'Bearer '+tk,'Content-Type':'application/json'},
+         body:'{}',signal:t.signal});
+      t.clear();
+      if(r.ok)ok=true;
+    }catch(e){}
+  }
+  /* Skriptet behöver en stund på sig innan variabeln är skriven. */
+  setTimeout(function(){_diskVanta=0;diskHamta();},2500);
+  setTimeout(function(){diskHamta();},7000);
+  return ok;}
+
 function brvState(){return _brv;}
 /* Äldre än 45 minuter räknas som osäkert — Homey uppdaterar var 15:e minut. */
 function brvGammal(B){
@@ -11381,14 +11470,22 @@ var TS_KEY='_ts_v1', EGET_TS='egen_spar_ts';
 var ANDRAD_TS='lokal_andrad_ts';
 function andradTs(){var v=0;try{v=parseInt(localStorage.getItem(ANDRAD_TS)||'0',10)||0;}catch(e){}return v;}
 function andradSatt(t){try{localStorage.setItem(ANDRAD_TS,String(t||Date.now()));}catch(e){}}
-/* En krok i stället för trettio anropsställen: skrivs en synkad nyckel är det
-   per definition en lokal ändring. Missar inget, och kan inte glömmas bort
-   när en ny nyckel läggs till i SYNC_KEYS. */
+/* BARA INSTÄLLNINGAR RÄKNAS SOM ÄNDRING.
+   Första versionen stämplade varje skrivning av en synkad nyckel. Men SYNC_KEYS
+   innehåller också loggar som fylls på av sig själva — plog_v1, days_v1,
+   learn_v1, shmap_v2 och flera till skrivs varje minut. Stämpeln var därför
+   alltid färsk, och VARJE enhet vägrade läsa i evighet. Det är raderna
+   "vägrade läsa — kopian är äldre än enhetens egen sparning" i skrivloggen,
+   och därför ärvde plattorna aldrig telefonens knappar och layout.
+   Här stämplas bara det användaren faktiskt ändrar: knappar, storlekar,
+   avsnitt, brickor och inställningar. */
+var ANDR_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','secOrder_v1','secScale_v1','secDold_v1',
+  'tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','demoov_v1'];
 (function(){
   try{
     var raw=localStorage.setItem.bind(localStorage);
     localStorage.setItem=function(k,v){
-      try{if(typeof SYNC_KEYS!=='undefined'&&SYNC_KEYS.indexOf(k)>=0)raw(ANDRAD_TS,String(Date.now()));}catch(e){}
+      try{if(ANDR_KEYS.indexOf(k)>=0)raw(ANDRAD_TS,String(Date.now()));}catch(e){}
       return raw(k,v);
     };
   }catch(e){}
@@ -12462,9 +12559,9 @@ var BTN_ICONS=[
  ['El, sol & bil',['plug','plugs','power','lightning','battery-high','solar-panel','car','car-profile','charging-station']],
  ['Rum & övrigt',['house','house-line','buildings','bed','couch','stairs','elevator','shower','bathtub','toilet','swimming-pool','timer','clock','tree','flower','umbrella','wrench','hammer','fire-extinguisher','gauge']]
 ];
-var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['special','Släck allt','moon']];
+var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['disk','Diskmaskin','dishwasher'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['special','Släck allt','moon']];
 var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=null,_beMood=null,_beMoodOn=null,_beMoodOff=null,_beRef=null;
-function beTypeOf(b){return b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
+function beTypeOf(b){return b.type==='disk'?'disk':b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
 function beStash(){var g=function(id){var e=$(id);return e?e.value:null;},v;
   var l=$('be-label');if(l&&typeof l.value==='string')_beLabel=l.value;
   if((v=g('be-dev'))!=null)_beDev=v;
@@ -12531,6 +12628,14 @@ function openBtnEdit(i,keep){const b=CONFIG.BUTTONS[i]||{};_beIdx=i;ensureFlows(
     /* Vad automatiken faktiskt lyssnar på just nu – annars är det omöjligt att se
        varför knappen står i ett visst läge. */
     h+='<div class="cfg-hint" id="be-sense" style="margin-top:6px">'+moodSenseText(i)+'</div>';
+  }else if(T==='disk'){
+    h+='<div class="cfg-hint" style="margin-top:8px">Bokar diskmaskinen till dygnets '
+      +'billigaste sammanhängande fönster på 2,5 timmar. Ett tryck bokar, ett till avbokar.<br><br>'
+      +'Knappen tänds när något är bokat och visar då starttiden i stället för namnet. '
+      +'Natten får 15 öres avdrag i jämförelsen, så ett nattpris på 91 öre går före '
+      +'80 öre mitt på dagen.<br><br><b>HomeyScriptet räknar</b> — dashboarden bokar och '
+      +'läser bara. Maskinen måste ha fjärrstart aktiverad, annars avstår vakten.<br><br>'
+      +'Inget att ställa in — bara namnet.</div>';
   }else if(T==='breveden'){
     h+='<div class="cfg-hint" style="margin-top:8px">Värmepumpen i gäststugan. Knappen '
       +'startar eller stoppar bevakningen — <b>HomeyScriptet avgör</b> om det blir kyla '
@@ -12653,7 +12758,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v508';
+const APP_VERSION='v510';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
