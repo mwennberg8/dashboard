@@ -176,7 +176,11 @@ body.kiosk{--pg-gap:7px}
 .brand .loc{font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--faint);margin-top:3px}
 .status{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--dim)}
 .theme-ic{width:17px;height:17px;color:var(--gold);display:inline-flex}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:0 0 auto}
+/* Grundtillståndet är GULT. Grönt betyder färska värden från Homey och måste
+   förtjänas av klassen live — tidigare var grönt grundfärgen, så punkten lyste
+   grönt från första bildrutan oavsett vad som visades. */
+.dot{width:8px;height:8px;border-radius:50%;background:var(--warm);flex:0 0 auto}
+.dot.live{background:var(--ok)}
 .dot.live{animation:pulse 2.6s ease-out infinite}.dot.stale{background:var(--warm)}.dot.dead{background:var(--hot)}
 /* Gul utan puls: skärmen visar sparad data medan Homey svarar. */
 .dot.cache{background:var(--warm)}
@@ -2267,7 +2271,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   <section class="view" id="view-flode">
 
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -2373,7 +2377,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
     <div id="not-body"></div>
   </section>
 
-  <div class="foot"><span id="foot-src">demo-data</span><span id="foot-via"></span></div>
+  <div class="foot"><span id="foot-src">startar…</span><span id="foot-via"></span></div>
 </div>
 
   <div class="dlg-back" id="dlg-back" onclick="closeDetail(event)"><div class="dlg" id="dlg" role="dialog" aria-modal="true"><button class="dlg-x" onclick="closeDetail(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button><div class="dlg-h"><span class="dlg-ic ic-slot" id="dlg-ic"></span><span id="dlg-title">–</span></div><div class="dlg-body" id="dlg-body"></div></div></div>
@@ -12485,7 +12489,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v501';
+const APP_VERSION='v502';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13369,6 +13373,10 @@ function setupVisa(){
 function setupDolj(){
   var e=document.getElementById('setup-bak');
   if(e&&e.parentNode)e.parentNode.removeChild(e);}
+/* Ingen cache och inget svar än: foten ska säga att det hämtas. "demo-data"
+   är bara sant när demoläget faktiskt är valt. */
+function fotStartar(){
+  try{if(!Object.keys(DATA).length&&credFinns()&&!isDemo())setT('foot-src','hämtar…');}catch(e){}}
 /* Startar demoläget. Ingen token sparas och inget nätverk används — samma väg
    som dashboarden redan tar när den saknar Homey, men vald med flit. */
 function setupDemo(){
@@ -13536,6 +13544,9 @@ function cacheVisa(){
   SOURCE='sparad data';
   lastUpdate=r.at;
   setStatus('cache','Sparat '+hhmm(new Date(r.at)));
+  /* Foten skrivs bara av load(), som ännu inte fått svar. Utan den här raden
+     står markupens starttext kvar hela väntetiden. */
+  try{setT('foot-src',footKalla());}catch(e){}
   try{render();}catch(e){}
   return true;
 }
@@ -14302,6 +14313,7 @@ try{if(localStorage.getItem('yearhist_v1')==null){yearHistSave(SEED_YEARS.map(fu
 /* Cachen ritas FÖRE load(), annars hinner nätet ändå bestämma hur länge
    skärmen står tom. */
 try{cacheVisa();}catch(e){}
+try{fotStartar();}catch(e){}
 load();
 if(typeof bootSync==='function')bootSync();
 if(typeof fetchSmhiForecast==='function'){fetchSmhiForecast();setInterval(fetchSmhiForecast,25*60000);}
