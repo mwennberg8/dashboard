@@ -465,6 +465,12 @@ body.mobile .pband-slim{padding:12px 16px}
 .stat .v{font-size:clamp(21px,2.8vw,28px);font-weight:800;margin:0 0 3px;letter-spacing:-.03em}
 .stat .v small{font-size:13px;color:var(--dim);font-weight:600}
 .stat .meta{font-size:11px;color:var(--dim);font-weight:500}
+/* Tom undertext ska inte ta plats. :empty träffar bara när det verkligen inte
+   finns något inuti — en trendpil eller ett mellanslag räknas som innehåll. */
+.stat .meta:empty{display:none}
+.en-chip-s:empty{display:none}
+/* Trendpilen: samma storlek som enheten, lite luft före, dämpad ton. */
+.tr-pil{margin-left:5px;font-size:.62em;font-weight:800;color:var(--dim);vertical-align:baseline}
 
 .section-head{display:flex;align-items:center;gap:9px;margin:0 4px 12px}
 .section-head .ic{width:16px;height:16px;color:var(--dim)}
@@ -8861,12 +8867,18 @@ function computeMetric(cfg){
         icc:S.pagar?'var(--hot)':'var(--faint)',
         v:vv,meta:mm,det:'batttom'};}
     case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');return {label:'Elnät',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
-    case 'humidity':{const hum=cap(DEV.outdoor,'measure_humidity');return {label:'Luftfuktighet',icon:'drop-half-bottom',v:hum==null?'–':Math.round(hum)+' <small>%</small>',meta:'utomhus',det:'humidity'};}
+    case 'humidity':{const hum=cap(DEV.outdoor,'measure_humidity');return {label:'Luftfuktighet',icon:'drop-half-bottom',v:hum==null?'–':Math.round(hum)+' <small>%</small>',meta:'',det:'humidity'};}
     case 'seatemp':{const t=(typeof FEED!=='undefined')?FEED.sea:null;return {label:'Badtemp',icon:'waves',v:(t==null?'–':num(t,1)+' <small>°C</small>'),meta:CONFIG.BATH_NAME||'havet',det:'seatemp'};}
-    case 'rain':{const r=cap(DEV.rain,'measure_rain.24h');const fut=(_timeActive&&_timeInfo&&_timeInfo.future);      return {label:fut?'Regn':'Regn 24h',icon:'cloud-rain',v:r==null?'–':num(r,1)+' <small>mm'+(fut?'/h':'')+'</small>',meta:fut?'prognos':'senaste dygnet',det:'rain'};}
+    case 'rain':{const r=cap(DEV.rain,'measure_rain.24h');const fut=(_timeActive&&_timeInfo&&_timeInfo.future);      return {label:fut?'Regn':'Regn 24h',icon:'cloud-rain',v:r==null?'–':num(r,1)+' <small>mm'+(fut?'/h':'')+'</small>',meta:'',det:'rain'};}
     case 'pressure':{const pres=cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp');
       let tr;if(_timeActive&&_timeInfo&&_timeInfo.future){tr=forecastPressureTrend(_scrubH);}else if(_timeActive){tr=histPressureTrend(_scrubH);}else{tr=pressureTrend(pres);}
-      return {label:'Lufttryck',icon:'gauge',v:pres==null?'–':Math.round(pres)+' <small>hPa</small>',meta:tr>0?'stigande':tr<0?'sjunkande':'stabilt',det:'pressure'};}
+      /* Riktningen syns i pilen efter enheten — en rad mindre att läsa, och
+         den står där blicken redan är. ↗ stigande, ↘ sjunkande, → oförändrat. */
+      const pil=(tr>0?'\u2197':tr<0?'\u2198':'\u2192');
+      const titel=(tr>0?'stigande':tr<0?'sjunkande':'of\u00f6r\u00e4ndrat');
+      return {label:'Lufttryck',icon:'gauge',
+        v:pres==null?'–':(Math.round(pres)+' <small>hPa</small><span class="tr-pil" title="'+titel+'" aria-label="'+titel+'">'+pil+'</span>'),
+        meta:'',det:'pressure'};}
     /* BREVEDEN — värmepumpen i gäststugan. All bedömning av om kyla eller värme
        behövs görs i HomeyScriptet; dashboarden läser bara tillståndet och
        triggar rätt flow. Ingen egen logik här, med flit. */
@@ -12641,7 +12653,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v507';
+const APP_VERSION='v508';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
