@@ -597,6 +597,22 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   padding:9px 15px;font-size:12.5px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.35);
   opacity:0;pointer-events:none;transition:.2s}
 #rum-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#tv-sec[hidden]{display:none!important}
+.tvbox{padding:var(--rum-luft);display:flex;flex-direction:column;gap:var(--rum-luft)}
+.tvrad{display:flex;align-items:center;gap:9px;min-width:0}
+.tv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.tv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
+.tv-k{appearance:none;flex:0 0 auto;width:42px;height:36px;border:1px solid var(--line);
+  background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:16px;font-weight:700;
+  border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  box-sizing:border-box;padding:0}
+.tv-k .ic{width:17px;height:17px}
+.tv-k:active{transform:scale(.96)}
+.tv-k.pa{background:rgba(235,203,139,.18);border-color:rgba(235,203,139,.5);color:var(--gold)}
+/* Av-knappen är den enda som kan ångra sig själv långsamt — den får rödtonen
+   så att tummen inte tar den i stället för volymen. */
+.tv-k.av{color:var(--hot,var(--warm));border-color:var(--line)}
 #rooms-sec[hidden]{display:none!important}
 .room.rum-dold{display:none}
 /* Visa fler / visa färre. Ligger under rutnätet och tar hela bredden, så den
@@ -2440,6 +2456,8 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 
   <section class="view" id="view-flode">
 
+      <!-- TV-rutan. Ritas bara när en TV är på; renderTV sätter hidden annars. -->
+      <section class="panel tvbox" id="tv-sec" data-sec="tv" hidden></section>
       <section class="panel statusbar" data-sec="status">
         <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
       </section>
@@ -12991,7 +13009,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v519';
+const APP_VERSION='v521';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13599,6 +13617,7 @@ function render(){
   renderEnergy();
   renderControls();
   try{renderRooms();}catch(e){}
+  try{renderTV();}catch(e){}
 
   /* Hysteres pa exporten: gar over till "Solöverskott" forst vid tydlig export
      (< -300 W) och tillbaka forst nar exporten upphort (> -50 W). Da slutar domen
@@ -14499,12 +14518,12 @@ function armAutoFull(){if(_autoFullArmed||!CFG.autoFull)return;_autoFullArmed=tr
 loadCfg();applyCfg();
 
 /* ===== flyttbara sektioner ===== */
-const SECMETA={energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
+const SECMETA={tv:'TV',energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
 /* 'rum' star kvar i listan aven pa plattan, trots att avsnittet bara ritas i
    mobillage. Ordningen ar DELAD mellan enheterna: tog plattan bort 'rum' ur
    listan skulle telefonens valda plats forsvinna vid nasta synk. Raden i
    "Ordna avsnitt" doljs i stallet dar den inte betyder nagot. */
-const SEC_DEF=['energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','rum','report'];
+const SEC_DEF=['tv','energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','rum','report'];
 /* Avsnittens ORDNING per enhetstyp. Nyckeln har två fack, precis som höjderna
    och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
    sällan den man vill ha i handen. */
@@ -15405,6 +15424,61 @@ function renderRooms(){
 /* Ett namn för både korten och den öppna popupen, så att varje skrivning bara
    behöver anropa ett. */
 function rumRita(){renderRooms();}
+
+/* ===== TV-RUTAN =====
+   Ligger överst och syns bara när TV:n är på. EN bestämd enhet, inte alla med
+   klassen tv: vardagsrummet har två (TV och Google TV) och det är den som
+   heter TV som styr ljudet. Google TV lämnas utanför.
+
+   Volymkorten är knapp-capabilities: Homey bryr sig inte om värdet men vill ha
+   ett, så de skickas som true. De speglas INTE i DATA — de har inget läge att
+   spegla. Mute och av har lägen och speglas därför direkt, så knappen svarar
+   utan att vänta på nästa hämtning. */
+const TV_DEV='7c12535d-e1fc-418f-be3a-a591c38b5135';   /* TV, vardagsrummet */
+function tvDevs(){const d=DATA[TV_DEV];return (d&&rHar(d,'onoff'))?[d]:[];}
+function tvPa(){return tvDevs().filter(d=>capOf(d,'onoff')===true);}
+async function tvVol(id,upp){
+  const c=upp?'volume_up':'volume_down';
+  const d=DATA[id];
+  if(!d||!rHar(d,c)){rumToast('TV:n har ingen volymknapp');return;}
+  try{await homeyPut(id,c,true);}catch(e){rumToast('Kunde inte nå Homey');}
+}
+async function tvMute(id){
+  const d=DATA[id];if(!d||!rHar(d,'volume_mute'))return;
+  const ny=!(capOf(d,'volume_mute')===true);
+  try{await rSatt(id,'volume_mute',ny);renderTV();setTimeout(load,900);}
+  catch(e){rumToast('Kunde inte nå Homey');}
+}
+async function tvAv(id){
+  const d=DATA[id];if(!d)return;
+  try{await rSatt(id,'onoff',false);renderTV();setTimeout(load,900);}
+  catch(e){rumToast('Kunde inte nå Homey');}
+}
+function tvRad(d){
+  const mute=capOf(d,'volume_mute')===true;
+  const app=capOf(d,'current_application');
+  /* "Android TV launcher" är hemskärmen, inte något man tittar på. */
+  const visaApp=(app&&!/launcher/i.test(String(app)))?String(app):'';
+  const kn=(hand,inne,kl,lbl)=>'<button class="tv-k'+(kl?(' '+kl):'')+'" onclick="'+hand+'" aria-label="'+esc(lbl)+'">'+inne+'</button>';
+  return '<div class="tvrad">'
+    +'<span class="dv-ic">'+icon('television')+'</span>'
+    +'<span class="tv-n">'+esc(rNamn(d))+(visaApp?('<small>'+esc(visaApp)+'</small>'):'')+'</span>'
+    +kn("tvVol('"+d.id+"',false)",'\u2212','','sänk volymen')
+    +kn("tvVol('"+d.id+"',true)",'+','','höj volymen')
+    +(rHar(d,'volume_mute')?kn("tvMute('"+d.id+"')",icon(mute?'speaker-none':'speaker-high'),mute?'pa':'',mute?'slå på ljudet':'tysta'):'')
+    +kn("tvAv('"+d.id+"')",icon('power'),'av','stäng av')
+    +'</div>';
+}
+function renderTV(){
+  const sec=$('tv-sec');if(!sec)return;
+  const pa=tvPa();
+  const fore=sec.hidden;
+  sec.hidden=!pa.length;
+  sec.innerHTML=pa.map(tvRad).join('');
+  /* Kioskläget skalar innehållet efter höjden. Dyker rutan upp eller försvinner
+     måste den räkningen göras om, annars ligger sidan kvar i fel storlek. */
+  if(fore!==sec.hidden&&typeof fitScreen==='function'){try{setTimeout(fitScreen,40);}catch(e){}}
+}
 (function(){
   if(typeof document==='undefined'||!document.addEventListener)return;
   document.addEventListener('pointerdown',slxNer,true);
