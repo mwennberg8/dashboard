@@ -10060,6 +10060,22 @@ function pgPrisVid(h){
   for(var i=0;i<pts.length;i++){if(pts[i][0]<=h)v=pts[i][1];else break;}
   return v;
 }
+/* VILKET INTERVALL står vi i? Gränserna läses ur punkterna själva i stället
+   för att antas vara hela timmar — Tibber levererar numera kvartar, och en
+   text som säger "kl 19:00–20:00" när priset gäller 19:15–19:30 är fel.
+   Klarar även blandad upplösning, om Tibber skulle ändra sig igen. */
+function pgIntervall(h){
+  var pts=_pgGeo.pts,a=pts[0][0],b=24;
+  for(var i=0;i<pts.length;i++){
+    if(pts[i][0]<=h){a=pts[i][0];b=(i+1<pts.length)?pts[i+1][0]:24;}
+    else break;
+  }
+  return {a:a,b:b};
+}
+function pgKl(h){
+  var m=Math.round(h*60),hh=Math.floor(m/60)%24,mm=((m%60)+60)%60;
+  return (hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
+}
 function pgX(h){var g=_pgGeo;return g.padL+(h/24)*(g.W-g.padL-g.padR);}
 function pgY(v){var g=_pgGeo,yr=(g.yhi-g.ylo)||1;return g.padT+(1-(v-g.ylo)/yr)*(g.H-g.padT-g.padB);}
 function pgFarg(v){
@@ -10082,13 +10098,13 @@ function pgAvlast(){
   var nuLage=(_pgGeo.offset===0&&Math.abs(_pgVald-pgTimmenNu())<0.02);
   var visa=v;
   if(nuLage){var e=elprisNow();if(e!=null&&isFinite(e))visa=e;}
-  var under;
+  var iv=pgIntervall(_pgVald),under;
   if(nuLage){
-    var kvar=60-new Date().getMinutes();
+    /* Tid kvar av INTERVALLET, inte av timmen. */
+    var kvar=Math.max(1,Math.ceil((iv.b-pgTimmenNu())*60));
     under=kvar+(kvar===1?' minut kvar':' minuter kvar');
   }else{
-    var t0=Math.floor(_pgVald),t1=(t0+1)%24;
-    under='kl '+(t0<10?'0':'')+t0+':00–'+(t1<10?'0':'')+t1+':00';
+    under='kl '+pgKl(iv.a)+'–'+pgKl(iv.b);
   }
   return {kurva:v,visa:visa,under:under,nu:nuLage};
 }
@@ -10137,16 +10153,21 @@ function pgRor(e){
   if(h!=null){_pgVald=h;pgUppdatera();}
   e.preventDefault();
 }
+/* Tillbaka till utgångsläget: nu för idag, dygnets billigaste timme för
+   imorgon. Räknas om vid varje anrop så att "nu" verkligen är nu och inte den
+   minut grafen råkade ritas. */
+function pgHem(){
+  if(!_pgGeo)return;
+  _pgVald=(_pgGeo.offset===0)?pgTimmenNu():_pgGeo.hem;
+  pgUppdatera();
+}
 function pgUpp(e){
   var d4=_pgDrag;_pgDrag=null;
   var lg=$('pg-lager');if(lg&&lg.classList)lg.classList.remove('drar');
   if(!d4)return;
-  /* Ett stilla tryck flyttar också strecket — men först på uppsläppet, så att
-     ett svep för att rulla inte råkar räknas som ett tryck. */
-  if(!d4.tagit){
-    var h=pgTimmeFran(e);
-    if(h!=null){_pgVald=h;pgUppdatera();}
-  }
+  /* Släpper man går pricken tillbaka till nu av sig själv. Ett stilla tryck
+     flyttar därför ingenting — det skulle bara ha hoppat dit och tillbaka. */
+  pgHem();
   try{dlgIdleReset();}catch(err){}
 }
 function dayPriceGraphSVG(offset){offset=offset||0;
@@ -10224,7 +10245,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
      "nu" att peka på. */
   var hVal=(offset===0)?pgTimmenNu():xs[iLo];
-  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi};
+  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal};
   _pgVald=hVal;
   var vy=pgPrisVid(hVal);
   s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'"/>';
@@ -13213,7 +13234,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v524';
+const APP_VERSION='v525';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
