@@ -5784,11 +5784,14 @@ function radarLayerHTML(path){
    tryckfältet - samma värdnamn, samma kommaseparerade koordinatlista. Den
    vägen är alltså prövad härifrån.
 
-   Rutnätet är 9x9 punkter över kartans yta, alltså ~11 km mellan punkterna vid
-   närmaste zoom. Det är grovt mot radarns kilometer och SKA se grovt ut:
-   fälten ritas suddiga så att ingen tar dem för en mätning.
-   Enheten är mm/h i båda fallen, så skalorna går att jämföra. */
-var PRG_N=9, PRG_BAK=1, PRG_FRAM=2;
+   Rutnätet är 25x25 = 625 punkter, vilket ryms i ett anrop (taket är 1000).
+   På närmaste zoom blir det ~3,8 km mellan punkterna, alltså finare än
+   modellens egna 2 km i praktiken räcker till. Jag hade först 9x9 med
+   oskärpa "så att ingen skulle ta det för en mätning" - resultatet blev vaga
+   moln som inte gick att läsa. Nu ritas fälten skarpt, som radarn, och att
+   det är beräknat framgår av etiketten i stället.
+   Enheten är mm/h i båda fallen, så färgskalan är gemensam. */
+var PRG_N=25, PRG_BAK=1, PRG_FRAM=2;
 var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null;
 
 /* Kartans hörn i grader. Samma projektion som kartrutorna använder, baklänges,
@@ -5851,18 +5854,16 @@ function prgFarg(mm){
 function prgLagerHTML(ti){
   if(!_prgPkt||!_prgTid.length||ti==null)return '';
   var VW=RADAR_VIEW;
+  /* Cellerna läggs kant i kant och centreras på sin punkt, precis som en
+     radarruta. Ingen oskärpa: samma skarpa intryck som mätningen. */
   var cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1), o='';
   for(var r=0;r<PRG_N;r++)for(var c=0;c<PRG_N;c++){
     var mm=prgVarde(r*PRG_N+c,ti);
-    if(mm<0.05)continue;
+    if(mm<0.02)continue;
     o+='<rect x="'+((c*cw)-cw/2).toFixed(1)+'" y="'+((r*ch)-ch/2).toFixed(1)+'" '
-      +'width="'+cw.toFixed(1)+'" height="'+ch.toFixed(1)+'" fill="'+prgFarg(mm)+'" '
-      +'opacity="'+Math.max(0.3,Math.min(0.8,0.3+mm*0.1)).toFixed(2)+'"/>';
+      +'width="'+(cw+0.6).toFixed(1)+'" height="'+(ch+0.6).toFixed(1)+'" fill="'+prgFarg(mm)+'"/>';
   }
-  if(!o)return '';
-  return '<defs><filter id="prgBlur" x="-25%" y="-25%" width="150%" height="150%">'
-    +'<feGaussianBlur stdDeviation="'+(cw*0.42).toFixed(1)+'"/></filter></defs>'
-    +'<g filter="url(#prgBlur)">'+o+'</g>';
+  return o;
 }
 
 /* ---- EN TIDSLINJE ---- */
@@ -5906,7 +5907,15 @@ function wxRel(t){
   if(Math.abs(m)<100)return (m>0?'+':'')+m+' min';
   return (m>0?'+':'')+Math.round(m/60)+' h';
 }
-function wxKalla(f){return f.typ==='radar'?'radar':(f.typ==='nowcast'?'radarprognos':'prognos');}
+/* KÄLLA OCH TIDSRIKTNING ÄR TVÅ OLIKA SAKER.
+   Modelltimmar bakåt är historik, inte prognos - de märktes fel eftersom
+   etiketten satt på källan. Nu avgör klockan om det är bakåt eller framåt, och
+   källan säger bara varifrån bilden kommer. */
+function wxKalla(f){
+  if(f.typ==='radar')return 'radar';
+  if(f.typ==='nowcast')return 'radarprognos';
+  return (f.t<Date.now()-4*60000)?'modell · bakåt':'prognos';
+}
 function wxSetIdx(i){
   var rutor=wxRutor();if(!rutor.length)return;
   _wxIdx=Math.max(0,Math.min(rutor.length-1,i));
@@ -5924,7 +5933,9 @@ function wxSetIdx(i){
   var lab=document.getElementById('wx-rtime');
   if(lab){
     lab.textContent=wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f);
-    lab.classList.toggle('fc',f.typ!=='radar');
+    /* Gult betyder BERÄKNAD FRAMTID. Modellens historiktimmar är beräknade men
+       inte framtid, och ska inte se ut som en prognos. */
+    lab.classList.toggle('fc',f.typ!=='radar'&&f.t>Date.now());
   }
   var sl=document.getElementById('wx-rslider');if(sl&&+sl.value!==_wxIdx)sl.value=_wxIdx;
 }
@@ -6587,7 +6598,7 @@ function wxReglageHTML(){
       +'<input class="wxm-slider" id="wx-rslider" type="range" min="0" max="'+(rutor.length-1)+'" value="'+_wxIdx+'" '
       +'oninput="radarStop();wxSetIdx(+this.value)" aria-label="Tidslinje"/>'
       +'<button class="wxm-z wxm-zs" onclick="wxSteg(1)" aria-label="Ett steg framåt">›</button>'
-      +'<span class="wxm-rt'+(f.typ!=='radar'?' fc':'')+'" id="wx-rtime">'
+      +'<span class="wxm-rt'+((f.typ!=='radar'&&f.t>Date.now())?' fc':'')+'" id="wx-rtime">'
       +wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f)+'</span>'
       +'</div>';}
   return h;
@@ -13545,7 +13556,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v534';
+const APP_VERSION='v535';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
