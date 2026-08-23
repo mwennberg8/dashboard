@@ -2360,19 +2360,26 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
    mycket som får plats utan att bli avskuren — därför min() på båda leden i
    stället för att sträcka den. Reglagen ligger kvar under, med samma
    funktioner som på vädersidan; det är samma kod som ritar dem. */
-.wxfs{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;
-  flex-direction:column;padding:10px 10px calc(10px + env(safe-area-inset-bottom,0px));
-  box-sizing:border-box;overflow:hidden}
+.wxfs{position:fixed;inset:0;z-index:60;background:var(--bg);overflow:hidden}
 .wxfs[hidden]{display:none!important}
-.wxfs-h{display:flex;align-items:center;gap:9px;flex:0 0 auto;padding:0 2px 8px}
+/* Kartan ligger underst och fyller allt; rubrik, zoom och tidslinje flyter
+   ovanpå. Toningarna gör texten läsbar även över ljusa kartrutor. */
+.wxfs .wxmap{position:absolute;inset:0;border-radius:0;width:auto;max-width:none}
+.wxfs .wxmap-svg{width:100%;height:100%;display:block}
+.wxfs-h{position:absolute;top:0;left:0;right:0;z-index:4;display:flex;align-items:center;gap:9px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 12px 22px;
+  background:linear-gradient(180deg,rgba(0,0,0,.5),transparent)}
 .wxfs-t{font-size:14px;font-weight:800;letter-spacing:-.01em;flex:1 1 auto;min-width:0}
 .wxfs-b{appearance:none;border:1px solid var(--line);background:var(--inset);color:var(--dim);
   font-family:var(--sans);font-size:12.5px;font-weight:700;border-radius:12px;padding:8px 13px;
   cursor:pointer;display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
 .wxfs-b .ic{width:14px;height:14px}
-.wxfs-mitt{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
-.wxfs .wxmap{width:min(100%,calc(100vh - 190px));max-width:100%}
-.wxfs-ner{flex:0 0 auto}
+.wxfs-ner{position:absolute;left:12px;right:12px;z-index:4;
+  bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+.wxfs-ner .wxm-time{margin-top:0;background:rgba(0,0,0,.42);border-radius:14px;padding:6px 10px}
+/* I helskärm sitter zoomen ovanför tidslinjen i stället för i kartans hörn. */
+.wxfs .wxm-zin{bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+.wxfs .wxm-zskala{bottom:calc(74px + env(safe-area-inset-bottom,0px))}
 .wxm-tom{padding:26px 12px;text-align:center;font-size:12px;color:var(--faint);font-weight:650;
   border:1px dashed var(--line);border-radius:14px}
 /* Knappen som öppnar helskärmen ligger i kartans hörn. */
@@ -2381,6 +2388,17 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
   border:1px solid var(--line);border-radius:10px;background:var(--panel-b);color:var(--dim);
   cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;opacity:.9}
 .wx-full .ic{width:16px;height:16px}
+/* Zoomen i kartans nedre högra hörn. Två knappar staplade, plus överst — samma
+   ordning som på kartor i övrigt. */
+.wxm-zin{position:absolute;right:8px;bottom:8px;z-index:3;display:flex;flex-direction:column;
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel-b);opacity:.94}
+.wxm-zb{appearance:none;width:32px;height:32px;border:0;background:transparent;color:var(--dim);
+  font-family:var(--sans);font-size:17px;font-weight:700;cursor:pointer;padding:0;line-height:1}
+.wxm-zb+.wxm-zb{border-top:1px solid var(--line)}
+.wxm-zb[disabled]{opacity:.32;cursor:default}
+.wxm-zb:active:not([disabled]){background:var(--inset)}
+.wxm-zskala{position:absolute;left:8px;bottom:10px;z-index:3;font-size:10px;font-weight:700;
+  color:var(--ink);background:rgba(0,0,0,.34);border-radius:7px;padding:3px 7px;pointer-events:none}
 .wxmap{border-radius:14px;overflow:hidden;background:var(--panel-b)}
 .wxmap-svg{width:100%;height:auto;display:block}
 .wxm-h{font-size:20px;font-weight:850}
@@ -4152,7 +4170,7 @@ function buildWeatherHTML(){
   let wBy='';if(wgust!=null)wBy='By '+num(wgust,0)+' m/s';
   let wsub2='';if(wgust!=null)wsub2=stor(gustDesc(wgust));else if(wspd!=null)wsub2=stor(windDesc(wspd,wgust));
   let h='<div class="wx2 wx2-harmitt'+(wz.nowCenter?' wx2-center':'')+'" data-wxedit="now">';
-  h+='<div class="wx2-now wx-click" onclick="openDetail(\'wxwind\')"><span class="wx2-ic" style="width:'+zWicon+'px;height:'+zWicon+'px">'+icon(wxIcon(sit))+'</span>'
+  h+='<div class="wx2-now wx-click" onclick="openVader()"><span class="wx2-ic" style="width:'+zWicon+'px;height:'+zWicon+'px">'+icon(wxIcon(sit))+'</span>'
     +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span></div>'
     /* "Känns 17°" på EGEN rad, som "By 6 m/s · N" på vindsidan. Förut satt den
        på samma rad som temperaturen och de två kolumnerna läste olika. */
@@ -4167,7 +4185,7 @@ function buildWeatherHTML(){
      Etiketterna står högerställda i en egen kolumn så värdena hamnar på en rak
      lodrät linje — det var det som såg hackigt ut. */
   var pil=(tr>0?'\u2197':tr<0?'\u2198':'\u2192');
-  h+='<div class="wx2-mitt wx-click" onclick="openDetail(\'wxwind\')">'
+  h+='<div class="wx2-mitt wx-click" onclick="openVader()">'
     +'<div class="wx2-m"><span class="wx2-ml">Fukt</span><span class="wx2-mv">'
       +(hum==null?'–':Math.round(hum)+'<small>%</small>')+'</span></div>'
     +'<div class="wx2-m"><span class="wx2-ml">Tryck</span><span class="wx2-mv">'
@@ -4175,7 +4193,7 @@ function buildWeatherHTML(){
     +'<div class="wx2-m"><span class="wx2-ml">Regn</span><span class="wx2-mv">'
       +(rain==null?'–':num(rain,1)+'<small>mm</small>')+'</span></div>'
     +'</div>';
-  h+='<div class="wx2-wind wx-click" onclick="openDetail(\'wxwind\')">'+windArrow(wdir,zArrow,zArrColor)
+  h+='<div class="wx2-wind wx-click" onclick="openVader()">'+windArrow(wdir,zArrow,zArrColor)
     +'<div class="wx2-wind-txt"><div class="wx2-line"><span class="wx2-wv" style="font-size:'+zNum+'px">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span></div>'
     /* Byvind och riktning på samma rad, riktningen EFTER pricken. */
     +(wBy||wdir_txt?('<div class="wx2-by" style="font-size:'+zKB+'px">'+esc(wBy)
@@ -5693,6 +5711,14 @@ function radarFetch(){
       .then(function(r){return r.json();})
       .then(function(j){
         var past=(j&&j.radar&&j.radar.past)||[];
+        /* RainViewers FRIA API ger sedan en tid bara historik. Nowcast ligger
+           numera bakom en API-nyckel, och nowcast-listan kommer tom — det är
+           därför tidslinjen slutar vid "nu". Koden läser fältet ändå: kommer
+           det tillbaka, eller läggs en nyckel till, dyker stegen upp av sig
+           själva och bildtexten byter formulering.
+           Kontrollerat 2026-08-23 mot rainviewer/rainviewer-api-example:
+           personbruk ger zoom ≤ 7, färgskala Universal Blue, PNG, endast
+           historik. Attribution är obligatorisk och står i bildtexten. */
         var soon=(j&&j.radar&&j.radar.nowcast)||[];
         _radarFrames=past.concat(soon);
         _radarNow=Math.max(0,past.length-1);
@@ -6351,10 +6377,21 @@ function wxKeyHTML(){
    samma reglage — inte en kopia som kan glida isär. Id:na måste förbli unika,
    och därför ritas kartan bara på ett ställe i taget: är helskärmen öppen
    lämnar vädersidan sin plats tom. */
+/* Zoomen ligger numera I kartan, nere till höger, som på vilken karta som
+   helst. Bredden står kvar men som en liten text nere till vänster — den är
+   till för att tolka bilden och hör därför hemma i den. */
+function wxZoomHTML(){
+  var Z=radarViewZ();
+  return '<div class="wxm-zin">'
+    +'<button class="wxm-zb" onclick="event.stopPropagation();radarSetViewZ(1)"'
+      +(Z>=9?' disabled':'')+' aria-label="Zooma in">+</button>'
+    +'<button class="wxm-zb" onclick="event.stopPropagation();radarSetViewZ(-1)"'
+      +(Z<=6?' disabled':'')+' aria-label="Zooma ut">–</button>'
+    +'</div>'
+    +'<div class="wxm-zskala">'+({6:'~740 km',7:'~370 km',8:'~185 km',9:'~92 km'}[Z]||'')+' brett</div>';
+}
 function wxReglageHTML(){
-  var h='<div class="wxm-zoom"><button class="wxm-z" onclick="radarSetViewZ(-1)">–</button>'
-    +'<span class="wxm-zl">'+({6:'~740 km',7:'~370 km',8:'~185 km',9:'~92 km'}[radarViewZ()]||'')+' brett</span>'
-    +'<button class="wxm-z" onclick="radarSetViewZ(1)">+</button></div>';
+  var h='';
   /* Spolning: två timmar bakåt i 10-minuterssteg plus radarns korta prognos */
   if(_radarFrames.length>1){
     h+='<div class="wxm-time">'
@@ -6377,11 +6414,23 @@ function wxFullRita(){
   var o=$('wxfs');if(!o)return;
   if(!_wxFull){o.hidden=true;o.innerHTML='';return;}
   o.hidden=false;
-  o.innerHTML='<div class="wxfs-h">'
+  /* KARTAN RITAS I SKÄRMENS FORM, inte som en kvadrat med marginaler runt.
+     RADAR_VIEW styr hur många rutor som hämtas och hur bilden sätts ihop, så
+     den ställs om till skärmens mått, kartan byggs, och måtten ställs
+     tillbaka direkt. Bygget är synkront — ingenting annat hinner läsa värdena
+     medan de är omställda. Alternativet, att skala upp kvadraten tills den
+     täcker, hade klippt bort halva kartan i sidled. */
+  var W0=RADAR_VIEW.W,H0=RADAR_VIEW.H,karta;
+  var bw=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerWidth)||W0));
+  var bh=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerHeight)||H0));
+  try{RADAR_VIEW.W=bw;RADAR_VIEW.H=bh;karta=wxMapSVG();}
+  finally{RADAR_VIEW.W=W0;RADAR_VIEW.H=H0;}
+  o.innerHTML='<div class="wxmap">'+karta+'</div>'
+    +'<div class="wxfs-h">'
     +'<button class="wxfs-b" onclick="wxFullStang()">'+icon('arrow-left')+'Tillbaka</button>'
     +'<span class="wxfs-t">'+esc(WX_SHOWS.reduce(function(a,x){return x[0]===wxShow()?x[1]:a;},'Karta'))+'</span>'
     +'</div>'
-    +'<div class="wxfs-mitt"><div class="wxmap">'+wxMapSVG()+'</div></div>'
+    +(wxShow()!=='tryck'?wxZoomHTML():'')
     +'<div class="wxfs-ner">'+(wxShow()!=='tryck'?wxReglageHTML():'')+'</div>';
 }
 function renderVader(){
@@ -6400,7 +6449,8 @@ function renderVader(){
     ? '<div class="wxm-tom">Kartan visas i helskärm.</div>'
     : ('<div class="wxmap">'+wxMapSVG()
        +'<button class="wx-full" onclick="wxFullOppna()" title="Helskärm" aria-label="Visa kartan i helskärm">'
-       +icon('corners-out')+'</button></div>');
+       +icon('corners-out')+'</button>'
+       +(wxShow()!=='tryck'?wxZoomHTML():'')+'</div>');
   if(wxShow()!=='tryck'&&!_wxFull){
     h+=wxReglageHTML();}
 
@@ -6421,8 +6471,12 @@ function renderVader(){
          +'<b>Färgskalan</b> går från blått för lätt och måttligt regn, via gult och rött för kraftigt, '
          +'till rosa och vitt som betyder skyfall eller hagel. Snö ritas i en egen blå skala:'
          +wxRainLegend()
-         +(_radarFrames.length>1?'Med <b>spolningen</b> ser du hur regnområdena flyttat sig de senaste timmarna; stegen efter \'nu\' är radarns egen korttidsprognos och alltså inte uppmätta. ':'')
-         +'Radarrutor finns bara till zoom 7, därför den här skalan.'))
+         +(_radarFrames.length>1?('Med <b>spolningen</b> ser du hur regnområdena flyttat sig de senaste timmarna. '
+             +(_radarFrames.length>_radarNow+1
+               ? 'Stegen efter \'nu\' är radarns egen korttidsprognos och alltså inte uppmätta. '
+               : '<b>Allt som visas är uppmätt</b> – RainViewers fria API ger bara historik, inte prognos. ')):'')
+         +'Radarrutor finns bara till zoom 7, därför den här skalan. '
+         +'Väderdata från <b>RainViewer</b>.'))
     +'</div>';
   h+='</section>';
   /* 2. Nyckeltal */
@@ -13303,7 +13357,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v527';
+const APP_VERSION='v529';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
