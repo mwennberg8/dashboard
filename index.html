@@ -5784,16 +5784,23 @@ function radarLayerHTML(path){
    tryckfältet - samma värdnamn, samma kommaseparerade koordinatlista. Den
    vägen är alltså prövad härifrån.
 
-   Rutnätet är 17x17 = 289 punkter. Open-Meteo tillåter 1000, men gränsen som
-   biter är ADRESSENS längd: koordinaterna ligger i URL:en, och 625 punkter gav
-   omkring tio kilobyte - långt över vad många servrar tar emot. Prognosen
-   försvann helt utan att säga ifrån. 289 punkter med tre decimaler landar på
-   drygt fyra kilobyte, och adressen mäts nu innan den skickas. Jag hade först 9x9 med
+   Rutnätet är 33x33 = 1089 punkter, hämtade i FYRA anrop. Gränsen som biter är
+   inte Open-Meteos punkttak utan ADRESSENS längd - koordinaterna ligger i
+   URL:en, och 625 punkter i ett anrop gav tio kilobyte, långt över vad många
+   servrar tar emot. Prognosen försvann då helt utan att säga ifrån. Nu delas
+   punkterna i klumpar om högst 280, varje adress hålls under fyra kilobyte,
+   och svaren sätts ihop i ordning.
+
+   Det halverar avståndet mellan punkterna mot 17x17: ~22 km på den utzoomade
+   vyn och ~2,9 km på den närmaste, alltså i nivå med modellens egen upplösning
+   när man tittar på hemtrakten. Radarns skärpa går ändå inte att nå på en
+   kontinentvid vy - modellen räknar 2 km rutor, radarn mäter kilometer, och
+   det syns. Jag hade först 9x9 med
    oskärpa "så att ingen skulle ta det för en mätning" - resultatet blev vaga
    moln som inte gick att läsa. Nu ritas fälten skarpt, som radarn, och att
    det är beräknat framgår av etiketten i stället.
    Enheten är mm/h i båda fallen, så färgskalan är gemensam. */
-var PRG_N=17, PRG_BAK=1, PRG_FRAM=2;
+var PRG_N=33, PRG_BAK=1, PRG_FRAM=2, PRG_KLUMP=280;
 var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null;
 
 /* Kartans hörn i grader. Samma projektion som kartrutorna använder, baklänges,
@@ -5823,22 +5830,33 @@ function prgHamta(){
   if(_prgZ===Z&&_prgAt&&Date.now()-_prgAt<20*60000&&_prgVal)return;
   _prgBusy=true;
   var g=prgRutnat();
-  var url='https://api.open-meteo.com/v1/forecast?latitude='+g.lats.join(',')
-    +'&longitude='+g.lons.join(',')
-    +'&hourly=precipitation&past_days='+PRG_BAK+'&forecast_days='+PRG_FRAM
-    +'&models=dmi_seamless&timeformat=unixtime&timezone=UTC';
+  /* Punkterna delas i klumpar. Ordningen måste bevaras - svaren sätts ihop i
+     samma följd som frågorna, annars hamnar regnet på fel plats. */
+  var bitar=[];
+  for(var b=0;b<g.lats.length;b+=PRG_KLUMP){
+    bitar.push('https://api.open-meteo.com/v1/forecast?latitude='
+      +g.lats.slice(b,b+PRG_KLUMP).join(',')
+      +'&longitude='+g.lons.slice(b,b+PRG_KLUMP).join(',')
+      +'&hourly=precipitation&past_days='+PRG_BAK+'&forecast_days='+PRG_FRAM
+      +'&models=dmi_seamless&timeformat=unixtime&timezone=UTC');
+  }
+  var url=bitar[0];
   /* Adressens langd mats innan den skickas. Blir den for lang ar det battre
      att saga det an att skicka nagot som tyst avvisas. */
   if(url.length>7000){_prgFel='rutnatet ger en for lang adress ('+url.length+' tecken)';
     _prgBusy=false;_prgAt=Date.now();return;}
   try{
-    fetch(url,{cache:'no-store'}).then(function(r){
-      if(!r.ok)throw new Error('HTTP '+r.status);
-      return r.json();
-    }).then(function(j){
+    Promise.all(bitar.map(function(u){
+      return fetch(u,{cache:'no-store'}).then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json();
+      });
+    })).then(function(svar){
       /* Flera positioner ger en LISTA; en position ger ett objekt. Båda
          hanteras, annars går det sönder den dag rutnätet krymps. */
-      var lista=Array.isArray(j)?j:[j];
+      var j=[];
+      svar.forEach(function(x){j=j.concat(Array.isArray(x)?x:[x]);});
+      var lista=j;
       if(!lista.length||!lista[0]||!lista[0].hourly){_prgFel='oväntat svar';_prgBusy=false;_prgAt=Date.now();return;}
       _prgTid=(lista[0].hourly.time||[]).map(function(t){return t*1000;});
       _prgVal=lista.map(function(x){return (x&&x.hourly&&x.hourly.precipitation)||[];});
@@ -5881,7 +5899,10 @@ function prgPixlar(ti){
     if(mm<0.02){ut[k]=0;ut[k+1]=0;ut[k+2]=0;ut[k+3]=0;continue;}
     var rgb=prgHexRgb(prgFarg(mm));
     ut[k]=rgb[0];ut[k+1]=rgb[1];ut[k+2]=rgb[2];
-    ut[k+3]=Math.round(255*Math.max(0.35,Math.min(0.9,0.35+mm*0.11)));
+    /* Radarrutorna är mättade och nästan ogenomskinliga. Modellen såg blek ut
+       vid sidan av dem; golvet är höjt så att lätt regn syns och taket lagt
+       nära fullt. */
+    ut[k+3]=Math.round(255*Math.max(0.55,Math.min(0.96,0.55+mm*0.12)));
   }
   return ut;
 }
@@ -13618,7 +13639,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v537';
+const APP_VERSION='v538';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
