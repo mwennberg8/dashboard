@@ -470,6 +470,134 @@ body.mobile .pband-slim{padding:12px 16px}
 .stat .meta:empty{display:none}
 .en-chip-s:empty{display:none}
 /* Trendpilen: samma storlek som enheten, lite luft före, dämpad ton. */
+/* MITTKOLUMN: mittkolumnen bär sina EGNA kantlinjer. Den gamla .wx2-div är
+   absolut placerad på left:50% och kan bara vara en — den stängs av här. */
+.wx2-harmitt .wx2-div{display:none}
+/* FLEX, INTE GRID. Inte av principskäl: grid går inte att verifiera med
+   wkhtmltoimage, och den här raden ville jag kunna titta på innan den
+   levererades. Flex ger samma layout och går att mäta. */
+.wx2-mitt{flex:0 0 auto;display:flex;flex-direction:column;justify-content:center;gap:7px;
+  padding:6px 16px;margin:8px 0;
+  border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.wx2-m{display:flex;align-items:baseline;gap:9px}
+/* Etiketten högerställd, värdet vänsterställt: då står alla tre värdena på en
+   rak lodrät linje oavsett hur lång etiketten är. */
+/* Fast bredd på etiketten: då står alla tre värdena på en rak lodrät linje
+   oavsett hur lång etiketten är. */
+.wx2-ml{width:44px;flex:0 0 auto;font-size:9.5px;font-weight:800;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--faint);text-align:right;white-space:nowrap}
+.wx2-mv{font-size:15px;font-weight:800;color:var(--ink);white-space:nowrap;line-height:1}
+.wx2-mv small{font-size:.62em;font-weight:700;color:var(--dim);margin-left:2px}
+.wx2-mv .tr-pil{font-size:.66em;margin-left:4px;font-style:normal;color:var(--dim)}
+#stats-weather[hidden]{display:none!important}
+/* Smalare än så får väder och vind gå före. */
+@media (max-width:430px){.wx2-mitt{padding:6px 11px;gap:6px}
+  .wx2-m{gap:7px}.wx2-mv{font-size:13.5px}.wx2-ml{width:38px;font-size:9px}}
+@media (max-width:380px){.wx2-mitt{display:none}}
+/* ===== ENHETSSTYRNING: RUM, LAMPOR OCH GARDINER (v515) =====
+   Formerna kommer från Göteborgsdashboarden v1.33.0 och är avsiktligt lika:
+   samma kortstorlek, samma vippa, samma reglage. Måtten är kopierade tal för
+   tal, inte ritade om på fri hand.
+
+   Luften följer knapprutans: tre gånger --pg-gap, alltså 9 px på mobil.
+   --pg-gap är satt på body, inte på :root, så räkningen måste stå på body —
+   annars slår var() i tomma luften och calc() ger ogiltig CSS. */
+body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
+.roomswrap{padding:var(--rum-luft)}
+.rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));
+  column-gap:var(--rum-luft);row-gap:var(--rum-luft)}
+.room{padding:13px 14px;display:flex;flex-direction:column;gap:9px;cursor:pointer;transition:.16s;
+  background:var(--inset);border:1px solid var(--line);border-radius:18px;margin:0;box-shadow:none}
+.room.on{background:linear-gradient(180deg,rgba(235,203,139,.13),var(--panel-b));border-color:rgba(235,203,139,.32)}
+.room-h{display:flex;align-items:center;gap:9px}
+.room-ic{width:24px;height:24px;color:var(--faint);display:inline-flex;flex:0 0 auto}
+.room-ic .ic{width:100%;height:100%}
+.room.on .room-ic{color:var(--gold)}
+.room-n{font-size:13.5px;font-weight:750;letter-spacing:-.01em;flex:1 1 auto;min-width:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
+  flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
+.room-sw i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--faint);transition:.2s}
+.room-sw.on{background:rgba(235,203,139,.28);border-color:rgba(235,203,139,.5)}
+.room-sw.on i{left:20px;background:var(--gold)}
+.room-m{font-size:11px;color:var(--faint);font-weight:600;display:flex;gap:9px;flex-wrap:wrap}
+.room-m b{color:var(--dim);font-weight:700}
+.room-bar{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
+.room-bar i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .5s ease}
+
+/* Enhetsraden i popupen. */
+.dv-row{display:flex;align-items:center;gap:10px;padding:9px var(--rum-h) 9px 0;border-bottom:1px solid var(--line-soft)}
+.dv-row:last-child{border-bottom:0}
+.dv-ic{width:28px;height:28px;border-radius:9px;background:var(--inset);display:inline-flex;align-items:center;
+  justify-content:center;flex:0 0 auto;color:var(--faint)}
+.dv-ic .ic{width:16px;height:16px}
+.dv-row.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.16)}
+.dv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
+.dv-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
+  flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
+.dv-sw i{position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:var(--faint);transition:.2s}
+.dv-sw.on{background:rgba(235,203,139,.28);border-color:rgba(235,203,139,.5)}
+.dv-sw.on i{left:20px;background:var(--gold)}
+/* Dimmern börjar där NAMNET börjar, inte vid radens kant: ikonen är 28 px och
+   mellanrummet 10, alltså 38 px in. */
+.dv-dim{width:calc(100% - 38px - var(--rum-h));margin-left:38px}
+.dv-dim .slx{margin:0 0 6px}
+/* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
+   listan under — inte är ännu en lampa i mängden. */
+.rum-master{border:1px solid var(--line);border-radius:16px;padding:4px 13px 11px;
+  background:linear-gradient(180deg,rgba(129,161,193,.10),transparent);margin-bottom:4px}
+.rum-master.on{border-color:rgba(235,203,139,.45);
+  background:linear-gradient(180deg,rgba(235,203,139,.13),transparent)}
+.rum-master .dv-row{border-bottom:0;padding:11px 6px 6px 0}
+.rum-master .dv-n{font-size:15px;font-weight:780;letter-spacing:-.01em}
+.rum-master .dv-n small{font-size:10.5px;font-weight:650}
+.rum-master .dv-ic{width:32px;height:32px;border-radius:11px}
+.rum-master .dv-ic .ic{width:18px;height:18px}
+.rum-master.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.18)}
+.rum-master .slx{margin-left:6px;margin-right:6px}
+.rum-master .sl-h{font-size:11.5px;color:var(--dim)}
+.sl-h{display:flex;align-items:center;gap:9px;font-size:11px;color:var(--faint);font-weight:650;margin:9px 0 3px}
+.sl-h .ic{width:14px;height:14px}
+.sl-h b{color:var(--dim);margin-left:auto}
+
+/* EGET REGLAGE. <input type="range"> gick inte att tygla på telefonen: Chrome
+   satte värdet trots preventDefault, och ett svep förbi kunde ändra ljuset.
+   Det här är vanliga element utan eget beteende — värdet ändras BARA om
+   dragningen börjar på pricken och är mer vågrät än lodrät. */
+.slx{position:relative;height:34px;margin:2px 0 10px;touch-action:pan-y;user-select:none;
+  max-width:100%;box-sizing:border-box}
+.slx-spar{position:absolute;top:50%;left:0;right:0;height:5px;transform:translateY(-50%);
+  border-radius:3px;background:var(--inset);border:1px solid var(--line);box-sizing:border-box}
+.slx-fyll{position:absolute;top:50%;left:0;height:5px;transform:translateY(-50%);max-width:100%;
+  border-radius:3px;background:linear-gradient(90deg,rgba(235,203,139,.55),var(--gold));pointer-events:none}
+/* Pricken räknas från sin MITT, och mitten får bara röra sig mellan 13 px och
+   bredd−13 px. Annars hänger halva pricken utanför rutan vid 100 %. */
+.slx-prick{position:absolute;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);
+  border-radius:50%;background:var(--gold);border:2px solid var(--marker-ring);
+  box-shadow:0 2px 6px rgba(0,0,0,.3);touch-action:none;cursor:grab}
+.slx.drar .slx-prick{cursor:grabbing;box-shadow:0 0 0 7px rgba(235,203,139,.18),0 2px 6px rgba(0,0,0,.3)}
+
+/* Gardiner: fasta lägen i stället för reglage. Ett skjutreglage är fel verktyg
+   för en markis — den ska ändå bara till ett fåtal lägen. */
+.gd{margin-bottom:6px}
+.gd-h{align-items:center}
+.gd-lagen{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.gd-l{appearance:none;flex:1 1 0;min-width:62px;border:1px solid var(--line);background:var(--inset);
+  color:var(--dim);font:inherit;font-size:12px;font-weight:700;border-radius:12px;padding:9px 6px;cursor:pointer;
+  box-sizing:border-box}
+.gd-l.on{background:rgba(129,161,193,.18);border-color:var(--blue);color:var(--blue)}
+.gd-l:active{transform:scale(.97)}
+
+/* Kvittens när ett skrivförsök misslyckas. Gottskär hade ingen toast alls —
+   utan den blir ett misslyckat tryck helt tyst, och lampan verkar bara ha
+   vägrat lyda. */
+#rum-toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(8px);z-index:9999;
+  background:var(--panel-b);border:1px solid var(--line);color:var(--ink);border-radius:12px;
+  padding:9px 15px;font-size:12.5px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.35);
+  opacity:0;pointer-events:none;transition:.2s}
+#rum-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#rooms-sec[hidden]{display:none!important}
 .tr-pil{margin-left:5px;font-size:.62em;font-weight:800;color:var(--dim);vertical-align:baseline}
 
 .section-head{display:flex;align-items:center;gap:9px;margin:0 4px 12px}
@@ -537,6 +665,14 @@ body.mobile .pband-slim{padding:12px 16px}
   /* Samma innerkant som mellanrummet mellan knapparna. */
   padding:var(--pg-gap);margin-bottom:var(--pg-gap-y)}
 .ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);font-family:var(--sans);font-weight:650;font-size:13px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s;min-height:84px;justify-content:center}
+/* FRAMSTEGSSTRECKET. .ctl fick position:relative och strecket ligger absolut
+   placerat över botten — läggs det i flödet tar det höjd i flexkolumnen och
+   trycker ihop ikon och text på alla övriga knappar. Ingen overflow:hidden
+   behövs: strecket är indraget 12 px och når aldrig ut till radien. */
+.ctl{position:relative}
+.ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
+  background:var(--line);pointer-events:none}
+.ctl-prog i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .6s ease}
 .ctl:hover{border-color:var(--svg-stroke)}
 .ctl-ic{width:24px;height:24px;color:var(--dim);display:inline-flex}.ctl-ic .ic{width:100%;height:100%}
 .ctl-l{font-size:12.5px;text-align:center}
@@ -2357,7 +2493,8 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
       <section class="panel wx-card" data-sec="weather">
         <div class="wx" id="weather-flow"></div>
         <div class="pn-del"></div>
-        <div class="grid stats st3 en-stats pn-tiles" id="stats-weather" data-grid="weather"></div>
+        <!-- De tre värdena ligger numera i själva väderraden. -->
+        <div class="grid stats st3 en-stats pn-tiles" id="stats-weather" data-grid="weather" hidden></div>
         <!-- Remsan (Inne, Uterum, Lägst, Högst, Max vind, Max by) flyttas hit av
              renderWeather. Den är sammanfattande och hör hemma sist. -->
         <!-- Ingen pn-del här: .wx2-strip har en EGEN border-top, och två linjer
@@ -2370,6 +2507,8 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
     <section class="grid stats st2" id="stats-flode" data-grid="flode" data-sec="tiles"></section>
 
     <section class="panel controls" id="controls" data-sec="buttons"></section>
+    <!-- Enhetsstyrningen. Ritas bara i mobilläge; renderRooms sätter hidden annars. -->
+    <section class="panel roomswrap" id="rooms-sec" data-sec="rum" hidden><div class="rooms" id="rooms"></div></section>
 
     <div class="warnwrap" data-sec="report"><section class="panel warns tick" id="warns" data-wxedit="report" onclick="openReport()"></section></div>
   </section>
@@ -3024,7 +3163,7 @@ function btnState(b){ // returnerar true om "på/aktiv"
   /* BREVEDEN: läget kommer från logikvariabeln, inte från något lokalt minne.
      Skriptet är auktoritativt — knappen speglar bara vad det säger. */
   if(b.type==='breveden'){var Bs=brvState();return !!(Bs&&Bs.aktiv);}
-  if(b.type==='disk')return diskBokad();
+  if(b.type==='disk')return diskBokad()||diskKor();
   if(b.type==='flowtoggle'){
     /* Följ-enhet går före: den vet vad som faktiskt hände, även om flowet
        startats från Homey-appen. Utan den återstår minnet av senaste tryck. */
@@ -3061,7 +3200,7 @@ function renderControls(){
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   const knapp=(b,i)=>{
     const on=btnState(b),isArm=armed.i===i;
-    var ic=b.icon,lbl=b.label;
+    var ic=b.icon,lbl=b.label,extra='';
     if(b.type==='moodtoggle'){ic=on?'lightbulb':'lightbulb-off';lbl=on?'Släck':'Tänd';}
     /* DISKMASKINEN: släckt knapp = ingen bokning, bara namnet. Tänd knapp =
        bokad, och då står klockslaget där namnet stod — det är det man vill veta. */
@@ -3072,7 +3211,16 @@ function renderControls(){
          tänds gjorde att man först måste läsa sig till vilken knapp det var.
          Tänd betyder bokad, och då står bara tiden. */
       ic=b.icon||'fork-knife';
-      lbl=on?(diskNar()||'Bokad'):(b.label||'Diskmaskin');
+      /* Tre lägen: kör → framsteg, bokad → tid, annars namnet. Att maskinen
+         faktiskt går är färskare information än en bokning och går före. */
+      if(diskKor()){
+        var dp=diskProc(),dm=diskMinKvar();
+        lbl=(dp!=null?(Math.round(dp)+' %'):'Kör')+(dm!=null&&dm>0?(' \u00b7 '+dm+' min'):'');
+        /* Strecket ritas även när procenten saknas: då står det på noll och
+           säger "igång, men vet inte hur långt" — inte "nästan klar". */
+        extra='<span class="ctl-prog"><i style="width:'+(dp!=null?Math.round(dp):0)+'%"></i></span>';
+      }
+      else lbl=on?(diskNar()||'Bokad'):(b.label||'Diskmaskin');
     }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
@@ -3098,6 +3246,7 @@ function renderControls(){
     else if(b.type==='toggle'&&(ic==='lightbulb'||ic==='lightbulb-off'))ic=on?'lightbulb':'lightbulb-off';
     return '<button class="ctl'+(on?' on':'')+(isArm?' arm':'')+'" data-bi="'+i+'" onclick="btnTap('+i+')"'+(live?'':' data-demo="1"')+'>'
       +'<span class="ctl-ic">'+icon(ic)+'</span><span class="ctl-l">'+esc(isArm?'Bekräfta?':lbl)+'</span>'
+      +extra
       +'</button>';};
   let h='',i=0;
   for(let r=0;r<rader.length;r++){
@@ -3129,6 +3278,13 @@ async function btnTap(i){
       return;
     }else if(b.type==='disk'){
       var varBokad=diskBokad();
+      /* Går maskinen utan att någon tid är bokad finns det inget att avboka, och
+         knappen ska INTE boka en ny tid mitt i ett pågående program. Trycket blir
+         en upplysning i stället för en åtgärd. Knappen stänger heller aldrig av
+         maskinen — den skickar bara boka/avboka till Homey, aldrig onoff.
+         Finns en bokning ligger den grenen först, så avbokning fungerar även
+         medan programmet kör. */
+      if(!varBokad&&diskKor()){flashCtl(i,'maskinen går');setTimeout(renderControls,1800);return;}
       await diskTryck();
       flashCtl(i,varBokad?'avbokar…':'bokar…');
       setTimeout(renderControls,2600);
@@ -3924,7 +4080,7 @@ function buildWeatherHTML(){
   const stor=(t2)=>t2?(t2.charAt(0).toUpperCase()+t2.slice(1)):'';
   let wBy='';if(wgust!=null)wBy='By '+num(wgust,0)+' m/s';
   let wsub2='';if(wgust!=null)wsub2=stor(gustDesc(wgust));else if(wspd!=null)wsub2=stor(windDesc(wspd,wgust));
-  let h='<div class="wx2'+(wz.nowCenter?' wx2-center':'')+'" data-wxedit="now">';
+  let h='<div class="wx2 wx2-harmitt'+(wz.nowCenter?' wx2-center':'')+'" data-wxedit="now">';
   h+='<div class="wx2-now wx-click" onclick="openDetail(\'wxwind\')"><span class="wx2-ic" style="width:'+zWicon+'px;height:'+zWicon+'px">'+icon(wxIcon(sit))+'</span>'
     +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span></div>'
     /* "Känns 17°" på EGEN rad, som "By 6 m/s · N" på vindsidan. Förut satt den
@@ -3932,7 +4088,22 @@ function buildWeatherHTML(){
     +(feels!=null?('<div class="wx2-by" style="font-size:'+zKB+'px">Känns'
       +'<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span></div>'):'')
     +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(sit||'Väder')+'</div></div></div>';
-  h+='<div class="wx2-div"></div>';
+  /* MITTKOLUMN: fukt, tryck och regn som en mittkolumn mellan väder och vind.
+     Första försöket var slarvigt: .wx2-div ligger absolut placerad på left:50%,
+     så två av dem hamnade ovanpå varandra mitt i den nya kolumnen — därav den
+     ensamma linjen på fel ställe i skärmdumpen. Här bär kolumnen sina egna
+     kantlinjer i stället, och den gamla avdelaren stängs av.
+     Etiketterna står högerställda i en egen kolumn så värdena hamnar på en rak
+     lodrät linje — det var det som såg hackigt ut. */
+  var pil=(tr>0?'\u2197':tr<0?'\u2198':'\u2192');
+  h+='<div class="wx2-mitt wx-click" onclick="openDetail(\'wxwind\')">'
+    +'<div class="wx2-m"><span class="wx2-ml">Fukt</span><span class="wx2-mv">'
+      +(hum==null?'–':Math.round(hum)+'<small>%</small>')+'</span></div>'
+    +'<div class="wx2-m"><span class="wx2-ml">Tryck</span><span class="wx2-mv">'
+      +(pres==null?'–':Math.round(pres)+'<small>hPa</small><i class="tr-pil">'+pil+'</i>')+'</span></div>'
+    +'<div class="wx2-m"><span class="wx2-ml">Regn</span><span class="wx2-mv">'
+      +(rain==null?'–':num(rain,1)+'<small>mm</small>')+'</span></div>'
+    +'</div>';
   h+='<div class="wx2-wind wx-click" onclick="openDetail(\'wxwind\')">'+windArrow(wdir,zArrow,zArrColor)
     +'<div class="wx2-wind-txt"><div class="wx2-line"><span class="wx2-wv" style="font-size:'+zNum+'px">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span></div>'
     /* Byvind och riktning på samma rad, riktningen EFTER pricken. */
@@ -10056,6 +10227,7 @@ var _brv=null,_brvAt=0,_brvVanta=0,_brvHamtar=false;
    Jag skrev namnet, anropet gav 404 och knappen kunde aldrig tändas hur rätt
    bokningen än var. Id:t finns inte i förväg, eftersom skriptet skapar
    variabeln, så det slås upp en gång ur listan och sparas. */
+var DISK_DEV='a6a9eccb-4d40-4eff-837a-4242bb564180';
 var DISK_VAR_NAMN='disk_bokning';
 var _diskVarId=null;
 var DISK_FLOW_BOKA='62a64da0-c29e-405d-b542-ff49429cdb5c';
@@ -10068,6 +10240,33 @@ function diskBokad(){
   var b=_disk;
   if(!b||!b.start)return false;
   return Date.now()<b.start+2*3600000;
+}
+/* MASKINENS EGEN STATUS.
+   Home Connect rapporterar framsteg och återstående tid som TEXT — "42%" och
+   "280:00" (minuter:sekunder, inte timmar). Därför plockas siffran ut med ett
+   mönster i stället för att läsas som tal. */
+function diskProc(){
+  var r=cap(DISK_DEV,'bshc_string.progress');
+  if(r==null)return null;
+  var m=String(r).match(/(\d+(?:[.,]\d+)?)/);
+  if(!m)return null;
+  var v=parseFloat(m[1].replace(',','.'));
+  return isFinite(v)?Math.max(0,Math.min(100,v)):null;
+}
+function diskMinKvar(){
+  var r=cap(DISK_DEV,'bshc_string.remaining_time');
+  if(r==null)return null;
+  var m=String(r).match(/^(\d+):(\d+)/);
+  if(!m)return null;
+  return parseInt(m[1],10);            /* första talet är minuter */
+}
+/* Kör den? Maskinen är på, och antingen finns tid kvar eller ett framsteg som
+   inte nått hundra. Ett stillastående program visar 0 % och 0 minuter. */
+function diskKor(){
+  if(cap(DISK_DEV,'onoff')!==true)return false;
+  var p=diskProc(),m=diskMinKvar();
+  if(m!=null&&m>0)return true;
+  return (p!=null&&p>0&&p<100);
 }
 function diskKl(){
   var b=_disk;
@@ -12783,7 +12982,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v513';
+const APP_VERSION='v516';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -13390,6 +13589,7 @@ function render(){
   const battW=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),exporting=pulseW!=null&&pulseW<0;
   renderEnergy();
   renderControls();
+  try{renderRooms();}catch(e){}
 
   /* Hysteres pa exporten: gar over till "Solöverskott" forst vid tydlig export
      (< -300 W) och tillbaka forst nar exporten upphort (> -50 W). Da slutar domen
@@ -14290,8 +14490,12 @@ function armAutoFull(){if(_autoFullArmed||!CFG.autoFull)return;_autoFullArmed=tr
 loadCfg();applyCfg();
 
 /* ===== flyttbara sektioner ===== */
-const SECMETA={energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',report:'Rapport'};
-const SEC_DEF=['energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','report'];
+const SECMETA={energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
+/* 'rum' star kvar i listan aven pa plattan, trots att avsnittet bara ritas i
+   mobillage. Ordningen ar DELAD mellan enheterna: tog plattan bort 'rum' ur
+   listan skulle telefonens valda plats forsvinna vid nasta synk. Raden i
+   "Ordna avsnitt" doljs i stallet dar den inte betyder nagot. */
+const SEC_DEF=['energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','rum','report'];
 /* Avsnittens ORDNING per enhetstyp. Nyckeln har två fack, precis som höjderna
    och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
    sällan den man vill ha i handen. */
@@ -14437,7 +14641,7 @@ function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)
 function secMove(sec,dir){const o=secOrderGet(),i=o.indexOf(sec),j=i+dir;if(i<0||j<0||j>=o.length)return;const t=o[i];o[i]=o[j];o[j]=t;secOrderSave(o);applySecOrder();openSecMove(sec);}
 function openSecMove(sel){const o=secOrderGet();
   let h='<div class="te"><div class="cfg-hint" style="margin-top:0">▲▼ flyttar avsnittet. −/+ ändrar dess höjd (innehållet skalar med). Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
-  o.forEach((sec,i)=>{const pct=Math.round(secScaleOf(sec)*100);
+  o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;const pct=Math.round(secScaleOf(sec)*100);
     h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
     +'<span class="secmv-h"><button onclick="secHeight(\''+sec+'\',-1)"'+(pct<=60?' disabled':'')+'>−</button><span class="secmv-hv">'+pct+'%</span><button onclick="secHeight(\''+sec+'\',1)"'+(pct>=160?' disabled':'')+'>+</button></span>'
     +'<span class="secmv-btns">'
@@ -14794,6 +14998,337 @@ async function checkForUpdate(){try{
   }
 }catch(e){}}
 checkForUpdate();setInterval(checkForUpdate,60000);
+
+/* ===== ENHETSSTYRNING: RUM, LAMPOR OCH GARDINER (v515) =====
+   Portad från Göteborgsdashboarden v1.33.0. Formerna är identiska; tre saker
+   är det INTE, och de är avsiktliga:
+
+   1. INGEN GRUPPLOGIK. Göteborg döljer lampor vars namn ser ut som
+      "<gruppen> <siffra>" i samma zon, eftersom Hue-rumsgrupper heter så där.
+      Jag läste Gottskärs enhetslista innan jag portade regeln, och den skulle
+      slå fel här: i Breveden finns "Tak" och "Tak 2" som två separata
+      taklampor, inte som grupp och medlem. Regeln hade tyst gömt "Tak 2" och
+      gjort den ostyrbar. Alla lampor listas därför var för sig.
+   2. RUMMEN VÄLJS PÅ INNEHÅLL, inte på plats i zonträdet. Göteborg tar
+      rotzonens barn. Gottskärs träd har ett mellanled — de flesta rummen ligger
+      under "Hus", medan Uterum, Breveden och Snickarboa ligger direkt under
+      "Hem". Ett rum är här helt enkelt en zon som innehåller något att styra.
+   3. GARDINERNA HAR TVÅ SORTERS STYRNING. Göteborgs rullgardiner sätts med
+      windowcoverings_set (0–1). Markisen i kontoret har i stället
+      windowcoverings_state med Homeys standardlägen up/idle/down. Båda
+      hanteras; vilken gren som används avgörs av vilken capability enheten har.
+
+   Uttag och sensorlistan är medvetet inte med — det var steg 3. */
+
+/* ---- hjälpare. r-prefix så ingenting krockar med filens övriga namn ---- */
+function rDevs(){return Object.keys(DATA).map(k=>DATA[k]).filter(Boolean);}
+function rDevsIZon(zid){return rDevs().filter(d=>d&&d.zone===zid);}
+const rHar=(d,c)=>!!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]);
+const rKlass=d=>(d&&(d.class||d.virtualClass||d.type))||'';
+const rNamn=d=>((d&&d.name)||'').trim();
+const rSort=(a,b)=>rNamn(a).localeCompare(rNamn(b),'sv');
+
+/* Ikon per rum. Nycklarna är Gottskärs faktiska zonnamn, hämtade ur Homey.
+   "Utomhus " har ett efterföljande blanksteg i Homey — därför trim(). */
+const RUM_IC={'kök':'fork-knife','vardagsrum':'couch','sovrum':'bed','kontor':'desktop',
+  'hall':'door','gästrum':'bed','lekrum':'game-controller','källare':'stairs',
+  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'house-line',
+  'snickarboa':'hammer','utomhus':'tree','el':'lightning','hus':'house'};
+function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
+
+function rArLampa(d){return rKlass(d)==='light'&&rHar(d,'onoff');}
+function rArGardin(d){
+  return ['windowcoverings','curtain','blinds'].indexOf(rKlass(d))>=0
+    &&(rHar(d,'windowcoverings_set')||rHar(d,'windowcoverings_state'));
+}
+function rLjusIZon(zid){return rDevsIZon(zid).filter(rArLampa).sort(rSort);}
+function rGardIZon(zid){return rDevsIZon(zid).filter(rArGardin).sort(rSort);}
+/* Ett rum är en zon med något att styra. Zoner utan lampor och gardiner —
+   El, Hus, Hem — faller bort av sig själva utan att stå i koden. */
+function rumsZoner(){
+  return Object.keys(ZONES).map(k=>ZONES[k]).filter(Boolean)
+    .filter(z=>rLjusIZon(z.id).length||rGardIZon(z.id).length)
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'sv'));
+}
+
+/* ---- skrivning ---- */
+function rumToast(t){
+  let e=$('rum-toast');
+  if(!e){e=document.createElement('div');e.id='rum-toast';document.body.appendChild(e);}
+  e.textContent=t;e.classList.add('on');
+  clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2600);
+}
+/* Optimistisk uppdatering: värdet skrivs i DATA direkt så att vippan slår om
+   med en gång. load() rättar det om Homey säger något annat. */
+function rSpegla(id,c,v){const d=DATA[id];
+  if(d&&d.capabilitiesObj&&d.capabilitiesObj[c])d.capabilitiesObj[c].value=v;}
+async function rSatt(id,c,v){await homeyPut(id,c,v);rSpegla(id,c,v);}
+
+async function devTanda(id){
+  const d=DATA[id];if(!d)return;
+  const ny=!(capOf(d,'onoff')===true);
+  try{await rSatt(id,'onoff',ny);rumRita();setTimeout(load,900);}
+  catch(e){rumToast('Kunde inte nå Homey');}
+}
+async function devDim(id,v){
+  const d=DATA[id];if(!d)return;
+  const f=Math.max(0.01,Math.min(1,Number(v)/100));
+  try{
+    if(capOf(d,'onoff')!==true)await rSatt(id,'onoff',true);
+    await rSatt(id,'dim',f);
+    rumRita();setTimeout(load,1200);
+  }catch(e){rumToast('Kunde inte nå Homey');}
+}
+async function zonAlla(zid,pa){
+  const lj=rLjusIZon(zid);if(!lj.length)return;
+  try{
+    await Promise.all(lj.map(d=>rSatt(d.id,'onoff',pa).catch(()=>{})));
+    lj.forEach(d=>rSpegla(d.id,'onoff',pa));
+    rumRita();setTimeout(load,900);
+  }catch(e){rumToast('Kunde inte nå Homey');}
+}
+function zonTanda(zid){
+  const lj=rLjusIZon(zid);if(!lj.length)return;
+  zonAlla(zid,!lj.some(d=>capOf(d,'onoff')===true));
+}
+async function zonDim(zid,v){
+  const lj=rLjusIZon(zid).filter(d=>rHar(d,'dim'));
+  const f=Math.max(0.01,Math.min(1,Number(v)/100));
+  try{
+    await Promise.all(lj.map(async d=>{
+      if(capOf(d,'onoff')!==true)await rSatt(d.id,'onoff',true).catch(()=>{});
+      await rSatt(d.id,'dim',f).catch(()=>{});
+    }));
+    rumRita();setTimeout(load,1200);
+  }catch(e){rumToast('Kunde inte nå Homey');}
+}
+
+/* ---- reglaget ---- */
+const SLX_R=13;
+function slxPos(andel){
+  return 'calc('+SLX_R+'px + (100% - '+(SLX_R*2)+'px) * '+andel.toFixed(4)+')';
+}
+function slxHTML(id,varde,handling,min,max){
+  const mn=(min==null?1:min),mx=(max==null?100:max);
+  const v=Math.max(mn,Math.min(mx,Math.round(varde)));
+  const a=(v-mn)/Math.max(1,mx-mn);
+  return '<div class="slx" data-slx="'+esc(id)+'" data-act="'+esc(handling)+'"'
+    +' data-min="'+mn+'" data-max="'+mx+'" data-v="'+v+'"'
+    +' role="slider" aria-valuemin="'+mn+'" aria-valuemax="'+mx+'" aria-valuenow="'+v+'" tabindex="0">'
+    +'<div class="slx-spar"></div>'
+    +'<div class="slx-fyll" style="width:'+slxPos(a)+'"></div>'
+    +'<div class="slx-prick" style="left:'+slxPos(a)+'"></div></div>';
+}
+function slxSatt(el,v,rita){
+  const mn=+el.dataset.min,mx=+el.dataset.max;
+  v=Math.max(mn,Math.min(mx,Math.round(v)));
+  el.dataset.v=String(v);
+  el.setAttribute('aria-valuenow',String(v));
+  if(rita!==false){
+    const a=(v-mn)/Math.max(1,mx-mn);
+    const f=el.querySelector('.slx-fyll'),k=el.querySelector('.slx-prick');
+    if(f)f.style.width=slxPos(a);
+    if(k)k.style.left=slxPos(a);
+  }
+  return v;
+}
+/* Dragningen startar bara på pricken; ett tryck på skåran gör ingenting. Först
+   när fingret rört sig mer vågrätt än lodrätt tas greppet — annars får sidan
+   behålla skrollningen. */
+var _slxDrag=null;
+function slxNer(e){
+  const k=e.target&&e.target.closest?e.target.closest('.slx-prick'):null;
+  if(!k)return;
+  const el=k.closest('.slx');if(!el)return;
+  _slxDrag={el:el,x0:e.clientX,y0:e.clientY,tagit:false,pid:e.pointerId,start:+el.dataset.v};
+  e.preventDefault();
+}
+function slxRor(e){
+  const d=_slxDrag;if(!d)return;
+  const dx=e.clientX-d.x0,dy=e.clientY-d.y0;
+  if(!d.tagit){
+    if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
+    if(Math.abs(dy)>Math.abs(dx)){_slxDrag=null;return;}
+    d.tagit=true;d.el.classList.add('drar');
+    try{d.el.setPointerCapture&&d.el.setPointerCapture(d.pid);}catch(err){}
+  }
+  const r=d.el.getBoundingClientRect();
+  if(!r.width)return;
+  const mn=+d.el.dataset.min,mx=+d.el.dataset.max;
+  const spann=Math.max(1,r.width-SLX_R*2);
+  slxSatt(d.el,mn+((e.clientX-r.left-SLX_R)/spann)*(mx-mn));
+  e.preventDefault();
+}
+function slxUpp(){
+  const d=_slxDrag;_slxDrag=null;
+  if(!d||!d.tagit)return;
+  d.el.classList.remove('drar');
+  const v=+d.el.dataset.v;
+  if(v===d.start)return;
+  const f=window[d.el.dataset.act];
+  if(typeof f==='function')f(d.el.dataset.slx,v);
+}
+function slxTangent(e){
+  const el=e.target&&e.target.closest?e.target.closest('.slx'):null;
+  if(!el)return;
+  const steg=(e.key==='ArrowRight'||e.key==='ArrowUp')?5:((e.key==='ArrowLeft'||e.key==='ArrowDown')?-5:0);
+  if(!steg)return;
+  const v=slxSatt(el,(+el.dataset.v)+steg);
+  const f=window[el.dataset.act];
+  if(typeof f==='function')f(el.dataset.slx,v);
+  e.preventDefault();
+}
+
+/* ---- gardiner ---- */
+/* Homeys standardlägen för windowcoverings_state. Markisen rapporterar "up"
+   just nu; enum:et är Homeys eget och inte något jag hittat på. */
+function rGardLagen(d){
+  if(rHar(d,'windowcoverings_state'))
+    return [{v:'up',l:'Upp'},{v:'idle',l:'Stopp'},{v:'down',l:'Ner'}];
+  return [{v:0,l:'Stängd'},{v:0.33,l:'1/3'},{v:0.67,l:'2/3'},{v:1,l:'Öppen'}];
+}
+function rGardCap(d){return rHar(d,'windowcoverings_state')?'windowcoverings_state':'windowcoverings_set';}
+/* Närmaste läge, inte exakt — en gardin stannar sällan på exakt 0,33. */
+function rGardAktivt(d){
+  const c=rGardCap(d),v=capOf(d,c);
+  if(v==null)return -1;
+  const lag=rGardLagen(d);
+  if(c==='windowcoverings_state'){
+    for(let i=0;i<lag.length;i++)if(lag[i].v===v)return i;
+    return -1;
+  }
+  let bast=0,diff=9;
+  lag.forEach((x,i)=>{const dd=Math.abs(x.v-v);if(dd<diff){diff=dd;bast=i;}});
+  return diff<=0.12?bast:-1;
+}
+async function gardLage(id,v){
+  const d=DATA[id];if(!d)return;
+  try{await rSatt(id,rGardCap(d),v);rumRita();setTimeout(load,1200);}
+  catch(e){rumToast('Kunde inte nå Homey');}
+}
+function rGardText(d){
+  const c=rGardCap(d),v=capOf(d,c);
+  if(v==null)return '–';
+  if(c==='windowcoverings_state'){
+    const t={up:'uppe',down:'nere',idle:'stilla'};
+    return t[v]||String(v);
+  }
+  return Math.round(v*100)+' % öppen';
+}
+function gardRad(d){
+  const b=capOf(d,'measure_battery');
+  const lag=rGardLagen(d),akt=rGardAktivt(d);
+  /* Lägesvärdet är antingen ett tal eller en sträng. Strängen måste citeras i
+     onclick-attributet; ett tal får inte citeras, då blir 0.33 en text som
+     Homey vägrar ta emot. */
+  const arg=x=>(typeof x.v==='string')?("'"+x.v+"'"):String(x.v);
+  return '<div class="gd">'
+    +'<div class="dv-row gd-h"><span class="dv-ic">'+icon('elevator')+'</span>'
+    +'<span class="dv-n">'+esc(rNamn(d))+'<small>'+esc(rGardText(d))
+    +(b!=null?(' · '+num(b,0)+' % batt'):'')+'</small></span></div>'
+    +'<div class="gd-lagen">'+lag.map((x,i)=>
+      '<button class="gd-l'+(i===akt?' on':'')+'" onclick="gardLage(\''+d.id+'\','+arg(x)+')">'
+      +esc(x.l)+'</button>').join('')+'</div></div>';
+}
+
+/* ---- rumskorten ---- */
+function devRad(d){
+  const pa=capOf(d,'onoff')===true,dim=rHar(d,'dim')?capOf(d,'dim'):null;
+  let h='<div class="dv-row'+(pa?' on':'')+'">'
+    +'<span class="dv-ic">'+icon('lightbulb-filament')+'</span>'
+    +'<span class="dv-n">'+esc(rNamn(d))
+      +(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
+    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
+  if(dim!=null&&pa)h+='<div class="dv-dim">'+slxHTML(d.id,dim*100,'devDim')+'</div>';
+  return h;
+}
+function dSec(t){return '<div class="dsec">'+esc(t)+'</div>';}
+
+let _rumId='';
+function rumHTML(){
+  const zid=_rumId,lj=rLjusIZon(zid),gard=rGardIZon(zid);
+  const pa=lj.filter(d=>capOf(d,'onoff')===true);
+  let h='';
+  if(lj.length){
+    const dimbara=pa.filter(d=>rHar(d,'dim')&&capOf(d,'dim')!=null);
+    const medel=dimbara.length?Math.round(dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length*100):50;
+    const nagonPa=pa.length>0;
+    h+='<div class="rum-master'+(nagonPa?' on':'')+'">'
+      +'<div class="dv-row">'
+      +'<span class="dv-ic">'+icon(nagonPa?'lightbulb':'lightbulb-off')+'</span>'
+      +'<span class="dv-n">Alla lampor<small>'+pa.length+' av '+lj.length+' tända</small></span>'
+      +'<button class="dv-sw'+(nagonPa?' on':'')+'" onclick="zonAlla(\''+zid+'\','+(nagonPa?'false':'true')+')" aria-label="alla på eller av"><i></i></button>'
+      +'</div>';
+    if(lj.some(d=>rHar(d,'dim'))){
+      h+='<div class="sl-h">'+icon('sun-dim')+'Ljusstyrka i rummet<b>'+medel+' %</b></div>'
+        +slxHTML(zid,medel,'zonDim');
+    }
+    h+='</div>';
+    h+=dSec('Lampor ('+pa.length+' av '+lj.length+' tända)');
+    h+=lj.map(devRad).join('');
+  }
+  if(gard.length){h+=dSec(gard.length>1?'Gardiner':'Gardin');h+=gard.map(gardRad).join('');}
+  return h;
+}
+function openRum(zid){
+  if(_suppressClick){_suppressClick=false;return;}
+  _rumId=zid;
+  const dlgn=$('dlg');if(dlgn&&dlgn.classList){dlgn.classList.remove('wide');dlgn.classList.remove('edit');}
+  _popupRebuild=rumHTML;
+  const n=zoneName(zid)||'Rum';
+  setT('dlg-title',n);setIcon('dlg-ic',rumIkon(n));
+  const bd=$('dlg-body');if(bd)bd.innerHTML=rumHTML();
+  const bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
+  dlgTop();
+}
+/* Står rumspopupen öppen ska den följa med när värdena ändras — men bara den.
+   _popupRebuild pekar på rumHTML enbart medan rutan är öppen; closeDetail
+   nollställer den. */
+function rumPopupUppdatera(){
+  try{if(_popupRebuild===rumHTML){const b=$('dlg-body');if(b)b.innerHTML=rumHTML();}}catch(e){}
+}
+function renderRooms(){
+  const el=$('rooms'),sec=$('rooms-sec');
+  if(!el||!sec)return;
+  /* Bara på mobil. På plattan hänger dashboarden på väggen — där är det inte
+     styrningen man vill ha, och rutorna skulle bara stjäla höjd. */
+  if(!MOBILE){sec.hidden=true;el.innerHTML='';return;}
+  const zs=rumsZoner();
+  sec.hidden=!zs.length;
+  el.innerHTML=zs.map(z=>{
+    const lj=rLjusIZon(z.id),gard=rGardIZon(z.id);
+    const pa=lj.filter(d=>capOf(d,'onoff')===true);
+    const dimbara=pa.filter(d=>rHar(d,'dim')&&capOf(d,'dim')!=null);
+    const medel=dimbara.length?dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length:null;
+    const t=rDevsIZon(z.id).map(d=>capOf(d,'measure_temperature')).filter(v=>v!=null&&isFinite(v));
+    const ror=rDevsIZon(z.id).some(d=>capOf(d,'alarm_motion')===true);
+    const meta=[];
+    if(lj.length)meta.push('<b>'+pa.length+'</b>/'+lj.length+' tända');
+    if(gard.length)meta.push('<b>'+gard.length+'</b> gardin'+(gard.length>1?'er':''));
+    if(t.length)meta.push('<b>'+num(t[0],1)+'°</b>');
+    if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
+    return '<div class="room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
+      +'<div class="room-h"><span class="room-ic">'+icon(rumIkon(z.name))+'</span>'
+      +'<span class="room-n">'+esc(z.name)+'</span>'
+      +(lj.length?('<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();zonTanda(\''+z.id+'\')" aria-label="tänd eller släck"><i></i></button>'):'')
+      +'</div>'
+      +'<div class="room-m">'+meta.join('')+'</div>'
+      +'<div class="room-bar"><i style="width:'+Math.round((medel==null?0:medel)*100)+'%"></i></div>'
+      +'</div>';}).join('');
+  rumPopupUppdatera();
+}
+/* Ett namn för både korten och den öppna popupen, så att varje skrivning bara
+   behöver anropa ett. */
+function rumRita(){renderRooms();}
+(function(){
+  if(typeof document==='undefined'||!document.addEventListener)return;
+  document.addEventListener('pointerdown',slxNer,true);
+  document.addEventListener('pointermove',slxRor,true);
+  document.addEventListener('pointerup',slxUpp,true);
+  document.addEventListener('pointercancel',slxUpp,true);
+  document.addEventListener('keydown',slxTangent);
+})();
+
 </script>
 <script>
 /* ===== husvakt 1.7.0 =====
