@@ -598,6 +598,15 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   opacity:0;pointer-events:none;transition:.2s}
 #rum-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 #rooms-sec[hidden]{display:none!important}
+.room.rum-dold{display:none}
+/* Visa fler / visa färre. Ligger under rutnätet och tar hela bredden, så den
+   inte kan förväxlas med ett rum. */
+.rum-mer{appearance:none;width:100%;margin-top:var(--rum-luft);border:1px solid var(--line);
+  background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:12px;font-weight:700;
+  border-radius:14px;padding:8px 6px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;gap:7px;box-sizing:border-box}
+.rum-mer .ic{width:14px;height:14px}
+.rum-mer:active{transform:scale(.99)}
 .tr-pil{margin-left:5px;font-size:.62em;font-weight:800;color:var(--dim);vertical-align:baseline}
 
 .section-head{display:flex;align-items:center;gap:9px;margin:0 4px 12px}
@@ -2508,7 +2517,7 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 
     <section class="panel controls" id="controls" data-sec="buttons"></section>
     <!-- Enhetsstyrningen. Ritas bara i mobilläge; renderRooms sätter hidden annars. -->
-    <section class="panel roomswrap" id="rooms-sec" data-sec="rum" hidden><div class="rooms" id="rooms"></div></section>
+    <section class="panel roomswrap" id="rooms-sec" data-sec="rum" hidden><div class="rooms" id="rooms"></div><div id="rooms-mer"></div></section>
 
     <div class="warnwrap" data-sec="report"><section class="panel warns tick" id="warns" data-wxedit="report" onclick="openReport()"></section></div>
   </section>
@@ -12982,7 +12991,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v518';
+const APP_VERSION='v519';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -15064,13 +15073,30 @@ const RUM_LAMPA={
 };
 function rArLampa(d){
   if(!d||!rHar(d,'onoff'))return false;
+  if(RUM_DOLJ_DEV[d.id])return false;
   if(RUM_LAMPA[d.id])return true;
   if(/fönster/i.test(rNamn(d)))return true;
   return rKlass(d)==='light';
 }
-/* Zoner som INTE ska stå bland rummen. Breveden är ett eget hus med egen knapp
-   och egen automatik — den hör inte hemma i rumsraden. */
-const RUM_DOLJ={'04a44634-aa34-41ed-87c0-d1ab5ce4bedd':1};   /* Breveden */
+/* ORDNINGEN. De fyra översta står i den ordning Markus valt, inte i
+   bokstavsordning — det är de rum han faktiskt styr. Resten följer efter i
+   bokstavsordning, och Breveden sist eftersom det är ett eget hus.
+   Ett rum som saknar lampor faller bort som förut; då är det bara färre än
+   fyra som visas, och räkningen nedan följer med. */
+const RUM_TOPP={
+  '9eb2975d-49ea-4033-8db0-105a3e982117':0,   /* Vardagsrum */
+  '5a349f9e-a371-44ec-bb9a-fbb8c555f9a3':1,   /* Uterum */
+  '2ab5a003-0120-4c01-80f2-a237dcf4ba14':2,   /* Kök */
+  'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64':3    /* Lekrum */
+};
+const RUM_SIST={'04a44634-aa34-41ed-87c0-d1ab5ce4bedd':1};   /* Breveden */
+const RUM_SYNLIGA=4;                          /* hur många som står framme */
+/* Enheter som inte ska stå i rumsvyn alls. Föröver och Styrbord i uterummet
+   styrs på annat sätt. De räknas inte heller in i "x av y tända". */
+const RUM_DOLJ_DEV={
+  '38d7daa2-40c1-4cf5-a549-0b33eee1507c':1,   /* Föröver */
+  '4bcd206f-8869-4860-bba7-c80fa18d9dbd':1    /* Styrbord */
+};
 function rArGardin(d){
   return ['windowcoverings','curtain','blinds'].indexOf(rKlass(d))>=0
     &&(rHar(d,'windowcoverings_set')||rHar(d,'windowcoverings_state'));
@@ -15079,11 +15105,19 @@ function rLjusIZon(zid){return rDevsIZon(zid).filter(rArLampa).sort(rSort);}
 function rGardIZon(zid){return rDevsIZon(zid).filter(rArGardin).sort(rSort);}
 /* Ett rum är en zon med något att styra. Zoner utan lampor och gardiner —
    El, Hus, Hem — faller bort av sig själva utan att stå i koden. */
+function rumRang(z){
+  if(RUM_TOPP[z.id]!=null)return RUM_TOPP[z.id];
+  if(RUM_SIST[z.id])return 99;
+  return 50;
+}
 function rumsZoner(){
   return Object.keys(ZONES).map(k=>ZONES[k]).filter(Boolean)
-    .filter(z=>!RUM_DOLJ[z.id])
     .filter(z=>rLjusIZon(z.id).length||rGardIZon(z.id).length)
-    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'sv'));
+    .sort((a,b)=>{
+      const ra=rumRang(a),rb=rumRang(b);
+      if(ra!==rb)return ra-rb;
+      return String(a.name||'').localeCompare(String(b.name||''),'sv');
+    });
 }
 
 /* ---- skrivning ---- */
@@ -15322,12 +15356,17 @@ function openRum(zid){
 function rumPopupUppdatera(){
   try{if(_popupRebuild===rumHTML){const b=$('dlg-body');if(b)b.innerHTML=rumHTML();}}catch(e){}
 }
+/* Utfällt eller inte. Ligger i minnet och inte i localStorage: render() ritar
+   om rutan var femtonde sekund och läget måste överleva det, men nästa gång
+   dashboarden öppnas ska de fyra vanliga stå framme igen. */
+let _rumUtfallt=false;
+function rumVisaMer(){_rumUtfallt=!_rumUtfallt;renderRooms();}
 function renderRooms(){
-  const el=$('rooms'),sec=$('rooms-sec');
+  const el=$('rooms'),sec=$('rooms-sec'),mer=$('rooms-mer');
   if(!el||!sec)return;
   /* Bara på mobil. På plattan hänger dashboarden på väggen — där är det inte
      styrningen man vill ha, och rutorna skulle bara stjäla höjd. */
-  if(!MOBILE){sec.hidden=true;el.innerHTML='';return;}
+  if(!MOBILE){sec.hidden=true;el.innerHTML='';if(mer)mer.innerHTML='';return;}
   const zs=rumsZoner();
   sec.hidden=!zs.length;
   el.innerHTML=zs.map(z=>{
@@ -15342,7 +15381,10 @@ function renderRooms(){
     if(gard.length)meta.push('<b>'+gard.length+'</b> gardin'+(gard.length>1?'er':''));
     if(t.length)meta.push('<b>'+num(t[0],1)+'°</b>');
     if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
-    return '<div class="room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
+    /* Korten bortom de fyra ritas alltid, men döljs med CSS. Att rita om hela
+       listan vid varje utfällning skulle tappa rullningsläget i sidan. */
+    const dold=(!_rumUtfallt&&zs.indexOf(z)>=RUM_SYNLIGA);
+    return '<div class="room'+(pa.length?' on':'')+(dold?' rum-dold':'')+'" onclick="openRum(\''+z.id+'\')">'
       +'<div class="room-h"><span class="room-ic">'+icon(rumIkon(z.name))+'</span>'
       +'<span class="room-n">'+esc(z.name)+'</span>'
       +(lj.length?('<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();zonTanda(\''+z.id+'\')" aria-label="tänd eller släck"><i></i></button>'):'')
@@ -15350,6 +15392,14 @@ function renderRooms(){
       +'<div class="room-m">'+meta.join('')+'</div>'
       +'<div class="room-bar"><i style="width:'+Math.round((medel==null?0:medel)*100)+'%"></i></div>'
       +'</div>';}).join('');
+  if(mer){
+    const kvar=zs.length-RUM_SYNLIGA;
+    mer.innerHTML=(kvar>0)
+      ? ('<button class="rum-mer" onclick="rumVisaMer()" aria-expanded="'+(_rumUtfallt?'true':'false')+'">'
+         +(_rumUtfallt?(icon('arrow-fat-up')+'Visa färre')
+                      :(icon('arrow-fat-up','flip')+'Visa '+kvar+' rum till'))+'</button>')
+      : '';
+  }
   rumPopupUppdatera();
 }
 /* Ett namn för både korten och den öppna popupen, så att varje skrivning bara
