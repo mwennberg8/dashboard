@@ -3290,7 +3290,17 @@ function renderControls(){
   const knapp=(b,i)=>{
     const on=btnState(b),isArm=armed.i===i;
     var ic=b.icon,lbl=b.label,extra='';
-    if(b.type==='moodtoggle'){ic=on?'lightbulb':'lightbulb-off';lbl=on?'Släck':'Tänd';}
+    /* HAR ANVÄNDAREN VALT EN EGEN IKON?
+       Tre knapptyper byter ikon efter läge — vippan, moodet och Breveden. De
+       skrev tidigare över den valda ikonen villkorslöst, så ikonväljaren såg ut
+       att fungera men syntes aldrig på knappen. Nu gäller lägesikonen bara när
+       ikonen ÄR en av lägesikonerna, alltså när man låtit valet vara
+       automatiskt. Att jämföra mot listan i stället för att spara ett eget
+       "auto"-fält gör att gamla sparade knappar beter sig som förut. */
+    var beAuto=function(lista){return !b.icon||lista.indexOf(b.icon)>=0;};
+    if(b.type==='moodtoggle'){
+      if(beAuto(['lightbulb','lightbulb-off']))ic=on?'lightbulb':'lightbulb-off';
+      lbl=on?'Släck':'Tänd';}
     /* DISKMASKINEN: släckt knapp = ingen bokning, bara namnet. Tänd knapp =
        bokad, och då står klockslaget där namnet stod — det är det man vill veta. */
     else if(b.type==='disk'){
@@ -3313,20 +3323,22 @@ function renderControls(){
     }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
-         gör härnäst — samma logik som moodtoggle. */
-      ic=on?'toggle-right':'toggle-left';
+         gör härnäst — samma logik som moodtoggle. Har man valt en egen ikon
+         står den kvar i båda lägena; etiketten säger ändå vad som händer. */
+      if(beAuto(['toggle-left','toggle-right']))ic=on?'toggle-right':'toggle-left';
       lbl=on?(b.labelOff||b.label||'Av'):(b.labelOn||b.label||'På');
     }
     else if(b.type==='breveden'){
       /* Samma fyra lägen som rutan: aktiv visar vilket läge som körs, inaktiv
          vad ett tryck skulle göra, och osäkert läge gråas. */
       var Bb=brvState(), gam=brvGammal(Bb);
+      var brvAuto=beAuto(['thermometer-simple','snowflake','flame']);
       if(Bb&&Bb.aktiv){
-        ic=(Bb.lage==='cool')?'snowflake':(Bb.lage==='heat')?'flame':'thermometer-simple';
+        if(brvAuto)ic=(Bb.lage==='cool')?'snowflake':(Bb.lage==='heat')?'flame':'thermometer-simple';
         lbl=b.label||'Breveden';
       }else{
         var nl=Bb&&Bb.nastaLage;
-        ic=(nl==='cool')?'snowflake':(nl==='heat')?'flame':'thermometer-simple';
+        if(brvAuto)ic=(nl==='cool')?'snowflake':(nl==='heat')?'flame':'thermometer-simple';
         lbl=b.label||'Breveden';
       }
       if(Bb&&Bb.inne!=null)lbl+=' '+num(Bb.inne,1)+'°';
@@ -13357,7 +13369,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v529';
+const APP_VERSION='v530';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
