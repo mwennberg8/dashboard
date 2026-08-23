@@ -12982,7 +12982,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v516';
+const APP_VERSION='v518';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -15024,7 +15024,10 @@ checkForUpdate();setInterval(checkForUpdate,60000);
 function rDevs(){return Object.keys(DATA).map(k=>DATA[k]).filter(Boolean);}
 function rDevsIZon(zid){return rDevs().filter(d=>d&&d.zone===zid);}
 const rHar=(d,c)=>!!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]);
-const rKlass=d=>(d&&(d.class||d.virtualClass||d.type))||'';
+/* virtualClass FÖRST. Homeys egen app låter den överstyra class — en Shelly
+   som fått "visa som lampa" har class:'socket' och virtualClass:'light', och
+   frågar man class får man fel svar. Ordningen var omvänd i v515–v516. */
+const rKlass=d=>(d&&(d.virtualClass||d.class||d.type))||'';
 const rNamn=d=>((d&&d.name)||'').trim();
 const rSort=(a,b)=>rNamn(a).localeCompare(rNamn(b),'sv');
 
@@ -15036,7 +15039,38 @@ const RUM_IC={'kök':'fork-knife','vardagsrum':'couch','sovrum':'bed','kontor':'
   'snickarboa':'hammer','utomhus':'tree','el':'lightning','hus':'house'};
 function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
 
-function rArLampa(d){return rKlass(d)==='light'&&rHar(d,'onoff');}
+/* LAMPOR SOM HOMEY INTE KALLAR LAMPOR.
+   Markus har bekräftat att enheterna med "Fönster" i namnet och enheten
+   "Lekrum" är lampor. Jag kan inte läsa fältet class via MCP och vet därför
+   inte VARFÖR de föll bort — därför är regeln skriven så att den inte behöver
+   veta det: id:na står uttryckligen, och namnregeln fångar framtida
+   fönsterlampor. Byter en enhet id vid ny parning måste raden här rättas.
+   Namnregeln kräver onoff, så en fönstersensor kan aldrig fastna i den.
+
+   Hela enhetslistan gicks igenom rad för rad 2026-08-23 och Lavalampa var den
+   enda rättelsen. Övriga uttag — Poolvärme, Värmefläkt, Värme, Skivspelare,
+   Utomhus uttag, AC, Källare Plug — är alltså uttag på riktigt och ska INTE
+   in i listan. */
+const RUM_LAMPA={
+  '5265c751-b2df-4d52-8b04-c1a40e933f8e':1,   /* Fönster kontor */
+  '5ba55d2a-80dd-47ab-b306-8ff10f83ba81':1,   /* Fönster sovrum */
+  '9142a33c-06fe-4ac2-b374-02ec7c024e8b':1,   /* Fönster 1 */
+  '7341ddc1-905c-49a7-a1a1-3355c110cca4':1,   /* Fönster 3 */
+  '2affdbf7-5365-4cd4-807c-8bc4462af69e':1,   /* Fönster snickerboa */
+  'b298eaec-79c4-4b29-a0c7-aa2b1c462485':1,   /* Lekrum */
+  '578f6f73-02ed-4d7b-8bcf-0b1dc53dcf9c':1,   /* Lavalampa */
+  '7cc59323-b19d-4986-88a3-01702cc16dcc':1,   /* Hallampa */
+  '79f8a819-97ca-4724-872c-63f9349f97c0':1    /* Gästrum */
+};
+function rArLampa(d){
+  if(!d||!rHar(d,'onoff'))return false;
+  if(RUM_LAMPA[d.id])return true;
+  if(/fönster/i.test(rNamn(d)))return true;
+  return rKlass(d)==='light';
+}
+/* Zoner som INTE ska stå bland rummen. Breveden är ett eget hus med egen knapp
+   och egen automatik — den hör inte hemma i rumsraden. */
+const RUM_DOLJ={'04a44634-aa34-41ed-87c0-d1ab5ce4bedd':1};   /* Breveden */
 function rArGardin(d){
   return ['windowcoverings','curtain','blinds'].indexOf(rKlass(d))>=0
     &&(rHar(d,'windowcoverings_set')||rHar(d,'windowcoverings_state'));
@@ -15047,6 +15081,7 @@ function rGardIZon(zid){return rDevsIZon(zid).filter(rArGardin).sort(rSort);}
    El, Hus, Hem — faller bort av sig själva utan att stå i koden. */
 function rumsZoner(){
   return Object.keys(ZONES).map(k=>ZONES[k]).filter(Boolean)
+    .filter(z=>!RUM_DOLJ[z.id])
     .filter(z=>rLjusIZon(z.id).length||rGardIZon(z.id).length)
     .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'sv'));
 }
