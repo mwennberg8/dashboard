@@ -5862,12 +5862,58 @@ function prgFarg(mm){
   if(mm<20)return '#c10000';
   return '#ffaaff';
 }
+/* SOM RADARN, ALLTSÅ SOM EN BILD.
+   Färgade rektanglar blir fyrkanter hur man än vänder på dem - det är vad en
+   rektangel är. Radarn ser mjuk ut för att den är en BILD som webbläsaren
+   skalar upp med utjämning mellan bildpunkterna. Prognosen ritas därför som en
+   17x17 bildpunkter liten PNG som sträcks över kartan: utjämningen sköts av
+   webbläsaren, gratis och likadant som för radarrutorna.
+   Genomskinligheten ligger i bildpunkten, så även kanterna mot uppehåll tonar
+   ut i stället för att sluta tvärt. */
+function prgHexRgb(h){
+  return [parseInt(h.substr(1,2),16),parseInt(h.substr(3,2),16),parseInt(h.substr(5,2),16)];
+}
+/* Bildpunkterna som ren data, så att de går att prova utan en canvas. */
+function prgPixlar(ti){
+  var ut=new Array(PRG_N*PRG_N*4);
+  for(var i=0;i<PRG_N*PRG_N;i++){
+    var mm=prgVarde(i,ti), k=i*4;
+    if(mm<0.02){ut[k]=0;ut[k+1]=0;ut[k+2]=0;ut[k+3]=0;continue;}
+    var rgb=prgHexRgb(prgFarg(mm));
+    ut[k]=rgb[0];ut[k+1]=rgb[1];ut[k+2]=rgb[2];
+    ut[k+3]=Math.round(255*Math.max(0.35,Math.min(0.9,0.35+mm*0.11)));
+  }
+  return ut;
+}
+function prgTom(px){
+  for(var i=3;i<px.length;i+=4)if(px[i]>0)return false;
+  return true;
+}
 function prgLagerHTML(ti){
   if(!_prgPkt||!_prgTid.length||ti==null)return '';
-  var VW=RADAR_VIEW;
-  /* Cellerna läggs kant i kant och centreras på sin punkt, precis som en
-     radarruta. Ingen oskärpa: samma skarpa intryck som mätningen. */
-  var cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1), o='';
+  var px=prgPixlar(ti);
+  if(prgTom(px))return '';
+  var VW=RADAR_VIEW, cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1);
+  var url=null;
+  try{
+    var cv=document.createElement('canvas');cv.width=PRG_N;cv.height=PRG_N;
+    var cx=cv.getContext&&cv.getContext('2d');
+    if(cx){
+      var im=cx.createImageData(PRG_N,PRG_N);
+      for(var i=0;i<px.length;i++)im.data[i]=px[i];
+      cx.putImageData(im,0,0);
+      url=cv.toDataURL('image/png');
+    }
+  }catch(e){url=null;}
+  /* Bilden läggs ut så att varje bildpunkts MITT hamnar på sin koordinat,
+     därför den halva cellens överhäng åt alla håll. */
+  if(url){
+    return '<image href="'+url+'" x="'+(-cw/2).toFixed(1)+'" y="'+(-ch/2).toFixed(1)+'" '
+      +'width="'+(VW.W+cw).toFixed(1)+'" height="'+(VW.H+ch).toFixed(1)+'" '
+      +'preserveAspectRatio="none" style="image-rendering:auto"/>';
+  }
+  /* Utan canvas ritas rutor. Fult, men bättre än en tom karta. */
+  var o='';
   for(var r=0;r<PRG_N;r++)for(var c=0;c<PRG_N;c++){
     var mm=prgVarde(r*PRG_N+c,ti);
     if(mm<0.02)continue;
@@ -13572,7 +13618,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v536';
+const APP_VERSION='v537';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
