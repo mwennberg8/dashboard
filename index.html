@@ -13370,7 +13370,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v531';
+const APP_VERSION='v532';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -15038,7 +15038,14 @@ function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)
     setTimeout(bandLika,60);
   }}
 function secMove(sec,dir){const o=secOrderGet(),i=o.indexOf(sec),j=i+dir;if(i<0||j<0||j>=o.length)return;const t=o[i];o[i]=o[j];o[j]=t;secOrderSave(o);applySecOrder();openSecMove(sec);}
-function openSecMove(sel){const o=secOrderGet();
+/* SPÄRR MOT DÖDA AVSNITT. secOrderGet filtrerar redan mot SEC_DEF, men ett
+   avsnitt utan namn i SECMETA ritades med sitt råa id - "energy-tiles" stod
+   kvar i listan hos Markus efter att rutorna bakats in i energiavsnittet.
+   Varje id i SEC_DEF har ett namn, så saknas namnet är avsnittet dött oavsett
+   var id:t kom ifrån: gammal sparad ordning, synk från Homey, eller en
+   framtida borttagning där någon glömmer städa på båda ställena.
+   Ett avsnitt utan namn kan inte presenteras för en människa. */
+function openSecMove(sel){const o=secOrderGet().filter(function(x){return !!SECMETA[x];});
   let h='<div class="te"><div class="cfg-hint" style="margin-top:0">▲▼ flyttar avsnittet. −/+ ändrar dess höjd (innehållet skalar med). Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
   o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;const pct=Math.round(secScaleOf(sec)*100);
     h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
