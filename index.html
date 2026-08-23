@@ -3218,6 +3218,7 @@ function ctlRows(n,max){
 function ctlScale(k){return k>=5?0.78:(k===4?0.88:1);}
 function renderControls(){
   const el=$('controls');if(!el)return;
+  try{diskObs();}catch(e){}
   if(!CONFIG.CONTROL_ENABLED||!(CONFIG.BUTTONS&&CONFIG.BUTTONS.length)){el.style.display='none';return;}
   el.style.display='';
   const n=CONFIG.BUTTONS.length, mob=szMobile();
@@ -10287,13 +10288,57 @@ function diskMinKvar(){
   if(!m)return null;
   return parseInt(m[1],10);            /* första talet är minuter */
 }
-/* Kör den? Maskinen är på, och antingen finns tid kvar eller ett framsteg som
-   inte nått hundra. Ett stillastående program visar 0 % och 0 minuter. */
+/* KÖR DEN?
+   Den gamla regeln — "tid kvar > 0 betyder igång" — höll inte. När programmet
+   är färdigt ställer maskinen tillbaka sig och visar exakt samma sak som före
+   start: 0 % och 280 minuter kvar. De två lägena går alltså INTE att skilja åt
+   på ett enskilt avläst värde; jag har gått igenom enhetens capabilities och
+   det finns inget fält som säger "igång".
+
+   Det enda som skiljer är att en maskin som går RÄKNAR NER. Därför sparas
+   senast sedda tid kvar, och läget avgörs av hur talet rör sig:
+     mindre än förra gången  → den går
+     större än förra gången  → programmet tog slut, eller ett nytt valdes
+     oförändrat              → behåll det läge vi redan hade
+   Ett framsteg mellan 1 och 99 % är entydigt och slår igenom direkt, utan att
+   vänta på nedräkningen.
+
+   Priset är en fördröjning: startas maskinen för hand medan den står på
+   0 % och 280 minuter dröjer det tills första minuten tickat bort innan
+   knappen tänds. Den missar alltså inte en verklig start — den ser den bara
+   någon minut senare. Läget ligger i webbläsaren så att en omladdning mitt i
+   ett program inte nollställer det. */
+var OBS_KEY='disk_obs_v1',_diskObs=null;
+function diskObsLas(){
+  if(_diskObs)return _diskObs;
+  try{_diskObs=JSON.parse(localStorage.getItem(OBS_KEY)||'null');}catch(e){}
+  if(!_diskObs||typeof _diskObs!=='object')_diskObs={r:null,kor:false};
+  return _diskObs;
+}
+function diskObsSpara(){try{localStorage.setItem(OBS_KEY,JSON.stringify(_diskObs));}catch(e){}}
+/* Anropas när knapparna ritas. Samma värde två gånger ändrar ingenting, så
+   den tål att köras hur ofta som helst. */
+function diskObs(){
+  var o=diskObsLas();
+  var pa=cap(DISK_DEV,'onoff')===true,p=diskProc(),r=diskMinKvar();
+  if(!pa){if(o.kor||o.r!=null){o.kor=false;o.r=null;diskObsSpara();}return;}
+  var ny=o.kor;
+  if(p!=null&&p>0&&p<100)ny=true;
+  else if(p!=null&&p>=100)ny=false;
+  /* Noll minuter kvar är slut, inte "nästan klar" — och det ska inte behöva
+     vänta på att talet hoppar tillbaka till 280 för att märkas. */
+  if(r!=null&&r<=0)ny=false;
+  else if(r!=null&&o.r!=null){
+    if(r<o.r)ny=true;
+    else if(r>o.r)ny=false;
+  }
+  if(ny!==o.kor||r!==o.r){o.kor=ny;o.r=r;diskObsSpara();}
+}
 function diskKor(){
   if(cap(DISK_DEV,'onoff')!==true)return false;
-  var p=diskProc(),m=diskMinKvar();
-  if(m!=null&&m>0)return true;
-  return (p!=null&&p>0&&p<100);
+  var p=diskProc();
+  if(p!=null&&p>0&&p<100)return true;
+  return !!diskObsLas().kor;
 }
 function diskKl(){
   var b=_disk;
@@ -13009,7 +13054,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v521';
+const APP_VERSION='v522';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
