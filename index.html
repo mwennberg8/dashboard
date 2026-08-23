@@ -5784,14 +5784,16 @@ function radarLayerHTML(path){
    tryckfältet - samma värdnamn, samma kommaseparerade koordinatlista. Den
    vägen är alltså prövad härifrån.
 
-   Rutnätet är 25x25 = 625 punkter, vilket ryms i ett anrop (taket är 1000).
-   På närmaste zoom blir det ~3,8 km mellan punkterna, alltså finare än
-   modellens egna 2 km i praktiken räcker till. Jag hade först 9x9 med
+   Rutnätet är 17x17 = 289 punkter. Open-Meteo tillåter 1000, men gränsen som
+   biter är ADRESSENS längd: koordinaterna ligger i URL:en, och 625 punkter gav
+   omkring tio kilobyte - långt över vad många servrar tar emot. Prognosen
+   försvann helt utan att säga ifrån. 289 punkter med tre decimaler landar på
+   drygt fyra kilobyte, och adressen mäts nu innan den skickas. Jag hade först 9x9 med
    oskärpa "så att ingen skulle ta det för en mätning" - resultatet blev vaga
    moln som inte gick att läsa. Nu ritas fälten skarpt, som radarn, och att
    det är beräknat framgår av etiketten i stället.
    Enheten är mm/h i båda fallen, så färgskalan är gemensam. */
-var PRG_N=25, PRG_BAK=1, PRG_FRAM=2;
+var PRG_N=17, PRG_BAK=1, PRG_FRAM=2;
 var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null;
 
 /* Kartans hörn i grader. Samma projektion som kartrutorna använder, baklänges,
@@ -5807,8 +5809,10 @@ function prgRutnat(){
   var v=lon(px-VW.W/2), o=lon(px+VW.W/2), no=lat(py-VW.H/2), sy=lat(py+VW.H/2);
   var lats=[],lons=[];
   for(var r=0;r<PRG_N;r++)for(var c=0;c<PRG_N;c++){
-    lats.push((no+(sy-no)*r/(PRG_N-1)).toFixed(4));
-    lons.push((v+(o-v)*c/(PRG_N-1)).toFixed(4));
+    /* Tre decimaler racker: ~110 m i latitud, och modellen har 2 km rutor.
+       Varje extra decimal kostar 289 tecken i adressen. */
+    lats.push((no+(sy-no)*r/(PRG_N-1)).toFixed(3));
+    lons.push((v+(o-v)*c/(PRG_N-1)).toFixed(3));
   }
   return {lats:lats,lons:lons,z:Z};
 }
@@ -5823,8 +5827,15 @@ function prgHamta(){
     +'&longitude='+g.lons.join(',')
     +'&hourly=precipitation&past_days='+PRG_BAK+'&forecast_days='+PRG_FRAM
     +'&models=dmi_seamless&timeformat=unixtime&timezone=UTC';
+  /* Adressens langd mats innan den skickas. Blir den for lang ar det battre
+     att saga det an att skicka nagot som tyst avvisas. */
+  if(url.length>7000){_prgFel='rutnatet ger en for lang adress ('+url.length+' tecken)';
+    _prgBusy=false;_prgAt=Date.now();return;}
   try{
-    fetch(url,{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    fetch(url,{cache:'no-store'}).then(function(r){
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json();
+    }).then(function(j){
       /* Flera positioner ger en LISTA; en position ger ett objekt. Båda
          hanteras, annars går det sönder den dag rutnätet krymps. */
       var lista=Array.isArray(j)?j:[j];
@@ -6335,6 +6346,11 @@ function wxMapSVG(){
        att wxSetIdx kan byta innehåll utan att rita om kartan. */
     var vald=wxRutaNu();
     s+='<g id="wx-prg" opacity=".62">'+((vald&&vald.typ==='modell')?prgLagerHTML(vald.ti):'')+'</g>';
+    /* En tyst tom karta ar det samsta utfallet: man vet inte om det ar
+       uppehall eller om hamtningen gick fel. Sag vilket. */
+    if(_prgFel&&!_prgTid.length){
+      s+='<text x="'+(W/2)+'" y="'+(H-40)+'" text-anchor="middle" class="wxm-none">'
+        +'Prognosen kunde inte hamtas: '+esc(_prgFel)+'</text>';}
     var fr0=(vald&&vald.typ!=='modell')?{path:vald.path}:null;
     if(fr0){
       s+='<g id="wx-radar" opacity=".72">'+radarLayerHTML(fr0.path)+'</g>';
@@ -13556,7 +13572,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v535';
+const APP_VERSION='v536';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
