@@ -713,11 +713,16 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
    padding låg knapparna 3 px från kanten medan grannrutorna har 16, och raden
    såg ut att spilla ut ur sin vita ruta. clamp(16px,2vw,21px) är samma mått som
    panelerna i insikts- och vädervyerna använder. */
+/* SAMMA LUFT SOM RUMMEN. Knapprutan hade en egen innerkant pa 16-21 px medan
+   rumskorten ligger pa --rum-luft, alltsa 9 px pa mobil. Tva avsnitt under
+   varandra med olika innerkant syns direkt. Nu delar de samma matt, och
+   --knmarg fungerar som forut: den skalar luften, den satter den inte. */
 body.mobile:not(.kiosk) .controls{display:flex;flex-direction:column;
-  gap:var(--pg-gap-y);padding:calc(clamp(16px,2vw,21px)*var(--knmarg,1));overflow:hidden}
+  gap:calc(var(--rum-luft)*var(--knmarg,1));
+  padding:calc(var(--rum-luft)*var(--knmarg,1));overflow:hidden}
 /* Mellanrummet mellan knapparna hämtas separat: det ska vara litet, till
    skillnad från innerkanten. */
-body.mobile:not(.kiosk) .ctl-row{gap:calc(8px*var(--knmarg,1))}
+body.mobile:not(.kiosk) .ctl-row{gap:calc(var(--rum-luft)*var(--knmarg,1))}
 /* FLEXBOX, inte grid. Raden byggde på var(--n) inuti repeat(), och den
    konstruktionen avvisas av en del motorer — då föll hela deklarationen bort,
    .ctl-row föll tillbaka på display:contents, och knapparna blev flexbarn i
@@ -726,7 +731,7 @@ body.mobile:not(.kiosk) .ctl-row{gap:calc(8px*var(--knmarg,1))}
    flex:1 1 0 med min-width:0 ger samma jämna fördelning utan att bero på att
    en variabel går att använda inuti en funktion. */
 body.mobile:not(.kiosk) .ctl-row{display:flex;flex-direction:row;
-  gap:var(--pg-gap);min-width:0;width:100%}
+  gap:calc(var(--rum-luft)*var(--knmarg,1));min-width:0;width:100%}
 /* flex-basis med enhet. "flex:1 1 0" utan enhet avvisas av vissa parsrar och
    hela deklarationen faller — samma sorts tysta bortfall som grid-regeln hade. */
 body.mobile:not(.kiosk) .ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
@@ -2065,7 +2070,7 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
 .pn-tiles>.stat+.stat{padding-left:var(--avd-pad)}
 .pn-tiles>.stat:not(:last-child){padding-right:var(--avd-pad)}
 /* Platshållare för ordna-listan: avsnittet finns kvar som val men syns inte. */
-.dolj-plats{display:none}
+
 .secmv-row.dold .secmv-n{opacity:.45;text-decoration:line-through}
 .secmv-oga{font-size:10.5px;font-weight:750;padding:0 7px;min-width:38px;letter-spacing:.02em}
 .secmv-oga.av{color:var(--gold)}
@@ -2543,8 +2548,6 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
         <div id="sp-plats"></div>
       </section>
 
-    <section class="dolj-plats" data-sec="energy-tiles" hidden></section>
-
     <section class="panel pband pband-slim clickable" id="pband" data-sec="spot" onclick="pbandTap()">
       <!-- Samma uppbyggnad som soluppgångsremsan: ikon, värde, skala, värde,
            ikon. Lägsta och högsta pris står UTANFÖR skalan, inte ovanpå den. -->
@@ -2587,8 +2590,6 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
              på samma ställe blev en dubbelrand. -->
         <div id="wx-strip-plats"></div>
       </section>
-
-    <section class="dolj-plats" data-sec="weather-tiles" hidden></section>
 
     <section class="grid stats st2" id="stats-flode" data-grid="flode" data-sec="tiles"></section>
 
@@ -13369,7 +13370,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v530';
+const APP_VERSION='v531';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -14883,12 +14884,17 @@ function armAutoFull(){if(_autoFullArmed||!CFG.autoFull)return;_autoFullArmed=tr
 loadCfg();applyCfg();
 
 /* ===== flyttbara sektioner ===== */
-const SECMETA={tv:'TV',energy:'Energi',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
+const SECMETA={tv:'TV',energy:'Energi','kopt-salt':'Köpt & sålt',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
 /* 'rum' star kvar i listan aven pa plattan, trots att avsnittet bara ritas i
    mobillage. Ordningen ar DELAD mellan enheterna: tog plattan bort 'rum' ur
    listan skulle telefonens valda plats forsvinna vid nasta synk. Raden i
    "Ordna avsnitt" doljs i stallet dar den inte betyder nagot. */
-const SEC_DEF=['tv','energy','energy-tiles','spot','kopt-salt','sun','weather','weather-tiles','tiles','buttons','rum','report'];
+/* 'energy-tiles' och 'weather-tiles' är BORTA. De var tomma platshållare kvar
+   sedan rutorna bakades in i energi- respektive väderavsnittet, och eftersom
+   secOrderGet listar allt i SEC_DEF stod de kvar i "Ordna avsnitt" med sina
+   råa id:n och utan något att ordna. secOrderGet filtrerar sparade listor mot
+   SEC_DEF, så gamla sparade ordningar tappar dem av sig själva. */
+const SEC_DEF=['tv','energy','spot','kopt-salt','sun','weather','tiles','buttons','rum','report'];
 /* Avsnittens ORDNING per enhetstyp. Nyckeln har två fack, precis som höjderna
    och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
    sällan den man vill ha i handen. */
@@ -14905,7 +14911,7 @@ function secOrderKlassGet(){
 
 function secOrderGet(){try{const s=secOrderKlassGet();if(Array.isArray(s)){
     var o=s.filter(x=>SEC_DEF.indexOf(x)>=0);
-    /* Nya avsnitt (t.ex. energy-tiles, weather-tiles, kopt-salt) som saknas i en gammal
+    /* Nya avsnitt (t.ex. tv, rum, kopt-salt) som saknas i en gammal
        sparad ordning läggs in EFTER sin granne i SEC_DEF - inte sist. */
     SEC_DEF.forEach(function(x,di){if(o.indexOf(x)>=0)return;
       var after=null;for(var k=di-1;k>=0;k--){if(o.indexOf(SEC_DEF[k])>=0){after=SEC_DEF[k];break;}}
