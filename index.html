@@ -2272,6 +2272,13 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .seg-row{display:flex;gap:6px}.seg-btn{flex:1 1 0;padding:8px 4px;border-radius:9px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer}.seg-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .det-note{margin-top:12px;font-size:11.5px;line-height:1.5;color:var(--dim)}
 
+/* AVLÄSNINGEN ÖVER GRAFEN. Talet är stort och färgat efter hur dyrt det är;
+   raden under säger vad man tittar på — hur länge timmen har kvar, eller
+   vilken timme fingret står på. */
+.pg-nu{display:flex;align-items:baseline;gap:5px;margin:0 0 1px;padding:0 2px}
+.pg-nu-v{font-size:23px;font-weight:850;letter-spacing:-.02em;line-height:1.1}
+.pg-nu-e{font-size:12.5px;font-weight:700;color:var(--dim)}
+.pg-nu-s{font-size:11px;color:var(--faint);font-weight:650;margin:0 0 7px;padding:0 2px}
 .pgraph{margin-bottom:12px}
 .pgraph-svg{width:100%;height:118px;display:block}
 /* Etiketterna är HTML ovanpå grafen, inte text i SVG:n — därför color och
@@ -2284,6 +2291,15 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 /* Nu-strecket ska gå att se utan att leta: kraftigare och i textfärg i stället
    för linjegrått, med gles streckning så det inte förväxlas med en kurva. */
 .pg-now{stroke:var(--ink);stroke-width:1.8;stroke-dasharray:5 4;opacity:.55}
+/* Under dragning blir strecket helt och pricken växer — då syns det att det är
+   fingret som styr och inte klockan. */
+.pgraph-lager.drar .pg-now{stroke-dasharray:none;opacity:.8}
+.pg-dot{stroke:var(--panel-b);stroke-width:2.5}
+.pgraph-lager.drar .pg-dot{stroke-width:3}
+/* pan-y, inte none: ett lodrätt svep ska fortfarande kunna rulla popupen.
+   Greppet tas först när fingret rör sig mer i sidled — samma regel som
+   rumsreglaget. */
+.pgraph-svg{touch-action:pan-y}
 .pgraph-x{display:flex;justify-content:space-between;font-size:9.5px;color:var(--dim);margin-top:2px;padding:0 4px}
 .pgraph-empty{padding:26px 14px;text-align:center;font-size:12.5px;color:var(--dim);line-height:1.5;background:var(--panel-b);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
 .be-ml{display:block;font-size:11px;color:var(--dim);margin:6px 0 3px;font-weight:650}
@@ -8474,7 +8490,7 @@ function openDetail(which){
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
-      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',num(elprisNow(),2)+' kr/kWh')+dRow('Lägsta idag',num(elprisLo(),2)+' kr/kWh')+dRow('Högsta idag',num(elprisHi(),2)+' kr/kWh')+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
+      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))+dRow('Lägsta idag',oren(elprisLo()))+dRow('Högsta idag',oren(elprisHi()))+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
       +dayBarsHTML('cost','kr per dag','warm');
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
     let prog='';if(rt!=null&&rt>=0.05&&pv!=null){const nextDeg=Math.floor(pv)+1,hrs=(nextDeg-pv)/rt;if(hrs>0&&hrs<24)prog=dRow('Når '+nextDeg+'°','ca '+hhmm(new Date(Date.now()+hrs*3600000)));}
@@ -10023,6 +10039,116 @@ function blanda(a,b,t){
   }
   return o;
 }
+/* ===== AVLÄSNING MED FINGRET =====
+   _pgGeo håller det grafen ritades med, så att en pekpunkt kan räknas om till
+   en timme utan att rita om något. _pgVald är timmen som visas — nu, eller
+   den man drar till. Båda nollställs när grafen byggs om.
+
+   Klockan här kommer från webbläsaren och inte från HomeyScript: den här filen
+   kör på plattan och telefonen, som har rätt svensk lokaltid. */
+var _pgGeo=null,_pgVald=null,_pgDrag=null;
+/* Ören i stället för kronor på lägsta och högsta. Två decimaler i kronor blir
+   0,14 och 1,38 — samma tal i ören är 14 och 138, som är lättare att jämföra
+   med varandra och med taggarna i grafen, som redan står i ören. */
+function oren(v){return (v==null||!isFinite(v))?'–':(Math.round(v*100)+' öre/kWh');}
+function pgTimmenNu(){var d=new Date();return Math.min(24,d.getHours()+d.getMinutes()/60);}
+/* Priset vid en godtycklig tidpunkt. Punkterna ligger per hel eller halv timme;
+   mellan dem hålls priset konstant — ett spotpris trappas, det lutar inte. */
+function pgPrisVid(h){
+  if(!_pgGeo||!_pgGeo.pts.length)return null;
+  var pts=_pgGeo.pts,v=pts[0][1];
+  for(var i=0;i<pts.length;i++){if(pts[i][0]<=h)v=pts[i][1];else break;}
+  return v;
+}
+function pgX(h){var g=_pgGeo;return g.padL+(h/24)*(g.W-g.padL-g.padR);}
+function pgY(v){var g=_pgGeo,yr=(g.yhi-g.ylo)||1;return g.padT+(1-(v-g.ylo)/yr)*(g.H-g.padT-g.padB);}
+function pgFarg(v){
+  var g=_pgGeo,P=PAL[curTheme]||PAL.dark;
+  var t=(g.yhi>g.ylo)?((v-g.ylo)/(g.yhi-g.ylo)):0;
+  if(t<0)t=0;if(t>1)t=1;
+  return (t<0.5)?blanda(P.green,P.sun,t*2):blanda(P.sun,P.hot,(t-0.5)*2);
+}
+/* Texten över grafen. Vid nu står det hur många minuter timmen har kvar; drar
+   man i strecket står klockslaget för timmen man pekar på i stället.
+
+   Står strecket på nu tas TALET från elprisNow() och inte från kurvan.
+   Logikvariablerna är de auktoritativa siffrorna; kurvan är kalibrerad mot dem
+   men avrundad, och två olika tal för samma stund vore fel oavsett hur små
+   skillnaderna är. Pricken sitter kvar på kurvan — den visar var i dygnet man
+   är, inte vilket tal som gäller. */
+function pgAvlast(){
+  var v=pgPrisVid(_pgVald);
+  if(v==null)return null;
+  var nuLage=(_pgGeo.offset===0&&Math.abs(_pgVald-pgTimmenNu())<0.02);
+  var visa=v;
+  if(nuLage){var e=elprisNow();if(e!=null&&isFinite(e))visa=e;}
+  var under;
+  if(nuLage){
+    var kvar=60-new Date().getMinutes();
+    under=kvar+(kvar===1?' minut kvar':' minuter kvar');
+  }else{
+    var t0=Math.floor(_pgVald),t1=(t0+1)%24;
+    under='kl '+(t0<10?'0':'')+t0+':00–'+(t1<10?'0':'')+t1+':00';
+  }
+  return {kurva:v,visa:visa,under:under,nu:nuLage};
+}
+function pgHuvud(){
+  var a=pgAvlast();if(!a)return '';
+  return '<div class="pg-nu"><span class="pg-nu-v" id="pg-nu-v" style="color:'+pgFarg(a.kurva)+'">'
+    +num(a.visa,2)+' kr</span><span class="pg-nu-e">/kWh</span></div>'
+    +'<div class="pg-nu-s" id="pg-nu-s">'+esc(a.under)+'</div>';
+}
+/* Ritar om de fyra sakerna som ändras — inte hela popupen. Att bygga om HTML
+   under ett pågående drag tappar pekfångsten. */
+function pgUppdatera(){
+  var a=pgAvlast();if(!a)return;
+  var l=$('pg-line'),d2=$('pg-dot'),tv=$('pg-nu-v'),ts=$('pg-nu-s');
+  var x=pgX(_pgVald).toFixed(1);
+  if(l){l.setAttribute('x1',x);l.setAttribute('x2',x);}
+  if(d2){d2.setAttribute('cx',x);d2.setAttribute('cy',pgY(a.kurva).toFixed(1));d2.setAttribute('fill',pgFarg(a.kurva));}
+  if(tv){tv.textContent=num(a.visa,2)+' kr';tv.style.color=pgFarg(a.kurva);}
+  if(ts)ts.textContent=a.under;
+}
+function pgTimmeFran(e){
+  var el=$('pg-lager');if(!el||!el.getBoundingClientRect)return null;
+  var r=el.getBoundingClientRect();if(!r.width)return null;
+  var g=_pgGeo;
+  /* SVG:n sträcks med preserveAspectRatio="none", så en andel av bredden är
+     samma andel i användarkoordinater. */
+  var ux=((e.clientX-r.left)/r.width)*g.W;
+  var h=((ux-g.padL)/Math.max(1,(g.W-g.padL-g.padR)))*24;
+  return Math.max(0,Math.min(23.999,h));
+}
+function pgNer(e){
+  if(!_pgGeo)return;
+  _pgDrag={x0:e.clientX,y0:e.clientY,tagit:false,pid:e.pointerId,start:_pgVald};
+}
+function pgRor(e){
+  var d3=_pgDrag;if(!d3||!_pgGeo)return;
+  var dx=e.clientX-d3.x0,dy=e.clientY-d3.y0;
+  if(!d3.tagit){
+    if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
+    if(Math.abs(dy)>Math.abs(dx)){_pgDrag=null;return;}   /* lodrätt = rulla */
+    d3.tagit=true;
+    var lg=$('pg-lager');if(lg&&lg.classList)lg.classList.add('drar');
+    try{lg&&lg.setPointerCapture&&lg.setPointerCapture(d3.pid);}catch(err){}
+  }
+  var h=pgTimmeFran(e);
+  if(h!=null){_pgVald=h;pgUppdatera();}
+  e.preventDefault();
+}
+function pgUpp(e){
+  var d4=_pgDrag;_pgDrag=null;
+  var lg=$('pg-lager');if(lg&&lg.classList)lg.classList.remove('drar');
+  if(!d4)return;
+  /* Ett stilla tryck flyttar också strecket — men först på uppsläppet, så att
+     ett svep för att rulla inte råkar räknas som ett tryck. */
+  if(!d4.tagit){
+    var h=pgTimmeFran(e);
+    if(h!=null){_pgVald=h;pgUppdatera();}
+  }
+  try{dlgIdleReset();}catch(err){}
+}
 function dayPriceGraphSVG(offset){offset=offset||0;
   var franTibber=prisDygn(offset);
   if(franTibber)franTibber=prisKalibrera(franTibber,offset);
@@ -10041,11 +10167,32 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   var X=function(v){return padL+(v-x0)/(x1-x0)*(W-padL-padR);};
   var Y=function(v){return padT+(1-(v-ylo)/yr)*(H-padT-padB);};
   var iLo=0,iHi=0;for(var i=1;i<pts.length;i++){if(ys[i]<ys[iLo])iLo=i;if(ys[i]>ys[iHi])iHi=i;}
-  var line='',area='';pts.forEach(function(p,i){var cmd=(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)+' ';line+=cmd;});
-  area='M'+X(pts[0][0]).toFixed(1)+' '+(H-padB).toFixed(1)+' '+line.replace('M','L')+'L'+X(pts[pts.length-1][0]).toFixed(1)+' '+(H-padB).toFixed(1)+' Z';
+  /* TRAPPA, INTE LUTNING.
+     Kurvan drogs som räta linjer mellan punkterna, och det var därför pricken
+     ibland hamnade bredvid linjen: pricken visade intervallets pris (som är
+     konstant), medan linjen lutade mellan två intervall. Ett spotpris ändras
+     inte gradvis — det gäller oförändrat i hela sitt intervall och byter tvärt.
+     Tibbers upplösning är numera 15 minuter, så trappan har fyra steg i timmen.
+     Ritad som en trappa hamnar pricken alltid exakt på linjen, och talet över
+     grafen säger samma sak som bilden. */
+  var slut=function(i){return (i+1<pts.length)?pts[i+1][0]:24;};
+  var line='',area='';
+  pts.forEach(function(p,i){
+    var xa=X(p[0]).toFixed(1),xb=X(slut(i)).toFixed(1),y=Y(p[1]).toFixed(1);
+    line+=(i?'L':'M')+xa+' '+y+' L'+xb+' '+y+' ';
+  });
+  area='M'+X(pts[0][0]).toFixed(1)+' '+(H-padB).toFixed(1)+' '+line.replace('M','L')
+    +'L'+X(slut(pts.length-1)).toFixed(1)+' '+(H-padB).toFixed(1)+' Z';
   var s='<svg class="pgraph-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
-  s+='<defs><linearGradient id="pgFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="'+P.blue+'" stop-opacity=".28"/><stop offset="100%" stop-color="'+P.blue+'" stop-opacity="0"/></linearGradient></defs>';
-  s+='<path d="'+area+'" fill="url(#pgFill)"/>';
+  /* Ytan under linjen bär numera LINJENS färger. Den var enfärgat blå, vilket
+     inte hörde ihop med den gröna-till-röda kurvan ovanför. Färgen kommer från
+     samma gradient som linjen; uttoningen nedåt görs med en mask i stället för
+     en egen färggradient, eftersom en gradient bara kan ha en riktning och den
+     här behöver två — färg i sidled, genomskinlighet i höjdled. */
+  s+='<defs><linearGradient id="pgFade" x1="0" y1="0" x2="0" y2="1">'
+    +'<stop offset="0%" stop-color="#fff" stop-opacity=".42"/>'
+    +'<stop offset="100%" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+    +'<mask id="pgMask"><rect x="0" y="0" width="'+W+'" height="'+H+'" fill="url(#pgFade)"/></mask></defs>';
   /* FÄRGSKALA LÄNGS LINJEN: grönt där det är billigast, gult däremellan, rött
      där det är dyrast. Gradienten följer x-led i användarkoordinater och får en
      stopp per timme, så färgen byter där priset gör det. */
@@ -10054,27 +10201,39 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     if(t<0)t=0;if(t>1)t=1;
     return (t<0.5)?blanda(P.green,P.sun,t*2):blanda(P.sun,P.hot,(t-0.5)*2);
   };
+  /* Två stopp per intervall — ett vid början och ett vid slutet med SAMMA färg
+     — så byter färgen tvärt där priset gör det, i takt med trappan. Ett stopp
+     per punkt gav en mjuk övertoning som inte hörde ihop med stegen. */
   var stops='';
+  var andel=function(x){return Math.max(0,Math.min(100,(x-padL)/Math.max(1,(W-padL-padR))*100));};
   pts.forEach(function(pp,i){
-    var off=((X(pp[0])-padL)/Math.max(1,(W-padL-padR))*100);
-    stops+='<stop offset="'+Math.max(0,Math.min(100,off)).toFixed(2)+'%" stop-color="'+farg(pp[1])+'"/>';
+    var c=farg(pp[1]);
+    stops+='<stop offset="'+andel(X(pp[0])).toFixed(2)+'%" stop-color="'+c+'"/>'
+      +'<stop offset="'+andel(X(slut(i))).toFixed(2)+'%" stop-color="'+c+'"/>';
   });
   s=s.replace('</defs>','<linearGradient id="pgLine" gradientUnits="userSpaceOnUse" x1="'+padL+'" y1="0" x2="'+(W-padR)+'" y2="0">'+stops+'</linearGradient></defs>');
+  s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
   s+='<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
-  /* högsta */
-  s+='<circle cx="'+X(xs[iHi]).toFixed(1)+'" cy="'+Y(ys[iHi]).toFixed(1)+'" r="3.6" fill="'+P.hot+'"/>';
-  var taggar=pgTagg(X(xs[iHi]),Y(ys[iHi])-7,Math.round(ys[iHi]*100)+' öre','pg-hi',W,H);
-  /* lägsta */
-  s+='<circle cx="'+X(xs[iLo]).toFixed(1)+'" cy="'+Y(ys[iLo]).toFixed(1)+'" r="3.6" fill="'+P.green+'"/>';
-  taggar+=pgTagg(X(xs[iLo]),Y(ys[iLo])+14,Math.round(ys[iLo]*100)+' öre','pg-lo',W,H);
-  /* nuläge (bara idag) */
-  if(offset===0){var now=new Date(),hNow=now.getHours()+now.getMinutes()/60,cur=elprisNow();if(cur==null)cur=ys[ys.length-1];
-    /* Bara strecket. Pricken satt på kurvan och konkurrerade med markeringarna
-       för högsta och lägsta pris utan att tillägga något. */
-    if(hNow<=24)s+='<line class="pg-now" x1="'+X(hNow).toFixed(1)+'" y1="'+padT+'" x2="'+X(hNow).toFixed(1)+'" y2="'+(H-padB)+'"/>';}
+  /* Markeringarna för högsta och lägsta är borta. Talen står i listan under
+     grafen, och två extra prickar konkurrerade med avläsningspunkten om
+     uppmärksamheten. iLo räknas fortfarande ut — den används som utgångsläge
+     för imorgondagen. */
+  var taggar='';
+  /* AVLÄSNINGSPUNKTEN. Strecket och pricken hör ihop: pricken sitter där
+     strecket skär kurvan, och båda flyttas av samma finger. Utgångsläget är
+     nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
+     "nu" att peka på. */
+  var hVal=(offset===0)?pgTimmenNu():xs[iLo];
+  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi};
+  _pgVald=hVal;
+  var vy=pgPrisVid(hVal);
+  s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'"/>';
+  s+='<circle class="pg-dot" id="pg-dot" cx="'+X(hVal).toFixed(1)+'" cy="'+Y(vy==null?ys[0]:vy).toFixed(1)+'" r="4.2" fill="'+farg(vy==null?ys[0]:vy)+'"/>';
   s+='</svg>';
   /* Grafen och etiketterna i samma ruta: SVG:n sträcks, texten gör det inte. */
-  s='<div class="pgraph-lager">'+s+taggar+'</div>';
+  s='<div class="pgraph-lager" id="pg-lager" onpointerdown="pgNer(event)" onpointermove="pgRor(event)"'
+    +' onpointerup="pgUpp(event)" onpointercancel="pgUpp(event)">'+s+taggar+'</div>';
+  s=pgHuvud()+s;
   s+='<div class="pgraph-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>';
   return s;}
 var _priceDay=0;
@@ -13054,7 +13213,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v522';
+const APP_VERSION='v524';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
