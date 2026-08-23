@@ -3298,9 +3298,15 @@ function renderControls(){
        ikonen ÄR en av lägesikonerna, alltså när man låtit valet vara
        automatiskt. Att jämföra mot listan i stället för att spara ett eget
        "auto"-fält gör att gamla sparade knappar beter sig som förut. */
-    var beAuto=function(lista){return !b.icon||lista.indexOf(b.icon)>=0;};
+    /* v533: valet läses ur ett EGET fält i stället för att härledas.
+       v530 jämförde b.icon mot lägesikonerna och antog att allt annat var ett
+       medvetet val. Det antagandet höll inte - en knapp sparad med någon annan
+       ikon låste sig i den, och Brevedens ikon slutade följa värme och kyla.
+       Nu sätts icoval bara när man faktiskt pekar på en ikon i väljaren, och
+       en knapp utan fältet får lägesikonen precis som före v530. */
+    var beAuto=function(){return !b.icoval;};
     if(b.type==='moodtoggle'){
-      if(beAuto(['lightbulb','lightbulb-off']))ic=on?'lightbulb':'lightbulb-off';
+      if(beAuto())ic=on?'lightbulb':'lightbulb-off';
       lbl=on?'Släck':'Tänd';}
     /* DISKMASKINEN: släckt knapp = ingen bokning, bara namnet. Tänd knapp =
        bokad, och då står klockslaget där namnet stod — det är det man vill veta. */
@@ -3326,14 +3332,14 @@ function renderControls(){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
          gör härnäst — samma logik som moodtoggle. Har man valt en egen ikon
          står den kvar i båda lägena; etiketten säger ändå vad som händer. */
-      if(beAuto(['toggle-left','toggle-right']))ic=on?'toggle-right':'toggle-left';
+      if(beAuto())ic=on?'toggle-right':'toggle-left';
       lbl=on?(b.labelOff||b.label||'Av'):(b.labelOn||b.label||'På');
     }
     else if(b.type==='breveden'){
       /* Samma fyra lägen som rutan: aktiv visar vilket läge som körs, inaktiv
          vad ett tryck skulle göra, och osäkert läge gråas. */
       var Bb=brvState(), gam=brvGammal(Bb);
-      var brvAuto=beAuto(['thermometer-simple','snowflake','flame']);
+      var brvAuto=beAuto();
       if(Bb&&Bb.aktiv){
         if(brvAuto)ic=(Bb.lage==='cool')?'snowflake':(Bb.lage==='heat')?'flame':'thermometer-simple';
         lbl=b.label||'Breveden';
@@ -5766,6 +5772,163 @@ function radarLayerHTML(path){
   for(var i=0;i<tiles.length;i++){var t=tiles[i];
     o+='<image href="'+radarTileUrl(t,path)+'" x="'+t.left.toFixed(0)+'" y="'+t.top.toFixed(0)+'" width="'+t.size.toFixed(0)+'" height="'+t.size.toFixed(0)+'"/>';}
   return o;}
+/* ===== NEDERBÖRDSPROGNOS I SAMMA KARTA =====
+   Radarn mäter var regnet ÄR och räcker ~2 timmar bakåt. Prognosen räknar och
+   når ett dygn bakåt och två framåt. Båda ligger i SAMMA tidslinje: rutorna
+   slås ihop, sorteras på tid, och varje ruta bär sin källa. Där radarn har
+   täckning vinner den - en mätning slår alltid en beräkning. Utanför radarns
+   fönster ritas modellen.
+
+   DMI:s eget API svarar 429 på alla datauttag. Open-Meteo serverar samma modell
+   (DMI HARMONIE AROME, 2 km för Europa) och nås redan av den här filen för
+   tryckfältet - samma värdnamn, samma kommaseparerade koordinatlista. Den
+   vägen är alltså prövad härifrån.
+
+   Rutnätet är 9x9 punkter över kartans yta, alltså ~11 km mellan punkterna vid
+   närmaste zoom. Det är grovt mot radarns kilometer och SKA se grovt ut:
+   fälten ritas suddiga så att ingen tar dem för en mätning.
+   Enheten är mm/h i båda fallen, så skalorna går att jämföra. */
+var PRG_N=9, PRG_BAK=1, PRG_FRAM=2;
+var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null;
+
+/* Kartans hörn i grader. Samma projektion som kartrutorna använder, baklänges,
+   så att fälten hamnar där de ska även när man zoomar. */
+function prgRutnat(){
+  var Z=radarViewZ(),VW=RADAR_VIEW;
+  var n=Math.pow(2,Z),world=n*256;
+  var px=(VW.lon+180)/360*world;
+  var la=VW.lat*Math.PI/180;
+  var py=(1-Math.log(Math.tan(la)+1/Math.cos(la))/Math.PI)/2*world;
+  var lon=function(x){return x/world*360-180;};
+  var lat=function(y){return Math.atan(Math.sinh(Math.PI*(1-2*y/world)))*180/Math.PI;};
+  var v=lon(px-VW.W/2), o=lon(px+VW.W/2), no=lat(py-VW.H/2), sy=lat(py+VW.H/2);
+  var lats=[],lons=[];
+  for(var r=0;r<PRG_N;r++)for(var c=0;c<PRG_N;c++){
+    lats.push((no+(sy-no)*r/(PRG_N-1)).toFixed(4));
+    lons.push((v+(o-v)*c/(PRG_N-1)).toFixed(4));
+  }
+  return {lats:lats,lons:lons,z:Z};
+}
+function prgHamta(){
+  if(_prgBusy)return;
+  var Z=radarViewZ();
+  /* Zoomar man om måste rutnätet hämtas på nytt - punkterna sitter i kartan. */
+  if(_prgZ===Z&&_prgAt&&Date.now()-_prgAt<20*60000&&_prgVal)return;
+  _prgBusy=true;
+  var g=prgRutnat();
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+g.lats.join(',')
+    +'&longitude='+g.lons.join(',')
+    +'&hourly=precipitation&past_days='+PRG_BAK+'&forecast_days='+PRG_FRAM
+    +'&models=dmi_seamless&timeformat=unixtime&timezone=UTC';
+  try{
+    fetch(url,{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+      /* Flera positioner ger en LISTA; en position ger ett objekt. Båda
+         hanteras, annars går det sönder den dag rutnätet krymps. */
+      var lista=Array.isArray(j)?j:[j];
+      if(!lista.length||!lista[0]||!lista[0].hourly){_prgFel='oväntat svar';_prgBusy=false;_prgAt=Date.now();return;}
+      _prgTid=(lista[0].hourly.time||[]).map(function(t){return t*1000;});
+      _prgVal=lista.map(function(x){return (x&&x.hourly&&x.hourly.precipitation)||[];});
+      _prgPkt=g;_prgZ=g.z;_prgAt=Date.now();_prgFel=null;_prgBusy=false;
+      try{if(document.getElementById('vdr-body'))renderVader();}catch(e){}
+    },function(e){_prgFel=(e&&e.message)||'kunde inte nå Open-Meteo';_prgBusy=false;_prgAt=Date.now();});
+  }catch(e){_prgBusy=false;_prgFel=String(e&&e.message);}
+}
+function prgVarde(i,ti){
+  var v=_prgVal&&_prgVal[i];
+  return (v&&v[ti]!=null&&isFinite(v[ti]))?v[ti]:0;
+}
+/* Färgtrappa i mm/h, tagen ur radarns egen förklaring så att samma regnmängd
+   får samma färg oavsett vilken källa rutan kommer från. */
+function prgFarg(mm){
+  if(mm<0.3)return '#00a3e0';
+  if(mm<1)return '#0077aa';
+  if(mm<2.5)return '#ffee00';
+  if(mm<5)return '#ffaa00';
+  if(mm<10)return '#ff4400';
+  if(mm<20)return '#c10000';
+  return '#ffaaff';
+}
+function prgLagerHTML(ti){
+  if(!_prgPkt||!_prgTid.length||ti==null)return '';
+  var VW=RADAR_VIEW;
+  var cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1), o='';
+  for(var r=0;r<PRG_N;r++)for(var c=0;c<PRG_N;c++){
+    var mm=prgVarde(r*PRG_N+c,ti);
+    if(mm<0.05)continue;
+    o+='<rect x="'+((c*cw)-cw/2).toFixed(1)+'" y="'+((r*ch)-ch/2).toFixed(1)+'" '
+      +'width="'+cw.toFixed(1)+'" height="'+ch.toFixed(1)+'" fill="'+prgFarg(mm)+'" '
+      +'opacity="'+Math.max(0.3,Math.min(0.8,0.3+mm*0.1)).toFixed(2)+'"/>';
+  }
+  if(!o)return '';
+  return '<defs><filter id="prgBlur" x="-25%" y="-25%" width="150%" height="150%">'
+    +'<feGaussianBlur stdDeviation="'+(cw*0.42).toFixed(1)+'"/></filter></defs>'
+    +'<g filter="url(#prgBlur)">'+o+'</g>';
+}
+
+/* ---- EN TIDSLINJE ---- */
+function wxRutor(){
+  var ut=[],i;
+  for(i=0;i<_radarFrames.length;i++){
+    var f=_radarFrames[i];
+    if(!f||!f.time)continue;
+    ut.push({t:f.time*1000,typ:(i<=_radarNow?'radar':'nowcast'),path:f.path,ri:i});
+  }
+  var rMin=ut.length?ut[0].t:null,rMax=ut.length?ut[ut.length-1].t:null;
+  for(i=0;i<_prgTid.length;i++){
+    var t=_prgTid[i];
+    if(rMin!=null&&t>=rMin-5*60000&&t<=rMax+5*60000)continue;
+    ut.push({t:t,typ:'modell',ti:i});
+  }
+  ut.sort(function(a,b){return a.t-b.t;});
+  return ut;
+}
+/* LÄGET FÖRANKRAS I TID, INTE I LISTPOSITION.
+   Listan växer när modellens rutor kommer in - från 13 till över 80 - och ett
+   sparat index pekar då plötsligt på en helt annan tidpunkt. _wxT är klockslaget
+   man valt; indexet räknas fram som närmaste ruta varje gång. */
+var _wxT=null,_wxIdx=null;
+function wxNarmast(rutor,t){
+  var b=0,d=Infinity;
+  for(var i=0;i<rutor.length;i++){var x=Math.abs(rutor[i].t-t);if(x<d){d=x;b=i;}}
+  return b;
+}
+function wxNuIdx(rutor){return wxNarmast(rutor,Date.now());}
+function wxRutaNu(){
+  var r=wxRutor();if(!r.length)return null;
+  _wxIdx=wxNarmast(r,_wxT==null?Date.now():_wxT);
+  return r[_wxIdx];}
+function wxKlocka(t){
+  return new Intl.DateTimeFormat('sv-SE',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t));
+}
+function wxRel(t){
+  var m=Math.round((t-Date.now())/60000);
+  if(Math.abs(m)<8)return 'nu';
+  if(Math.abs(m)<100)return (m>0?'+':'')+m+' min';
+  return (m>0?'+':'')+Math.round(m/60)+' h';
+}
+function wxKalla(f){return f.typ==='radar'?'radar':(f.typ==='nowcast'?'radarprognos':'prognos');}
+function wxSetIdx(i){
+  var rutor=wxRutor();if(!rutor.length)return;
+  _wxIdx=Math.max(0,Math.min(rutor.length-1,i));
+  var f=rutor[_wxIdx];
+  _wxT=f.t;
+  var g=document.getElementById('wx-radar'),pg=document.getElementById('wx-prg');
+  if(f.typ==='modell'){
+    if(g)g.innerHTML='';
+    if(pg)pg.innerHTML=prgLagerHTML(f.ti);
+  }else{
+    if(pg)pg.innerHTML='';
+    if(g)g.innerHTML=radarLayerHTML(f.path);
+    _radarIdx=f.ri;
+  }
+  var lab=document.getElementById('wx-rtime');
+  if(lab){
+    lab.textContent=wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f);
+    lab.classList.toggle('fc',f.typ!=='radar');
+  }
+  var sl=document.getElementById('wx-rslider');if(sl&&+sl.value!==_wxIdx)sl.value=_wxIdx;
+}
+function wxSteg(d){radarStop();var r=wxRutor();wxSetIdx(wxNarmast(r,_wxT==null?Date.now():_wxT)+d);}
 function radarFrame(){return _radarFrames[_radarIdx]||null;}
 function radarClock(i){var f=_radarFrames[i];if(!f||!f.time)return '';
   var d=new Date(f.time*1000);
@@ -5789,12 +5952,13 @@ function radarStop(){if(_radarTimer){clearInterval(_radarTimer);_radarTimer=null
   var b=document.getElementById('wx-rplay'); if(b)b.textContent='▶';}
 function radarPlay(){
   if(_radarTimer){radarStop();return;}
-  if(_radarFrames.length<2)return;
+  if(wxRutor().length<2)return;
   var b=document.getElementById('wx-rplay'); if(b)b.textContent='❚❚';
   _radarTimer=setInterval(function(){
     if(!document.getElementById('wx-radar')){radarStop();return;}   /* sidan bytt */
-    var n=_radarIdx+1; if(n>=_radarFrames.length)n=0;
-    radarSetIdx(n);
+    var r=wxRutor(); if(!r.length){radarStop();return;}
+    var n=wxNarmast(r,_wxT==null?Date.now():_wxT)+1; if(n>=r.length)n=0;
+    wxSetIdx(n);
   },650);}
 /* Samma geografiska yta som kartan, men rutor från en lägre (stödd) zoomnivå
    som ritas uppskalade. Radardata är ändå ~1 km upplöst, så det tappar inget. */
@@ -6154,10 +6318,17 @@ function wxMapSVG(){
   s+='</g>';
   /* --- Regnradar: eget lager direkt ovanpå kartan --- */
   if(!syn){
-    radarFetch();
-    var fr0=radarFrame();
+    radarFetch();prgHamta();
+    /* Två lager, ett i taget fyllt. Vilket som används avgörs av vilken ruta
+       tidslinjen står på — mätning eller modell. Båda finns alltid i DOM:en så
+       att wxSetIdx kan byta innehåll utan att rita om kartan. */
+    var vald=wxRutaNu();
+    s+='<g id="wx-prg" opacity=".62">'+((vald&&vald.typ==='modell')?prgLagerHTML(vald.ti):'')+'</g>';
+    var fr0=(vald&&vald.typ!=='modell')?{path:vald.path}:null;
     if(fr0){
       s+='<g id="wx-radar" opacity=".72">'+radarLayerHTML(fr0.path)+'</g>';
+    }else if(vald&&vald.typ==='modell'){
+      s+='<g id="wx-radar" opacity=".72"></g>';
     }else{
       s+='<text x="'+(W/2)+'" y="'+(H-58)+'" text-anchor="middle" class="wxm-none">'
         +(_radarFail?'Nederbörden kunde inte hämtas':'Hämtar nederbörd…')+'</text>';}
@@ -6405,15 +6576,19 @@ function wxZoomHTML(){
 }
 function wxReglageHTML(){
   var h='';
-  /* Spolning: två timmar bakåt i 10-minuterssteg plus radarns korta prognos */
-  if(_radarFrames.length>1){
+  /* Spolning: mätt radar där den finns, modellen före och efter. */
+  var rutor=wxRutor();
+  if(rutor.length>1){
+    var f=wxRutaNu();
+    if(!f)return h;
     h+='<div class="wxm-time">'
       +'<button class="wxm-z" id="wx-rplay" onclick="radarPlay()" aria-label="Spela upp">▶</button>'
-      +'<button class="wxm-z wxm-zs" onclick="radarStep(-1)" aria-label="Ett steg bakåt">‹</button>'
-      +'<input class="wxm-slider" id="wx-rslider" type="range" min="0" max="'+(_radarFrames.length-1)+'" value="'+_radarIdx+'" '
-      +'oninput="radarStop();radarSetIdx(+this.value)" aria-label="Tidslinje"/>'
-      +'<button class="wxm-z wxm-zs" onclick="radarStep(1)" aria-label="Ett steg framåt">›</button>'
-      +'<span class="wxm-rt'+(_radarIdx>_radarNow?' fc':'')+'" id="wx-rtime">'+radarClock(_radarIdx)+' · '+radarRel(_radarIdx)+'</span>'
+      +'<button class="wxm-z wxm-zs" onclick="wxSteg(-1)" aria-label="Ett steg bakåt">‹</button>'
+      +'<input class="wxm-slider" id="wx-rslider" type="range" min="0" max="'+(rutor.length-1)+'" value="'+_wxIdx+'" '
+      +'oninput="radarStop();wxSetIdx(+this.value)" aria-label="Tidslinje"/>'
+      +'<button class="wxm-z wxm-zs" onclick="wxSteg(1)" aria-label="Ett steg framåt">›</button>'
+      +'<span class="wxm-rt'+(f.typ!=='radar'?' fc':'')+'" id="wx-rtime">'
+      +wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f)+'</span>'
       +'</div>';}
   return h;
 }
@@ -13304,7 +13479,7 @@ function beSave(i){
       labelOn:label||(fOn&&fOn.name)||'På',
       labelOff:label||(fOff&&fOff.name)||'Av',
       refDev:(fr&&fr.value)||'',
-      icon:_beIcon||'toggle-left',confirm:!!(cf&&cf.checked)};
+      icon:_beIcon||'toggle-left',icoval:_beIcon?1:0,confirm:!!(cf&&cf.checked)};
   }else if(T==='flow'){
     var fl=$('be-flow');if(!fl||!fl.value){beMsg('Välj en flow först.');return;}
     var pf=fl.value.split(':'),ftype=pf[0],fid=pf.slice(1).join(':');
@@ -13319,7 +13494,7 @@ function beSave(i){
     if(!on||!on.value||!off||!off.value){beMsg('Välj både på-mood och av-mood.');return;}
     cfg={label:label||'På / Av',type:'moodtoggle',moodOn:on.value,moodOff:off.value};
     if(rf&&rf.value){cfg.refDev=rf.value;cfg.refCap='onoff';}
-    if(_beIcon)cfg.icon=_beIcon;
+    if(_beIcon){cfg.icon=_beIcon;cfg.icoval=1;}
   }else if(T==='disk'){
     /* HÄR SAKNADES GRENEN i v510. Typen fanns i listan, i beTypeOf och i
        ritningen — men inte här, så knappen sparades som en enhetsknapp utan
@@ -13329,7 +13504,7 @@ function beSave(i){
   }else if(T==='breveden'){
     /* Inget att spara utöver namnet: flows och logikvariabel är fasta, och
        skriptet äger all bedömning. */
-    cfg={label:label||'Breveden',type:'breveden',icon:_beIcon||'thermometer-simple'};
+    cfg={label:label||'Breveden',type:'breveden',icon:_beIcon||'thermometer-simple',icoval:_beIcon?1:0};
   }else{
     cfg={label:label||'Släck allt',type:'allLightsOff',icon:_beIcon||'moon'};
   }
@@ -13370,7 +13545,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v532';
+const APP_VERSION='v534';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
