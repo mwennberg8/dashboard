@@ -830,7 +830,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.33.0';
+const APP_VERSION = 'v1.35.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -857,8 +857,8 @@ const DEV = {
   auto:     'c2c36d79-f12e-43f6-91ef-388bc649511c',
   laggdags: 'bc94ae10-1d6e-41be-a14d-4256b125fcc3',
   flakt:    'eb48122f-a5b4-4568-b173-ae9531e70bbf',
-  luftren:  '47c5b8e5-5f7b-4fc6-9227-960adbb94bac',
-  dorr:     '9dfc61a9-1710-435c-98cb-a72bb49247a9',
+  luftren:  '0a3eba73-2cc5-43d7-9b4a-6ca059c074de',   /* nytt id efter omparning 2026-08-23 */
+  dorr:     'da38fa6f-7128-4d26-a5ec-a8c48f7d80c8',   /* nytt id efter omparning 2026-08-23 */
   sensVard: '249884ea-5b2f-415f-96aa-8dc3422a3eed',
   syncbox:  'fc57c029-eb82-4c17-9434-70957e3c6aa7',
   tvChrome: '4a0101f1-4d9f-4b9d-818a-e4af1cd8f020',   /* Google TV-streamer: uppspelning */
@@ -1035,8 +1035,20 @@ const LAMP_UTTAG={
      står det uttryckligen, och då spelar det ingen roll vad klassen säger. */
   '8144c65f-a41a-4ac6-a195-361f9b961ce3':'lightbulb'   /* Badrumsskåp */
 };
+/* DODA SKAL RAKNAS INTE.
+   Nar IKEA-hubben tappade anslutningen 2026-08-23 blev de gamla enheterna kvar
+   i Homey med alla varden null - "Kok tak", "Vardagsrum tak", "Hall tak" och
+   fyra till. De nya heter "Kok tak 1" och sa vidare, alltsa exakt monstret
+   "<gruppen> <siffra>" som grupplogiken letar efter. Utan den har raden blir
+   det doda skalet gruppmaster och GOMMER alla fem fungerande takarmaturer
+   bakom en enhet som inte svarar.
+   En lampa vars onoff ar null gar inte att styra och hor inte hemma i vyn. */
+function arDod(d){
+  return !!d&&d.capabilitiesObj&&d.capabilitiesObj.onoff&&d.capabilitiesObj.onoff.value===null;
+}
 function arLampa(d){
   if(!d)return false;
+  if(arDod(d))return false;
   if(klass(d)==='light')return true;
   return !!LAMP_UTTAG[d.id]&&har(d,'onoff');
 }
@@ -1473,6 +1485,7 @@ function kannsSom(t,ws,rh){
   return t;}
 /* ================= rendering ================= */
 function render(){
+  try{gardVirtBygg();}catch(e){}
   try{klockan();}catch(e){}
   try{renderDaystrip();}catch(e){}
   try{applyTheme();}catch(e){}
@@ -2482,11 +2495,37 @@ async function zonAlla(zid,pa){
    Rullgardinerna i vardagsrummet är en grupp med två medlemmar. Gruppen styr
    båda; medlemmarna ligger indragna under och styrs var för sig.
    Homey räknar 1 = helt öppen, 0 = helt stängd. */
+/* Omparningen 2026-08-23 tog bort gruppenheten "Rullgardiner vardagsrum" ur
+   Homey. Kvar finns tva fristaende: Vanster och Hoger.
+
+   Raden ska bete sig som forut - ett namn, en valjare Vanster/Hoger/Bada, en
+   rad lagen - sa mastern byggs i stallet HAR, som en enhet dashboarden hittar
+   pa. Den finns bara i DATA, aldrig i Homey, och skrivningar gar direkt till
+   medlemmarna. Skulle IKEA nagon gang ge tillbaka en riktig gruppenhet racker
+   det att byta id:t har.
+   Virtuella id:n borjar med "v:" sa att de gar att kanna igen overallt. */
+const GARD_VIRT='v:gard-vardagsrum';
 const GARD_GRUPP={
-  'a0e58ca6-b5bb-46bf-8a77-4d6bf9032ad8':[     /* Rullgardiner vardagsrum */
-    '606911d1-50b9-42fa-969d-014896e8e4a9',    /* Rullgardin V\u00e4nster */
-    'fa59bc3c-0796-413f-8f4c-6f722baf7c61'     /* Rullgardin H\u00f6ger */
+  'v:gard-vardagsrum':[
+    '00c315d4-a4fa-4d2b-b485-0e0be2172db5',    /* Vanster */
+    '4eee4824-da99-46af-86fc-f432b80b88ae'     /* Hoger */
   ]};
+function arVirt(id){return String(id||'').indexOf('v:')===0;}
+/* Byggs om vid varje rendering: laget ar medlemmarnas medelvarde, batteriet
+   det lagsta av dem - det ar det som behover bytas forst. */
+function gardVirtBygg(){
+  for(const gid in GARD_GRUPP){
+    if(!arVirt(gid))continue;
+    const med=GARD_GRUPP[gid].map(id=>DATA[id]).filter(Boolean);
+    if(!med.length){delete DATA[gid];continue;}
+    const lagen=med.map(d=>capOf(d,'windowcoverings_set')).filter(v=>v!=null&&isFinite(v));
+    const batt=med.map(d=>capOf(d,'measure_battery')).filter(v=>v!=null&&isFinite(v));
+    const co={windowcoverings_set:{value:lagen.length?(lagen.reduce((a,b)=>a+b,0)/lagen.length):null}};
+    if(batt.length)co.measure_battery={value:Math.min.apply(null,batt)};
+    DATA[gid]={id:gid,name:'Rullgardiner vardagsrum',class:'curtain',
+      zone:med[0].zone,virtuell:true,capabilitiesObj:co};
+  }
+}
 /* Antal lägen per enhet. Sovrummets gardin har tre, resten fyra. */
 const GARD_LAGEN={'f18e0c14-156b-449e-8513-6ddd12ab6b5f':3};
 function gardMedlem(id){
@@ -2515,8 +2554,11 @@ async function gardLage(id,v){
   try{
     /* En grupp sätts på gruppen OCH på medlemmarna: gruppenheten förmedlar inte
        alltid vidare, och då står halva fönstret kvar. */
-    await satt(id,'windowcoverings_set',v);skriv(id,v);
+    /* En virtuell master finns inte i Homey - da skrivs bara medlemmarna. */
+    if(!arVirt(id)){await satt(id,'windowcoverings_set',v);}
+    skriv(id,v);
     if(med)for(const m of med){await satt(m,'windowcoverings_set',v).catch(()=>{});skriv(m,v);}
+    gardVirtBygg();
     if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();
     render();setTimeout(load,1200);
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
