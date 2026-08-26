@@ -5944,6 +5944,57 @@ function prgLagerHTML(ti){
   return o;
 }
 
+/* ===== EGEN FRAMSKRIVNING: RADARBILDEN FLYTTAD =====
+   Kartan visar riktig radar fram till nu. Framat visas SAMMA radarbild,
+   forskjuten langs den riktning nederborden ror sig. Den ser ut som radar av
+   den enkla anledningen att den AR radarbilden - inga modellflackar, ingen
+   annan upplosning, ingen skarv vid nu.
+
+   Modellprognosen fran Open-Meteo ar borttagen ur tidslinjen. Den gjorde
+   samma sak samre: grovt rutnat, slatt intryck, och en synlig grans mot radarn.
+
+   HUR RIKTNINGEN BESTAMS. Att mata rorelsen ur tva radarbilder kraver att
+   bildpunkterna lases ur rutorna, och en canvas fylld med bilder fran ett
+   annat ursprung gar inte att lasa ur utan att servern tillater det. Darfor
+   anvands vinden i stallet - den mats redan och kostar ingenting.
+
+   VAD DEN INTE KAN. Skurar flyttas, men de vaxer inte till och dor inte ut.
+   En skur som haller pa att losas upp visas lika kraftig om trettio minuter.
+   Metoden ar rimlig i en halvtimme och sedan inte. Darfor gar inget steg
+   langre an sa.
+
+   VINDFAKTORN AR EN UPPSKATTNING, INTE ETT MATVARDE. Nederbordsomraden styrs
+   av vinden pa nagra kilometers hojd, som ar snabbare an den vid marken. 1,6
+   ar ett vanligt paslag men jag har inte matt det for Onsala. Vill du
+   kalibrera: spola fram en halvtimme, vanta, och jamfor med den riktiga
+   bilden. Ligger framskrivningen efter ska talet upp. */
+var FRAM_STEG=[10,20,30];      /* minuter */
+var FRAM_FAKTOR=1.6;           /* vindens paslag mot markvind - uppskattat */
+
+function framMpp(){
+  return 156543.03392*Math.cos(RADAR_VIEW.lat*Math.PI/180)/Math.pow(2,radarViewZ());
+}
+/* measure_wind_angle ar riktningen vinden kommer IFRAN, sa rorelsen gar at
+   motsatt hall. 0 grader ar nordlig vind, alltsa rorelse soderut. */
+function framForskjut(min){
+  var deg=windDeg(), ms=cap(DEV.windMs,'measure_wind_strength');
+  if(deg==null||ms==null||!isFinite(ms)||ms<=0)return null;
+  var mot=(deg+180)*Math.PI/180;
+  var m=ms*FRAM_FAKTOR*min*60;
+  var mpp=framMpp();
+  return {dx:(m*Math.sin(mot))/mpp, dy:(-m*Math.cos(mot))/mpp, m:m};
+}
+function framGar(){return framForskjut(10)!==null&&_radarFrames.length>0;}
+/* Bilden flyttas som helhet. Inga bildpunkter lases, inget ritas om. */
+function framLagerHTML(min){
+  var f=framForskjut(min);
+  if(!f)return '';
+  var sista=_radarFrames[_radarNow]||_radarFrames[_radarFrames.length-1];
+  if(!sista)return '';
+  return '<g transform="translate('+f.dx.toFixed(1)+','+f.dy.toFixed(1)+')">'
+    +radarLayerHTML(sista.path)+'</g>';
+}
+
 /* ---- EN TIDSLINJE ---- */
 function wxRutor(){
   var ut=[],i;
@@ -5952,11 +6003,12 @@ function wxRutor(){
     if(!f||!f.time)continue;
     ut.push({t:f.time*1000,typ:(i<=_radarNow?'radar':'nowcast'),path:f.path,ri:i});
   }
-  var rMin=ut.length?ut[0].t:null,rMax=ut.length?ut[ut.length-1].t:null;
-  for(i=0;i<_prgTid.length;i++){
-    var t=_prgTid[i];
-    if(rMin!=null&&t>=rMin-5*60000&&t<=rMax+5*60000)continue;
-    ut.push({t:t,typ:'modell',ti:i});
+  /* Egna framskrivningssteg efter den senast matta bilden. */
+  var sista=_radarFrames[_radarNow]||_radarFrames[_radarFrames.length-1];
+  if(sista&&framGar()){
+    for(i=0;i<FRAM_STEG.length;i++){
+      ut.push({t:sista.time*1000+FRAM_STEG[i]*60000,typ:'fram',min:FRAM_STEG[i]});
+    }
   }
   ut.sort(function(a,b){return a.t-b.t;});
   return ut;
@@ -5992,19 +6044,18 @@ function wxRel(t){
 function wxKalla(f){
   if(f.typ==='radar')return 'radar';
   if(f.typ==='nowcast')return 'radarprognos';
-  return (f.t<Date.now()-4*60000)?'modell · bakåt':'prognos';
+  if(f.typ==='fram')return 'framskrivning';
+  return 'radar';
 }
 function wxSetIdx(i){
   var rutor=wxRutor();if(!rutor.length)return;
   _wxIdx=Math.max(0,Math.min(rutor.length-1,i));
   var f=rutor[_wxIdx];
   _wxT=f.t;
-  var g=document.getElementById('wx-radar'),pg=document.getElementById('wx-prg');
-  if(f.typ==='modell'){
-    if(g)g.innerHTML='';
-    if(pg)pg.innerHTML=prgLagerHTML(f.ti);
+  var g=document.getElementById('wx-radar');
+  if(f.typ==='fram'){
+    if(g)g.innerHTML=framLagerHTML(f.min);
   }else{
-    if(pg)pg.innerHTML='';
     if(g)g.innerHTML=radarLayerHTML(f.path);
     _radarIdx=f.ri;
   }
@@ -6407,22 +6458,15 @@ function wxMapSVG(){
   s+='</g>';
   /* --- Regnradar: eget lager direkt ovanpå kartan --- */
   if(!syn){
-    radarFetch();prgHamta();
+    radarFetch();
     /* Två lager, ett i taget fyllt. Vilket som används avgörs av vilken ruta
        tidslinjen står på — mätning eller modell. Båda finns alltid i DOM:en så
        att wxSetIdx kan byta innehåll utan att rita om kartan. */
     var vald=wxRutaNu();
-    s+='<g id="wx-prg" opacity=".62">'+((vald&&vald.typ==='modell')?prgLagerHTML(vald.ti):'')+'</g>';
-    /* En tyst tom karta ar det samsta utfallet: man vet inte om det ar
-       uppehall eller om hamtningen gick fel. Sag vilket. */
-    if(_prgFel&&!_prgTid.length){
-      s+='<text x="'+(W/2)+'" y="'+(H-40)+'" text-anchor="middle" class="wxm-none">'
-        +'Prognosen kunde inte hamtas: '+esc(_prgFel)+'</text>';}
-    var fr0=(vald&&vald.typ!=='modell')?{path:vald.path}:null;
-    if(fr0){
-      s+='<g id="wx-radar" opacity=".72">'+radarLayerHTML(fr0.path)+'</g>';
-    }else if(vald&&vald.typ==='modell'){
-      s+='<g id="wx-radar" opacity=".72"></g>';
+    if(vald&&vald.typ==='fram'){
+      s+='<g id="wx-radar" opacity=".72">'+framLagerHTML(vald.min)+'</g>';
+    }else if(vald){
+      s+='<g id="wx-radar" opacity=".72">'+radarLayerHTML(vald.path)+'</g>';
     }else{
       s+='<text x="'+(W/2)+'" y="'+(H-58)+'" text-anchor="middle" class="wxm-none">'
         +(_radarFail?'Nederbörden kunde inte hämtas':'Hämtar nederbörd…')+'</text>';}
@@ -6758,6 +6802,8 @@ function renderVader(){
                ? 'Stegen efter \'nu\' är radarns egen korttidsprognos och alltså inte uppmätta. '
                : '<b>Allt som visas är uppmätt</b> – RainViewers fria API ger bara historik, inte prognos. ')):'')
          +'Radarrutor finns bara till zoom 7, därför den här skalan. '
+         +'Stegen efter \'nu\' är <b>samma radarbild förskjuten</b> längs vindriktningen — '
+         +'skurarna flyttas, men de växer inte till och dör inte ut. '
          +'Väderdata från <b>RainViewer</b>.'))
     +'</div>';
   h+='</section>';
@@ -13639,7 +13685,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v538';
+const APP_VERSION='v539';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
