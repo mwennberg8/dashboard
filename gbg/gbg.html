@@ -533,6 +533,18 @@ body.mobile .statusbar.stuck{
 .dv-ic .ic{width:16px;height:16px}
 .dv-row.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.16)}
 .dv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv-box{background:var(--inset);border:1px solid var(--line);border-radius:12px;
+  padding:6px;touch-action:none;user-select:none}
+.kv{width:100%;height:150px;display:block}
+.kv-rut{stroke:var(--line);stroke-width:1}
+.kv-tx{fill:var(--faint);font-size:8px;font-family:var(--sans)}
+.kv-l{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.kv-p{stroke:var(--panel-b);stroke-width:2;cursor:grab}
+path.kv-dim{stroke:var(--gold)} circle.kv-dim{fill:var(--gold)}
+path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
+.kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
+.kv-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.kv-leg i.kv-dim{background:var(--gold)} .kv-leg i.kv-temp{background:var(--blue)}
 .dv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
 .dv-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
   flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
@@ -830,7 +842,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.41.0';
+const APP_VERSION = 'v1.42.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1266,7 +1278,7 @@ async function load(){
     setStatus('live','live');
     if(!zonesDone){const z=await homeyGet('/api/manager/zones/zone/');if(z){ZONES=z;zonesDone=true;}}
     if(!flowsDone)hamtaFlows();
-    adaptHamta();
+    adaptHamta();kurvaHamta();
   }else{
     _online=false;
     setStatus(lastUpdate?'stale':'dead',lastUpdate?'ingen kontakt':'ansluter…');
@@ -3051,6 +3063,177 @@ function adaptManuella(){
   if(!ADAPT||!ADAPT.l)return null;
   return Object.keys(ADAPT.l).filter(function(k){return ADAPT.l[k].s==='m';}).length;
 }
+/* ===== KURVREDIGERAREN =====
+   Belysningsskriptets KURVA ligger som en konstant i flodeskoden. For att
+   kunna andra den harifran laser skriptet i stallet Logic-variabeln
+   `adaptiv_kurva` nar den finns - se instruktionen i inst\u00e4llningarna.
+   Saknas variabeln kor skriptet vidare pa sin inbyggda kurva, sa den har
+   redigeraren kan aldrig satta belysningen ur spel.
+
+   Punkterna dras BARA i hojdled. Tiderna ar fasta ankare; att ocksa kunna
+   flytta dem i sidled later frestande men gor det latt att rada ihop
+   ordningen, och en kurva med tva punkter pa samma klockslag ar odefinierad. */
+const KURVA_VAR='adaptiv_kurva';
+const KURVA_STD=[
+  {tid:'05:00',dim:0.10,temp:1.00},
+  {tid:'08:00',dim:0.90,temp:0.50},
+  {tid:'14:00',dim:1.00,temp:0.00},
+  {tid:'18:00',dim:0.90,temp:0.55},
+  {tid:'20:00',dim:0.80,temp:0.80},
+  {tid:'00:00',dim:0.10,temp:1.00}
+];
+var KURVA=null,_kurvaVarId=null,_kurvaAndrad=false;
+
+function kurvaKopia(k){return k.map(function(p){return {tid:p.tid,dim:p.dim,temp:p.temp};});}
+function kurvaGiltig(k){
+  if(!Array.isArray(k)||k.length<2)return false;
+  return k.every(function(p){
+    return p&&/^\d{1,2}:\d{2}$/.test(String(p.tid))
+      &&typeof p.dim==='number'&&p.dim>=0&&p.dim<=1
+      &&typeof p.temp==='number'&&p.temp>=0&&p.temp<=1;
+  });
+}
+async function kurvaHamta(){
+  try{
+    const v=await homeyGet('/api/manager/logic/variable/');
+    if(!v)return;
+    const arr=Array.isArray(v)?v:Object.keys(v).map(function(k){return v[k];});
+    const x=arr.find(function(a){return a&&a.name===KURVA_VAR;});
+    if(!x){_kurvaVarId=null;KURVA=KURVA=KURVA||kurvaKopia(KURVA_STD);return;}
+    _kurvaVarId=x.id;
+    const j=JSON.parse(String(x.value||''));
+    if(kurvaGiltig(j))KURVA=j;
+  }catch(e){/* saknas eller otolkbar - standardkurvan galler */}
+  if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
+}
+async function kurvaSpara(){
+  if(!kurvaGiltig(KURVA)){toast('Kurvan ser fel ut \u2013 sparar inte');return;}
+  const varde=JSON.stringify(KURVA);
+  try{
+    if(_kurvaVarId){
+      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarId+'/',{value:varde});
+    }else{
+      /* Finns den inte skapas den. Typen ar string - Homey har ingen JSON-typ,
+         och skriptet gor JSON.parse anda. */
+      const ok=await homeySkapaVar(KURVA_VAR,varde);
+      if(!ok){toast('Kunde inte skapa variabeln');return;}
+      await kurvaHamta();
+    }
+    _kurvaAndrad=false;
+    toast('Kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
+    if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+  }catch(e){toast('Kunde inte n\u00e5 Homey');}
+}
+async function homeySkapaVar(namn,varde){
+  const lista=(BASE?[BASE].concat(vagar().filter(function(v){return v!==BASE;})):vagar());
+  for(const b of lista){
+    const t=withTimeout(9000);
+    try{
+      const r=await fetch(b.replace(/\/$/,'')+'/api/manager/logic/variable/',{method:'POST',
+        headers:{Authorization:'Bearer '+CONFIG.TOKEN,'Content-Type':'application/json'},
+        body:JSON.stringify({name:namn,type:'string',value:varde}),signal:t.signal});
+      t.clear();
+      if(r.ok)return true;
+    }catch(e){t.clear();}
+  }
+  return false;
+}
+function kurvaAter(){KURVA=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
+
+/* --- ritningen --- */
+const KV_W=320,KV_H=150,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
+function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*60+ +m[2]):0;}
+/* 00:00 i kurvan betyder dygnets SLUT nar den star sist - annars hamnar sista
+   punkten ovanpa den forsta. */
+function kvSort(){
+  return KURVA.map(function(p,i){
+    let m=kvMin(p.tid);
+    if(m===0&&i===KURVA.length-1)m=1440;
+    return {i:i,m:m,dim:p.dim,temp:p.temp};
+  }).sort(function(a,b){return a.m-b.m;});
+}
+function kvX(m){return KV_L+(m/1440)*(KV_W-KV_L-KV_R);}
+function kvY(v){return KV_T+(1-v)*(KV_H-KV_T-KV_B);}
+function kvBana(pts,falt){
+  return pts.map(function(p,i){return (i?'L':'M')+kvX(p.m).toFixed(1)+' '+kvY(p[falt]).toFixed(1);}).join(' ');
+}
+function kurvaSVG(){
+  const pts=kvSort();
+  let s='<svg class="kv" viewBox="0 0 '+KV_W+' '+KV_H+'" preserveAspectRatio="none">';
+  for(let h=0;h<=24;h+=6){
+    s+='<line class="kv-rut" x1="'+kvX(h*60)+'" y1="'+KV_T+'" x2="'+kvX(h*60)+'" y2="'+(KV_H-KV_B)+'"/>'
+      +'<text class="kv-tx" x="'+kvX(h*60)+'" y="'+(KV_H-6)+'" text-anchor="middle">'+h+'</text>';
+  }
+  [0,0.5,1].forEach(function(v){
+    s+='<line class="kv-rut" x1="'+KV_L+'" y1="'+kvY(v)+'" x2="'+(KV_W-KV_R)+'" y2="'+kvY(v)+'"/>'
+      +'<text class="kv-tx" x="'+(KV_L-5)+'" y="'+(kvY(v)+3)+'" text-anchor="end">'+Math.round(v*100)+'</text>';
+  });
+  s+='<path class="kv-l kv-dim" d="'+kvBana(pts,'dim')+'"/>';
+  s+='<path class="kv-l kv-temp" d="'+kvBana(pts,'temp')+'"/>';
+  pts.forEach(function(p){
+    s+='<circle class="kv-p kv-dim" data-i="'+p.i+'" data-f="dim" cx="'+kvX(p.m).toFixed(1)+'" cy="'+kvY(p.dim).toFixed(1)+'" r="6"/>';
+    s+='<circle class="kv-p kv-temp" data-i="'+p.i+'" data-f="temp" cx="'+kvX(p.m).toFixed(1)+'" cy="'+kvY(p.temp).toFixed(1)+'" r="6"/>';
+  });
+  return s+'</svg>';
+}
+function kurvaHTML(){
+  if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
+  const pts=kvSort();
+  let h='<div class="setup-t">Dra punkterna i h\u00f6jdled. Guld \u00e4r ljusstyrka, bl\u00e5tt \u00e4r '
+    +'v\u00e4rme i f\u00e4rgtonen \u2013 h\u00f6gt v\u00e4rde ger varmt ljus. Klockslagen \u00e4r fasta.</div>'
+    +'<div class="kv-box" id="kv-box" onpointerdown="kvNer(event)" onpointermove="kvRor(event)" '
+    +'onpointerup="kvUpp(event)" onpointercancel="kvUpp(event)">'+kurvaSVG()+'</div>'
+    +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span></div>';
+  h+=dSec('V\u00e4rden');
+  pts.forEach(function(p){
+    h+=dRow(p.tid===undefined?'':KURVA[p.i].tid,
+      '<span style="color:var(--gold)">'+Math.round(p.dim*100)+' %</span> \u00b7 '
+      +'<span style="color:var(--blue)">'+Math.round(p.temp*100)+'</span>');
+  });
+  h+='<div class="dbtn-row" style="margin-top:10px">'
+    +'<button class="dbtn pri" onclick="kurvaSpara()">'+(_kurvaAndrad?'Spara \u00e4ndringar':'Sparad')+'</button>'
+    +'<button class="dbtn" onclick="kurvaAter()">\u00c5terst\u00e4ll</button></div>';
+  if(!_kurvaVarId){
+    h+='<div class="setup-t" style="margin-top:10px;color:var(--warm)">Variabeln <b>adaptiv_kurva</b> '
+      +'finns inte \u00e4n. Den skapas n\u00e4r du sparar. Skriptet anv\u00e4nder den f\u00f6rst efter att du '
+      +'lagt in de fyra raderna som st\u00e5r i chatten.</div>';
+  }
+  return h;
+}
+function openKurva(){
+  DLG_OM.kurva=function(){};   /* ingen automatisk omritning - man drar ju i den */
+  openDlg('Adaptiv kurva','chart-line',kurvaHTML(),'kurva');
+}
+/* Dragning. Bara punkter tas, och bara i hojdled - x rors aldrig. */
+var _kvDrag=null;
+function kvNer(e){
+  const c=e.target&&e.target.closest?e.target.closest('.kv-p'):null;
+  if(!c)return;
+  _kvDrag={i:+c.dataset.i,f:c.dataset.f,el:c};
+  const box=$('kv-box');
+  try{box&&box.setPointerCapture&&box.setPointerCapture(e.pointerId);}catch(err){}
+  e.preventDefault();
+}
+function kvRor(e){
+  const d=_kvDrag;if(!d)return;
+  const box=$('kv-box');if(!box)return;
+  const r=box.getBoundingClientRect();if(!r.height)return;
+  /* Pekpunkten raknas om till anvandarkoordinater; SVG:n stracks. */
+  const uy=((e.clientY-r.top)/r.height)*KV_H;
+  let v=1-((uy-KV_T)/(KV_H-KV_T-KV_B));
+  v=Math.max(0,Math.min(1,v));
+  v=Math.round(v*100)/100;
+  if(KURVA[d.i][d.f]===v)return;
+  KURVA[d.i][d.f]=v;_kurvaAndrad=true;
+  /* Rita om bara grafen medan man drar - hela rutan skulle tappa greppet. */
+  const bx=$('kv-box');if(bx)bx.innerHTML=kurvaSVG();
+  e.preventDefault();
+}
+function kvUpp(){
+  if(!_kvDrag)return;
+  _kvDrag=null;
+  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+}
 function openInst(){
   const c=credGet();
   const moln=BASE.indexOf('connect.athom.com')>0;
@@ -3058,6 +3241,7 @@ function openInst(){
   let h=dSec('Adaptivt ljus')
     +'<div class="setup-t">Sl\u00e4pper alla manuella l\u00e5sningar s\u00e5 att lamporna f\u00f6ljer schemat igen. '
     +'Ambilight och de andra uteslutna r\u00f6rs inte. Ingen lampa t\u00e4nds eller sl\u00e4cks.</div>'
+    +'<button class="dbtn wide" onclick="openKurva()">\u00c4ndra kurvan f\u00f6r dygnet</button>'
     +'<button class="dbtn wide pri" onclick="adaptAterstall()">'
     +(man===null?'Tvinga alla till adaptivt'
       :(man?('Tvinga alla till adaptivt \u00b7 '+man+' l\u00e5sta nu'):'Tvinga alla till adaptivt \u00b7 inga l\u00e5sta nu'))
