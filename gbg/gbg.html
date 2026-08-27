@@ -533,9 +533,6 @@ body.mobile .statusbar.stuck{
 .dv-ic .ic{width:16px;height:16px}
 .dv-row.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.16)}
 .dv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ad-p{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;
-  vertical-align:middle;background:var(--faint);flex:0 0 auto}
-.ad-p.man{background:var(--warm)}
 .dv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
 .dv-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
   flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
@@ -833,7 +830,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.39.0';
+const APP_VERSION = 'v1.40.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2508,16 +2505,8 @@ function adaptKvar(id){
   const m=Math.ceil((l.till-Date.now())/60000);
   return m>0?m:null;
 }
-/* Pricken. Gra for adaptiv, gul for manuellt last, ingenting for slackt eller
-   utesluten - en slackt lampa styrs inte, och en utesluten ska inte se ut som
-   om den vantar pa nagot. */
-function adaptPrick(id){
-  const s=adaptLage(id);
-  if(s!=='a'&&s!=='m')return '';
-  const kvar=adaptKvar(id);
-  const titel=(s==='m')?('Manuellt last'+(kvar?(' \u00b7 '+kvar+' min kvar'):'')):'Foljer det adaptiva schemat';
-  return '<span class="ad-p'+(s==='m'?' man':'')+'" title="'+esc(titel)+'" aria-label="'+esc(titel)+'"></span>';
-}
+/* Laget star som text i lampraden. Prickarna togs bort i v1.40.0 - texten
+   sager samma sak tydligare, och en farg till i raden var en for mycket. */
 function adaptText(id){
   const s=adaptLage(id);
   if(s==='m'){const k=adaptKvar(id);return 'manuell'+(k?(' \u00b7 '+k+' min'):'');}
@@ -2529,7 +2518,7 @@ function devRad(d){
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
   let h='<div class="dv-row'+(pa?' on':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
     +'<span class="dv-ic">'+icon(lampIkon(d))+'</span>'
-    +'<span class="dv-n">'+esc(namn(d))+adaptPrick(d.id)
+    +'<span class="dv-n">'+esc(namn(d))
       +(arGrupp(d)&&grpMedlemmar(d).length?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
       +(dim!=null?('<small>'+Math.round(dim*100)+' %'
         +(adaptText(d.id)?(' · '+esc(adaptText(d.id))):'')+'</small>'):'')+'</span>'
@@ -3008,10 +2997,38 @@ function openVader(){
   openDlg(CONFIG.ORT,'cloud-sun',g(),'vader');}
 
 /* ---- inställningar ---- */
+/* Startar flodet som nollstaller de manuella lasningarna. Sjalva rattningen
+   gors av belysningsskriptet nasta varv, alltsa inom en minut - dashboarden
+   skriver aldrig till lamporna, for da skulle en slackt lampa kunna tandas. */
+var _adaptWait=false;
+async function adaptAterstall(){
+  if(_adaptWait)return;
+  _adaptWait=true;
+  try{
+    await startaFlow('standard','ab4b4f37-88e0-4f01-af0b-a2957877f81d');
+    toast('Alla lampor \u00e5ter adaptiva \u2013 sl\u00e5r igenom inom en minut');
+    _adaptAt=0;setTimeout(function(){adaptHamta().then(function(){try{render();}catch(e){}});},1500);
+  }catch(e){toast('Kunde inte n\u00e5 Homey');}
+  _adaptWait=false;
+}
+/* Hur manga lampor som ar manuellt lasta just nu - sa att knappen kan saga vad
+   ett tryck faktiskt kommer att gora. */
+function adaptManuella(){
+  if(!ADAPT||!ADAPT.l)return null;
+  return Object.keys(ADAPT.l).filter(function(k){return ADAPT.l[k].s==='m';}).length;
+}
 function openInst(){
   const c=credGet();
   const moln=BASE.indexOf('connect.athom.com')>0;
-  let h=dRow('Version',APP_VERSION)
+  const man=adaptManuella();
+  let h=dSec('Adaptivt ljus')
+    +'<div class="setup-t">Sl\u00e4pper alla manuella l\u00e5sningar s\u00e5 att lamporna f\u00f6ljer schemat igen. '
+    +'Ambilight och de andra uteslutna r\u00f6rs inte. Ingen lampa t\u00e4nds eller sl\u00e4cks.</div>'
+    +'<button class="dbtn wide pri" onclick="adaptAterstall()">'
+    +(man===null?'Tvinga alla till adaptivt'
+      :(man?('Tvinga alla till adaptivt \u00b7 '+man+' l\u00e5sta nu'):'Tvinga alla till adaptivt \u00b7 inga l\u00e5sta nu'))
+    +'</button>'
+    +dRow('Version',APP_VERSION)
     +dRow('Väg',BASE?('<span style="color:'+(moln?'var(--gold)':'var(--ok)')+'">'+(moln?'molnet':'lokalt')+'</span>'):'ingen')
     +dRow('Adress','<span style="font-size:11px;opacity:.75">'+esc(BASE.replace(/^https?:\/\//,'')||'–')+'</span>')
     +dRow('Homey-ID','<span style="font-size:11px;opacity:.75">'+esc(c.homeyId)+'</span>')
