@@ -539,7 +539,9 @@ body.mobile .statusbar.stuck{
 .kv-rut{stroke:var(--line);stroke-width:1}
 .kv-tx{fill:var(--faint);font-size:8px;font-family:var(--sans)}
 .kv-l{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.kv-p{stroke:var(--panel-b);stroke-width:2;cursor:grab}
+.kv-p{stroke:var(--panel-b);stroke-width:2;cursor:grab;pointer-events:none}
+.kv-t{fill:transparent;stroke:none;cursor:grab}
+.kv{height:170px}
 path.kv-dim{stroke:var(--gold)} circle.kv-dim{fill:var(--gold)}
 path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
@@ -842,7 +844,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.42.0';
+const APP_VERSION = 'v1.43.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3141,7 +3143,7 @@ async function homeySkapaVar(namn,varde){
 function kurvaAter(){KURVA=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
 
 /* --- ritningen --- */
-const KV_W=320,KV_H=150,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
+const KV_W=320,KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
 function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*60+ +m[2]):0;}
 /* 00:00 i kurvan betyder dygnets SLUT nar den star sist - annars hamnar sista
    punkten ovanpa den forsta. */
@@ -3168,11 +3170,16 @@ function kurvaSVG(){
     s+='<line class="kv-rut" x1="'+KV_L+'" y1="'+kvY(v)+'" x2="'+(KV_W-KV_R)+'" y2="'+kvY(v)+'"/>'
       +'<text class="kv-tx" x="'+(KV_L-5)+'" y="'+(kvY(v)+3)+'" text-anchor="end">'+Math.round(v*100)+'</text>';
   });
-  s+='<path class="kv-l kv-dim" d="'+kvBana(pts,'dim')+'"/>';
-  s+='<path class="kv-l kv-temp" d="'+kvBana(pts,'temp')+'"/>';
+  s+='<path class="kv-l kv-dim" id="kv-b-dim" d="'+kvBana(pts,'dim')+'"/>';
+  s+='<path class="kv-l kv-temp" id="kv-b-temp" d="'+kvBana(pts,'temp')+'"/>';
+  /* Varje punkt far en osynlig traffyta pa 18 - ett finger ar bredare an sex
+     bildpunkter, och de tva serierna ligger dessutom ofta nara varandra. */
   pts.forEach(function(p){
-    s+='<circle class="kv-p kv-dim" data-i="'+p.i+'" data-f="dim" cx="'+kvX(p.m).toFixed(1)+'" cy="'+kvY(p.dim).toFixed(1)+'" r="6"/>';
-    s+='<circle class="kv-p kv-temp" data-i="'+p.i+'" data-f="temp" cx="'+kvX(p.m).toFixed(1)+'" cy="'+kvY(p.temp).toFixed(1)+'" r="6"/>';
+    ['dim','temp'].forEach(function(f){
+      const x=kvX(p.m).toFixed(1), y=kvY(p[f]).toFixed(1);
+      s+='<circle class="kv-t" data-i="'+p.i+'" data-f="'+f+'" cx="'+x+'" cy="'+y+'" r="18"/>';
+      s+='<circle class="kv-p kv-'+f+'" id="kv-p-'+p.i+'-'+f+'" cx="'+x+'" cy="'+y+'" r="7"/>';
+    });
   });
   return s+'</svg>';
 }
@@ -3206,32 +3213,67 @@ function openKurva(){
 }
 /* Dragning. Bara punkter tas, och bara i hojdled - x rors aldrig. */
 var _kvDrag=null;
+/* Pekpunkten i anvandarkoordinater. SVG:n stracks i sidled men inte i hojdled,
+   sa bada leden maste raknas om mot rutans faktiska storlek. */
+function kvPek(e){
+  const box=$('kv-box');if(!box||!box.getBoundingClientRect)return null;
+  const r=box.getBoundingClientRect();
+  if(!r.width||!r.height)return null;
+  return {x:((e.clientX-r.left)/r.width)*KV_W, y:((e.clientY-r.top)/r.height)*KV_H};
+}
+/* Narmaste punkt inom ett rimligt avstand. Att bara lita pa vad fingret rakade
+   tacka gor sma mal nastan omojliga att traffa - i stallet vinner den narmaste,
+   och da racker det att peka i ratt omrade. */
+function kvNarmast(pek){
+  let bast=null,bd=Infinity;
+  kvSort().forEach(function(p){
+    ['dim','temp'].forEach(function(f){
+      const dx=kvX(p.m)-pek.x, dy=kvY(p[f])-pek.y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<bd){bd=d;bast={i:p.i,f:f};}
+    });
+  });
+  return (bd<=26)?bast:null;
+}
 function kvNer(e){
-  const c=e.target&&e.target.closest?e.target.closest('.kv-p'):null;
-  if(!c)return;
-  _kvDrag={i:+c.dataset.i,f:c.dataset.f,el:c};
+  const pek=kvPek(e);if(!pek)return;
+  const t=kvNarmast(pek);if(!t)return;
+  _kvDrag=t;
   const box=$('kv-box');
   try{box&&box.setPointerCapture&&box.setPointerCapture(e.pointerId);}catch(err){}
+  /* Flytta dit direkt, sa att punkten hoppar till fingret i stallet for att
+     vanta pa forsta rorelsen. */
+  kvFlytta(pek);
   e.preventDefault();
 }
-function kvRor(e){
+/* ENDAST det som andrats ritas om. Att bygga om hela SVG:n vid varje rorelse
+   forstor elementet man haller i, och da slapper greppet - det var darfor
+   punkten inte foljde med fingret. */
+function kvFlytta(pek){
   const d=_kvDrag;if(!d)return;
-  const box=$('kv-box');if(!box)return;
-  const r=box.getBoundingClientRect();if(!r.height)return;
-  /* Pekpunkten raknas om till anvandarkoordinater; SVG:n stracks. */
-  const uy=((e.clientY-r.top)/r.height)*KV_H;
-  let v=1-((uy-KV_T)/(KV_H-KV_T-KV_B));
+  let v=1-((pek.y-KV_T)/(KV_H-KV_T-KV_B));
   v=Math.max(0,Math.min(1,v));
   v=Math.round(v*100)/100;
   if(KURVA[d.i][d.f]===v)return;
   KURVA[d.i][d.f]=v;_kurvaAndrad=true;
-  /* Rita om bara grafen medan man drar - hela rutan skulle tappa greppet. */
-  const bx=$('kv-box');if(bx)bx.innerHTML=kurvaSVG();
+  const pts=kvSort();
+  const p=pts.find(function(x){return x.i===d.i;});
+  const y=kvY(p[d.f]).toFixed(1);
+  const c=$('kv-p-'+d.i+'-'+d.f);if(c)c.setAttribute('cy',y);
+  const t=document.querySelector('.kv-t[data-i="'+d.i+'"][data-f="'+d.f+'"]');
+  if(t)t.setAttribute('cy',y);
+  const b=$('kv-b-'+d.f);if(b)b.setAttribute('d',kvBana(pts,d.f));
+}
+function kvRor(e){
+  if(!_kvDrag)return;
+  const pek=kvPek(e);if(!pek)return;
+  kvFlytta(pek);
   e.preventDefault();
 }
 function kvUpp(){
   if(!_kvDrag)return;
   _kvDrag=null;
+  /* Nu, och bara nu, ritas rutan om - da uppdateras vardelistan och knappen. */
   if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
 }
 function openInst(){
