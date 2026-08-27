@@ -533,6 +533,9 @@ body.mobile .statusbar.stuck{
 .dv-ic .ic{width:16px;height:16px}
 .dv-row.on .dv-ic{color:var(--gold);background:rgba(235,203,139,.16)}
 .dv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ad-p{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;
+  vertical-align:middle;background:var(--faint);flex:0 0 auto}
+.ad-p.man{background:var(--warm)}
 .dv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
 .dv-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
   flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
@@ -830,7 +833,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.35.0';
+const APP_VERSION = 'v1.39.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1026,6 +1029,48 @@ const GRUPP_FAST={
     '8c857078-5f4d-4645-9e6c-b9bf26b1b2e8',     /* Vardagsrum golv */
     '962e7e21-295d-4973-b794-363d8189a793',     /* Vardagsrum fönster */
     'eb06b1cb-a8a6-4d4a-adf4-5eab61c6351f'      /* Play gradient tube */
+  ],
+  /* TAKGRUPPERNA. Namnregeln klarar "Kok tak 1" under "Kok tak", men inte de
+     forkortade namnen som kom med omparningen 2026-08-23: Htak1, Stak2, Btak1,
+     Klk3. Ingenting i "Htak1" sager att den hor till "Hall tak", och da raknas
+     varje armatur for sig - Hall visade tre lampor dar det fysiskt finns en
+     grupp om tva. Kopplingen star darfor uttryckligen.
+     De tre som namnregeln redan klarar star ocksa har, sa att en omdopning
+     inte tyst bryter grupperingen. Byter en enhet id vid ny parning ar det de
+     har raderna som ska rattas. */
+  '87209c2e-3b84-4744-ba2a-dd6089722b3a':[      /* Hall tak */
+    '5c6c7737-6f86-4148-87d8-e179c4b3bbe5',     /* Htak1 */
+    '2608c1ad-0526-4711-8c82-28d1e94a160c'      /* Htak2 */
+  ],
+  '4a39dbce-5038-4394-a12c-02d91ca2d4ae':[      /* Sovrum tak */
+    'bbc32112-9ddc-4cc3-a582-e4b5bc7e4ae0',     /* Stak1 */
+    '0c79407e-cb54-4993-9c40-94158131f142',     /* Stak2 */
+    '3b4b87f8-9bfe-44d8-a9b1-e07df2376769'      /* Stak3 */
+  ],
+  '176647d4-0d7d-4203-b7a0-c556d8f49ec1':[      /* Badrum tak */
+    'bdeb4912-2ab3-45d5-8cd1-907ba7f59eff',     /* Btak1 */
+    '39a0be96-cf9b-44fb-a70b-cf2a2254c089'      /* Btak2 */
+  ],
+  '0f3dbcea-f59b-4eea-8735-b5c0abb0d6c7':[      /* Kladkammare tak */
+    '441f8fba-b8b6-43fc-a570-4501d6804f3a',     /* Klk1 */
+    'd49b0294-8a10-4d64-8f79-b59afbaef0da',     /* Klk2 */
+    'd75ea39b-47da-4ec0-8c05-09294ef77bfe'      /* Klk3 */
+  ],
+  'ff4f5f57-af47-427b-9868-494bab9bd8f4':[      /* Kok tak */
+    '7668afdf-f367-4c8b-9a39-3fce58cdeb03',     /* Kok tak 1 */
+    '2d9af2c4-27ed-43e6-84f0-43e59c61b240',     /* Kok tak 2 */
+    'a3a92e5c-8336-41e2-af50-30e595820b83',     /* Kok tak 3 */
+    'c30528a4-0425-4213-9057-303749a55122',     /* Kok tak 4 */
+    '8b8117a5-cac3-4155-b9fa-fc7f837581b3'      /* Kok tak 5 */
+  ],
+  '27b6439a-73fd-417d-bab9-2749258b09c1':[      /* Vardagsrum tak */
+    'a12769f3-fe23-40c1-892f-f0d17fa2a999',     /* Vardagsrum tak 1 */
+    '474833e0-7740-4ecf-b636-68d768bfe406',     /* Vardagsrum tak 2 */
+    'b519b401-0cbe-43a3-a972-ecb32d957210',     /* Vardagsrum tak 3 */
+    'fc4c47b7-10a3-4db0-aee7-1b77df4d8fe7'      /* Vardagsrum tak 4 */
+  ],
+  '858d143d-cfc6-4c94-9656-4273f0615638':[      /* Koksbank */
+    '5a2ee946-1007-4ef1-8cfb-2c709d56eff0'      /* Koksbank 2 */
   ]
 };
 /* Uttag som i praktiken är lampor. De ska stå bland lamporna, inte under Uttag. */
@@ -1224,6 +1269,7 @@ async function load(){
     setStatus('live','live');
     if(!zonesDone){const z=await homeyGet('/api/manager/zones/zone/');if(z){ZONES=z;zonesDone=true;}}
     if(!flowsDone)hamtaFlows();
+    adaptHamta();
   }else{
     _online=false;
     setStatus(lastUpdate?'stale':'dead',lastUpdate?'ingen kontakt':'ansluter…');
@@ -2299,8 +2345,13 @@ function sensorLista(){
    popupen som nås från rums- och enhetsvyerna. */
 
 /* ---------- varningar ---------- */
+/* Virtuella enheter ar undantagna. Den virtuella gardinmastern bar lagsta
+   batteriet av sina medlemmar - bra i gardinraden, men i batterilistan hade
+   samma cell rakats tva ganger: en gang som "Rullgardiner vardagsrum" och en
+   gang som "Hoger". Vakten ska larma om den fysiska enheten, det ar den man
+   byter batteri i. */
 function battLista(){
-  return devs().filter(d=>har(d,'measure_battery')&&capOf(d,'measure_battery')!=null)
+  return devs().filter(d=>!arVirt(d.id)&&har(d,'measure_battery')&&capOf(d,'measure_battery')!=null)
     .map(d=>({d:d,p:capOf(d,'measure_battery')}))
     .sort((a,b)=>a.p-b.p);}
 /* ===== varningsrutan =====
@@ -2421,13 +2472,67 @@ function stangDlg(){
 
 function dRow(k,v){return '<div class="drow"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
 function dSec(t){return '<div class="dsec">'+esc(t)+'</div>';}
+/* ===== ADAPTIVT LJUS =====
+   Flodet "Adaptiv belysning" haller sitt tillstand i HomeyScripts global-lagring,
+   dit webblasaren inte kommer. Ett andra flode speglar darfor laget till
+   Logic-variabeln `adaptiv_lage` en gang i minuten, och den lases har.
+
+   Innehallet: {v,ts,l:{"<id>":{s,till}}} dar s ar
+     a = styrs adaptivt      m = manuellt last, till = nar lasningen slapper
+     s = slackt (rors inte)  u = utesluten ur schemat helt
+   Ett id som saknas i listan har skriptet aldrig sett - da visas ingen prick
+   alls, vilket ar riktigare an att gissa. */
+var ADAPT=null,_adaptAt=0;
+async function adaptHamta(){
+  if(_adaptAt&&Date.now()-_adaptAt<45000)return;
+  _adaptAt=Date.now();
+  try{
+    const v=await homeyGet('/api/manager/logic/variable/');
+    if(!v)return;
+    const arr=Array.isArray(v)?v:Object.keys(v).map(k=>v[k]);
+    const x=arr.find(a=>a&&a.name==='adaptiv_lage');
+    if(!x)return;
+    const j=JSON.parse(String(x.value||''));
+    if(j&&j.l)ADAPT=j;
+  }catch(e){/* variabeln saknas eller ar otolkbar - da visas ingen prick */}
+}
+function adaptLage(id){
+  const l=ADAPT&&ADAPT.l&&ADAPT.l[id];
+  return l?l.s:null;
+}
+/* Minuter kvar av den manuella lasningen. Avrundas uppat sa att "1 min kvar"
+   star kvar tills den faktiskt slappt. */
+function adaptKvar(id){
+  const l=ADAPT&&ADAPT.l&&ADAPT.l[id];
+  if(!l||l.s!=='m'||!l.till)return null;
+  const m=Math.ceil((l.till-Date.now())/60000);
+  return m>0?m:null;
+}
+/* Pricken. Gra for adaptiv, gul for manuellt last, ingenting for slackt eller
+   utesluten - en slackt lampa styrs inte, och en utesluten ska inte se ut som
+   om den vantar pa nagot. */
+function adaptPrick(id){
+  const s=adaptLage(id);
+  if(s!=='a'&&s!=='m')return '';
+  const kvar=adaptKvar(id);
+  const titel=(s==='m')?('Manuellt last'+(kvar?(' \u00b7 '+kvar+' min kvar'):'')):'Foljer det adaptiva schemat';
+  return '<span class="ad-p'+(s==='m'?' man':'')+'" title="'+esc(titel)+'" aria-label="'+esc(titel)+'"></span>';
+}
+function adaptText(id){
+  const s=adaptLage(id);
+  if(s==='m'){const k=adaptKvar(id);return 'manuell'+(k?(' \u00b7 '+k+' min'):'');}
+  if(s==='a')return 'adaptiv';
+  if(s==='u')return 'utanf\u00f6r schemat';
+  return '';
+}
 function devRad(d){
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
   let h='<div class="dv-row'+(pa?' on':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
     +'<span class="dv-ic">'+icon(lampIkon(d))+'</span>'
-    +'<span class="dv-n">'+esc(namn(d))
+    +'<span class="dv-n">'+esc(namn(d))+adaptPrick(d.id)
       +(arGrupp(d)&&grpMedlemmar(d).length?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
-      +(dim!=null?('<small>'+Math.round(dim*100)+' %</small>'):'')+'</span>'
+      +(dim!=null?('<small>'+Math.round(dim*100)+' %'
+        +(adaptText(d.id)?(' · '+esc(adaptText(d.id))):'')+'</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
   if(bekraftVantar('dev'+d.id))h=h.replace('</div>','<span class="dv-bekr">tryck igen</span></div>');
   if(dim!=null&&pa)h+='<div class="dv-dim">'+slxHTML(d.id,dim*100,'devDim')+'</div>';
@@ -2505,15 +2610,33 @@ async function zonAlla(zid,pa){
    det att byta id:t har.
    Virtuella id:n borjar med "v:" sa att de gar att kanna igen overallt. */
 const GARD_VIRT='v:gard-vardagsrum';
-const GARD_GRUPP={
-  'v:gard-vardagsrum':[
-    '00c315d4-a4fa-4d2b-b485-0e0be2172db5',    /* Vanster */
-    '4eee4824-da99-46af-86fc-f432b80b88ae'     /* Hoger */
-  ]};
+const GARD_ACKTA='a0e58ca6-b5bb-46bf-8a77-4d6bf9032ad8';  /* Rullgardiner vardagsrum */
+const GARD_MED=[
+  '00c315d4-a4fa-4d2b-b485-0e0be2172db5',      /* Vanster */
+  '4eee4824-da99-46af-86fc-f432b80b88ae'       /* Hoger */
+];
+/* Vilken master som galler avgors av verkligheten, inte av ett antagande.
+   Nar IKEA-hubben tappade kontakten 2026-08-23 forsvann gruppenheten och den
+   virtuella byggdes. 2026-08-27 var gruppen tillbaka. Bada lagen kan intraffa
+   igen, sa koden valjer sjalv: svarar den riktiga gruppen anvands den, annars
+   den pahittade. Utan det skulle bada synas samtidigt, med samma namn. */
+function gardAktaLever(){
+  const d=DATA[GARD_ACKTA];
+  return !!d&&capOf(d,'windowcoverings_set')!=null;
+}
+const GARD_GRUPP={};
 function arVirt(id){return String(id||'').indexOf('v:')===0;}
 /* Byggs om vid varje rendering: laget ar medlemmarnas medelvarde, batteriet
    det lagsta av dem - det ar det som behover bytas forst. */
 function gardVirtBygg(){
+  /* Bygg om kopplingen varje gang - hubben kan komma och ga. */
+  for(const k in GARD_GRUPP)delete GARD_GRUPP[k];
+  if(gardAktaLever()){
+    GARD_GRUPP[GARD_ACKTA]=GARD_MED.slice();
+    delete DATA[GARD_VIRT];
+  }else{
+    GARD_GRUPP[GARD_VIRT]=GARD_MED.slice();
+  }
   for(const gid in GARD_GRUPP){
     if(!arVirt(gid))continue;
     const med=GARD_GRUPP[gid].map(id=>DATA[id]).filter(Boolean);
