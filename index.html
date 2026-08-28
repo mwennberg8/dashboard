@@ -2423,10 +2423,20 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .wxm-leg-n{font-size:10px;font-weight:800;color:var(--dim);width:36px;flex:0 0 auto}
 .wxm-leg-b{flex:1 1 auto;height:11px;border-radius:6px;border:1px solid var(--line)}
 .wxm-leg-x{display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;color:var(--dim);margin:3px 0 8px 36px}
-.wxm-time{display:flex;align-items:center;margin-top:8px}
+/* TIDSLINJEN ÄR TVÅ RADER. Etiketten låg förut på samma rad som reglaget, och
+   eftersom texten byter längd — "nu · radar" mot "+30 min · framskrivning" —
+   krympte reglaget när texten växte. Greppet flyttade sig då under fingret,
+   och hela raden såg ut att hoppa. min-width räckte inte: skillnaden är för
+   stor för att gömmas i ett minimimått utan att äta upp halva bredden.
+   Nu ligger etiketten under, och reglagets bredd är konstant oavsett text. */
+.wxm-time{display:flex;align-items:center;margin-top:8px;flex-wrap:wrap}
 .wxm-zs{margin-left:6px}
 .wxm-slider{flex:1 1 auto;min-width:0;margin:0 10px;accent-color:var(--blue);height:26px}
-.wxm-rt{font-size:11px;font-weight:750;color:var(--dim);min-width:92px;text-align:right;font-variant-numeric:tabular-nums}
+/* Knapparna får inte krympa när etiketten radbryts. */
+.wxm-time>.wxm-z{flex:0 0 auto}
+.wxm-rt{font-size:11px;font-weight:750;color:var(--dim);text-align:center;
+  font-variant-numeric:tabular-nums;flex:1 0 100%;order:9;margin-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .wxm-rt.fc{color:var(--gold)}
 .wxm-b.wxm-i{width:26px;padding:6px 0;text-align:center;font-style:italic;font-weight:850}
 .wxs{display:flex;flex-wrap:wrap;margin:0 -4px 10px}
@@ -6045,9 +6055,13 @@ function wxRutaNu(){
 function wxKlocka(t){
   return new Intl.DateTimeFormat('sv-SE',{hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t));
 }
-function wxRel(t){
+/* "nu" galler bara MATTA rutor. En framskriven ruta kan ligga fa minuter fram
+   - senaste radarbilden ar ofta nagra minuter gammal - och kallades da "nu",
+   vilket ar direkt vilseledande: den visar nagot som inte hant an. */
+function wxRel(t,typ){
   var m=Math.round((t-Date.now())/60000);
-  if(Math.abs(m)<8)return 'nu';
+  if(typ!=='fram'&&Math.abs(m)<8)return 'nu';
+  if(typ==='fram'&&m<1)return '+1 min';
   if(Math.abs(m)<100)return (m>0?'+':'')+m+' min';
   return (m>0?'+':'')+Math.round(m/60)+' h';
 }
@@ -6075,7 +6089,7 @@ function wxSetIdx(i){
   }
   var lab=document.getElementById('wx-rtime');
   if(lab){
-    lab.textContent=wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f);
+    lab.textContent=wxKlocka(f.t)+' · '+wxRel(f.t,f.typ)+' · '+wxKalla(f);
     /* Gult betyder BERÄKNAD FRAMTID. Modellens historiktimmar är beräknade men
        inte framtid, och ska inte se ut som en prognos. */
     lab.classList.toggle('fc',f.typ!=='radar'&&f.t>Date.now());
@@ -6749,7 +6763,7 @@ function wxReglageHTML(){
       +'oninput="radarStop();wxSetIdx(+this.value)" aria-label="Tidslinje"/>'
       +'<button class="wxm-z wxm-zs" onclick="wxSteg(1)" aria-label="Ett steg framåt">›</button>'
       +'<span class="wxm-rt'+((f.typ!=='radar'&&f.t>Date.now())?' fc':'')+'" id="wx-rtime">'
-      +wxKlocka(f.t)+' · '+wxRel(f.t)+' · '+wxKalla(f)+'</span>'
+      +wxKlocka(f.t)+' · '+wxRel(f.t,f.typ)+' · '+wxKalla(f)+'</span>'
       +'</div>';}
   return h;
 }
@@ -13742,7 +13756,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v541';
+const APP_VERSION='v543';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16221,6 +16235,16 @@ function tvRad(d){
 }
 function renderTV(){
   const sec=$('tv-sec');if(!sec)return;
+  /* ALDRIG på väggplattan. Den sitter i köket och visar hus och väder; en ruta
+     som dyker upp och försvinner efter vardagsrummets TV flyttar allt annat på
+     skärmen mitt i att man tittar på det. Telefonen har man i handen, och där
+     är rutan poängen. */
+  if(IS_SAMSUNG_TABLET){
+    const fore=sec.hidden;
+    sec.hidden=true;sec.innerHTML='';
+    if(!fore&&typeof fitScreen==='function'){try{setTimeout(fitScreen,40);}catch(e){}}
+    return;
+  }
   const pa=tvPa();
   const fore=sec.hidden;
   sec.hidden=!pa.length;
