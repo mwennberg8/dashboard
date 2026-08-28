@@ -9573,7 +9573,9 @@ function computeMetric(cfg){
     case 'cars':{
       /* EX40 är förstahandsvalet. Laddar eller är C40 inkopplad tar den över rutan,
          och är laddboxen igång utan att någon känd bil sitter i visas Gäst. */
-      const nmOf=(id,d)=>((DATA[id]&&DATA[id].name)||d)+' · aktiv bil';
+      /* Bara namnet. "· aktiv bil" motiverade urvalet i stället för att säga
+         vad rutan visar, och på tre kolumner tog det plats från namnet. */
+      const nmOf=(id,d)=>((DATA[id]&&DATA[id].name)||d);
       const mk=(id,dn)=>({nm:nmOf(id,dn),b:cap(id,'measure_battery'),charging:carCharging(id),
                           plugged:carPlugged(id),home:carHome(id),known:!!DATA[id]});
       const ex40=mk(DEV.car2,'EX40'), c40=mk(DEV.car,'C40');
@@ -9619,7 +9621,7 @@ function computeMetric(cfg){
       else if(vis==='datum'){vv=btDatum(slutT);mm=S.senast?(btKl(slutT)+' · '+langd):'aldrig sett';}
       else if(vis==='antal'){vv=String(S.antal30!=null?S.antal30:0);mm='gånger på 30 dygn';}
       else {vv=langd;mm=S.senast?btNar(S.senast.start):'aldrig sett';}
-      return {label:'Batteriet tomt',icon:'battery-low',
+      return {label:'Tomt',icon:'battery-low',
         icc:S.pagar?'var(--hot)':'var(--faint)',
         v:vv,meta:mm,det:'batttom'};}
     case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');return {label:'Elnät',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
@@ -12304,10 +12306,54 @@ async function huvudHamta(){
   }
   return false;}
 
+/* FÄRSKHETSKOLL. Huvudenheten för en klass SKREV men läste aldrig, och det var
+   felet: plattan är huvudenhet för sin klass, telefonen för sin, och båda
+   skriver till samma delade slot. Ändrade man rutorna på telefonen fick
+   plattan aldrig veta det — den läste först vid omstart, alltså i praktiken
+   aldrig eftersom den står på dygnet runt.
+
+   Nu läser ALLA enheter, men bara när det finns något nytt att läsa. Ett anrop
+   hämtar variabellistan och jämför tidsstämpeln i metan med den vi själva
+   senast skrev eller läste. Är den oförändrad görs ingenting alls — ingen
+   omritning, inget hopp på skärmen.
+
+   Höjderna är skyddade sedan v540: en huvudenhet behåller sitt eget fack även
+   när den läser. Utan det skyddet vore den här kollen farlig. */
+var _ferskAt=0;
+async function syncFersk(){
+  if(CFG.sync===false)return false;
+  if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return false;
+  if(Date.now()-_ferskAt<5*60000)return false;      /* högst var femte minut */
+  _ferskAt=Date.now();
+  var meta=null;
+  try{
+    var list=await logicList(),byName={};
+    logicArr(list).forEach(function(v){if(v&&v.name)byName[v.name]=v.value;});
+    var raa=byName[syncVar()];
+    if(raa==null)raa=byName['dashboard_state'];
+    if(raa==null)return false;
+    meta=JSON.parse(raa);
+  }catch(e){return false;}
+  if(!meta||!meta.t)return false;
+  /* _syncMeta sätts både när vi skriver och när vi läser. Är tiden densamma är
+     det vår egen kopia som ligger där. */
+  if(_syncMeta&&_syncMeta.t===meta.t)return false;
+  var fore=syncSign();
+  try{await fetchFromHomey();}catch(e){return false;}
+  if(syncSign()===fore)return false;
+  loadCfg();applyCfg();
+  var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+  applySecOrder();
+  try{ritaOmSakert();}catch(e){}
+  return true;
+}
 async function backupTick(){
   try{
     if(CFG.sync===false)return;
     if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
+    /* Alla läser, även huvudenheten. Kollen är billig och gör ingenting när
+       ingenting ändrats. */
+    try{await syncFersk();}catch(e){}
     /* Inte huvudenhet: läs, skriv aldrig. */
     if(!arHuvud()){
       /* Läs i stället. En enhet som aldrig hämtar visar sin egen gamla
@@ -13151,14 +13197,20 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
       const stI=st&&st.icon?('<span class="chip-st" style="color:'+stFarg
         +(ikSk!==1?(';width:'+(15*ikSk).toFixed(1)+'px;height:'+(15*ikSk).toFixed(1)+'px'):'')
         +'">'+icon(st.icon)+'</span>'):'';
-      h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="en-chip-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span><span class="en-chip-s">'+esc(m.meta||'')+trH+'</span></span>'+stI+'</button>';
+      h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="en-chip-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span>'
+        +(trH?('<span class="en-chip-s">'+trH+'</span>'):'')+'</span></span>'+stI+'</button>';
     }else{
       const stI=st&&st.icon?('<span class="stat-st" style="color:'+stFarg
         +(ikSk!==1?(';width:'+(17*ikSk).toFixed(1)+'px;height:'+(17*ikSk).toFixed(1)+'px'):'')
         +'">'+icon(st.icon)+'</span>'):'';
       /* Centreringslägena gäller alla sex rutorna samtidigt. */
       var mitt=((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'');
-      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="stat-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div><div class="meta">'+esc(m.meta||'')+trH+'</div></div>'+stI+'</div>';
+      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="stat-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
+        /* UNDERRADEN AR BORTA. Den upprepade ofta rubriken med andra ord, och pa
+           tre kolumner tog den hojd fran vardet. Trendpilen ar inte text och far
+           sta kvar - den sager nagot varken varde eller rubrik gor.
+           m.meta raknas fortfarande ut och anvands i popuparna. */
+        +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI+'</div>';
     }});
   wrap.innerHTML=h;}
 
@@ -13788,7 +13840,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v544';
+const APP_VERSION='v546';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
