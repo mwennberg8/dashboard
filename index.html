@@ -2061,6 +2061,37 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
   height:var(--div-h,44px);width:1px;background:var(--line);
   transform:translateY(-50%)}
 /* Lika luft runt hela rutan — upp, ner och ut mot avdelarna. */
+/* ===== RUTORNA =====
+   Avsnittet var sex fristaende kort i ett rutnat och stack ut mot de ovriga,
+   som alla ar paneler. Nu bar panelen ramen och rutorna ligger inuti utan egen
+   bakgrund, avdelade med samma tunna streck som i Forbrukning nu.
+
+   Strecken sitter pa rutorna sjalva, inte som egna element: ett rutnat med
+   avdelare mellan cellerna gar inte att uttrycka med gap, och extra element
+   hade brutit rutnatets radraknare. Darfor ::before for lodratt och ::after
+   for vagratt, och nth-child avgor var de INTE ska finnas. */
+.tileswrap{padding:var(--avd-pad)}
+.fl-tiles{margin:0;background:none;border:0;box-shadow:none;padding:0;gap:0;
+  grid-template-columns:repeat(3,minmax(0,1fr));position:relative;align-items:stretch}
+.fl-tiles>.stat{background:none;border:0;box-shadow:none;position:relative;
+  padding:var(--avd-pad)}
+.fl-tiles>.stat::before{content:'';position:absolute;left:0;top:50%;
+  height:var(--div-h,44px);width:1px;background:var(--line);transform:translateY(-50%)}
+.fl-tiles>.stat::after{content:'';position:absolute;top:0;left:0;right:0;
+  height:1px;background:var(--line)}
+/* Tre kolumner: inget lodratt streck forst pa raden, inget vagratt pa forsta raden. */
+.fl-tiles>.stat:nth-child(3n+1)::before{display:none}
+.fl-tiles>.stat:nth-child(-n+3)::after{display:none}
+.fl-tiles>.stat:nth-child(-n+3){padding-top:0}
+.fl-tiles>.stat:nth-child(n+4){padding-bottom:0}
+/* TRE KOLUMNER OCKSA I HANDEN. Mobilen brot forut till tva kolumner och tre
+   rader, vilket gav avsnittet en annan taktart an energipanelens rutrad strax
+   ovanfor - tva rutrader med olika indelning under varandra las som tva olika
+   sorters innehall. Nu ar det sex rutor i tre kolumner overallt, med samma
+   avdelare som i energipanelen.
+   Texten skalar efter bredden, sa tre kolumner ryms; blir det trangt ar det
+   rutans egna matt som ska ner, inte antalet kolumner. */
+body.mobile:not(.kiosk) .fl-tiles{--tl-v-b:17px;--tl-ic-b:19px;--tl-name-b:9px;--tl-desc-b:9px}
 .pn-tiles>.stat{padding:var(--avd-pad) 0}
 /* SIST I PANELEN: ingen luft nedåt. Rutradens padding lades annars till
    panelens egen innerkant, så botten blev dubbelt så djup som toppen — tydligast
@@ -2602,7 +2633,8 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
         <div id="wx-strip-plats"></div>
       </section>
 
-    <section class="grid stats st2" id="stats-flode" data-grid="flode" data-sec="tiles"></section>
+    <!-- Rutorna som ett avsnitt: panelen bär ramen, rutnätet ligger inuti. -->
+    <section class="panel tileswrap" data-sec="tiles"><div class="grid stats fl-tiles" id="stats-flode" data-grid="flode"></div></section>
 
     <section class="panel controls" id="controls" data-sec="buttons"></section>
     <!-- Enhetsstyrningen. Ritas bara i mobilläge; renderRooms sätter hidden annars. -->
@@ -13756,7 +13788,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v543';
+const APP_VERSION='v544';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
