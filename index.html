@@ -13590,6 +13590,28 @@ async function syncDiag(){
         }else t+='\n\nAppens backup: tom.';
       }else t+='\n\nAppens backup: appen svarar inte.';
     }catch(e){t+='\n\nAppjämförelsen misslyckades: '+((e&&e.message)||e);}
+    /* 3. ENHETENS EGET MINNE av sina sparningar. Skillnaderna ovan sager VAD som
+       skiljer, men inte VARFOR enheten inte skrivit. Tva forklaringar finns och
+       de kraver olika atgard: antingen blockerades sparningen av skyddet mot att
+       skriva over en stor kopia med en liten, eller sa hann den aldrig spara
+       innan nasta hamtning skrev over. Bada star antecknade har. */
+    try{
+      var bo=bkpGet(),kl=function(x){if(!x)return '–';var dd=new Date(x);
+        return ('0'+dd.getHours()).slice(-2)+':'+('0'+dd.getMinutes()).slice(-2);};
+      t+='\n\nEnhetens sparningar';
+      t+='\n  Senaste sparning: '+(bo.last||'aldrig')+(bo.t?(' · '+kl(bo.t)):'')
+        +(bo.kalla?(' · via '+bo.kalla):'');
+      t+='\n  Storlek då: '+(bo.len||0)+' tkn · nu lokalt: '+bkpLen()+' tkn';
+      if(bo.blocked){
+        t+='\n  BLOCKERAD '+bo.blocked+': '+(bo.blockedLen||0)+' tkn mot tidigare '
+          +(bo.prevLen||bo.fjarrAntal||0)
+          +'\n  Skyddet mot att skriva över en stor kopia med en liten stoppade sparningen.';
+      }
+      var et=(typeof egetTs==='function')?egetTs():0;
+      var at=(typeof andradTs==='function')?andradTs():0;
+      t+='\n  Sparat: '+kl(et)+' · ändrat: '+kl(at);
+      if(at&&(!et||at>et))t+='\n  OSPARADE ÄNDRINGAR finns — de går förlorade vid nästa hämtning.';
+    }catch(e){t+='\n\nKunde inte läsa enhetens sparningsminne: '+((e&&e.message)||e);}
     t+='\n\nVänster = den här enheten, höger = kopian.';
     if(el)el.textContent=t;
   }catch(e){if(el)el.textContent='Kunde inte läsa Homeys variabler.';}}
@@ -14658,7 +14680,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v566';
+const APP_VERSION='v567';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
