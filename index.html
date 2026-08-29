@@ -603,6 +603,24 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
 .tv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
 .tv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
+.tv-oppna{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;
+  align-items:center;gap:9px;flex:1 1 auto;min-width:0;color:inherit;font:inherit;
+  text-align:left;cursor:pointer}
+.dlg-body .gtv-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;
+  max-width:230px;margin:2px auto 0}
+.dlg-body .gtv-rad{display:flex;gap:7px;margin-top:7px}
+.dlg-body .gtv-k{appearance:none;flex:1 1 0;min-width:0;height:46px;border:1px solid var(--line);
+  background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:15px;font-weight:700;
+  border-radius:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
+  padding:0;box-sizing:border-box}
+.dlg-body .gtv-k .ic{width:18px;height:18px}
+.dlg-body .gtv-k.ok{background:rgba(129,161,193,.18);border-color:var(--blue);color:var(--blue);
+  font-size:13px;font-weight:800;letter-spacing:.03em}
+.dlg-body .gtv-k:active{transform:scale(.96)}
+.dlg-body .gtv-a{appearance:none;flex:1 1 0;min-width:0;height:40px;border:1px solid var(--line);
+  background:var(--inset);color:var(--dim);font:inherit;font-size:12.5px;font-weight:700;
+  border-radius:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dlg-body .gtv-a:active{transform:scale(.97)}
 .tv-k{appearance:none;flex:0 0 auto;width:42px;height:36px;border:1px solid var(--line);
   background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:16px;font-weight:700;
   border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
@@ -9714,12 +9732,42 @@ function computeMetric(cfg){
     let vv;if(cfg.cap.indexOf('measure_power')>=0)vv=(v==null?'–':W(v));
     else vv=(v==null?'–':num(v,cfg.dec==null?1:cfg.dec)+(cfg.unit?' <small>'+cfg.unit+'</small>':''));
     let meta=cfg.meta||((dev&&dev.name)||'');
+    /* Under vardet star VAR matningen gors. Rubriken sager vad, zonen sager
+       var, och tillsammans racker det - "Pooltemp / Poolrum" ar tydligare an
+       rubriken ensam nar man har fem sensorrutor bredvid varandra. */
+    let sub=(dev&&dev.zone&&ZONES[dev.zone]&&ZONES[dev.zone].name)?String(ZONES[dev.zone].name).trim():'';
     if(cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){const ph=cap(DEV.poolheat,'onoff'),rt=poolRate();
-      if((ph==='on'||ph===true)&&rt!=null&&rt>=0.05)meta='+'+num(rt,1)+'°/h · värms';}
-    return {label:cfg.label||(dev&&dev.name)||'Värde',icon:cfg.icon||inferIcon(cfg.cap),v:vv,meta:meta,det:cfg.device===DEV.pooltemp?'pool':null};}
+      var varms=(ph==='on'||ph===true);
+      if(varms&&rt!=null&&rt>=0.05)meta='+'+num(rt,1)+'°/h · värms';
+      /* TRENDEN i stallet for zonen. Poolen ror sig langsamt, sa riktningen och
+         takten sager mer an var givaren sitter - och det ar den som avgor om
+         det ar lont att sla pa varmen.
+         poolRate jamfor mot ett varde en timme tillbaka och ger null tidigare
+         an sa; da finns ingen trend att visa och zonen far sta kvar.
+         Grans 0,05 grader i timmen: under det ar det matbrus, inte en trend. */
+      if(rt!=null&&Math.abs(rt)>=0.05){
+        /* Pilen bar tecknet. "↓ -0,3" sager samma sak tva ganger. */
+        sub=(rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h'+(varms?' · värms':'');
+      }else if(rt!=null){
+        sub='stabil'+(varms?' · värms':'');
+      }else if(varms)sub='värms';}
+    return {label:cfg.label||(dev&&dev.name)||'Värde',icon:cfg.icon||inferIcon(cfg.cap),v:vv,
+      sub:sub,meta:meta,det:cfg.device===DEV.pooltemp?'pool':null};}
   switch(cfg.key){
-    case 'solday':return {label:'Sol idag',icon:'sun',v:fmtKwh(cap(DEV.solar,'meter_power.day')),meta:grp(Math.round(yearProd()||0))+' kWh i år',det:'sun'};
-    case 'solyear':return {label:'Solenergi i år',icon:'sun',v:fmtKwh(yearProd()),meta:'solproduktion i år',det:'sun'};
+    case 'solday':{
+      /* Dagens skord mot dagens prognos - det ar den jamforelsen man vill gora
+         nar man tittar mitt pa dagen. Finns ingen prognos visas arets summa. */
+      var pd=(typeof progIdag==='function')?progIdag():null;
+      var pv=(pd&&pd.summa_prognos!=null)?pd.summa_prognos:null;
+      return {label:'Sol idag',icon:'sun',v:fmtKwh(cap(DEV.solar,'meter_power.day')),
+        sub:(pv!=null)?('av '+num(pv,0)+' kWh i prognos'):(grp(Math.round(yearProd()||0))+' kWh i år'),
+        meta:grp(Math.round(yearProd()||0))+' kWh i år',det:'sun'};}
+    case 'solyear':{
+      /* Manaden sager mer an att upprepa "i ar" med andra ord. */
+      var mn=cap(DEV.solar,'meter_power.month');
+      return {label:'Solenergi i år',icon:'sun',v:fmtKwh(yearProd()),
+        sub:(mn!=null&&isFinite(mn))?(fmtKwh(mn).replace(/<[^>]*>/g,'')+' i månaden'):'solproduktion i år',
+        meta:'solproduktion i år',det:'sun'};}
     case 'boughtyear':{const v=yearKopt();return {label:'Köpt i år · kWh',icon:'plug',v:v==null?'–':fmtKwh(v),meta:'från nätet i år',det:'boughtyear'};}
     case 'soldyear':{const v=yearSald();return {label:'Sålt i år · kWh',icon:'coins',v:v==null?'–':fmtKwh(v),meta:'till nätet i år',det:'sold'};}
     case 'solnow':{const perf=solPerfPct(),p=cap(DEV.solar,'measure_power')||0;
@@ -9734,8 +9782,21 @@ function computeMetric(cfg){
         meta:(perf!=null&&p>30)?(perf+' % av m\u00f6jligt'):'effekt just nu',det:'sun'};}
     case 'house':return {label:'Förbrukning',icon:'house',v:W(houseNowW()),meta:'just nu',det:'self'};
     case 'self':{const s=selfData();return {label:'Självförsörjning',icon:'leaf',v:Math.round(s.of*100)+' <small>%</small>',meta:'av förbrukning nu',det:'self'};}
-    case 'cost':{const c=cap(DEV.pulse,'accumulatedCost');return {label:'Kostnad idag',icon:'coins',v:c==null?'–':num(c,2)+' <small>kr</small>',meta:'via Pulse',det:'cost'};}
-    case 'spot':{const p=elprisNow();return {label:'Spotpris',icon:'tag',v:p==null?'–':num(p,2)+' <small>kr</small>',meta:'kr/kWh nu',det:'cost'};}
+    case 'cost':{const c=cap(DEV.pulse,'accumulatedCost');
+      /* Spotpriset just nu forklarar varfor kostnaden stiger fort eller
+         langsamt - "via Pulse" sa ingenting om saken. */
+      var sp=elprisNow();
+      return {label:'Kostnad idag',icon:'coins',v:c==null?'–':num(c,2)+' <small>kr</small>',
+        sub:(sp!=null&&isFinite(sp))?(Math.round(sp*100)+' öre/kWh nu'):'via Pulse',
+        meta:'via Pulse',det:'cost'};}
+    case 'spot':{const p=elprisNow();
+      /* Dagens spann satter priset i sammanhang: 87 ore ar billigt en dag och
+         dyrt en annan. */
+      var lo=elprisLo(),hi=elprisHi();
+      return {label:'Spotpris',icon:'tag',v:p==null?'–':num(p,2)+' <small>kr</small>',
+        sub:(lo!=null&&hi!=null&&isFinite(lo)&&isFinite(hi))
+          ?(Math.round(lo*100)+'–'+Math.round(hi*100)+' öre i dag'):'kr/kWh nu',
+        meta:'kr/kWh nu',det:'cost'};}
     case 'gridbal':{const pw=cap(DEV.pulse,'measure_power');return {label:'Nätbalans nu',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'säljer / köper':(pw<-5?'säljer till nätet':pw>5?'köper från nätet':'i balans'),det:'grid'};}
     case 'krcmp': case 'krcmp2':
       return {label:'Köpt / sålt'+(cfg.key==='krcmp2'?' (bred)':''),icon:'coins',
@@ -9752,7 +9813,13 @@ function computeMetric(cfg){
         v:(!r.st?'–':num(kr,kr<100?2:0)+' <small>kr</small>'),
         meta:mt.join(' · ')||(sal?'till nätet':'från nätet'),det:sal?'sold':'cost'};}
     case 'sold':return {label:'Sålt totalt',icon:'lightning',v:num(cap(DEV.pulse,'meter_power.exported'),0)+' <small>kWh</small>',meta:'till nätet',det:'sold'};
-    case 'bought':return {label:'Köpt totalt',icon:'lightning',v:num(cap(DEV.pulse,'meter_power.imported'),0)+' <small>kWh</small>',meta:'från nätet',det:'sold'};
+    case 'bought':{
+      /* Salt bredvid kopt ar det som gor talet begripligt. */
+      var sa=cap(DEV.pulse,'meter_power.exported');
+      return {label:'Köpt totalt',icon:'lightning',
+        v:num(cap(DEV.pulse,'meter_power.imported'),0)+' <small>kWh</small>',
+        sub:(sa!=null&&isFinite(sa))?(grp(Math.round(sa))+' kWh sålt'):'från nätet',
+        meta:'från nätet',det:'sold'};}
     case 'cars':{
       /* EX40 är förstahandsvalet. Laddar eller är C40 inkopplad tar den över rutan,
          och är laddboxen igång utan att någon känd bil sitter i visas Gäst. */
@@ -9776,9 +9843,27 @@ function computeMetric(cfg){
     case 'car1':case 'car2':{const id=cfg.key==='car1'?DEV.car:DEV.car2,nm=(DATA[id]&&DATA[id].name)||(cfg.key==='car1'?'C40':'EX40');
       const b=cap(id,'measure_battery'),rng=cap(id,'range_battery');
       const meta=carCharging(id)?('laddar'+(chargerW()!=null?' · '+W(chargerW()):'')):carPlugged(id)?'inkopplad':(rng!=null?Math.round(rng)+' km':'laddnivå');
-      return {label:nm,icon:'car-profile',v:b==null?'–':Math.round(b)+' <small>%</small>',meta:meta,det:'cars'};}
+      /* LADDAR DEN star effekten dar, ingenting annat - det ar det man vill se.
+         Laddboxen mater bara EN punkt, sa effekten kan bara tillskrivas en bil:
+         den som faktiskt laddar. Star bada pa laddning visas effekten anda, for
+         da ar det laddboxens totala uttag och det ar fortfarande sant.
+         Laddar den inte sager rackvidden mer an procenten upprepad - och ar den
+         inkopplad utan att ladda ar just det beskedet det viktiga. */
+      var sub;
+      if(carCharging(id)){
+        var cw=chargerW();
+        sub=(cw!=null&&cw>50)?W(cw):'laddar';
+      }else if(carPlugged(id)){
+        sub='inkopplad'+(rng!=null?' · '+Math.round(rng)+' km':'');
+      }else{
+        sub=(rng!=null)?(Math.round(rng)+' km kvar'):'laddnivå';
+      }
+      return {label:nm,icon:'car-profile',v:b==null?'–':Math.round(b)+' <small>%</small>',
+        sub:sub,meta:meta,det:'cars'};}
     case 'charger':{const p=chargerW(),on=cap(DEV.laddbox,'evcharger_charging')===true||carCharging(DEV.car)||carCharging(DEV.car2);
-      return {label:'Laddbox',icon:'plug',v:p==null?'–':W(p),meta:on?'laddar bilen':(p!=null&&p>50?'aktiv':'vilar'),det:'cars'};}
+      return {label:'Laddbox',icon:'plug',v:p==null?'–':W(p),
+        sub:on?'laddar bilen':(p!=null&&p>50?'aktiv':'vilar'),
+        meta:on?'laddar bilen':(p!=null&&p>50?'aktiv':'vilar'),det:'cars'};}
     case 'battpct':{const b=cap(DEV.battery,'measure_battery'),bs=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
       /* Vardet ar redan procenten, sa under den star tiden - fulladdat eller
          hur lange den racker. Finns ingen tid att rakna ut visas laget. */
@@ -9792,7 +9877,12 @@ function computeMetric(cfg){
         sub:bb==null?'':Math.round(bb)+' % laddat',
         meta:bb==null?'':Math.round(bb)+'%',det:'batt'};}
     case 'battnow':{const pw=cap(DEV.battery,'measure_power'),b=cap(DEV.battery,'measure_battery'),bs=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
-      return {label:'Batteri',icon:bs==='charging'?'battery-charging':battIcon(b),icc:battIcc(b,bs),v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt'};}
+      /* Vardet ar effekten in eller ut, sa under den star LADDNIVAN - det ar
+         den man vill se pa avstand, och tiden kvar nar den gar att rakna ut. */
+      return {label:'Batteri',icon:bs==='charging'?'battery-charging':battIcon(b),icc:battIcc(b,bs),
+        v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),
+        sub:(b==null?'':Math.round(b)+' %')+(bt?' · '+bt:''),
+        meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt'};}
     case 'batttom':{const S=btSum();
       /* Huvudtalet väljs i inställningarna; det som inte visas som huvudtal
          hamnar i underraden så ingenting går förlorat. */
@@ -14387,7 +14477,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v556';
+const APP_VERSION='v559';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16855,18 +16945,117 @@ async function tvAv(id){
   try{await rSatt(id,'onoff',false);renderTV();setTimeout(load,900);}
   catch(e){rumToast('Kunde inte nå Homey');}
 }
+/* ===== FJARRKONTROLL FOR GOOGLE TV =====
+   Riktningsknapparna, hem, bakat och uppspelning ar capabilities (key_*) och
+   skrivs direkt. Att oppna en app ar det INTE - det finns bara som flodeskort
+   med en autocomplete-lista, och den kan dashboarden inte fylla i. Darfor
+   ligger Netflix, YouTube och favoriten som tre fardiga floden i Homey.
+
+   key_* ar knapp-capabilities: de har inget lage och skickas som true. De
+   speglas darfor inte tillbaka i DATA, till skillnad fran mute och onoff. */
+const GTV_DEV='e6c96e95-05ec-48ca-a92a-e29b22cd0014';
+const GTV_FLOW={
+  netflix:'c2efcaaa-2c35-4529-abc5-d03998be2e30',
+  youtube:'6238da31-5b4d-4110-afaa-acdf002d24e8',
+  favorit:'0071c0a6-c8e7-43f2-9d2b-c53dd3e2169f'
+};
+function gtvFinns(){return !!DATA[GTV_DEV];}
+function gtvPa(){return capOf(DATA[GTV_DEV],'onoff')===true;}
+async function gtvKey(k){
+  if(!DATA[GTV_DEV]||!rHar(DATA[GTV_DEV],k)){rumToast('Google TV svarar inte');return;}
+  try{await homeyPut(GTV_DEV,k,true);}catch(e){rumToast('Kunde inte nå Homey');}
+}
+async function gtvApp(vilken){
+  var f=GTV_FLOW[vilken];
+  if(!f)return;
+  try{await homeyTriggerFlow('standard',f);rumToast('Öppnar…');}
+  catch(e){rumToast('Kunde inte nå Homey');}
+}
+/* Appen som kors, utan Androids paketnamn nar det gar att kanna igen. */
+const GTV_APPNAMN={'com.netflix.ninja':'Netflix','com.google.android.youtube.tv':'YouTube',
+  'se.tv4.tv4playtab':'TV4 Play','com.disney.disneyplus':'Disney+',
+  'com.amazon.amazonvideo.livingroom':'Prime Video','com.spotify.tv.android':'Spotify'};
+function gtvNuApp(){
+  var a=capOf(DATA[GTV_DEV],'current_application');
+  if(!a)return '';
+  var s=String(a);
+  if(/launcher/i.test(s))return '';
+  return GTV_APPNAMN[s]||s;
+}
+function gtvKn(k,inne,titel,kl){
+  return '<button class="gtv-k'+(kl?(' '+kl):'')+'" onclick="gtvKey(\''+k+'\')" '
+    +'aria-label="'+esc(titel)+'" title="'+esc(titel)+'">'+inne+'</button>';
+}
+function gtvHTML(){
+  if(!gtvFinns())return dRow('Google TV','enheten hittades inte');
+  var app=gtvNuApp();
+  var h='';
+  h+=dSec('Riktning');
+  /* Rutnat 3x3 med mitten som OK. Formen ar sig sjalv en instruktion - en
+     lodratt lista med "upp/ner/vanster/hoger" gar inte att anvanda i morker. */
+  h+='<div class="gtv-pad">'
+    +'<span></span>'+gtvKn('key_cursor_up','▲','Upp')+'<span></span>'
+    +gtvKn('key_cursor_left','◀','Vänster')
+    +gtvKn('key_confirm','OK','OK','ok')
+    +gtvKn('key_cursor_right','▶','Höger')
+    +'<span></span>'+gtvKn('key_cursor_down','▼','Ner')+'<span></span>'
+    +'</div>';
+  h+='<div class="gtv-rad">'
+    +gtvKn('key_back',icon('arrow-left'),'Bakåt')
+    +gtvKn('key_home',icon('house'),'Hem')
+    +'</div>';
+  h+=dSec('Uppspelning');
+  h+='<div class="gtv-rad">'
+    +gtvKn('key_previous','⏮','Föregående')
+    +gtvKn('key_play','▶','Spela')
+    +gtvKn('key_pause','⏸','Paus')
+    +gtvKn('key_next','⏭','Nästa')
+    +'</div>';
+  h+=dSec('Volym');
+  h+='<div class="gtv-rad">'
+    +gtvKn('volume_down','−','Sänk volymen')
+    +gtvKn('volume_mute','<span class="gtv-ic">'+icon(capOf(DATA[GTV_DEV],'volume_mute')===true?'speaker-none':'speaker-high')+'</span>','Tysta')
+    +gtvKn('volume_up','+','Höj volymen')
+    +'</div>';
+  h+=dSec('Appar'+(app?' · nu: '+esc(app):''));
+  h+='<div class="gtv-rad">'
+    +'<button class="gtv-a" onclick="gtvApp(\'netflix\')">Netflix</button>'
+    +'<button class="gtv-a" onclick="gtvApp(\'youtube\')">YouTube</button>'
+    +'<button class="gtv-a" onclick="gtvApp(\'favorit\')">Favorit</button>'
+    +'</div>';
+  h+='<div class="setup-t">Apparna öppnas via flöden i Homey — Google TV:s '
+    +'app-lista går bara att nå den vägen. Byt app i flödet <b>TV · Favorit</b> '
+    +'om favoriten ska vara något annat.</div>';
+  return h;
+}
+function openTVfjarr(){
+  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
+  _popupRebuild=gtvHTML;
+  setT('dlg-title','Google TV');setIcon('dlg-ic','television');
+  var bd=$('dlg-body');if(bd)bd.innerHTML=gtvHTML();
+  var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
+  dlgTop();
+}
 function tvRad(d){
   const mute=capOf(d,'volume_mute')===true;
   const app=capOf(d,'current_application');
   /* "Android TV launcher" är hemskärmen, inte något man tittar på. */
   const visaApp=(app&&!/launcher/i.test(String(app)))?String(app):'';
   const kn=(hand,inne,kl,lbl)=>'<button class="tv-k'+(kl?(' '+kl):'')+'" onclick="'+hand+'" aria-label="'+esc(lbl)+'">'+inne+'</button>';
+  /* Namnet oppnar fjarrkontrollen. Knapparna gor det inte - de har egna
+     arenden, och ett tryck pa volymen ska inte oppna en ruta. */
+  const gApp=gtvFinns()?gtvNuApp():'';
   return '<div class="tvrad">'
+    +'<button class="tv-oppna" onclick="openTVfjarr()" aria-label="Öppna fjärrkontrollen">'
     +'<span class="dv-ic">'+icon('television')+'</span>'
-    +'<span class="tv-n">'+esc(rNamn(d))+(visaApp?('<small>'+esc(visaApp)+'</small>'):'')+'</span>'
+    +'<span class="tv-n">'+esc(rNamn(d))
+      +((visaApp||gApp)?('<small>'+esc(visaApp||gApp)+'</small>'):'')+'</span></button>'
     +kn("tvVol('"+d.id+"',false)",'\u2212','','sänk volymen')
     +kn("tvVol('"+d.id+"',true)",'+','','höj volymen')
     +(rHar(d,'volume_mute')?kn("tvMute('"+d.id+"')",icon(mute?'speaker-none':'speaker-high'),mute?'pa':'',mute?'slå på ljudet':'tysta'):'')
+    /* Spela och pausa gar till Google TV, inte till TV:n - det ar den som
+       spelar upp. Knapparna visas bara nar den svarar. */
+    +(gtvFinns()?(kn("gtvKey('key_play')",'▶','','spela')+kn("gtvKey('key_pause')",'⏸','','pausa')):'')
     +kn("tvAv('"+d.id+"')",icon('power'),'av','stäng av')
     +'</div>';
 }
