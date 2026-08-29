@@ -13147,8 +13147,12 @@ function syncPushSoon(){try{
     var spara=function(){
       if(!appKan())return saveToHomey();
       return appBackupSpara(false).then(function(r){
-        if(r&&r.ok)return r;
-        return saveToHomey();          /* appen svarade inte - variablerna som reserv */
+        if(!r||!r.ok)return saveToHomey();   /* appen svarade inte - variablerna som reserv */
+        /* SKRIV AVEN VARIABLERNA. De ar reservvag vid lasning, och lag de kvar
+           gamla var de en tickande bomb: en hamtning som foll tillbaka pa dem
+           tog med sig layouten fran den dag de senast skrevs. Misslyckas det
+           gor det inget - appens kopia ar redan sparad. */
+        return saveToHomey().then(function(){return r;},function(){return r;});
       },function(){return saveToHomey();});
     };
     spara().then(function(){_pushBusy=false;
@@ -13355,9 +13359,15 @@ async function appBackupLas(){
   try{
     if(layoutTsKey() in lista.nycklar){
       fackTs=parseInt(await appGet('/backup?key='+encodeURIComponent(layoutTsKey())),10)||0;
-      var minAndring=andradTs();
-      if(fackTs&&minAndring&&minAndring>fackTs+2000)layoutHoppa=true;
     }
+    /* Saknas fackets stampel galler kopians egen - annars ar en gammal kopia
+       helt oskyddad, och det var sa variabelkopian fran formiddagen kunde
+       skriva over eftermiddagens andringar. */
+    if(!fackTs&&(TS_KEY in lista.nycklar)){
+      fackTs=parseInt(await appGet('/backup?key='+encodeURIComponent(TS_KEY)),10)||0;
+    }
+    var minAndring=andradTs();
+    if(fackTs&&minAndring&&minAndring>fackTs+2000)layoutHoppa=true;
   }catch(e){}
   _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
   /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
@@ -13652,7 +13662,13 @@ async function fetchFromHomey(){
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
   /* Var nyckel lases ur SITT fack; gamla osuffixade nycklar som reserv. */
   lasProtStart('Homey-variablerna'+(syncNyttFormat(obj)?' (har fack)':' (gammal, utan fack)'));
-  var vFackTs=parseInt(obj[layoutTsKey()],10)||0, vAndrad=andradTs();
+  /* SAKNAS FACKETS STAMPEL galler KOPIANS EGEN. En gammal kopia utan fack har
+     ingen egen layoutstampel, och da gick skyddet i v580 forbi: variabelkopian
+     fran 11:34 skrev over andringar gjorda 16:50.
+     Matt 2026-08-29: "Homey-variablerna (gammal, utan fack)" och
+     "buttons_v1: 789 → 1017 SKREVS OVER". */
+  var vFackTs=parseInt(obj[layoutTsKey()],10)||(meta&&parseInt(meta.t,10))||0;
+  var vAndrad=andradTs();
   var vHoppa=!!(vFackTs&&vAndrad&&vAndrad>vFackTs+2000);
   SYNC_KEYS.forEach(k=>{
     var fore=null;try{fore=localStorage.getItem(k);}catch(e){}
@@ -14919,7 +14935,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v580';
+const APP_VERSION='v581';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
