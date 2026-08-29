@@ -1006,7 +1006,11 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
    Och INGEN padding nedanför: remsan är sist i panelen, så panelens egen
    innerkant räcker. Utan det låg remsans luft ovanpå panelens och botten blev
    större än toppen. */
-.wx2-strip{display:flex;margin-top:0;border-top:1px solid var(--line);
+/* Remsan har INGEN egen linje. Den fick en border-top nar rutraden ovanfor
+   syntes, men rutraden ar dold - da lag pn-del och border-top direkt pa
+   varandra och blev en dubbelrand. Nu ar pn-del ensam avdelare, som overallt
+   annars, och remsan bidrar bara med luften under den. */
+.wx2-strip{display:flex;margin-top:0;border-top:0;
   padding-top:var(--avd-pad);padding-bottom:0}
 .wx2-cell{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 5px;border-left:1px solid var(--line);cursor:pointer}
 .wx2-cell:first-child{border-left:0}
@@ -1058,6 +1062,9 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .drow-t{cursor:pointer}
 .di-q{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);color:var(--faint);font-size:9px;font-weight:800;font-style:normal;margin-left:5px;vertical-align:middle}
 .drow-info{display:none;font-size:11.5px;color:var(--dim);line-height:1.42;padding:2px 0 9px}
+.dlg-body .prog-exp{width:100%;height:150px;box-sizing:border-box;margin-top:6px;
+  background:var(--inset);border:1px solid var(--line);border-radius:10px;color:var(--dim);
+  font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px;resize:vertical}
 .dlg-body .dsec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
@@ -2075,8 +2082,18 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
   grid-template-columns:repeat(3,minmax(0,1fr));position:relative;align-items:stretch}
 .fl-tiles>.stat{background:none;border:0;box-shadow:none;position:relative;
   padding:var(--avd-pad)}
-.fl-tiles>.stat::before{content:'';position:absolute;left:0;top:50%;
-  height:var(--div-h,44px);width:1px;background:var(--line);transform:translateY(-50%)}
+/* Den lodrata avdelaren spanner mellan radens kanter med SAMMA indrag upptill
+   och nedtill. Forut var den 44 px hog och centrerad, vilket gav olika avstand
+   till den vagrata linjen beroende pa hur hog raden rakade bli - overst i
+   rutnatet stotte den nastan i den, langst ner blev det ett stort glapp.
+   Indraget ar avdelarnas eget matt, samma som luften runt rutorna. */
+.fl-tiles>.stat::before{content:'';position:absolute;left:0;
+  top:var(--avd-pad);bottom:var(--avd-pad);
+  width:1px;background:var(--line)}
+/* Forsta raden har ingen linje ovanfor och andra raden ingen under, sa dar ska
+   indraget inte heller finnas - annars ser avdelaren kortare ut an den ar. */
+.fl-tiles>.stat:nth-child(-n+3)::before{top:0}
+.fl-tiles>.stat:nth-child(n+4)::before{bottom:0}
 .fl-tiles>.stat::after{content:'';position:absolute;top:0;left:0;right:0;
   height:1px;background:var(--line)}
 /* Tre kolumner: inget lodratt streck forst pa raden, inget vagratt pa forsta raden. */
@@ -10815,6 +10832,137 @@ function dayKey(d){d=d||new Date();
   catch(e){var z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}}
 function dayKeyAgo(n){return dayKey(new Date(Date.now()-n*86400000));}
 const DAYS_KEEP=35; /* räcker för vecka- och månadsrekord; årsrekord lagras kompakt i recs_v1 */
+/* ===== TRÄFFSÄKERHET I SOLPROGNOSEN =====
+   Prognosen har visats men aldrig sparats, sa det gick inte att saga i
+   efterhand om den brukar ta i eller vara forsiktig. Nu loggas den, och den
+   loggas i TVA lagen eftersom en prognos blir battre ju narmare man kommer:
+
+     dagen_innan - sista vardet innan dygnet borjade
+     samma_dag   - sista vardet under sjalva dygnet
+
+   Utfallet hamtas ur days_v1, som redan finns. Loggen ar liten: tre tal per
+   dygn, och den ror inte prognosen sjalv - bara sparar den.
+
+   Nyckeln ligger i SYNC_KEYS, sa loggen foljer med mellan enheterna och
+   overlever att en enhet rensas. */
+const PROGLOG_KEY='proglog_v1';
+const PROGLOG_DYGN=400;
+function progLogGet(){try{const o=JSON.parse(localStorage.getItem(PROGLOG_KEY)||'{}');
+  return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+function progLogTick(){
+  if(!_prog||!_prog.dagar)return;
+  const idag=dayKey(),o=progLogGet();
+  let andrat=false;
+  Object.keys(_prog.dagar).forEach(function(d){
+    const e=_prog.dagar[d];
+    if(!e||e.summa_prognos==null||!isFinite(e.summa_prognos))return;
+    const v=Math.round(e.summa_prognos*10)/10;
+    const rad=o[d]||(o[d]={});
+    if(d>idag){ if(rad.f1!==v){rad.f1=v;andrat=true;} }        /* framtiden: skriv om tills dygnet borjar */
+    else if(d===idag){ if(rad.f0!==v){rad.f0=v;andrat=true;} } /* idag: sista vardet vinner */
+  });
+  /* Utfallet fylls pa nar det finns. Gar bakat sa att en dag som loggades utan
+     utfall far det ifyllt nasta dygn. */
+  const dagar=daysGet();
+  Object.keys(o).forEach(function(d){
+    const a=dagar[d]&&dagar[d].sol;
+    if(a!=null&&isFinite(a)&&o[d].a!==a){o[d].a=a;andrat=true;}
+  });
+  const k=Object.keys(o).sort();
+  while(k.length>PROGLOG_DYGN){delete o[k.shift()];andrat=true;}
+  if(andrat){try{localStorage.setItem(PROGLOG_KEY,JSON.stringify(o));}catch(e){}}
+}
+/* Sammanfattning over de dygn som har bade prognos och utfall.
+   bias  = medelfel med tecken. Positivt betyder att prognosen TAR I.
+   mae   = medelfel utan tecken, alltsa hur mycket den brukar bomma.
+   Bada i procent av utfallet, for annars dominerar sommarens stora tal. */
+function progStat(falt,dygn){
+  /* Dygnet som pagar raknas ALDRIG. Klockan tio har solen levererat en brakdel
+     av dygnet, och en jamforelse mot en helgdagsprognos gor att prognosen ser
+     hopplos ut. Bara avslutade dygn. */
+  const idagK=dayKey();
+  const o=progLogGet(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
+  const start=dygn?k.slice(-dygn):k;
+  let n=0,sb=0,sa=0,sp=0,su=0;
+  start.forEach(function(d){
+    const r=o[d];
+    if(!r||r[falt]==null||r.a==null||!(r.a>0.5))return;   /* mulna vinterdygn ger vansinniga procent */
+    const fel=r[falt]-r.a;
+    n++;sb+=fel/r.a;sa+=Math.abs(fel)/r.a;sp+=r[falt];su+=r.a;
+  });
+  if(!n)return null;
+  return {n:n,bias:sb/n*100,mae:sa/n*100,prognos:sp,utfall:su};
+}
+/* Exporten. Semikolon och svenskt decimaltecken, sa den kan oppnas rakt av -
+   men den ar framst till for att klistras in i en chatt. */
+function progLogCSV(){
+  /* Samma regel som i statistiken: dygn som inte ar klara hor inte hemma i en
+     fil som ska anvandas for att kalibrera. Dagens prognos star kvar i loggen
+     och kommer med i morgon. */
+  const idagK=dayKey();
+  const o=progLogGet(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
+  const nr=function(v){return v==null?'':String(Math.round(v*10)/10).replace('.',',');};
+  let ut='datum;prognos_dagen_innan;prognos_samma_dag;utfall;fel_dagen_innan;fel_samma_dag\n';
+  k.forEach(function(d){
+    const r=o[d];
+    const e1=(r.f1!=null&&r.a!=null)?(r.f1-r.a):null;
+    const e0=(r.f0!=null&&r.a!=null)?(r.f0-r.a):null;
+    ut+=d+';'+nr(r.f1)+';'+nr(r.f0)+';'+nr(r.a)+';'+nr(e1)+';'+nr(e0)+'\n';
+  });
+  return ut;
+}
+function progLogText(){
+  const a=progStat('f1'),b=progStat('f0'),a30=progStat('f1',30);
+  let h='';
+  const rad=function(n,st){
+    if(!st)return dRow(n,'inga dygn med bade prognos och utfall');
+    return dRow(n,'<b>'+(st.bias>0?'+':'')+num(st.bias,0)+' %</b> snitt · '
+      +num(st.mae,0)+' % bom · '+st.n+' dygn');
+  };
+  h+=dSec('Traffsakerhet');
+  h+=rad('Dagen innan',a);
+  h+=rad('Samma dag',b);
+  h+=rad('Dagen innan, 30 dygn',a30);
+  h+='<div class="setup-t">Positivt snitt betyder att prognosen tar i, negativt att '
+    +'den ar forsiktig. Bommen ar medelfelet utan tecken - hur mycket den brukar '
+    +'missa, at bada hallen. Dygn under 0,5 kWh raknas inte: da blir procenten vanvettig.</div>';
+  return h;
+}
+function openProgLogg(){
+  const csv=progLogCSV(),rader=csv.split('\n').length-2;
+  let h=progLogText();
+  h+=dSec('Export')
+    +'<div class="setup-t">'+rader+' dygn. Markera allt i rutan och klistra in i chatten '
+    +'sa gar det att kalibrera mot.</div>'
+    +'<textarea class="prog-exp" readonly onclick="this.select()">'+esc(csv)+'</textarea>'
+    +'<div class="dbtn-row"><button class="dbtn" onclick="progKopiera()">Kopiera</button></div>';
+  const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
+  _popupRebuild=null;
+  setT('dlg-title','Solprognos · träffsäkerhet');setIcon('dlg-ic','sun');
+  const bd=$('dlg-body');if(bd)bd.innerHTML=h;
+  const bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
+  dlgTop();
+}
+/* Dashboarden serveras over HTTPS fran GitHub Pages, alltsa secure context.
+   navigator.clipboard fungerar och ar det ratta valet; execCommand ligger kvar
+   som reserv for gamla webblasare, inte som huvudvag. Jag hade det omvant
+   forst, pa antagandet att sidan kordes over ren http. */
+function progKopiera(){
+  const t=document.querySelector('.prog-exp');
+  if(!t)return;
+  const klar=function(ok){try{toast(ok?'Kopierat':'Markera i rutan och kopiera for hand');}catch(e){}};
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t.value).then(function(){klar(true);},function(){
+        t.select();var o=false;try{o=document.execCommand('copy');}catch(e){}klar(o);
+      });
+      return;
+    }
+  }catch(e){}
+  t.select();
+  var o=false;try{o=document.execCommand('copy');}catch(e){}
+  klar(o);
+}
 function dayLogTick(){const day=dayKey(),sol=cap(DEV.solar,'meter_power.day'),cost=cap(DEV.pulse,'accumulatedCost');
   const o=daysGet();const e=o[day]||(o[day]={sol:0,cost:0});
   if(sol!=null&&sol>e.sol)e.sol=Math.round(sol*10)/10;if(cost!=null&&cost>e.cost)e.cost=Math.round(cost*100)/100;
@@ -11208,7 +11356,7 @@ async function homeyTriggerFlow(type,id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOK
   t.clear();if(!r.ok)throw new Error('HTTP '+r.status);return true;}
 
 /* ===== Synk via Homey-logikvariabler (chunkat) ===== */
-const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
+const SYNC_KEYS=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1','buttons_v1','demoov_v1','learn_v1','days_v1','plog_v1','proglog_v1','yearbase_v1','yearhist_v1','tempEx_v1','windEx_v1','pressLog_v1','recs_v1','shmap_v2','health_v2','shcost_v1','hin_v1','snow_v1','zam_v1','money_v1','zpress_v1','emix_v1','battkwh_v1','bkp_v1'];
 const SYNC_CHUNK=3500;let _syncMeta=null;
 function apiBase(){return (BASE||(candidates()[0])||CONFIG.HOMEY_URL||'').replace(/\/$/,'');}
 async function logicList(){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
@@ -13840,7 +13988,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v546';
+const APP_VERSION='v549';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -14050,6 +14198,7 @@ function openConfig(){
   h+=cfgMi('openSizeMenu(\'chip\')','gauge','Energi- & väderrutor','Storlek på de små rutorna');
   h+=cfgMi('openSizeMenu(\'tile\')','tag','De sex rutorna','Storlek på flödesrutorna');
   h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
+  h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export');
   /* 'sliders' finns inte i ikonuppsättningen — 'gauge' är närmast i betydelse. */
   h+=cfgMi('openKnEdit()','gauge','Knappraden','Höjd, text, ikon och marginal');
   h+='</div>';
@@ -14945,7 +15094,7 @@ async function load(){
       }
     }
   }
-  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
   else if(VISAR_CACHE){
     /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
        besked: det står redan siffror där, och de är gamla — vilket är precis
