@@ -2190,6 +2190,19 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
    !important pa den forsta forlorade den nar bada satte samma egenskap pa
    olika element. Har star bada delarna i samma selektor. */
 .fl-tiles>.stat.ic-mitt,.pn-tiles>.stat.ic-mitt,.en-stats>.stat.ic-mitt{align-items:center!important}
+/* AVSTANGT LAGE MASTE OCKSA GORA NAGOT.
+   Utanfor kiosklaget ar grundlaget "ikonen hogst upp" och installningen
+   centrerar. I kiosk ar grundlaget redan centrerat, sa knappen slog pa nagot
+   som redan var pa - den gjorde ingen synlig skillnad pa vaggplattan.
+   Nu betyder av samma sak overallt: ikonen hogst upp. Star knappen pa forblir
+   plattan som den ar; slar man av den flyttas ikonen upp, vilket ar vad
+   "centrera" avstangt rimligen ska betyda. */
+body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt),
+body.kiosk .pn-tiles>.stat:not(.ic-mitt):not(.allt-mitt),
+body.kiosk .en-stats>.stat:not(.ic-mitt):not(.allt-mitt){align-items:flex-start}
+body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic,
+body.kiosk .pn-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic,
+body.kiosk .en-stats>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:flex-start}
 .fl-tiles>.stat.ic-mitt .stat-ic,.pn-tiles>.stat.ic-mitt .stat-ic,
 .en-stats>.stat.ic-mitt .stat-ic{align-self:center!important;margin-top:0!important;margin-bottom:0!important}
 .fl-tiles>.stat.allt-mitt,.pn-tiles>.stat.allt-mitt,.en-stats>.stat.allt-mitt{
@@ -9811,17 +9824,19 @@ function computeMetric(cfg){
          poolRate jamfor mot ett varde en timme tillbaka och ger null tidigare
          an sa; da finns ingen trend att visa och zonen far sta kvar.
          Grans 0,05 grader i timmen: under det ar det matbrus, inte en trend. */
-      /* LUFTFUKTIGHETEN kommer fran poolrummets egen givare - pooltempgivaren
-         mater bara vattnet. Den star forst: en pool som angar ar det man vill
-         se, och trenden ryms efter. */
-      var fu=cap(DEV.poolrum,'measure_humidity');
-      var bit=[];
-      if(fu!=null&&isFinite(fu))bit.push(Math.round(fu)+' % fukt');
+      /* POOLTEMP visar vattnets trend. Fukten hor till RUMMET och stod har en
+         version av misstag - poolens temperatur och rummets luftfuktighet ar
+         tva olika matningar fran tva olika givare. */
       /* Pilen bar tecknet. "↓ -0,3" sager samma sak tva ganger. */
-      if(rt!=null&&Math.abs(rt)>=0.05)bit.push((rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h');
-      else if(rt!=null)bit.push('stabil');
-      if(varms)bit.push('värms');
-      if(bit.length)sub=bit.join(' · ');}
+      if(rt!=null&&Math.abs(rt)>=0.05)sub=(rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h'+(varms?' · värms':'');
+      else if(rt!=null)sub='stabil'+(varms?' · värms':'');
+      else if(varms)sub='värms';}
+    /* POOLRUMMETS ruta visar rummets temperatur, och da ar luftfuktigheten det
+       som saknas - ett poolrum som angar ar hela poangen med matningen. */
+    else if(cfg.device===DEV.poolrum&&cfg.cap==='measure_temperature'){
+      var fu=cap(DEV.poolrum,'measure_humidity');
+      if(fu!=null&&isFinite(fu))sub=Math.round(fu)+' % fukt';
+    }
     return {label:cfg.label||(dev&&dev.name)||'Värde',icon:cfg.icon||inferIcon(cfg.cap),v:vv,
       sub:sub,meta:meta,det:cfg.device===DEV.pooltemp?'pool':null};}
   switch(cfg.key){
@@ -12705,6 +12720,18 @@ var MON_PER=[['day','idag'],['week','veckan'],['month','månaden'],['year','åre
 var BKP_KEY='bkp_v1';
 function bkpGet(){try{return JSON.parse(localStorage.getItem(BKP_KEY))||{};}catch(e){return {};}}
 function bkpLen(){let n=0;SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);if(v!=null)n+=v.length;});return n;}
+/* LAYOUTEN, skild fran loggarna. Spärren mot att skriva över mycket data med
+   lite summerade ALLA synknycklar, och där är pressLog_v1 ensam 300 000 tecken
+   medan hela layouten ar nagra tusen. Loggar krymper nar de trimmas, och da
+   blockerades en knappandring pa 200 tecken for nagot som inte har med
+   layouten att gora - "sparade inte, lokal data ser ofullstandig ut", varpa
+   nasta hamtning lade tillbaka den gamla knappen.
+   Spärren galler nu bara det som faktiskt gar forlorat: installningar, knappar,
+   rutor, ordning och matt. De kan inte krympa 40 % av sig sjalva. */
+const LAYOUT_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','tilesFlode_v5','tilesEnergy_v1',
+  'tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1'];
+function bkpLayoutLen(){let n=0;LAYOUT_KEYS.forEach(k=>{const v=localStorage.getItem(k);
+  if(v!=null)n+=v.length;});return n;}
 /* HUVUDENHET. Utan den skriver varje enhet en gång per dygn, och sist skriven
    vinner: stänger man av glowet på telefonen skriver plattan tillbaka sin
    gamla inställning nästa dygn. Det såg ut som att sparningen inte fastnade,
@@ -12897,12 +12924,14 @@ async function backupTick(){
     }
     const o=bkpGet(),k=dayKey();
     if(o.last===k)return;                    /* en gang per dygn racker */
-    const len=bkpLen();
+    const len=bkpLen(),llen=bkpLayoutLen();
     /* SKYDDET: skriv ALDRIG over en stor backup med en liten. En padda med rensad
        cache, eller en ny enhet, skulle annars radera allt pa Homey vid forsta ticket.
-       En krympning under 60% ar alltid misstankt - da avstar vi och flaggar. */
-    if(o.len && len < o.len*0.6){
-      o.blocked=k; o.blockedLen=len; o.prevLen=o.len;
+       En krympning under 60% ar alltid misstankt - da avstar vi och flaggar.
+       Mats pa LAYOUTEN, inte pa totalen: loggarna dominerar summan och krymper
+       av sig sjalva nar de trimmas. */
+    if(o.llen && llen < o.llen*0.6){
+      o.blocked=k; o.blockedLen=llen; o.prevLen=o.llen;
       try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
       return;
     }
@@ -12975,7 +13004,7 @@ async function backupTick(){
       if(appKan()){var r=await appBackupSpara(false); viaApp=!!(r&&r.ok);}
     }catch(e){}
     if(!viaApp)await saveToHomey();
-    o.last=k; o.len=len; o.t=Date.now(); o.kalla=viaApp?'app':'variabel';
+    o.last=k; o.len=len; o.llen=llen; o.t=Date.now(); o.kalla=viaApp?'app':'variabel';
     delete o.blocked; delete o.blockedLen;
     try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
   }catch(e){/* natet nere - nya forsok nasta tick */}}
@@ -12994,8 +13023,9 @@ function syncPushSoon(){try{
     if(_pushBusy)return;
     /* Samma skydd som dygnsbackupen: skriv aldrig över mycket data med väsentligt mindre
        (t.ex. en enhet med rensad cache som annars skulle radera de andras layout). */
-    var o=bkpGet(),len=bkpLen();
-    if(o.len&&len<o.len*0.6){syncNote('Sparade inte – lokal data ser ofullständig ut');return;}
+    var o=bkpGet(),len=bkpLen(),llen=bkpLayoutLen();
+    /* Jamfor LAYOUTEN mot layouten, inte totalen mot totalen. */
+    if(o.llen&&llen<o.llen*0.6){syncNote('Sparade inte – layouten ser ofullständig ut');return;}
     _pushBusy=true;
     /* ÄGARSKAPET GÄLLER ÄVEN HÄR. Den här vägen skrev rakt på logikvariablerna
        utan att fråga vem som äger kopian — en enhet som råkade ändra något
@@ -13021,7 +13051,7 @@ function syncPushSoon(){try{
       },function(){return saveToHomey();});
     };
     spara().then(function(){_pushBusy=false;
-      try{var b=bkpGet();b.len=len;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
+      try{var b=bkpGet();b.len=len;b.llen=llen;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
       try{egetTsSatt(Date.now());}catch(e){}
       loggSkriv('push',{tecken:len});
       syncNote('Sparat till Homey');},
@@ -13646,6 +13676,7 @@ async function syncDiag(){
       t+='\n  Senaste sparning: '+(bo.last||'aldrig')+(bo.t?(' · '+kl(bo.t)):'')
         +(bo.kalla?(' · via '+bo.kalla):'');
       t+='\n  Storlek då: '+(bo.len||0)+' tkn · nu lokalt: '+bkpLen()+' tkn';
+      t+='\n  Layout då: '+(bo.llen||0)+' tkn · nu: '+bkpLayoutLen()+' tkn   (spärren mäter denna)';
       if(bo.blocked){
         t+='\n  BLOCKERAD '+bo.blocked+': '+(bo.blockedLen||0)+' tkn mot tidigare '
           +(bo.prevLen||bo.fjarrAntal||0)
@@ -14724,7 +14755,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v570';
+const APP_VERSION='v573';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
