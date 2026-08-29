@@ -12761,6 +12761,47 @@ function syncKey(k){
 }
 /* Innehaller kopian fack alls? Ar den skriven av v577 eller senare finns minst
    en nyckel med suffix. */
+/* ===== LASPROTOKOLL =====
+   Fyra forsok att hitta varfor layouten skrivs tillbaka har byggt pa
+   resonemang om vad koden BORDE gora. Det har ar i stallet en anteckning om
+   vad den faktiskt gjorde: for varje layoutnyckel, vilken kalla som valdes,
+   hur langt vardet var lokalt fore, och vad som skrevs.
+   Ligger bara lokalt, synkas inte, och skrivs over vid varje lasning. */
+const LASPROT_KEY='lasprot_v1';
+var _lasProt=null;
+function lasProtStart(kalla){
+  _lasProt={t:Date.now(),kalla:kalla,enhet:enhetsNamn(),klass:secKlass(),ver:APP_VERSION,rader:[]};
+}
+function lasProtRad(k,valdKallnyckel,fore,efter,orsak){
+  if(!_lasProt)return;
+  if(LAYOUT_KEYS.indexOf(k)<0)return;   /* bara layouten - loggarna ar inte stridsamnet */
+  _lasProt.rader.push({k:k,src:valdKallnyckel||'-',
+    f:(fore==null?-1:String(fore).length),
+    e:(efter==null?-1:String(efter).length),
+    o:orsak||''});
+}
+function lasProtSlut(){
+  if(!_lasProt)return;
+  try{localStorage.setItem(LASPROT_KEY,JSON.stringify(_lasProt));}catch(e){}
+  _lasProt=null;
+}
+function lasProtText(){
+  var o=null;try{o=JSON.parse(localStorage.getItem(LASPROT_KEY)||'null');}catch(e){}
+  if(!o)return 'Ingen hämtning gjord än på den här enheten.';
+  var d=new Date(o.t);
+  var t='Senaste hämtning: '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)
+    +' · '+o.kalla+' · '+o.enhet+' ('+o.klass+') · '+o.ver+'\n';
+  if(!o.rader.length)return t+'  ingen layoutnyckel rördes';
+  o.rader.forEach(function(r){
+    /* ANDRAD bara nar nagot faktiskt skrevs. e = -1 betyder att raden lamnades
+       orord, och da ar skillnaden mot f ingen andring. */
+    var and=(r.e>=0&&r.f!==r.e);
+    t+='  '+r.k+': lokalt '+(r.f<0?'saknas':r.f+' tkn')
+      +' → '+(r.e<0?'orört':r.e+' tkn')
+      +'   källa '+r.src+(r.o?(' · '+r.o):'')+(and?'   SKREVS ÖVER':'')+'\n';
+  });
+  return t;
+}
 function syncNyttFormat(nycklar){
   if(!nycklar)return false;
   for(var i=0;i<LAYOUT_KEYS.length;i++)
@@ -13297,6 +13338,7 @@ async function appBackupLas(){
   }
   var n=0;
   var nyttFormat=syncNyttFormat(lista.nycklar);
+  lasProtStart('appens backup'+(nyttFormat?' (har fack)':' (gammal, utan fack)'));
   _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
   /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
      buttons_v1__telefon och buttons_v1__platta; den har enheten ska bara se
@@ -13308,7 +13350,11 @@ async function appBackupLas(){
     if(sk in lista.nycklar)finns=sk;
     else if(sk===k&&(k in lista.nycklar))finns=k;
     else if(!nyttFormat&&(k in lista.nycklar))finns=k;   /* bara pa en gammal kopia */
-    if(!finns){_appLasSist.hopp.push(k);continue;}
+    if(!finns){
+      _appLasSist.hopp.push(k);
+      var fore0=null;try{fore0=localStorage.getItem(k);}catch(e){}
+      lasProtRad(k,'-',fore0,null,nyttFormat?'kopian har fack, men inget för den här enheten':'saknas i kopian');
+      continue;}
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(finns));
       /* ACCEPTERA ÄVEN OBJEKT. appGet packar upp {result:…} och tolkar JSON, så
@@ -13324,11 +13370,14 @@ async function appBackupLas(){
          rattningen jag gjorde satt pa en vag som sallan anvands. */
       if(k==='secScale_v1')v=scaleSammanfoga(v);
       else if(k===ENH_KEY)v=enhSammanfoga(v);
+      var fore1=null;try{fore1=localStorage.getItem(k);}catch(e){}
+      lasProtRad(k,finns,fore1,v,'');
       if(v.length){localStorage.setItem(k,v);n++;}
       else _appLasSist.hopp.push(k);
     }catch(e){_appLasSist.fel.push(k);}
   }
   _appLasSist.las=n;
+  lasProtSlut();
   if(n>0){
     egetTsSatt(Date.now());
     /* Nu är lokalt och fjärran samma sak. Skrivningarna ovan har satt
@@ -13577,12 +13626,17 @@ async function fetchFromHomey(){
   let str='';for(let i=0;i<meta.n;i++){const c=byName[srcVar+'_'+i];if(c==null)return {applied:false,reason:'saknar del '+(i+1)+'/'+meta.n};str+=c;}
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
   /* Var nyckel lases ur SITT fack; gamla osuffixade nycklar som reserv. */
+  lasProtStart('Homey-variablerna'+(syncNyttFormat(obj)?' (har fack)':' (gammal, utan fack)'));
   SYNC_KEYS.forEach(k=>{
+    var fore=null;try{fore=localStorage.getItem(k);}catch(e){}
     var v=syncPlock(obj,k);
-    if(v==null)return;
+    if(v==null){lasProtRad(k,'-',fore,null,
+      syncNyttFormat(obj)?'kopian har fack, men inget för den här enheten':'saknas i kopian');return;}
     if(k==='secScale_v1')v=scaleSammanfoga(v);
     else if(k===ENH_KEY)v=enhSammanfoga(v);
+    lasProtRad(k,(obj[syncKey(k)]!=null?syncKey(k):k),fore,v,'');
     try{localStorage.setItem(k,v);}catch(e){}});
+  lasProtSlut();
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
@@ -13763,7 +13817,10 @@ async function syncDiag(){
       t+='\n  Sparat: '+kl(et)+' · ändrat: '+kl(at);
       if(at&&(!et||at>et))t+='\n  OSPARADE ÄNDRINGAR finns — de går förlorade vid nästa hämtning.';
     }catch(e){t+='\n\nKunde inte läsa enhetens sparningsminne: '+((e&&e.message)||e);}
-    t+='\n\nVänster = den här enheten, höger = kopian.';
+    /* 4. VAD LASNINGEN FAKTISKT GJORDE senast. Allt ovan beskriver lagen just
+       nu; det har ar en anteckning fran sjalva handelsen. */
+    try{t+='\n\nSenaste läsning\n'+lasProtText();}catch(e){}
+    t+='\nVänster = den här enheten, höger = kopian.';
     if(el)el.textContent=t;
   }catch(e){if(el)el.textContent='Kunde inte läsa Homeys variabler.';}}
 function syncStatusText(){if(!_syncMeta)return 'Inte synkat än på den här enheten.';
@@ -14833,7 +14890,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v578';
+const APP_VERSION='v579';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
