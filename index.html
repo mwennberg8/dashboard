@@ -11602,33 +11602,75 @@ var OBS_KEY='disk_obs_v1',_diskObs=null;
 function diskObsLas(){
   if(_diskObs)return _diskObs;
   try{_diskObs=JSON.parse(localStorage.getItem(OBS_KEY)||'null');}catch(e){}
-  if(!_diskObs||typeof _diskObs!=='object')_diskObs={r:null,kor:false};
+  if(!_diskObs||typeof _diskObs!=='object')_diskObs={r:null,p:null,kor:false,t:0};
+  if(_diskObs.p===undefined)_diskObs.p=null;   /* aldre minne utan framsteg */
+  if(_diskObs.t===undefined)_diskObs.t=0;
   return _diskObs;
 }
 function diskObsSpara(){try{localStorage.setItem(OBS_KEY,JSON.stringify(_diskObs));}catch(e){}}
-/* Anropas när knapparna ritas. Samma värde två gånger ändrar ingenting, så
-   den tål att köras hur ofta som helst. */
+/* NAR SLUTAR ETT PROGRAM?
+   Den forra regeln litade pa att tiden kvar hoppar UPP nar programmet tar slut
+   - fran nagra minuter tillbaka till 280. Det gor den inte har. Avlast pa
+   maskinen 2026-08-29, med disken fardig: onoff=true, progress="0%",
+   remaining_time="280:00". Alltsa exakt samma varden som fore start, och tiden
+   stod stilla hela vagen: det som rorde sig var framsteget, och det gick fran
+   nagot hogt tal rakt ner till noll. Ett fall NEDAT sag den gamla regeln inte
+   som slut - den sag det inte alls - och darfor last knappen sig tand pa
+   "0 % - 280 min" tills nagon rensade webblasarens minne.
+
+   Tre satt att se slutet nu, och tva av dem ar nya:
+     framsteget gar BAKAT (97 % -> 0 %)   -> slut
+     framsteget nar 100, eller tiden 0    -> slut   (fanns forut)
+     tiden hoppar upp                     -> slut   (fanns forut)
+   och en sista utvag: en maskin som gar RAKNAR. Star bade framsteget och tiden
+   stilla i mer an DISK_STILLA minuter kan den inte vara igang, oavsett vad vi
+   trodde. Det ar den regeln som garanterar att knappen slocknar aven om
+   maskinen skulle sluta pa ett satt jag inte sett - den blir aldrig tand for
+   alltid igen.
+
+   Priset for bakat-regeln: rapporterar integrationen "0%" en enstaka gang mitt
+   i ett program slocknar knappen tills nasta avlasning, dar tiden tickat ner
+   och tander den igen. Ett tapp pa en minut, inte ett last lage.
+
+   VAD JAG INTE VET: enheten har ocksa remote_control_start_allowed och
+   alarm_contact. Bada skulle kunna saga "igang" respektive "luckan oppen" rakt
+   ut, men jag har bara sett dem i vilolage (true / true) och vet darfor inte
+   hur de ser ut under ett program. Jag gissar inte pa dem. */
+var DISK_STILLA=25*60000;
 function diskObs(){
   var o=diskObsLas();
-  var pa=cap(DISK_DEV,'onoff')===true,p=diskProc(),r=diskMinKvar();
-  if(!pa){if(o.kor||o.r!=null){o.kor=false;o.r=null;diskObsSpara();}return;}
-  var ny=o.kor;
-  if(p!=null&&p>0&&p<100)ny=true;
-  else if(p!=null&&p>=100)ny=false;
-  /* Noll minuter kvar är slut, inte "nästan klar" — och det ska inte behöva
-     vänta på att talet hoppar tillbaka till 280 för att märkas. */
-  if(r!=null&&r<=0)ny=false;
-  else if(r!=null&&o.r!=null){
-    if(r<o.r)ny=true;
-    else if(r>o.r)ny=false;
+  var pa=cap(DISK_DEV,'onoff')===true,p=diskProc(),r=diskMinKvar(),nu=Date.now();
+  if(!pa){
+    if(o.kor||o.r!=null||o.p!=null||o.t){o.kor=false;o.r=null;o.p=null;o.t=0;diskObsSpara();}
+    return;
   }
-  if(ny!==o.kor||r!==o.r){o.kor=ny;o.r=r;diskObsSpara();}
+  var slut=false,igang=false;
+  if(p!=null&&o.p!=null&&p<o.p)slut=true;        /* framsteget gick bakat */
+  if(p!=null&&p>=100)slut=true;
+  if(r!=null&&r<=0)slut=true;
+  if(r!=null&&o.r!=null&&r>o.r)slut=true;        /* tiden hoppade upp */
+  if(p!=null&&p>0&&p<100)igang=true;
+  if(r!=null&&o.r!=null&&r<o.r)igang=true;       /* den raknar ner */
+  var ny=o.kor;
+  /* Slut vager tyngre an igang: den situation som last knappen var just att
+     ett slut inte kande igen sig, och en falsk slackning rattar sig sjalv vid
+     nasta avlasning medan ett falskt tant lage inte gor det. */
+  if(slut)ny=false; else if(igang)ny=true;
+  var rort=(p!==o.p||r!==o.r);
+  if(rort||!o.t)o.t=nu;
+  else if(ny&&(nu-o.t)>DISK_STILLA)ny=false;     /* helt stilla = star bara pa */
+  if(ny!==o.kor||r!==o.r||p!==o.p){o.kor=ny;o.r=r;o.p=p;diskObsSpara();}
 }
+/* Laget kommer fran diskObs, som ar den enda som ser hur talen ROR sig.
+   Genvagen "framsteg mellan 1 och 99 = igang" finns kvar men BARA innan nagot
+   observerats: annars kunde den halla knappen tand mot bade bakat-regeln och
+   stilleståndsregeln, som ju bygger pa att ett fruset tal inte betyder nagot.
+   Det var samma sorts genvag som lat det gamla laset sitta kvar. */
 function diskKor(){
   if(cap(DISK_DEV,'onoff')!==true)return false;
-  var p=diskProc();
-  if(p!=null&&p>0&&p<100)return true;
-  return !!diskObsLas().kor;
+  var o=diskObsLas();
+  if(!o.t){var p=diskProc();if(p!=null&&p>0&&p<100)return true;}
+  return !!o.kor;
 }
 function diskKl(){
   var b=_disk;
@@ -14993,7 +15035,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v585';
+const APP_VERSION='v586';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
