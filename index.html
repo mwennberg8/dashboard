@@ -759,6 +759,14 @@ body.mobile:not(.kiosk) .fl-tiles{--tl-sub:9px}
 .ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
   background:var(--line);pointer-events:none}
 .ctl-prog i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .6s ease}
+/* PA PLATTAN LIGGER STRECKET I FLODET, inte ovanpa. Absolut placering 7 px
+   fran nederkanten fungerar sa lange knappen ar lag, men i kiosklaget vaxer
+   knappen med hojdinstallningen medan strecket star kvar - och texten, som ar
+   lodratt centrerad, vandrar ner i det. Som ett vanligt flode-element skjuter
+   det i stallet undan texten och kan aldrig hamna under den.
+   Telefonen ror jag inte: dar ser det redan ratt ut. */
+.kiosk .ctl-prog{position:static;left:auto;right:auto;bottom:auto;width:100%;
+  margin-top:calc(5px*var(--knhojd,1));flex:0 0 auto}
 .ctl:hover{border-color:var(--svg-stroke)}
 .ctl-ic{width:24px;height:24px;color:var(--dim);display:inline-flex}.ctl-ic .ic{width:100%;height:100%}
 .ctl-l{font-size:12.5px;text-align:center}
@@ -12735,6 +12743,31 @@ function bkpLen(){let n=0;SYNC_KEYS.forEach(k=>{const v=localStorage.getItem(k);
    rutor, ordning och matt. De kan inte krympa 40 % av sig sjalva. */
 const LAYOUT_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','tilesFlode_v5','tilesEnergy_v1',
   'tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1'];
+/* ===== LAYOUTEN LAGRAS PER ENHETSTYP =====
+   Bada enheterna skrev layouten till SAMMA nycklar i samma kopia, och slogs
+   darfor om den: skrivloggen ar full av "vagrade lasa - kopian ar aldre an
+   enhetens egen sparning", fran bada hallen, hela dagen. Telefonen sparade sin
+   knapprad, plattan sin, och den som skrev sist vann.
+
+   Nu far varje layoutnyckel ett suffix med enhetstypen nar den lagras:
+   buttons_v1__telefon och buttons_v1__platta ar tva olika saker i kopian, men
+   samma buttons_v1 lokalt pa respektive enhet. Loggar och matvarden delas som
+   forut - de handlar om huset, inte om enheten.
+
+   Bakatkompatibelt: finns bara den gamla osuffixade nyckeln lases den, sa
+   ingen forlorar sin layout vid uppgraderingen. */
+function syncKey(k){
+  return (LAYOUT_KEYS.indexOf(k)>=0)?(k+'__'+secKlass()):k;
+}
+/* Plockar ut vardet for en nyckel ur en hamtad kopia: eget fack forst, gamla
+   delade nyckeln som reserv. */
+function syncPlock(obj,k){
+  if(!obj)return null;
+  var sk=syncKey(k);
+  if(obj[sk]!=null)return obj[sk];
+  if(k!==sk&&obj[k]!=null)return obj[k];
+  return null;
+}
 function bkpLayoutLen(){let n=0;LAYOUT_KEYS.forEach(k=>{const v=localStorage.getItem(k);
   if(v!=null)n+=v.length;});return n;}
 /* HUVUDENHET. Utan den skriver varje enhet en gång per dygn, och sist skriven
@@ -13189,7 +13222,9 @@ async function appBackupSpara(manuell){
   for(var i=0;i<SYNC_KEYS.length;i++){
     var k=SYNC_KEYS[i], v=null;
     try{v=localStorage.getItem(k);}catch(e){}
-    if(v!=null)obj[k]=v;
+    /* Layoutnycklar lagras under sitt eget fack sa att den andra enhetstypens
+       layout star kvar orord i kopian. */
+    if(v!=null)obj[syncKey(k)]=v;
   }
   if(!Object.keys(obj).length)return null;
   /* Stämpla ALLTID, men bara en manuell sparning låser. */
@@ -13248,11 +13283,16 @@ async function appBackupLas(){
   }
   var n=0;
   _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
-  for(var k in lista.nycklar){
-    if(k===AGARE_KEY||k===TS_KEY)continue;   /* stämpel och tidsmärke är inte inställningar */
-    if(SYNC_KEYS.indexOf(k)<0){_appLasSist.hopp.push(k);continue;}
+  /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
+     buttons_v1__telefon och buttons_v1__platta; den har enheten ska bara se
+     sin egen. Gamla osuffixade nycklar lases som reserv. */
+  for(var ki=0;ki<SYNC_KEYS.length;ki++){
+    var k=SYNC_KEYS[ki];
+    var sk=syncKey(k);
+    var finns=(sk in lista.nycklar)?sk:((k in lista.nycklar)?k:null);
+    if(!finns){_appLasSist.hopp.push(k);continue;}
     try{
-      var v=await appGet('/backup?key='+encodeURIComponent(k));
+      var v=await appGet('/backup?key='+encodeURIComponent(finns));
       /* ACCEPTERA ÄVEN OBJEKT. appGet packar upp {result:…} och tolkar JSON, så
          ett sparat värde kan komma tillbaka som objekt i stället för sträng.
          Kravet på sträng lät nyckeln falla bort TYST — hämtningen såg ut att
@@ -13291,7 +13331,8 @@ async function saveToHomey(){
      när backupen blev för stor försvann räkningen vid nästa gång enheten
      återställdes från Homey – det var därför antalet klara dygn nollställdes. */
   const DROPPABLE=['shmap_v2','health_v2','pressLog_v1','zpress_v1','tempEx_v1','windEx_v1','plog_v1','snow_v1','shcost_v1','emix_v1','recs_v1','hin_v1','days_v1'];
-  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;const v=localStorage.getItem(k);if(v!=null)o[k]=v;});return o;}
+  /* Layoutnycklar lagras under sitt eget fack, som i appens backup. */
+  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;const v=localStorage.getItem(k);if(v!=null)o[syncKey(k)]=v;});return o;}
   let skip=[],obj=build(skip),str=JSON.stringify(obj),dropped=[];
   while(str.length>MAXCHUNKS*SYNC_CHUNK && DROPPABLE.length>skip.length){
     const next=DROPPABLE.find(k=>skip.indexOf(k)<0 && localStorage.getItem(k)!=null);
@@ -13517,9 +13558,10 @@ async function fetchFromHomey(){
   let meta;try{meta=JSON.parse(metaRaw);}catch(e){return {applied:false,reason:'trasig meta'};}
   let str='';for(let i=0;i<meta.n;i++){const c=byName[srcVar+'_'+i];if(c==null)return {applied:false,reason:'saknar del '+(i+1)+'/'+meta.n};str+=c;}
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
-  Object.keys(obj).forEach(k=>{
-    if(SYNC_KEYS.indexOf(k)<0)return;
-    var v=obj[k];
+  /* Var nyckel lases ur SITT fack; gamla osuffixade nycklar som reserv. */
+  SYNC_KEYS.forEach(k=>{
+    var v=syncPlock(obj,k);
+    if(v==null)return;
     if(k==='secScale_v1')v=scaleSammanfoga(v);
     else if(k===ENH_KEY)v=enhSammanfoga(v);
     try{localStorage.setItem(k,v);}catch(e){}});
@@ -14763,7 +14805,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v575';
+const APP_VERSION='v577';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16343,30 +16385,35 @@ function secScaleGet(){
 /* Panelernas hornradie i bildpunkter, samma tal som --r i rotstilen. Star har
    for att omraknningen mot zoomen ska ha nagot att rakna pa. */
 const R_BAS=26;
-/* GRUNDSTORLEK PER AVSNITT. Knappraden ritades for liten: 160 % var det matt
-   som fungerade i handen och pa vaggen, och da ar 100 % fel utgangspunkt - man
-   ska inte behova stalla om ett avsnitt varje gang for att fa normal storlek.
-   Talet multipliceras med anvandarens egen inställning, sa 100 % i menyn ger
-   nu samma bild som 160 % gjorde forut. */
-const SEC_ZOOM_BAS={buttons:1.6};
-/* ENGANGSOMRAKNING. Den som redan stallt in 160 % skulle annars fa 160 % av
-   det nya grundmattet, alltsa 256 %. Varje sparat tal delas darfor med sin nya
-   grundstorlek en gang, och flaggan ser till att det bara sker en gang. */
+/* GRUNDSTORLEK PER AVSNITT OCH ENHETSTYP. Knappraden ritades for liten pa
+   VAGGPLATTAN - 160 % var det matt som fungerade dar, och da ar 100 % fel
+   utgangspunkt. Telefonen har aldrig haft det problemet och ska inte fa 60 %
+   storre knappar for att plattan behovde det.
+   Hela poangen med facken ar att de tva enheterna ar olika; jag la forst talet
+   pa bada och gjorde precis det misstaget. */
+const SEC_ZOOM_BAS={platta:{buttons:1.6},telefon:{}};
+function secZoomBas(sec){
+  var f=SEC_ZOOM_BAS[secKlass()];
+  return (f&&typeof f[sec]==='number')?f[sec]:1;
+}
+/* ENGANGSOMRAKNING. Den som redan stallt in 160 % pa plattan skulle annars fa
+   160 % av det nya grundmattet, alltsa 256 %. Bara det fack som faktiskt fatt
+   en ny grundstorlek raknas om - telefonens tal ska sta kvar orort. */
 function secScaleMigrera(){
   try{
-    if(localStorage.getItem('secScaleBas_v1')==='1')return;
+    if(localStorage.getItem('secScaleBas_v1')==='2')return;
     var a=secScaleAlla(),andrat=false;
-    Object.keys(a).forEach(function(klass){
-      var f=a[klass];
-      if(!f||typeof f!=='object')return;
-      Object.keys(SEC_ZOOM_BAS).forEach(function(sec){
+    Object.keys(SEC_ZOOM_BAS).forEach(function(klass){
+      var bas=SEC_ZOOM_BAS[klass], f=a[klass];
+      if(!bas||!f||typeof f!=='object')return;
+      Object.keys(bas).forEach(function(sec){
         if(typeof f[sec]==='number'&&isFinite(f[sec])){
-          f[sec]=Math.round((f[sec]/SEC_ZOOM_BAS[sec])*100)/100;andrat=true;
+          f[sec]=Math.round((f[sec]/bas[sec])*100)/100;andrat=true;
         }
       });
     });
     if(andrat)localStorage.setItem('secScale_v1',JSON.stringify(a));
-    localStorage.setItem('secScaleBas_v1','1');
+    localStorage.setItem('secScaleBas_v1','2');
   }catch(e){}
 }
 function secScaleOf(sec){const s=secScaleGet();const v=s[sec];return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.6,v)):1;}
@@ -16380,7 +16427,7 @@ function applySecScale(){const view=$('view-flode');if(!view||!view.querySelecto
   SEC_DEF.forEach(sec=>{const el=view.querySelector('[data-sec="'+sec+'"]');if(!el||!el.style)return;
     /* Avrundas till tre decimaler: 1.6*1.6 blir 2.5600000000000005 i flyttal,
        och det talet hamnar rakt i style-attributet. */
-    const f=Math.round(secScaleOf(sec)*(SEC_ZOOM_BAS[sec]||1)*1000)/1000, platt=Math.abs(f-1)<0.001;
+    const f=Math.round(secScaleOf(sec)*secZoomBas(sec)*1000)/1000, platt=Math.abs(f-1)<0.001;
     el.style.zoom=platt?'':String(f);
     if(platt)el.style.removeProperty('--r');
     else el.style.setProperty('--r',(R_BAS/f).toFixed(2)+'px');});
