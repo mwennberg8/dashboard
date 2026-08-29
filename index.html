@@ -732,6 +732,14 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
    trycker ihop ikon och text på alla övriga knappar. Ingen overflow:hidden
    behövs: strecket är indraget 12 px och når aldrig ut till radien. */
 .ctl{position:relative}
+@keyframes ikPuls{0%,100%{opacity:1}50%{opacity:.42}}
+.stat-ic.pulsar,.en-chip-ic.pulsar{animation:ikPuls 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.stat-ic.pulsar,.en-chip-ic.pulsar{animation:none;opacity:.75}}
+.stat-ic.har-mark,.en-chip-ic.har-mark{position:relative;overflow:visible}
+.ik-mark{position:absolute;right:-5px;bottom:-4px;width:13px;height:13px;
+  background:var(--panel-b);border-radius:50%;display:inline-flex;align-items:center;
+  justify-content:center;color:var(--hot)}
+.ik-mark .ic{width:10px;height:10px}
 .stat-sub{font-size:var(--tl-sub,10px);font-weight:700;color:var(--faint);margin-top:2px;
   line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font-variant-numeric:tabular-nums}
@@ -1104,13 +1112,6 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .drow-t{cursor:pointer}
 .di-q{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;border:1px solid var(--line);color:var(--faint);font-size:9px;font-weight:800;font-style:normal;margin-left:5px;vertical-align:middle}
 .drow-info{display:none;font-size:11.5px;color:var(--dim);line-height:1.42;padding:2px 0 9px}
-.dlg-body .diag-r{display:flex;align-items:center;gap:8px;padding:6px 0;
-  border-bottom:1px solid var(--line-soft,var(--line));font-size:12px}
-.dlg-body .diag-r.ok{opacity:.6}
-.dlg-body .diag-k{flex:1 1 auto;min-width:0;font:11px/1.4 ui-monospace,Menlo,monospace;
-  color:var(--dim);word-break:break-all}
-.dlg-body .diag-v{flex:0 0 auto;font-weight:750;font-variant-numeric:tabular-nums;color:var(--ink)}
-.dlg-body .diag-p{flex:0 0 auto;color:var(--faint)}
 .dlg-body .enh{border:1px solid var(--line);border-radius:12px;padding:9px 11px;margin-bottom:7px;
   background:var(--inset)}
 .dlg-body .enh.jag{border-color:rgba(235,203,139,.45)}
@@ -13398,94 +13399,8 @@ function enhKopiera(){
   }catch(e){}
   t.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}klar(ok);
 }
-/* ===== SYNK: FELSOKNING =====
-   Tre forsok att hitta varfor vaggplattans installningar gick tillbaka har
-   traffat fel, och alla tre byggde pa en gissning om VILKEN nyckel som skrevs
-   over. Den har vyn gissar inte: den staller lokalt mot det som ligger i Homey,
-   nyckel for nyckel, och visar var de gar isar.
-
-   Kolumnerna: hur manga tecken nyckeln har lokalt, hur manga i Homey, och om de
-   ar lika. Skiljer de sig ar det den nyckeln som ar stridsamnet. */
-var _diagRem=null,_diagAt=0,_diagFel=null;
-async function diagHamta(){
-  _diagFel=null;
-  try{
-    var list=await logicList(),byName={};
-    logicArr(list).forEach(function(v){if(v&&v.name)byName[v.name]=v.value;});
-    var meta=null,raa=byName[syncVar()];
-    if(raa==null)raa=byName['dashboard_state'];
-    if(raa==null){_diagFel='ingen synkvariabel i Homey';return null;}
-    meta=JSON.parse(raa);
-    var txt='';
-    for(var i=0;i<(meta.n||0);i++)txt+=(byName[(meta.v||syncVar())+'_'+i]||'');
-    var obj=JSON.parse(txt);
-    _diagRem={meta:meta,obj:obj};_diagAt=Date.now();
-    return _diagRem;
-  }catch(e){_diagFel=(e&&e.message)||String(e);return null;}
-}
-/* Nycklar som ar uppdelade per enhetstyp. Bara de har kan skilja sig mellan
-   platta och telefon utan att det ar en konflikt. */
-const DIAG_KLASSAD={'secScale_v1':1};
-function diagHTML(){
-  var h='';
-  h+=dRow('Den här enheten',esc(enhetsNamn())+' · '+esc(secKlass()));
-  h+=dRow('Huvudenhet för '+esc(secKlass()),arHuvud()?'ja':'<b style="color:var(--warm)">nej</b>');
-  if(_syncMeta&&_syncMeta.t){
-    var d=new Date(_syncMeta.t);
-    h+=dRow('Senast synkad',hhmm(d)+' · '+(_syncMeta.len||0)+' tecken');
-  }
-  if(!arHuvud()){
-    h+='<div class="setup-t" style="color:var(--warm)">Enheten är inte huvudenhet för sin '
-      +'klass och skriver därför aldrig till Homey av sig själv. Ändringar stannar lokalt '
-      +'tills nästa hämtning ersätter dem. Tryck "Spara till Homey nu" — den gör enheten '
-      +'till huvudenhet.</div>';
-  }
-  if(_diagFel)return h+dRow('Kunde inte läsa','<span style="color:var(--hot)">'+esc(_diagFel)+'</span>');
-  if(!_diagRem)return h+dRow('Jämförelse','läser…');
-  h+=dSec('Lokalt mot Homey');
-  var rader=[],lika=0;
-  SYNC_KEYS.forEach(function(k){
-    var l=null;try{l=localStorage.getItem(k);}catch(e){}
-    var r=_diagRem.obj[k];
-    var ll=(l==null)?-1:l.length, rl=(r==null)?-1:String(r).length;
-    var same=(l==null&&r==null)||(l!=null&&r!=null&&String(l)===String(r));
-    if(same){lika++;return;}
-    rader.push({k:k,ll:ll,rl:rl});
-  });
-  h+=dRow('Lika',lika+' av '+SYNC_KEYS.length+' nycklar');
-  if(!rader.length)h+=dRow('Skillnader','inga — allt är i takt');
-  rader.forEach(function(x){
-    var klassad=!!DIAG_KLASSAD[x.k];
-    h+='<div class="diag-r'+(klassad?' ok':'')+'">'
-      +'<span class="diag-k">'+esc(x.k)+'</span>'
-      +'<span class="diag-v">'+(x.ll<0?'saknas':x.ll+' tkn')+'</span>'
-      +'<span class="diag-p">→</span>'
-      +'<span class="diag-v">'+(x.rl<0?'saknas':x.rl+' tkn')+'</span>'
-      +'</div>';
-    if(klassad)h+='<div class="setup-t" style="margin:0 0 6px">Uppdelad per enhetstyp — '
-      +'skillnad här är normal och skyddad.</div>';
-  });
-  h+='<div class="setup-t">Vänster tal är den här enheten, höger är Homey. '
-    +'Skiljer de sig är det den nyckeln som skrivs över vid nästa hämtning — '
-    +'utom de som är uppdelade per enhetstyp.</div>';
-  h+='<div class="dbtn-row"><button class="dbtn" onclick="diagOm()">Läs om</button></div>';
-  return h;
-}
-function diagOm(){
-  var bd=$('dlg-body');if(bd)bd.innerHTML=diagHTML();
-  diagHamta().then(function(){if(_dlgDiag){var b=$('dlg-body');if(b)b.innerHTML=diagHTML();}});
-}
-var _dlgDiag=false;
-function openSyncDiag(){
-  _dlgDiag=true;_diagRem=null;
-  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
-  _popupRebuild=null;
-  setT('dlg-title','Synk · felsökning');setIcon('dlg-ic','arrows-clockwise');
-  var bd=$('dlg-body');if(bd)bd.innerHTML=diagHTML();
-  var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
-  dlgTop();
-  diagHamta().then(function(){var b=$('dlg-body');if(b&&_dlgDiag)b.innerHTML=diagHTML();});
-}
+/* HOJDERNA LIGGER I FACK per enhetstyp men i EN nyckel. Hamtas den rakt av
+   skriver den andra enhetens kopia over ens eget fack. */
 function scaleSammanfoga(rem){
   try{
     var r=JSON.parse(rem||'{}');
@@ -13599,6 +13514,36 @@ async function syncDiag(){
       +'\nDelad (dashboard_state): '+when('dashboard_state')
       +'\nTelefonens egen (dash_mobile): '+when('dash_mobile');
     if(CFG.shareLayout===false)t+='\nOBS: Delad layout är AV på den här enheten – den läser och skriver bara sin egen slot.';
+    t+='\nHuvudenhet för '+secKlass()+': '+(arHuvud()?'ja':'NEJ – enheten skriver aldrig av sig själv');
+
+    /* VAD SOM FAKTISKT SKILJER. Slotarna sager NAR nagon skrev, inte VAD som
+       skrivs over. Tre forsok att hitta varfor vaggplattans installningar gick
+       tillbaka byggde pa en gissning om vilken nyckel det galler; den har
+       jamforelsen gissar inte utan staller lokalt mot Homey, nyckel for nyckel.
+       Bara secScale_v1 ar uppdelad per enhetstyp och far skilja sig; allt annat
+       som star har skrivs over vid nasta hamtning. */
+    try{
+      var raa=byName[syncVar()];
+      if(raa==null)raa=byName['dashboard_state'];
+      var meta=raa!=null?JSON.parse(raa):null;
+      if(meta&&meta.n){
+        var txt='';
+        for(var i=0;i<meta.n;i++)txt+=(byName[(meta.v||syncVar())+'_'+i]||'');
+        var obj=JSON.parse(txt),olika=[],lika=0;
+        SYNC_KEYS.forEach(function(k){
+          var l=null;try{l=localStorage.getItem(k);}catch(e){}
+          var r=obj[k];
+          var same=(l==null&&r==null)||(l!=null&&r!=null&&String(l)===String(r));
+          if(same){lika++;return;}
+          olika.push('  '+k+': '+(l==null?'saknas':l.length+' tkn')
+            +' → '+(r==null?'saknas':String(r).length+' tkn')
+            +(k==='secScale_v1'?'   (per enhetstyp – skyddad)':''));
+        });
+        t+='\n\nLokalt mot Homey: '+lika+' av '+SYNC_KEYS.length+' lika';
+        t+=olika.length?('\n'+olika.join('\n')):'\n  inga skillnader';
+        t+='\n\nVänster = den här enheten, höger = Homey.';
+      }else t+='\n\nKunde inte läsa innehållet i sloten.';
+    }catch(e){t+='\n\nJämförelsen misslyckades: '+((e&&e.message)||e);}
     if(el)el.textContent=t;
   }catch(e){if(el)el.textContent='Kunde inte läsa Homeys variabler.';}}
 function syncStatusText(){if(!_syncMeta)return 'Inte synkat än på den här enheten.';
@@ -13874,6 +13819,53 @@ function trendFor(cfg){if(!cfg||cfg.trend!==true)return '';
   if(hk&&HIST[hk]&&HIST[hk].length>=2){const now=Date.now(),a=histValueAt(hk,now),b=histValueAt(hk,now-45*60000);if(a!=null&&b!=null){const d=a-b;if(d>thr)return 'up';if(d<-thr)return 'down';return '';}}
   return trendForLearn(cfg);}
 
+/* ===== HUVUDIKONEN BAR LAGET =====
+   Forut satt en liten statusikon i rutans hogra horn medan huvudikonen alltid
+   var densamma. Tva ikoner i samma ruta konkurrerar: man laser den stora och
+   missar den lilla. Nu andras HUVUDIKONEN i stallet, och hornikonen ar borta.
+   Pulsen ar reserverad for det som PAGAR och som man kan vilja avbryta. */
+function tileIkon(cfg,m){
+  /* RUTANS EGEN IKON STAR KVAR. Den sager vad rutan handlar om, och byter man
+     ut den vet man inte langre vad man tittar pa - en bil som blir ett batteri
+     nar den laddar ar svarare att hitta i ogonvran, inte lattare.
+     Laget visas i stallet med en liten markor i ikonens horn, och med en puls
+     nar nagot PAGAR som man kan vilja avbryta. */
+  var ic=m.icon,puls=false,extra='';
+  var k=(cfg&&cfg.type==='computed')?cfg.key:'';
+  var varms=function(){var ph=cap(DEV.poolheat,'onoff');return ph==='on'||ph===true;};
+  if(k==='poolheat'){
+    if(varms())extra='flame';
+  }else if(k==='cars'||k==='car1'||k==='car2'){
+    var ids=(k==='cars')?[DEV.car,DEV.car2]:[(k==='car1')?DEV.car:DEV.car2];
+    var laddar=false,inkopplad=false;
+    ids.forEach(function(id){if(!DATA[id])return;
+      if(carCharging(id))laddar=true;if(carPlugged(id))inkopplad=true;});
+    if(laddar){extra='lightning';puls=true;}
+    else if(inkopplad)extra='plug';
+  }else if(k==='charger'){
+    var on=cap(DEV.laddbox,'evcharger_charging')===true||carCharging(DEV.car)||carCharging(DEV.car2);
+    if(on){extra='lightning';puls=true;}
+  }else if(k==='battnow'||k==='battpct'||k==='battpow'){
+    var bs=cap(DEV.battery,'battery_charging_state');
+    if(bs==='charging'){extra='lightning';puls=true;}
+    else if(bs==='discharging')extra='arrow-fat-up';
+  }else if(k==='dish'){
+    if(cap(DEV.dish,'onoff')===true&&typeof diskKor==='function'&&diskKor()){extra='clock-counter-clockwise';puls=true;}
+  }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
+    if(varms())extra='flame';
+  }
+  return {icon:ic,puls:puls,extra:extra};
+}
+/* Markoren sitter i hornet AV IKONEN, inte av rutan - da laser den som en del
+   av bilden i stallet for att bli ett andra objekt langt bort. */
+function tileIkonHTML(cfg,m,cls){
+  var t=tileIkon(cfg,m);
+  return '<span class="'+cls+(t.puls?' pulsar':'')+(t.extra?' har-mark':'')+'"'
+    +(m.icc?(' style="color:'+m.icc+'"'):'')+'>'
+    +icon(t.icon)
+    +(t.extra?('<span class="ik-mark">'+icon(t.extra)+'</span>'):'')
+    +'</span>';
+}
 function tileStatus(cfg){
   if(!cfg)return null;
   if(cfg.type==='computed'){const k=cfg.key;
@@ -13958,18 +13950,16 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     if(fill)sty='';
     const tr=trendFor(cfg),trH=tr?('<span class="tr '+tr+'">'+(tr==='up'?'▲':'▼')+'</span>'):'';
     if(chip){
-      const stI=st&&st.icon?('<span class="chip-st" style="color:'+stFarg
-        +(ikSk!==1?(';width:'+(15*ikSk).toFixed(1)+'px;height:'+(15*ikSk).toFixed(1)+'px'):'')
-        +'">'+icon(st.icon)+'</span>'):'';
-      h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="en-chip-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span>'
+      /* Hornikonen ar borttagen i v563 - laget bars av huvudikonen. */
+      const stI='';
+      h+='<button class="en-chip clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+'" type="button" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'en-chip-ic '+accFor(m.icon))+'<span class="en-chip-txt"><span class="en-chip-l">'+esc(m.label)+'</span><span class="en-chip-w">'+m.v+'</span>'
         +(trH?('<span class="en-chip-s">'+trH+'</span>'):'')+'</span></span>'+stI+'</button>';
     }else{
-      const stI=st&&st.icon?('<span class="stat-st" style="color:'+stFarg
-        +(ikSk!==1?(';width:'+(17*ikSk).toFixed(1)+'px;height:'+(17*ikSk).toFixed(1)+'px'):'')
-        +'">'+icon(st.icon)+'</span>'):'';
+      /* Hornikonen ar borttagen i v563 - laget bars av huvudikonen. */
+      const stI='';
       /* Centreringslägena gäller alla sex rutorna samtidigt. */
       var mitt=((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'');
-      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+'<span class="stat-ic '+accFor(m.icon)+'"'+(m.icc?' style="color:'+m.icc+'"':'')+'>'+icon(m.icon)+'</span><div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
+      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
         /* UNDERRADEN kom tillbaka i v556, men bara dar den tillfor nagot.
            Den gamla meta-texten upprepade ofta rubriken med andra ord och togs
            bort i v545. Nu ar det ett eget falt, sub, som bara nagra rutor
@@ -14621,7 +14611,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v562';
+const APP_VERSION='v564';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -14833,7 +14823,6 @@ function openConfig(){
   h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
   h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export');
   h+=cfgMi('openEnheter()','desktop','Enheter','Vilka som använder dashboarden, och vem de tillhör');
-  h+=cfgMi('openSyncDiag()','wifi-high','Synk · felsökning','Vad som skiljer den här enheten från Homey');
   h+=dRow('Huvudsäkring','<span class="dbtn-row" style="justify-content:flex-end">'
     +'<button class="dbtn" onclick="sakringStep(-1)">–</button>'
     +'<b id="sakr-v" style="min-width:44px;display:inline-block;text-align:center">'+fasSakring()+' A</b>'
