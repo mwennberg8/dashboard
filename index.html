@@ -12977,8 +12977,23 @@ function syncPushSoon(){try{
         syncNote('Sparade inte – '+((far.agare&&far.agare.namn)?(far.agare.namn+' äger kopian'):(far.orsak||'kunde inte kontrollera ägaren')));
         loggSkriv('push-avstod',{orsak:(far.agare&&far.agare.namn)||far.orsak||''});
         return;}
-    saveToHomey().then(function(){_pushBusy=false;
+    /* APPEN FORST, precis som dygnsbackupen gor. Den har vagen skrev bara till
+       logikvariablerna medan bootSync laser APPENS backup i forsta hand - en
+       andring sparades alltsa pa ett stalle och lastes fran ett annat, och
+       skrevs over vid nasta start. Det var darfor vaggplattans knappar och matt
+       gick tillbaka: variablerna hade det nya, appen det gamla, och appen vann.
+       Mätt 2026-08-29: buttons_v1 var 1017 tkn lokalt och i variablerna, men
+       804 tkn i appens backup. */
+    var spara=function(){
+      if(!appKan())return saveToHomey();
+      return appBackupSpara(false).then(function(r){
+        if(r&&r.ok)return r;
+        return saveToHomey();          /* appen svarade inte - variablerna som reserv */
+      },function(){return saveToHomey();});
+    };
+    spara().then(function(){_pushBusy=false;
       try{var b=bkpGet();b.len=len;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
+      try{egetTsSatt(Date.now());}catch(e){}
       loggSkriv('push',{tecken:len});
       syncNote('Sparat till Homey');},
       function(){_pushBusy=false;});
@@ -14680,7 +14695,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v567';
+const APP_VERSION='v568';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
