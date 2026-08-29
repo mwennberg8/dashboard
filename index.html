@@ -9827,10 +9827,15 @@ function computeMetric(cfg){
       /* POOLTEMP visar vattnets trend. Fukten hor till RUMMET och stod har en
          version av misstag - poolens temperatur och rummets luftfuktighet ar
          tva olika matningar fran tva olika givare. */
-      /* Pilen bar tecknet. "↓ -0,3" sager samma sak tva ganger. */
-      if(rt!=null&&Math.abs(rt)>=0.05)sub=(rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h'+(varms?' · värms':'');
-      else if(rt!=null)sub='stabil'+(varms?' · värms':'');
-      else if(varms)sub='värms';}
+      /* ALLTID TRENDEN, aldrig zonen. "Pooltemp / Poolrum" sa samma sak tva
+         ganger. Pilen bar tecknet - "↓ -0,3" ar ocksa en upprepning.
+         Utan tillrackligt med historik sags det rakt ut i stallet for att
+         pasta att den ligger stilla: poolRate jamfor mot ett varde en timme
+         tillbaka och ger inget svar forran dess. */
+      if(rt!=null&&Math.abs(rt)>=0.05)sub=(rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h';
+      else if(rt!=null)sub='stabil';
+      else sub='samlar data';
+      if(varms)sub+=' · värms';}
     /* POOLRUMMETS ruta visar rummets temperatur, och da ar luftfuktigheten det
        som saknas - ett poolrum som angar ar hela poangen med matningen. */
     else if(cfg.device===DEV.poolrum&&cfg.cap==='measure_temperature'){
@@ -13522,6 +13527,7 @@ async function fetchFromHomey(){
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
 async function bootSync(){
+  try{secScaleMigrera();}catch(e){}
   try{huvudAuto();}catch(e){}
   /* Breveden hämtas en gång vid öppning så kortet har ett värde direkt. */
   try{brvHamta();}catch(e){}
@@ -13990,9 +13996,11 @@ function tileIkon(cfg,m){
     var on=cap(DEV.laddbox,'evcharger_charging')===true||carCharging(DEV.car)||carCharging(DEV.car2);
     if(on){extra='lightning';puls=true;}
   }else if(k==='battnow'||k==='battpct'||k==='battpow'){
-    var bs=cap(DEV.battery,'battery_charging_state');
-    if(bs==='charging'){extra='lightning';puls=true;}
-    else if(bs==='discharging')extra='arrow-fat-up';
+    /* INGEN MARKOR pa batteriet. Ikonen sager redan laddniva och riktning
+       genom sin egen form, och rutan har dessutom laddnivan i underraden -
+       en blixt till blev en tredje sak som sa samma sak. Pulsen far vara kvar:
+       den sager att det PAGAR, vilket varken form eller text gor. */
+    if(cap(DEV.battery,'battery_charging_state')==='charging')puls=true;
   }else if(k==='dish'){
     if(cap(DEV.dish,'onoff')===true&&typeof diskKor==='function'&&diskKor()){extra='clock-counter-clockwise';puls=true;}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
@@ -14755,7 +14763,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v573';
+const APP_VERSION='v575';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16332,9 +16340,50 @@ function secScaleGet(){
   const gml={};
   for(const n in a)if(n!=='platta'&&n!=='telefon'&&typeof a[n]==='number')gml[n]=a[n];
   return Object.assign({},SEC_SCALE_DEF,gml);}
+/* Panelernas hornradie i bildpunkter, samma tal som --r i rotstilen. Star har
+   for att omraknningen mot zoomen ska ha nagot att rakna pa. */
+const R_BAS=26;
+/* GRUNDSTORLEK PER AVSNITT. Knappraden ritades for liten: 160 % var det matt
+   som fungerade i handen och pa vaggen, och da ar 100 % fel utgangspunkt - man
+   ska inte behova stalla om ett avsnitt varje gang for att fa normal storlek.
+   Talet multipliceras med anvandarens egen inställning, sa 100 % i menyn ger
+   nu samma bild som 160 % gjorde forut. */
+const SEC_ZOOM_BAS={buttons:1.6};
+/* ENGANGSOMRAKNING. Den som redan stallt in 160 % skulle annars fa 160 % av
+   det nya grundmattet, alltsa 256 %. Varje sparat tal delas darfor med sin nya
+   grundstorlek en gang, och flaggan ser till att det bara sker en gang. */
+function secScaleMigrera(){
+  try{
+    if(localStorage.getItem('secScaleBas_v1')==='1')return;
+    var a=secScaleAlla(),andrat=false;
+    Object.keys(a).forEach(function(klass){
+      var f=a[klass];
+      if(!f||typeof f!=='object')return;
+      Object.keys(SEC_ZOOM_BAS).forEach(function(sec){
+        if(typeof f[sec]==='number'&&isFinite(f[sec])){
+          f[sec]=Math.round((f[sec]/SEC_ZOOM_BAS[sec])*100)/100;andrat=true;
+        }
+      });
+    });
+    if(andrat)localStorage.setItem('secScale_v1',JSON.stringify(a));
+    localStorage.setItem('secScaleBas_v1','1');
+  }catch(e){}
+}
 function secScaleOf(sec){const s=secScaleGet();const v=s[sec];return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.6,v)):1;}
 function applySecScale(){const view=$('view-flode');if(!view||!view.querySelector)return;
-  SEC_DEF.forEach(sec=>{const el=view.querySelector('[data-sec="'+sec+'"]');if(!el||!el.style)return;const f=secScaleOf(sec);el.style.zoom=(Math.abs(f-1)<0.001)?'':String(f);});
+  /* HORNRADIEN SKA VARA SIG LIK. Hojden sätts med CSS zoom, och zoom skalar
+     ALLT - text, luft och hörn. Ett avsnitt på 160 % fick därför 42 px hörn
+     mot 26 på de andra, och knapparna inuti blev lika runda i samma takt.
+     Motverka genom att dela radien med samma faktor: 26/1,6 = 16,25 px, som
+     zoomen sedan förstorar tillbaka till 26 på skärmen.
+     Knapparnas radie räknas ur --r och följer därför med av sig själv. */
+  SEC_DEF.forEach(sec=>{const el=view.querySelector('[data-sec="'+sec+'"]');if(!el||!el.style)return;
+    /* Avrundas till tre decimaler: 1.6*1.6 blir 2.5600000000000005 i flyttal,
+       och det talet hamnar rakt i style-attributet. */
+    const f=Math.round(secScaleOf(sec)*(SEC_ZOOM_BAS[sec]||1)*1000)/1000, platt=Math.abs(f-1)<0.001;
+    el.style.zoom=platt?'':String(f);
+    if(platt)el.style.removeProperty('--r');
+    else el.style.setProperty('--r',(R_BAS/f).toFixed(2)+'px');});
   /* Spotbandet ligger INUTI energipanelen och ärver därför energins zoom. Det
      gjorde att bandet skalades två gånger på väggplattan — en gång av energin
      och en gång av sin egen inställning — och blev större än soluppgången.
