@@ -2351,6 +2351,17 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   body:not(.kiosk) .en-hero-main{flex:1 1 auto;min-width:0}
   body:not(.kiosk) .en-spot{margin-left:auto;flex:0 1 auto;min-width:0;gap:6px;align-items:center}
   body:not(.kiosk) .en-spot .verdict{min-width:0;white-space:nowrap;font-size:11.5px;padding:6px 11px;height:30px}
+  /* OVERKANTERNA I LINJE MED VARDET.
+     Bada mynten var centrerade mot RADEN, medan siffran ar hog och etiketten
+     "forbrukning nu" star under den - mitten av raden ligger darfor en bit ner
+     i siffran, och hur langt ner beror pa hur stor texten ar. Andrade man
+     storleken vandrade mynten.
+     Med flex-start binds de i stallet till radens overkant, som ar samma kant
+     som siffrans. Det haller oavsett textstorlek eftersom ingenting raknas i
+     bildpunkter - det ar samma kant, inte ett matt. */
+  .enpanel .en-hero{align-items:flex-start}
+  .enpanel .en-spot{align-self:flex-start;align-items:flex-start}
+  .enpanel .en-spot .en-self,.enpanel .en-spot .verdict{align-self:flex-start}
   body:not(.kiosk) .en-self{font-size:11px;padding:6px 9px;white-space:nowrap}
   body:not(.kiosk) .en-kw{font-size:24px}
   body:not(.kiosk) .en-self{flex:0 0 auto}
@@ -12772,13 +12783,48 @@ var _lasProt=null;
 function lasProtStart(kalla){
   _lasProt={t:Date.now(),kalla:kalla,enhet:enhetsNamn(),klass:secKlass(),ver:APP_VERSION,rader:[]};
 }
+/* Storleksinstallningarna i klartext. Langden pa cfg_v1 andras sallan nar man
+   stegar en storlek - "1173 tkn → 1173 tkn" sag darfor identiskt ut aven nar
+   varden bytts. Har plockas de fält som faktiskt styr matten ut, sa att
+   protokollet visar VAD som stod dar, inte hur langt det var. */
+function stlDigest(raa){
+  try{
+    var c=(typeof raa==='string')?JSON.parse(raa):raa;
+    if(!c||typeof c!=='object')return '';
+    var mob=!!(typeof szMobile==='function'&&szMobile());
+    var f=mob?(c.mob||{}):c;
+    var d=[];
+    if(c.ewh!=null)d.push('ewh='+c.ewh);
+    ['kn','avd','spot'].forEach(function(g){
+      if(f[g]&&typeof f[g]==='object'){
+        var inre=[];for(var q in f[g])inre.push(q+':'+f[g][q]);
+        if(inre.length)d.push(g+'{'+inre.join(',')+'}');
+      }
+    });
+    ['tile','chip'].forEach(function(g){
+      if(c[g]&&typeof c[g]==='object'){
+        var inre=[];['ic','v','name','desc','gap'].forEach(function(q){
+          if(c[g][q]!=null)inre.push(q+':'+c[g][q]);});
+        if(inre.length)d.push(g+'{'+inre.join(',')+'}');
+      }
+    });
+    return d.join(' ');
+  }catch(e){return '';}
+}
 function lasProtRad(k,valdKallnyckel,fore,efter,orsak){
   if(!_lasProt)return;
   if(LAYOUT_KEYS.indexOf(k)<0)return;   /* bara layouten - loggarna ar inte stridsamnet */
-  _lasProt.rader.push({k:k,src:valdKallnyckel||'-',
+  var rad={k:k,src:valdKallnyckel||'-',
     f:(fore==null?-1:String(fore).length),
     e:(efter==null?-1:String(efter).length),
-    o:orsak||''});
+    o:orsak||''};
+  /* For storleksbararna racker inte langden - visa varderna. */
+  if(k==='cfg_v1'){rad.fd=stlDigest(fore);rad.ed=(efter==null)?'':stlDigest(efter);}
+  else if(k==='secScale_v1'){
+    rad.fd=(fore==null)?'':String(fore).slice(0,90);
+    rad.ed=(efter==null)?'':String(efter).slice(0,90);
+  }
+  _lasProt.rader.push(rad);
 }
 function lasProtSlut(){
   if(!_lasProt)return;
@@ -12799,6 +12845,12 @@ function lasProtText(){
     t+='  '+r.k+': lokalt '+(r.f<0?'saknas':r.f+' tkn')
       +' → '+(r.e<0?'orört':r.e+' tkn')
       +'   källa '+r.src+(r.o?(' · '+r.o):'')+(and?'   SKREVS ÖVER':'')+'\n';
+    /* Samma langd betyder inte samma innehall - darfor varderna under. */
+    if(r.fd!=null||r.ed!=null){
+      if(r.fd)t+='      före: '+r.fd+'\n';
+      if(r.ed&&r.ed!==r.fd)t+='      efter: '+r.ed+'   VÄRDEN BYTTA\n';
+      else if(r.ed)t+='      efter: samma värden\n';
+    }
   });
   return t;
 }
@@ -14935,7 +14987,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v581';
+const APP_VERSION='v583';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
