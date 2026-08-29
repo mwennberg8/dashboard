@@ -3782,7 +3782,10 @@ function windExtremes(ws,gs){const day=dayKey();let o={};try{o=JSON.parse(localS
    fler punkter (`if(pts.length>HIST[k].length)`). En by som intraffade nattetid
    med sidan stangd kom darfor aldrig med i "hogsta idag".
    Har hamtas dygnets varden i stallet direkt fran vindmatarens egen logg. */
-var WIND_INS_KEY='windins_v1';
+/* v2: nyckeln ar bytt for att de sparade dygnstopparna fram till v586 lag i
+   km/h. Ett gammalt varde hade annars legat kvar och slagit ut det rattade
+   tills midnatt, eftersom hogsta vardet vinner. */
+var WIND_INS_KEY='windins_v2';
 var _windSeries=null, _windInsAt=0, _windInsBusy=false, _windInsFel=null;
 function windInsCache(){try{var o=JSON.parse(localStorage.getItem(WIND_INS_KEY)||'{}');
   return (o&&o.day===dayKey())?o:null;}catch(e){return null;}}
@@ -4120,12 +4123,23 @@ async function windAppFetch(){
   appStatePool(st);
   if(!st||!st.vind)return false;
   var v=st.vind;
+  /* KM/H OCKSA HAR. Appens dygnstoppar sparades som de var, med kommentaren
+     att de kommer ur samma Insights-loggar - och det ar just poangen: de
+     loggarna ligger i km/h, precis som nar dashboarden laser dem sjalv nagra
+     rader ner och delar med 3,6. Toppen for dygnet visades darfor i km/h
+     medan allt annat pa sidan stod i m/s, och eftersom det hogsta vardet
+     vinner slog den dessutom ut den ratta siffran fran de egna matningarna.
+     Att det ar km/h ar inte en gissning: appens measure_gust_today stod pa 46
+     samtidigt som byvinden nu var 23 och SMHI:s dygnsprognos 11,2 m/s.
+     46 m/s ar 165 km/h - orkan. 46 km/h ar 12,8 m/s, alltsa dagens vader. */
   var ny={};
-  if(v.dygnMax&&v.dygnMax.v!=null)ny.wind=v.dygnMax;
-  if(v.byDygnMax&&v.byDygnMax.v!=null)ny.gust=v.byDygnMax;
+  if(v.dygnMax&&v.dygnMax.v!=null)ny.wind={v:kmhTillMs(v.dygnMax.v),t:v.dygnMax.t};
+  if(v.byDygnMax&&v.byDygnMax.v!=null)ny.gust={v:kmhTillMs(v.byDygnMax.v),t:v.byDygnMax.t};
+  if(ny.wind&&ny.wind.v==null)delete ny.wind;
+  if(ny.gust&&ny.gust.v==null)delete ny.gust;
   if(!ny.wind&&!ny.gust)return false;
-  /* Appens dygnstoppar sparas som de är. De kommer ur samma Insights-loggar
-     men hämtas var femtonde minut i bakgrunden, inte bara när sidan öppnas. */
+  /* Appens toppar hamtas var femtonde minut i bakgrunden, inte bara nar sidan
+     oppnas - darfor tacker de aven timmar da ingen haft dashboarden uppe. */
   var spara={day:dayKey(),t:Date.now(),kalla:'app'};
   if(ny.wind)spara.wind=ny.wind;
   if(ny.gust)spara.gust=ny.gust;
@@ -15035,7 +15049,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v586';
+const APP_VERSION='v587';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
