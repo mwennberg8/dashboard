@@ -12759,14 +12759,28 @@ const LAYOUT_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','tilesFlode_v5','tilesEne
 function syncKey(k){
   return (LAYOUT_KEYS.indexOf(k)>=0)?(k+'__'+secKlass()):k;
 }
-/* Plockar ut vardet for en nyckel ur en hamtad kopia: eget fack forst, gamla
-   delade nyckeln som reserv. */
+/* Innehaller kopian fack alls? Ar den skriven av v577 eller senare finns minst
+   en nyckel med suffix. */
+function syncNyttFormat(nycklar){
+  if(!nycklar)return false;
+  for(var i=0;i<LAYOUT_KEYS.length;i++)
+    for(var kl in SEC_ZOOM_BAS)if((LAYOUT_KEYS[i]+'__'+kl) in nycklar)return true;
+  return false;
+}
+/* Plockar ut vardet for en nyckel ur en hamtad kopia.
+   RESERVEN AR FARLIG och far bara anvandas pa en GAMMAL kopia. Logikvariablerna
+   bar fortfarande den delade layouten fran fore v577; foll lasningen tillbaka
+   pa den skrevs enhetens egna installningar over igen, precis som forut.
+   Har kopian fack betyder ett saknat fack att DEN HAR enheten inte sparat nagon
+   layout dar - och da ska det lokala sta kvar, inte ersattas av den andra
+   enhetens. */
 function syncPlock(obj,k){
   if(!obj)return null;
   var sk=syncKey(k);
   if(obj[sk]!=null)return obj[sk];
-  if(k!==sk&&obj[k]!=null)return obj[k];
-  return null;
+  if(k===sk)return (obj[k]!=null)?obj[k]:null;
+  if(syncNyttFormat(obj))return null;
+  return (obj[k]!=null)?obj[k]:null;
 }
 function bkpLayoutLen(){let n=0;LAYOUT_KEYS.forEach(k=>{const v=localStorage.getItem(k);
   if(v!=null)n+=v.length;});return n;}
@@ -13282,6 +13296,7 @@ async function appBackupLas(){
     }
   }
   var n=0;
+  var nyttFormat=syncNyttFormat(lista.nycklar);
   _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
   /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
      buttons_v1__telefon och buttons_v1__platta; den har enheten ska bara se
@@ -13289,7 +13304,10 @@ async function appBackupLas(){
   for(var ki=0;ki<SYNC_KEYS.length;ki++){
     var k=SYNC_KEYS[ki];
     var sk=syncKey(k);
-    var finns=(sk in lista.nycklar)?sk:((k in lista.nycklar)?k:null);
+    var finns=null;
+    if(sk in lista.nycklar)finns=sk;
+    else if(sk===k&&(k in lista.nycklar))finns=k;
+    else if(!nyttFormat&&(k in lista.nycklar))finns=k;   /* bara pa en gammal kopia */
     if(!finns){_appLasSist.hopp.push(k);continue;}
     try{
       var v=await appGet('/backup?key='+encodeURIComponent(finns));
@@ -13665,7 +13683,9 @@ async function syncDiag(){
       var olika=[],lika=0;
       SYNC_KEYS.forEach(function(k){
         var l=null;try{l=localStorage.getItem(k);}catch(e){}
-        var r=obj[k];
+        /* Samma uppslagning som lasvagen gor - annars beskriver felsokningen en
+           nyckel som ingen laser. */
+        var r=syncPlock(obj,k);
         if(r!=null&&typeof r!=='string'){try{r=JSON.stringify(r);}catch(e){r=String(r);}}
         var same=(l==null&&r==null)||(l!=null&&r!=null&&String(l)===String(r));
         if(same){lika++;return;}
@@ -13701,13 +13721,21 @@ async function syncDiag(){
       if(appKan()){
         var lista=await appGet('/backup');
         if(lista&&lista.nycklar&&Object.keys(lista.nycklar).length){
+          /* Hamta nyckeln som LASVAGEN skulle valja - facket forst, den gamla
+             delade bara om kopian saknar fack helt. Annars jamfor felsokningen
+             mot en nyckel som ingen laser. */
+          var nyF=syncNyttFormat(lista.nycklar);
           var o={};
           for(var q=0;q<SYNC_KEYS.length;q++){
-            var kk=SYNC_KEYS[q];
-            if(!(kk in lista.nycklar))continue;
-            var vv=await appGet('/backup?key='+encodeURIComponent(kk));
-            if(vv!=null)o[kk]=vv;
+            var kk=SYNC_KEYS[q], sk2=syncKey(kk), valj=null;
+            if(sk2 in lista.nycklar)valj=sk2;
+            else if(sk2===kk&&(kk in lista.nycklar))valj=kk;
+            else if(!nyF&&(kk in lista.nycklar))valj=kk;
+            if(!valj)continue;
+            var vv=await appGet('/backup?key='+encodeURIComponent(valj));
+            if(vv!=null)o[syncKey(kk)]=vv;
           }
+          t+='\n\nAppens backup har '+(nyF?'egna fack per enhetstyp':'bara den gamla delade layouten');
           t+=jamfor('appens backup (den bootSync läser först)',o);
         }else t+='\n\nAppens backup: tom.';
       }else t+='\n\nAppens backup: appen svarar inte.';
@@ -14805,7 +14833,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v577';
+const APP_VERSION='v578';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
