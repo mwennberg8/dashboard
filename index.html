@@ -613,16 +613,19 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:15px;font-weight:700;
   border-radius:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;
   padding:0;box-sizing:border-box}
+/* I KORSET ar varje ruta kvadratisk. Forut hade riktningarna fast hojd medan de
+   runda var kvadratiska - da blev rutnatet ojamnt och korset sag skevt ut.
+   Samma losning som Goteborg: aspect-ratio pa alla, ingen fast hojd. */
+.dlg-body .gtv-pad .gtv-k{aspect-ratio:1;height:auto;width:100%}
 /* Bakat och hem ar RUNDA och nastan tomma - de gor nagot annat an riktningarna
    och ska kannas annorlunda under tummen, inte bara se annorlunda ut. */
-.dlg-body .gtv-k.rund{border-radius:50%;background:none;aspect-ratio:1;height:auto;
-  border-color:var(--line-soft,var(--line))}
-.dlg-body .gtv-k.ok{border-radius:50%;aspect-ratio:1;height:auto;
-  background:none;border:1.5px solid var(--blue);color:var(--blue);
-  font-size:14px;font-weight:800;letter-spacing:.04em}
+.dlg-body .gtv-k.rund{border-radius:999px;background:none;color:var(--faint)}
+.dlg-body .gtv-k.ok{border-radius:999px;background:none;border:1.5px solid var(--blue);
+  color:var(--blue);font-size:14px;font-weight:800;letter-spacing:.04em}
 .dlg-body .gtv-k.txt{font-size:13px;gap:7px;letter-spacing:.01em}
 .dlg-body .gtv-k.txt .ic{width:15px;height:15px;flex:0 0 auto}
-.dlg-body .gtv-k .ic{width:19px;height:19px}
+.dlg-body .gtv-k .ic{width:21px;height:21px}
+.dlg-body .gtv-k.rund .ic{width:17px;height:17px}
 .dlg-body .gtv-ic{display:inline-flex;align-items:center}
 .dlg-body .gtv-ic.flip{transform:rotate(180deg)}
 .dlg-body .gtv-k.ok{background:rgba(129,161,193,.18);border-color:var(--blue);color:var(--blue);
@@ -727,14 +730,21 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   padding:var(--pg-gap);margin-bottom:var(--pg-gap-y)}
 .ctl-row{display:flex;flex-direction:row;gap:var(--pg-gap);min-width:0;width:100%}
 .ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
-.ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);font-family:var(--sans);font-weight:650;font-size:13px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s;min-height:84px;justify-content:center}
+/* KNAPPARNAS RADIE FOLJER PANELENS. Rutan ar en panel med --r i horn, och 18 px
+   inuti 26 px last som tva olika formsprak. Atta bildpunkter mindre an panelen
+   ar den vanliga proportionen for ett element som ligger innanfor en annan
+   rundad form - det ser ut som samma horn, en bit in. */
+.ctl{appearance:none;border:1px solid var(--line);border-radius:calc(var(--r) - 8px);background:var(--inset);color:var(--ink);font-family:var(--sans);font-weight:650;font-size:13px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s;min-height:84px;justify-content:center}
 /* FRAMSTEGSSTRECKET. .ctl fick position:relative och strecket ligger absolut
    placerat över botten — läggs det i flödet tar det höjd i flexkolumnen och
    trycker ihop ikon och text på alla övriga knappar. Ingen overflow:hidden
    behövs: strecket är indraget 12 px och når aldrig ut till radien. */
 .ctl{position:relative}
-@keyframes ikPuls{0%,100%{opacity:1}50%{opacity:.42}}
-.stat-ic.pulsar,.en-chip-ic.pulsar{animation:ikPuls 1.6s ease-in-out infinite}
+/* Langsammare och grundare an forst. 1,6 s med botten pa 42 % last som ett
+   blinkande larm; 3,4 s med mjuk kurva och botten pa 62 % ar en andning - den
+   sager "detta pagar", inte "titta hit nu". */
+@keyframes ikPuls{0%,100%{opacity:1}50%{opacity:.62}}
+.stat-ic.pulsar,.en-chip-ic.pulsar{animation:ikPuls 3.4s cubic-bezier(.45,0,.55,1) infinite}
 @media (prefers-reduced-motion:reduce){.stat-ic.pulsar,.en-chip-ic.pulsar{animation:none;opacity:.75}}
 .stat-ic.har-mark,.en-chip-ic.har-mark{position:relative;overflow:visible}
 .ik-mark{position:absolute;right:-5px;bottom:-4px;width:13px;height:13px;
@@ -2165,11 +2175,25 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
    indraget inte heller finnas - annars ser avdelaren kortare ut an den ar. */
 .fl-tiles>.stat:nth-child(-n+3)::before{top:0}
 .fl-tiles>.stat:nth-child(n+4)::before{bottom:0}
-.fl-tiles>.stat::after{content:'';position:absolute;top:0;left:0;right:0;
+/* HEL LINJE TVARS OVER. Varje ruta ritade sin egen bit fran kant till kant,
+   men kolumnerna ar 1fr av en bredd som sallan gar jamnt ut i tre - varje bit
+   avrundas nedat och det blir ett harfint glapp i de tva skarvarna. Genom att
+   dra ut biten en bildpunkt at bada hallen moter de varandra oavsett hur
+   bredden faller. */
+.fl-tiles>.stat::after{content:'';position:absolute;top:0;left:-1px;right:-1px;
   height:1px;background:var(--line)}
 /* Tre kolumner: inget lodratt streck forst pa raden, inget vagratt pa forsta raden. */
 .fl-tiles>.stat:nth-child(3n+1)::before{display:none}
 .fl-tiles>.stat:nth-child(-n+3)::after{display:none}
+/* CENTRERINGEN maste vara mer specifik an rutnatets egna regler. ".ic-mitt"
+   ensam ar en klass; ".fl-tiles>.stat" ar tva plus en kombinator, och aven med
+   !important pa den forsta forlorade den nar bada satte samma egenskap pa
+   olika element. Har star bada delarna i samma selektor. */
+.fl-tiles>.stat.ic-mitt,.pn-tiles>.stat.ic-mitt,.en-stats>.stat.ic-mitt{align-items:center!important}
+.fl-tiles>.stat.ic-mitt .stat-ic,.pn-tiles>.stat.ic-mitt .stat-ic,
+.en-stats>.stat.ic-mitt .stat-ic{align-self:center!important;margin-top:0!important;margin-bottom:0!important}
+.fl-tiles>.stat.allt-mitt,.pn-tiles>.stat.allt-mitt,.en-stats>.stat.allt-mitt{
+  justify-content:center!important;text-align:center!important;align-items:center!important}
 .fl-tiles>.stat:nth-child(-n+3){padding-top:0}
 .fl-tiles>.stat:nth-child(n+4){padding-bottom:0}
 /* TRE KOLUMNER OCKSA I HANDEN. Mobilen brot forut till tva kolumner och tre
@@ -2295,7 +2319,7 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
   body:not(.kiosk) .ctl{min-width:0;overflow:hidden;padding:12px 6px;gap:6px;min-height:78px}
   /* Knappen krymper med hur många som delar raden – se --cs nedan. */
   body:not(.kiosk) .ctl-row .ctl{padding:calc(12px*var(--cs,1)) calc(6px*var(--cs,1));
-    gap:calc(6px*var(--cs,1));min-height:calc(78px*var(--cs,1));border-radius:calc(18px*var(--cs,1))}
+    gap:calc(6px*var(--cs,1));min-height:calc(78px*var(--cs,1));border-radius:calc((var(--r) - 8px)*var(--cs,1))}
   body:not(.kiosk) .ctl-row .ctl-ic{width:calc(24px*var(--cs,1));height:calc(24px*var(--cs,1))}
   body:not(.kiosk) .ctl-row .ctl-l{font-size:calc(11px*var(--cs,1))}
   body:not(.kiosk) .ctl-l{width:100%;min-width:0;font-size:11px;line-height:1.2;white-space:normal;
@@ -9787,12 +9811,17 @@ function computeMetric(cfg){
          poolRate jamfor mot ett varde en timme tillbaka och ger null tidigare
          an sa; da finns ingen trend att visa och zonen far sta kvar.
          Grans 0,05 grader i timmen: under det ar det matbrus, inte en trend. */
-      if(rt!=null&&Math.abs(rt)>=0.05){
-        /* Pilen bar tecknet. "↓ -0,3" sager samma sak tva ganger. */
-        sub=(rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h'+(varms?' · värms':'');
-      }else if(rt!=null){
-        sub='stabil'+(varms?' · värms':'');
-      }else if(varms)sub='värms';}
+      /* LUFTFUKTIGHETEN kommer fran poolrummets egen givare - pooltempgivaren
+         mater bara vattnet. Den star forst: en pool som angar ar det man vill
+         se, och trenden ryms efter. */
+      var fu=cap(DEV.poolrum,'measure_humidity');
+      var bit=[];
+      if(fu!=null&&isFinite(fu))bit.push(Math.round(fu)+' % fukt');
+      /* Pilen bar tecknet. "↓ -0,3" sager samma sak tva ganger. */
+      if(rt!=null&&Math.abs(rt)>=0.05)bit.push((rt>0?'↑ ':'↓ ')+num(Math.abs(rt),1)+'°/h');
+      else if(rt!=null)bit.push('stabil');
+      if(varms)bit.push('värms');
+      if(bit.length)sub=bit.join(' · ');}
     return {label:cfg.label||(dev&&dev.name)||'Värde',icon:cfg.icon||inferIcon(cfg.cap),v:vv,
       sub:sub,meta:meta,det:cfg.device===DEV.pooltemp?'pool':null};}
   switch(cfg.key){
@@ -14695,7 +14724,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v568';
+const APP_VERSION='v570';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
