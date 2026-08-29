@@ -685,16 +685,28 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
 
 .two{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);align-items:start}
 @media (max-width:760px){.two{grid-template-columns:1fr}}
-.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-  column-gap:var(--pg-gap);row-gap:var(--pg-gap-y);
+/* SAMMA RADINDELNING PÅ ALLA ENHETER.
+   Plattan hade ett rutnät där antalet kolumner sattes till första radens
+   längd. Med sju knappar blev det fyra kolumner, och andra raden fyllde tre av
+   dem — den fjärde cellen stod tom. Telefonen har alltid haft riktiga rader
+   där knapparna delar bredden lika, och det är det beteendet som är rätt:
+   4 + 3 där båda raderna går kant till kant.
+   Raderna räknas ut i ctlRows och är alltså lika jämna som möjligt. */
+.controls{display:flex;flex-direction:column;
+  gap:var(--pg-gap-y);
   /* Samma innerkant som mellanrummet mellan knapparna. */
   padding:var(--pg-gap);margin-bottom:var(--pg-gap-y)}
+.ctl-row{display:flex;flex-direction:row;gap:var(--pg-gap);min-width:0;width:100%}
+.ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
 .ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);font-family:var(--sans);font-weight:650;font-size:13px;padding:14px 12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;transition:.18s;min-height:84px;justify-content:center}
 /* FRAMSTEGSSTRECKET. .ctl fick position:relative och strecket ligger absolut
    placerat över botten — läggs det i flödet tar det höjd i flexkolumnen och
    trycker ihop ikon och text på alla övriga knappar. Ingen overflow:hidden
    behövs: strecket är indraget 12 px och når aldrig ut till radien. */
 .ctl{position:relative}
+.ctl-sub{position:absolute;left:8px;right:8px;bottom:6px;font-size:9px;font-weight:700;
+  letter-spacing:.02em;color:var(--faint);text-align:center;pointer-events:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
   background:var(--line);pointer-events:none}
 .ctl-prog i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .6s ease}
@@ -707,7 +719,7 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
    varje rad ett eget rutnät med lika breda kolumner – då fyller raden hela
    bredden och alla knappar på samma rad blir lika stora, även när den sista
    raden har färre knappar än den första. */
-.ctl-row{display:contents}
+/* display:contents är borta — raderna ska vara riktiga rader. */
 /* Samma innerkant som ÖVRIGA RUTOR, inte --pg-gap. På mobil är --pg-gap bara
    3 px — det är mellanrummet MELLAN rutor, inte innerkanten i dem. Med det som
    padding låg knapparna 3 px från kanten medan grannrutorna har 16, och raden
@@ -1065,6 +1077,14 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .dlg-body .prog-exp{width:100%;height:150px;box-sizing:border-box;margin-top:6px;
   background:var(--inset);border:1px solid var(--line);border-radius:10px;color:var(--dim);
   font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px;resize:vertical}
+.dlg-body .fas-r{display:flex;align-items:center;gap:9px;padding:5px 0}
+.dlg-body .fas-n{font-size:11px;font-weight:800;color:var(--faint);width:20px;flex:0 0 auto}
+.dlg-body .fas-b{flex:1 1 auto;height:7px;border-radius:4px;background:var(--inset);
+  border:1px solid var(--line);overflow:hidden;box-sizing:border-box}
+.dlg-body .fas-b i{display:block;height:100%;border-radius:3px;transition:width .5s ease}
+.dlg-body .fas-v{font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;
+  width:52px;text-align:right;flex:0 0 auto}
+.dlg-body .fas-t{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.45}
 .dlg-body .dsec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
@@ -3307,12 +3327,40 @@ function moodSenseInfo(b){
   var ids=moodLightIds(b);
   var namn=ids.map(function(i){return (DATA[i]&&DATA[i].name)||i;});
   return {kalla:(fran&&fran.length)?'mood':(ids.length?'zon':'minne'), ids:ids, namn:namn};}
+/* ===== LADDA BATTERIET =====
+   Tva flows, ett per riktning. Lage LAST UR VAXELRIKTAREN, inte ur ett minne av
+   senaste tryck: sattes laget om fran Homey-appen eller av ett schema ska
+   knappen visa det anda.
+
+   storagecontrolmode 4 betyder fjarrstyrning, och storagedefaultmode 3 betyder
+   ladda fran bade sol och nat. BADA kravs - flodet "ladda bara fran sol" satter
+   ocksa kontrollmode 4, men defaultmode 1, och det ar ett annat lage som inte
+   ska tanda den har knappen. */
+const BATT_FLOW_PA='565bae12-d675-4bc6-93b4-d3a03edc7af2';   /* ladda max 5000 W */
+const BATT_FLOW_AV='0e9598ed-9c6b-4a94-9869-5c3d5c69bb39';   /* normal drift */
+const BATT_MODBUS='438aa2c6-7413-4b1e-9e9a-ec66ed54baff';
+function battLaddLage(){
+  var km=cap(BATT_MODBUS,'storagecontrolmode');
+  var dm=cap(BATT_MODBUS,'storagedefaultmode');
+  if(km==null)return null;                       /* modbus svarar inte */
+  return String(km)==='4'&&String(dm)==='3';
+}
+function battLaddText(){
+  var km=cap(BATT_MODBUS,'storagecontrolmode');
+  if(km==null)return 'ingen kontakt';
+  var dm=String(cap(BATT_MODBUS,'storagedefaultmode'));
+  if(String(km)!=='4')return 'normal drift';
+  if(dm==='1')return 'bara sol';
+  if(dm==='3')return 'laddar max';
+  return 'fjärrstyrd';
+}
 function btnState(b){ // returnerar true om "på/aktiv"
   if(b.type==='toggle'){const v=cap(b.device,b.cap);return b.cap==='onoff'?v===true:v===b.on;}
   /* BREVEDEN: läget kommer från logikvariabeln, inte från något lokalt minne.
      Skriptet är auktoritativt — knappen speglar bara vad det säger. */
   if(b.type==='breveden'){var Bs=brvState();return !!(Bs&&Bs.aktiv);}
   if(b.type==='disk')return diskBokad()||diskKor();
+  if(b.type==='battladd')return battLaddLage()===true;
   if(b.type==='flowtoggle'){
     /* Följ-enhet går före: den vet vad som faktiskt hände, även om flowet
        startats från Homey-appen. Utan den återstår minnet av senaste tryck. */
@@ -3345,8 +3393,9 @@ function renderControls(){
   el.style.display='';
   const n=CONFIG.BUTTONS.length, mob=szMobile();
   const rader=ctlRows(n, mob?5:6);
-  /* Platta och dator: ett rutnät som förut – raderna löses upp av display:contents. */
-  el.style.gridTemplateColumns=mob?'':('repeat('+rader[0]+',minmax(0,1fr))');
+  /* Ingen kolumnsättning längre: raderna är flexrader på alla enheter, och
+     varje rad fyller bredden oavsett hur många knappar den har. */
+  el.style.gridTemplateColumns='';
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   const knapp=(b,i)=>{
     const on=btnState(b),isArm=armed.i===i;
@@ -3387,6 +3436,15 @@ function renderControls(){
         extra='<span class="ctl-prog"><i style="width:'+(dp!=null?Math.round(dp):0)+'%"></i></span>';
       }
       else lbl=on?(diskNar()||'Bokad'):(b.label||'Diskmaskin');
+    }
+    else if(b.type==='battladd'){
+      /* Ikonen visar LAGET, etiketten vad ett tryck gor. Samma uppdelning som
+         moodknappen: man laser av tillstandet ur bilden och handlingen ur
+         texten. */
+      var bl=battLaddLage();
+      if(beAuto())ic=(bl===true)?'battery-charging':'battery-high';
+      lbl=(bl===null)?'Ingen kontakt':(bl?'Normal drift':'Ladda max');
+      extra='<span class="ctl-sub">'+esc(battLaddText())+'</span>';
     }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
@@ -3429,7 +3487,10 @@ async function btnTap(i){
   const b=CONFIG.BUTTONS[i];if(!b)return;
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   if(!live){flashCtl(i,'kräver Homey',true);return;}
-  if(b.confirm&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
+  /* Batteriladdningen kraver ALLTID tva tryck, oavsett installning. Ett tryck
+     av misstag startar laddning fran natet i 5 kW - samma skal som for Breveden
+     och diskmaskinen, fast dyrare. */
+  if((b.confirm||b.type==='battladd')&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
   armed={i:-1,t:0};
   try{
     flashCtl(i,'skickar…');
@@ -3463,6 +3524,17 @@ async function btnTap(i){
       await brvTryck();
       flashCtl(i,(btnState(b)?'stänger…':'startar…'));
       setTimeout(renderControls,2200);
+      return;
+    }else if(b.type==='battladd'){
+      var bl2=battLaddLage();
+      if(bl2===null){flashCtl(i,'ingen kontakt',true);return;}
+      await homeyTriggerFlow('standard',bl2?BATT_FLOW_AV:BATT_FLOW_PA);
+      flashCtl(i,bl2?'normal drift ✓':'laddar max ✓');
+      /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
+         svarar, och Homey hinner lasa forst vid nasta varv. Darfor lite langre
+         vantan an de andra knapparna innan rutan ritas om. */
+      setTimeout(function(){load();},1500);
+      setTimeout(renderControls,3000);
       return;
     }else if(b.type==='flowtoggle'){
       /* Två flows, ett per riktning. Läget hämtas från btnState — följ-enhet om
@@ -4152,6 +4224,75 @@ function indoorAvgSeries(){const a=HIST['t_vard']||[],b=HIST['t_kok']||[];const 
   return out;}
 /* Nätleffektgraf: blått = positivt (köper från nätet), grönt = negativt (säljer).
    Linjen bryts vid nollgenomgången så färgbytet sker precis där effekten vänder. */
+/* ===== BELASTNING PER FAS =====
+   Pulse mater strommen per fas: measure_current.L1, .L2 och .L3. Talen har
+   funnits hela tiden men aldrig visats, och det ar just de som avgor om
+   huvudsakringen halller - inte den sammanlagda effekten. En laddbox pa 10 kW
+   och en spis pa samma fas kan lasa ut en 25 A-sakring medan huset som helhet
+   ligger langt under sitt tak.
+
+   HUVUDSAKRINGEN AR EN INSTALLNING, inte ett antagande. 25 A ar vanligast i
+   svenska villor och ar standardvarde, men jag vet inte vad du har - staller
+   du in fel tal blir varningen meningslos. Talet finns i installningarna.
+
+   Groda gransen 75 %, roda 90 %. Sakringar loser inte ut vid market utan har
+   en tidskurva: en 25 A-sakring tal 30 A i minuter. Darfor ar 90 % en varning
+   och inte ett larm - men det ar dar man vill veta. */
+const FAS_DEF=25;
+function fasSakring(){
+  var v=CFG&&CFG.huvudsakring;
+  return (typeof v==='number'&&isFinite(v)&&v>=6&&v<=100)?v:FAS_DEF;
+}
+function fasA(n){
+  var v=cap(DEV.pulse,'measure_current.L'+n);
+  return (v!=null&&isFinite(v))?v:null;
+}
+function fasAlla(){return [fasA(1),fasA(2),fasA(3)];}
+/* Hogsta fasen och hur nara sakringen den ligger. Returnerar null nar Pulse
+   inte rapporterar strom alls - da ska ingenting varnas om. */
+function fasVarst(){
+  var a=fasAlla(),b=null,bi=0;
+  for(var i=0;i<3;i++){if(a[i]!=null&&(b==null||a[i]>b)){b=a[i];bi=i+1;}}
+  if(b==null)return null;
+  return {a:b,fas:bi,kvot:b/fasSakring()};
+}
+/* Vanliga sakringsstorlekar. Att stega fritt i ampere gav ingen nytta - man
+   har den sakring man har, och den ar en av de har. */
+const FAS_STEG=[16,20,25,35,50,63,80];
+function sakringStep(d){
+  var nu=fasSakring(),i=FAS_STEG.indexOf(nu);
+  if(i<0){i=0;for(var k=0;k<FAS_STEG.length;k++)if(FAS_STEG[k]<=nu)i=k;}
+  i=Math.max(0,Math.min(FAS_STEG.length-1,i+d));
+  CFG.huvudsakring=FAS_STEG[i];saveCfg();
+  var e=$('sakr-v');if(e)e.textContent=FAS_STEG[i]+' A';
+  try{render();}catch(e2){}
+}
+function fasFarg(kvot){
+  if(kvot>=0.9)return 'var(--hot)';
+  if(kvot>=0.75)return 'var(--gold)';
+  return 'var(--ok,#a3be8c)';
+}
+/* Staplarna i popupen. En stapel per fas mot sakringens tak, sa att en sned
+   belastning syns direkt - tre jamna staplar ser annorlunda ut an en hog. */
+function fasHTML(){
+  var a=fasAlla(),sak=fasSakring();
+  if(a[0]==null&&a[1]==null&&a[2]==null)
+    return dRow('Faser','Pulse rapporterar ingen ström');
+  var h='';
+  for(var i=0;i<3;i++){
+    var v=a[i],k=(v==null)?0:v/sak;
+    var br=Math.max(0,Math.min(100,k*100));
+    h+='<div class="fas-r"><span class="fas-n">L'+(i+1)+'</span>'
+      +'<span class="fas-b"><i style="width:'+br.toFixed(0)+'%;background:'+fasFarg(k)+'"></i></span>'
+      +'<span class="fas-v" style="color:'+(k>=0.75?fasFarg(k):'var(--dim)')+'">'
+      +(v==null?'–':num(v,1)+' A')+'</span></div>';
+  }
+  var v=fasVarst();
+  h+='<div class="fas-t">Huvudsäkring '+sak+' A · högsta fasen '
+    +(v?('L'+v.fas+' på '+Math.round(v.kvot*100)+' %'):'okänd')
+    +'. Ändra säkringen i inställningarna om talet är fel.</div>';
+  return h;
+}
 function gridPowerSVG(pts){
   const now=Date.now();
   if(!pts||pts.length<3)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
@@ -8965,6 +9106,7 @@ function openDetail(which){
     if(!_prog)progHamta().then(function(){progUppdatera();});
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     body=gridPowerSVG(HIST['grid']||[])
+      +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
   }else if(which==='batt'){const bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();title='Husbatteri';
     body=dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
@@ -9641,7 +9783,18 @@ function computeMetric(cfg){
       return {label:'Tomt',icon:'battery-low',
         icc:S.pagar?'var(--hot)':'var(--faint)',
         v:vv,meta:mm,det:'batttom'};}
-    case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');return {label:'Elnät',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
+    case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');
+      /* Overbelastad fas syns i rutan, inte bara i popupen: det ar da man vill
+         veta, och rutan ar det man ser. Ikonen byter farg och den varsta fasen
+         skrivs ut bredvid effekten. Under 75 % star ingenting extra - en varning
+         som alltid syns slutar betyda nagot. */
+      const fv=fasVarst();
+      const varn=(fv&&fv.kvot>=0.75);
+      let vv=pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw));
+      if(varn)vv+=' <small style="color:'+fasFarg(fv.kvot)+'">L'+fv.fas+' '+num(fv.a,0)+' A</small>';
+      return {label:'Elnät',icon:varn?'warning':'lightning',
+        icc:varn?fasFarg(fv.kvot):null,
+        v:vv,meta:pw==null?'–':(pw>5?'köper':pw<-5?'säljer':'balans'),det:'grid'};}
     case 'humidity':{const hum=cap(DEV.outdoor,'measure_humidity');return {label:'Luftfuktighet',icon:'drop-half-bottom',v:hum==null?'–':Math.round(hum)+' <small>%</small>',meta:'',det:'humidity'};}
     case 'seatemp':{const t=(typeof FEED!=='undefined')?FEED.sea:null;return {label:'Badtemp',icon:'waves',v:(t==null?'–':num(t,1)+' <small>°C</small>'),meta:CONFIG.BATH_NAME||'havet',det:'seatemp'};}
     case 'rain':{const r=cap(DEV.rain,'measure_rain.24h');const fut=(_timeActive&&_timeInfo&&_timeInfo.future);      return {label:fut?'Regn':'Regn 24h',icon:'cloud-rain',v:r==null?'–':num(r,1)+' <small>mm'+(fut?'/h':'')+'</small>',meta:'',det:'rain'};}
@@ -12824,6 +12977,12 @@ async function appBackupLas(){
          lyckas men ingenting ändrades. */
       if(v==null){_appLasSist.hopp.push(k);continue;}
       if(typeof v!=='string'){try{v=JSON.stringify(v);}catch(e){v='';}}
+      /* SAMMA SKYDD SOM I fetchFromHomey. Hojderna ligger i fack per enhetstyp
+         i EN nyckel, och den har vagen - backupen fran Homey-appen - gick forbi
+         sammanfogningen i v540. Eftersom bootSync foredrar appen framfor
+         logikvariablerna var det HAR vaggplattans hojd skrevs over, medan
+         rattningen jag gjorde satt pa en vag som sallan anvands. */
+      if(k==='secScale_v1')v=scaleSammanfoga(v);
       if(v.length){localStorage.setItem(k,v);n++;}
       else _appLasSist.hopp.push(k);
     }catch(e){_appLasSist.fel.push(k);}
@@ -12882,11 +13041,16 @@ async function saveToHomey(){
    aldrig utsetts frysa fast sina egna mått. */
 function scaleSammanfoga(rem){
   try{
-    if(!arHuvud())return rem;
     var r=JSON.parse(rem||'{}');
     if(!r||typeof r!=='object')return rem;
     var l=secScaleAlla(),k=secKlass();
-    if(l&&l[k]&&typeof l[k]==='object')r[k]=l[k];
+    /* HAR DEN HAR ENHETEN EGNA MATT for sin klass behalls de. Villkoret var
+       forut arHuvud(), men det beror pa en utpekning som kan saknas: har
+       vaggplattan aldrig blivit utsedd fanns inget skydd alls, och da skrevs
+       hojden over anda. Nu racker det att facket finns lokalt.
+       En NY enhet har inget fack och arver darfor det som ligger i Homey - det
+       ar sa en ny platta ska fa den inarbetade layouten. */
+    if(l&&l[k]&&typeof l[k]==='object'&&Object.keys(l[k]).length)r[k]=l[k];
     return JSON.stringify(r);
   }catch(e){return rem;}
 }
@@ -13159,6 +13323,9 @@ function bkCopy(){const t=$('bk-out');if(t&&t.select)t.select();let ok=false;try
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(backupString());ok=true;}catch(e){}
   const s=$('bk-status');if(s)s.textContent=ok?'Kopierat ✓':'Markera texten och kopiera manuellt.';}
 function doImport(){const t=$('bk-in'),s=$('bk-status');if(!t)return;let obj;try{obj=JSON.parse(t.value);}catch(e){if(s)s.textContent='Ogiltig sträng – kontrollera att du klistrat in hela.';return;}
+  /* Handpaklistrad import raknas som ett medvetet val: da ska ALLT galla, aven
+     hojderna. Det ar skillnaden mot en automatisk synk, dar den andra enhetens
+     kopia inte far ata upp ens egna matt. */
   let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);n++;}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
   loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;applySecOrder();render();
@@ -13783,9 +13950,9 @@ var BTN_ICONS=[
  ['El, sol & bil',['plug','plugs','power','lightning','battery-high','solar-panel','car','car-profile','charging-station']],
  ['Rum & övrigt',['house','house-line','buildings','bed','couch','stairs','elevator','shower','bathtub','toilet','swimming-pool','timer','clock','tree','flower','umbrella','wrench','hammer','fire-extinguisher','gauge']]
 ];
-var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['disk','Diskmaskin','fork-knife'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['special','Släck allt','moon']];
+var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['disk','Diskmaskin','fork-knife'],['battladd','Ladda batteriet','battery-charging'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['special','Släck allt','moon']];
 var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=null,_beMood=null,_beMoodOn=null,_beMoodOff=null,_beRef=null;
-function beTypeOf(b){return b.type==='disk'?'disk':b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
+function beTypeOf(b){return b.type==='battladd'?'battladd':b.type==='disk'?'disk':b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
 function beStash(){var g=function(id){var e=$(id);return e?e.value:null;},v;
   var l=$('be-label');if(l&&typeof l.value==='string')_beLabel=l.value;
   if((v=g('be-dev'))!=null)_beDev=v;
@@ -13852,6 +14019,15 @@ function openBtnEdit(i,keep){const b=CONFIG.BUTTONS[i]||{};_beIdx=i;ensureFlows(
     /* Vad automatiken faktiskt lyssnar på just nu – annars är det omöjligt att se
        varför knappen står i ett visst läge. */
     h+='<div class="cfg-hint" id="be-sense" style="margin-top:6px">'+moodSenseText(i)+'</div>';
+  }else if(T==='battladd'){
+    h+='<div class="cfg-hint" style="margin-top:8px">Ett tryck startar '
+      +'<b>Batteri · ladda max 5000 W</b>, ett till återgår till '
+      +'<b>Batteri · normal drift</b>. Två tryck krävs alltid — ett misstag '
+      +'startar laddning från nätet på 5 kW.<br><br>'
+      +'Läget läses ur växelriktaren, inte ur minnet av senaste tryck: '
+      +'kontrolläge 4 och laddläge 3 betyder att den laddar max. Ställs det om '
+      +'från Homey-appen visar knappen det ändå. Undertexten säger vad '
+      +'växelriktaren faktiskt står i.</div>';
   }else if(T==='disk'){
     h+='<div class="cfg-hint" style="margin-top:8px">Bokar diskmaskinen till dygnets '
       +'billigaste sammanhängande fönster på 2,5 timmar. Ett tryck bokar, ett till avbokar.<br><br>'
@@ -13944,6 +14120,11 @@ function beSave(i){
        enhet. Den kunde därför varken tändas eller göra något.
        Som Breveden: inget att spara utöver namnet, flows och variabel är fasta. */
     cfg={label:label||'Diskmaskin',type:'disk',icon:_beIcon||'fork-knife'};
+  }else if(T==='battladd'){
+    /* Som diskmaskinen: inget att spara utover namnet. Flodena och registret
+       ar fasta, och tva tryck kravs alltid oavsett kryssrutan. */
+    cfg={label:label||'Ladda batteriet',type:'battladd',icon:_beIcon||'battery-charging',
+      icoval:_beIcon?1:0};
   }else if(T==='breveden'){
     /* Inget att spara utöver namnet: flows och logikvariabel är fasta, och
        skriptet äger all bedömning. */
@@ -13988,7 +14169,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v549';
+const APP_VERSION='v553';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -14199,6 +14380,10 @@ function openConfig(){
   h+=cfgMi('openSizeMenu(\'tile\')','tag','De sex rutorna','Storlek på flödesrutorna');
   h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
   h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export');
+  h+=dRow('Huvudsäkring','<span class="dbtn-row" style="justify-content:flex-end">'
+    +'<button class="dbtn" onclick="sakringStep(-1)">–</button>'
+    +'<b id="sakr-v" style="min-width:44px;display:inline-block;text-align:center">'+fasSakring()+' A</b>'
+    +'<button class="dbtn" onclick="sakringStep(1)">+</button></span>');
   /* 'sliders' finns inte i ikonuppsättningen — 'gauge' är närmast i betydelse. */
   h+=cfgMi('openKnEdit()','gauge','Knappraden','Höjd, text, ikon och marginal');
   h+='</div>';
