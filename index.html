@@ -12802,6 +12802,14 @@ function lasProtText(){
   });
   return t;
 }
+/* TIDSSTAMPEL PER FACK. Kopian har EN tidsstampel for hela sig, men innehallet
+   ar uppdelat per enhetstyp. Sparar plattan blir kopian nyare - och telefonen,
+   som jamfor mot den stampeln, tror att den ska lasa. Den far da sitt EGET
+   gamla fack tillbaka och skriver over nyare lokala andringar.
+   Matt 2026-08-29: buttons_v1 lokalt 1017 tkn, facket 804, och protokollet sa
+   SKREVS OVER.
+   Varje fack har darfor en egen stampel: nar det facket senast skrevs. */
+function layoutTsKey(){return 'layoutts__'+secKlass();}
 function syncNyttFormat(nycklar){
   if(!nycklar)return false;
   for(var i=0;i<LAYOUT_KEYS.length;i++)
@@ -13281,6 +13289,8 @@ async function appBackupSpara(manuell){
        layout star kvar orord i kopian. */
     if(v!=null)obj[syncKey(k)]=v;
   }
+  /* Nar DET HAR facket senast skrevs. */
+  obj[layoutTsKey()]=String(Date.now());
   if(!Object.keys(obj).length)return null;
   /* Stämpla ALLTID, men bara en manuell sparning låser. */
   obj[AGARE_KEY]=agareStampel(manuell);
@@ -13339,6 +13349,16 @@ async function appBackupLas(){
   var n=0;
   var nyttFormat=syncNyttFormat(lista.nycklar);
   lasProtStart('appens backup'+(nyttFormat?' (har fack)':' (gammal, utan fack)'));
+  /* AR VART EGET FACK ALDRE AN VARA EGNA ANDRINGAR? Da ska layouten inte
+     roras - resten av kopian far garna lasas, det ar loggar och matvarden. */
+  var layoutHoppa=false, fackTs=0;
+  try{
+    if(layoutTsKey() in lista.nycklar){
+      fackTs=parseInt(await appGet('/backup?key='+encodeURIComponent(layoutTsKey())),10)||0;
+      var minAndring=andradTs();
+      if(fackTs&&minAndring&&minAndring>fackTs+2000)layoutHoppa=true;
+    }
+  }catch(e){}
   _appLasSist.rap=Object.keys(lista.nycklar).filter(function(x){return x!==AGARE_KEY&&x!==TS_KEY;}).length;
   /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
      buttons_v1__telefon och buttons_v1__platta; den har enheten ska bara se
@@ -13350,6 +13370,10 @@ async function appBackupLas(){
     if(sk in lista.nycklar)finns=sk;
     else if(sk===k&&(k in lista.nycklar))finns=k;
     else if(!nyttFormat&&(k in lista.nycklar))finns=k;   /* bara pa en gammal kopia */
+    if(layoutHoppa&&LAYOUT_KEYS.indexOf(k)>=0){
+      var foreH=null;try{foreH=localStorage.getItem(k);}catch(e){}
+      lasProtRad(k,'-',foreH,null,'lokala ändringar är nyare än facket');
+      continue;}
     if(!finns){
       _appLasSist.hopp.push(k);
       var fore0=null;try{fore0=localStorage.getItem(k);}catch(e){}
@@ -13399,7 +13423,8 @@ async function saveToHomey(){
      återställdes från Homey – det var därför antalet klara dygn nollställdes. */
   const DROPPABLE=['shmap_v2','health_v2','pressLog_v1','zpress_v1','tempEx_v1','windEx_v1','plog_v1','snow_v1','shcost_v1','emix_v1','recs_v1','hin_v1','days_v1'];
   /* Layoutnycklar lagras under sitt eget fack, som i appens backup. */
-  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;const v=localStorage.getItem(k);if(v!=null)o[syncKey(k)]=v;});return o;}
+  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;const v=localStorage.getItem(k);if(v!=null)o[syncKey(k)]=v;});
+    o[layoutTsKey()]=String(Date.now());return o;}
   let skip=[],obj=build(skip),str=JSON.stringify(obj),dropped=[];
   while(str.length>MAXCHUNKS*SYNC_CHUNK && DROPPABLE.length>skip.length){
     const next=DROPPABLE.find(k=>skip.indexOf(k)<0 && localStorage.getItem(k)!=null);
@@ -13627,8 +13652,12 @@ async function fetchFromHomey(){
   let obj;try{obj=JSON.parse(str);}catch(e){return {applied:false,reason:'trasig data'};}
   /* Var nyckel lases ur SITT fack; gamla osuffixade nycklar som reserv. */
   lasProtStart('Homey-variablerna'+(syncNyttFormat(obj)?' (har fack)':' (gammal, utan fack)'));
+  var vFackTs=parseInt(obj[layoutTsKey()],10)||0, vAndrad=andradTs();
+  var vHoppa=!!(vFackTs&&vAndrad&&vAndrad>vFackTs+2000);
   SYNC_KEYS.forEach(k=>{
     var fore=null;try{fore=localStorage.getItem(k);}catch(e){}
+    if(vHoppa&&LAYOUT_KEYS.indexOf(k)>=0){
+      lasProtRad(k,'-',fore,null,'lokala ändringar är nyare än facket');return;}
     var v=syncPlock(obj,k);
     if(v==null){lasProtRad(k,'-',fore,null,
       syncNyttFormat(obj)?'kopian har fack, men inget för den här enheten':'saknas i kopian');return;}
@@ -14890,7 +14919,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v579';
+const APP_VERSION='v580';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
