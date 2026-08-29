@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="sv"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Windy · tidslinje och klockformat</title>
+<style>
+:root{--bg:#2e3440;--panel-b:#2f3643;--line:rgba(216,222,233,.12);--ink:#eceff4;
+  --dim:#cdd6e2;--faint:#8b93a3;--inset:#3b4252;--blue:#81a1c1;--gold:#ebcb8b;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:15px;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+h1{font-size:15px;margin:0 0 4px}
+p.sub{margin:0 0 14px;color:var(--faint);font-size:12px}
+.panel{background:var(--panel-b);border:1px solid var(--line);border-radius:18px;
+  padding:14px;margin-bottom:15px}
+.rc-t{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.karta{border-radius:14px;overflow:hidden;background:#0e1013;margin-top:8px}
+iframe{display:block;width:100%;height:330px;border:0;background:#0e1013}
+.cap{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.45}
+.par{font:10.5px/1.5 ui-monospace,Menlo,monospace;color:var(--dim);margin-top:6px;
+  background:var(--inset);border:1px solid var(--line);border-radius:9px;padding:6px 9px;
+  word-break:break-all}
+</style></head><body>
+<h1>Windy · tidslinje och klockformat</h1>
+<p class="sub">Prognosen ligger i den röda delen av tidslinjen längst ner i kartan — dra reglaget
+åt höger. Titta på klockslagen: står det 14:00 eller 2 PM?</p>
+<div id="ut"></div>
+<script>
+/* TIDSLINJEN kräver calendar=now. Min avskalade variant i 1.1.0 tömde den
+   parametern och satte menu=false — alltså gömde jag undan precis den kontroll
+   som visar prognosen, och drog sedan slutsatsen att den saknades.
+
+   KLOCKFORMATET är osäkert. hourFormat finns dokumenterat i Windys
+   JavaScript-API (windyInit-optionen), inte som parameter till inbäddningen,
+   och lang fungerar bevisligen inte där enligt deras eget forum. Kanske läser
+   embed2 den ändå ur adressen - kanske inte. Därför tre stavningar plus ett
+   utan, så att det går att se skillnaden i stället för att tro något. */
+var BAS='https://embed.windy.com/embed2.html?lat=57.39&lon=12.02&detailLat=57.39'
+  +'&detailLon=12.02&zoom=8&level=surface&overlay=radar&product=radar'
+  +'&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates'
+  +'&detail=&metricWind=m%2Fs&metricTemp=%C2%B0C&radarRange=-1';
+
+var PROV=[
+  ['Utan klockparameter','Så här ser den ut i dag. Referens att jämföra mot.',''],
+  ['hourFormat=24h','Stavningen som står i JavaScript-API:t.','&hourFormat=24h'],
+  ['hourFormat=24','Kortformen, om de tolkar talet i stället.','&hourFormat=24'],
+  ['hour=24h + lang=sv','Två andra försök på en gång — svenska ger 24-timmars i de flesta system.',
+   '&hour=24h&lang=sv']
+];
+
+var ut=document.getElementById('ut');
+PROV.forEach(function(p,i){
+  var url=BAS+p[2];
+  var d=document.createElement('section');
+  d.className='panel';
+  d.innerHTML='<div class="rc-t">'+p[0]+'</div>'
+    +'<div class="karta"><iframe src="'+url+'" loading="eager"></iframe></div>'
+    +'<div class="cap">'+p[1]+'</div>'
+    +'<div class="par">'+(p[2]||'(inget tillägg)')+'</div>';
+  ut.appendChild(d);
+});
+</script></body></html>
