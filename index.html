@@ -2183,16 +2183,26 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
    indraget inte heller finnas - annars ser avdelaren kortare ut an den ar. */
 .fl-tiles>.stat:nth-child(-n+3)::before{top:0}
 .fl-tiles>.stat:nth-child(n+4)::before{bottom:0}
-/* HEL LINJE TVARS OVER. Varje ruta ritade sin egen bit fran kant till kant,
-   men kolumnerna ar 1fr av en bredd som sallan gar jamnt ut i tre - varje bit
-   avrundas nedat och det blir ett harfint glapp i de tva skarvarna. Genom att
-   dra ut biten en bildpunkt at bada hallen moter de varandra oavsett hur
-   bredden faller. */
-.fl-tiles>.stat::after{content:'';position:absolute;top:0;left:-1px;right:-1px;
-  height:1px;background:var(--line)}
-/* Tre kolumner: inget lodratt streck forst pa raden, inget vagratt pa forsta raden. */
+/* EN LINJE, INTE TRE HOPSATTA BITAR.
+   Forsta forsoket lat varje ruta rita sin egen bit av den vagrata linjen och
+   drog ut varje bit en bildpunkt at bada hallen, sa att de skulle mota varandra
+   aven om kolumnbredden inte gick jamnt ut i tre. Bitarna motte varandra - men
+   de LADE SIG OCKSA OVER varandra, tva bildpunkter i varje skarv. Linjefargen
+   ar genomskinlig (--line har alfa 0,13), och dar tva bitar malar samma punkt
+   blir det 0,24. Alltsa tva morkare prickar i linjen. I kiosklaget doldes det
+   av att kolumngapet slet isar bitarna i stallet; pa mobilen, dar gapet var
+   noll, syntes overlappet.
+
+   Nu ritas linjen som EN rektangel: forsta rutan pa varje ny rad far ett
+   ::after med width:300%. Kolumnerna ar minmax(0,1fr) och gapet ar noll, sa tre
+   cellbredder ar exakt rutnatets bredd - inga skarvar att vare sig glappa eller
+   overlappa, oavsett hur bredden faller. :not(:first-child) haller den borta
+   fran allra forsta raden, som inte har nagon rad ovanfor sig. */
+.fl-tiles>.stat::after{content:none}
+.fl-tiles>.stat:nth-child(3n+1):not(:first-child)::after{content:'';display:block;
+  position:absolute;top:0;left:0;width:300%;height:1px;background:var(--line)}
+/* Tre kolumner: inget lodratt streck forst pa raden. */
 .fl-tiles>.stat:nth-child(3n+1)::before{display:none}
-.fl-tiles>.stat:nth-child(-n+3)::after{display:none}
 /* CENTRERINGEN maste vara mer specifik an rutnatets egna regler. ".ic-mitt"
    ensam ar en klass; ".fl-tiles>.stat" ar tva plus en kombinator, och aven med
    !important pa den forsta forlorade den nar bada satte samma egenskap pa
@@ -2215,8 +2225,8 @@ body.kiosk .en-stats>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:fle
 .en-stats>.stat.ic-mitt .stat-ic{align-self:center!important;margin-top:0!important;margin-bottom:0!important}
 .fl-tiles>.stat.allt-mitt,.pn-tiles>.stat.allt-mitt,.en-stats>.stat.allt-mitt{
   justify-content:center!important;text-align:center!important;align-items:center!important}
-.fl-tiles>.stat:nth-child(-n+3){padding-top:0}
-.fl-tiles>.stat:nth-child(n+4){padding-bottom:0}
+ /* De tva raderna som tog bort ytterkanternas padding ar borta - se blocket
+    "DE SEX RUTORNA" sist i filen. Alla sex rutor har nu samma padding runtom. */
 /* TRE KOLUMNER OCKSA I HANDEN. Mobilen brot forut till tva kolumner och tre
    rader, vilket gav avsnittet en annan taktart an energipanelens rutrad strax
    ovanfor - tva rutrader med olika indelning under varandra las som tva olika
@@ -2705,6 +2715,41 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .enpanel .en-hero{align-items:flex-start}
 .enpanel .en-spot{align-self:flex-start;align-items:flex-start}
 .enpanel .en-spot .en-self,.enpanel .en-spot .verdict{align-self:flex-start}
+/* ===== DE SEX RUTORNA: ETT RUTNAT, INTE SEX KORT =====
+   Matt ur skarmdumpen fran plattan 2026-08-30 (Fully Kiosk, 800 px bred):
+     - den vagrata avdelaren lag pa y=895 och gick fran x=37 till x=762, men
+       med sex bildpunkters HAL vid x=275 och x=519 - alltsa tre streck, inte
+       ett;
+     - de lodrata avdelarna slutade vid y=868 och borjade igen vid y=913, det
+       vill saga 27 px ovanfor linjen och 18 px under den.
+   Bada har samma orsak. Rutraden ar <div class="grid stats fl-tiles">, och
+   .fl-tiles satte gap:0 - men .kiosk .stats satter gap:var(--pg-gap), och tva
+   klasser vager tyngre an en. Kolonngapet vann darfor pa vaggplattan (inte i
+   telefonlaget, dar .kiosk saknas - darfor sag det ratt ut dar). Gapet mellan
+   kolumnerna blev halen i linjen, och radgapet skot ner linjen sa avstandet
+   till de lodrata strecken blev olika ovanfor och nedanfor.
+
+   Tre klasser i samma selektor vinner over .kiosk .stats oavsett ordning. Det
+   ar rattningen; resten ar foljdandringar sa att alla sex rutor blir lika:
+     - samma padding pa alla fyra sidor i alla sex rutor. Forut hade oversta
+       raden ingen padding upptill och understa ingen nedtill, med panelens
+       egen innerkant som ersattning - tva olika matt som skulle summera till
+       samma sak.
+     - panelens innerkant flyttas in i rutorna i stallet (padding:0 pa
+       .tileswrap). Da ar avstandet fran innehallet till panelens kant exakt
+       detsamma som till avdelarna, och rutraden blir dessutom nagon pixel
+       lagre an forut i stallet for hogre.
+   Innehallet centreras lodratt i sin ruta. FOLJD: knappen "centrera ikonen"
+   gor inget for det har avsnittet i kiosklage langre, eftersom av-laget nu ar
+   samma som pa-laget. Sag till om du hellre vill ha kvar den skillnaden. */
+/* Bade kortformen och langformerna: .grid satter column-gap och row-gap var
+   for sig, och en kortform som bara star som "gap" kan lamna kvar dem i aldre
+   motorer. Alla tre skrivs ut sa att inget gap kan overleva. */
+.grid.stats.fl-tiles{gap:0;column-gap:0;row-gap:0}
+.tileswrap{padding:0}
+.fl-tiles>.stat{padding:var(--avd-pad)}
+body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt){align-items:center}
+body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:center}
 </style>
 </head>
 <body>
@@ -15049,7 +15094,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v587';
+const APP_VERSION='v589';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
