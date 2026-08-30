@@ -3626,6 +3626,14 @@ function renderControls(){
       }
       else lbl=on?(diskNar()||'Bokad'):(b.label||'Diskmaskin');
     }
+    /* ENHETSKNAPPEN: etiketten sager hur manga forslag som finns just nu.
+       Utan siffran ser knappen likadan ut oavsett om popupen har sex rader
+       eller ar tom, och da vet man inte om det ar lont att trycka. */
+    else if(b.type==='vanor'){
+      ic=b.icon||'clock';
+      var vn=0;try{vn=vanBygg().length;}catch(e){}
+      lbl=(b.label||'Enheter')+(vn?(' \u00b7 '+vn):'');
+    }
     else if(b.type==='battladd'){
       /* ETIKETTEN VISAR LAGET, inte vad ett tryck gor. Det ar tvartemot
          vippan och moodknappen, men rimligt har: "Laddar max" ar ett tillstand
@@ -3707,6 +3715,10 @@ async function btnTap(i){
       await diskTryck();
       flashCtl(i,varBokad?'avbokar…':'bokar…');
       setTimeout(renderControls,2600);
+      return;
+    }else if(b.type==='vanor'){
+      /* Oppnar bara en lista - ingenting skickas till Homey har. */
+      openVanor();
       return;
     }else if(b.type==='breveden'){
       /* Trycket blockeras ALDRIG här, inte ens när nastaLage är 'ok' —
@@ -14894,9 +14906,9 @@ var BTN_ICONS=[
  ['El, sol & bil',['plug','plugs','power','lightning','battery-high','solar-panel','car','car-profile','charging-station']],
  ['Rum & övrigt',['house','house-line','buildings','bed','couch','stairs','elevator','shower','bathtub','toilet','swimming-pool','timer','clock','tree','flower','umbrella','wrench','hammer','fire-extinguisher','gauge']]
 ];
-var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['disk','Diskmaskin','fork-knife'],['battladd','Ladda batteriet','battery-charging'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['special','Släck allt','moon']];
+var BE_TYPES=[['dev','Enhet','plug'],['flow','Flow','lightning'],['flowtoggle','Flow på / av','toggle-left'],['breveden','Breveden','thermometer-simple'],['disk','Diskmaskin','fork-knife'],['battladd','Ladda batteriet','battery-charging'],['mood','Mood','sparkle'],['moodtoggle','På / Av','lightbulb'],['vanor','Enheter · lär sig','clock'],['special','Släck allt','moon']];
 var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=null,_beMood=null,_beMoodOn=null,_beMoodOff=null,_beRef=null;
-function beTypeOf(b){return b.type==='battladd'?'battladd':b.type==='disk'?'disk':b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
+function beTypeOf(b){return b.type==='vanor'?'vanor':b.type==='battladd'?'battladd':b.type==='disk'?'disk':b.type==='breveden'?'breveden':b.type==='flow'?'flow':b.type==='flowtoggle'?'flowtoggle':b.type==='mood'?'mood':b.type==='moodtoggle'?'moodtoggle':b.type==='allLightsOff'?'special':'dev';}
 function beStash(){var g=function(id){var e=$(id);return e?e.value:null;},v;
   var l=$('be-label');if(l&&typeof l.value==='string')_beLabel=l.value;
   if((v=g('be-dev'))!=null)_beDev=v;
@@ -14911,6 +14923,7 @@ function bePickIcon(i,n){beStash();_beIcon=(n==='auto')?null:n;openBtnEdit(i,tru
 function beMsg(t){var e=$('be-msg');if(e)e.textContent=t||'';}
 /* Vilken ikon knappen får om man låter den vara automatisk */
 function beAutoIcon(){
+  if(_beType==='vanor')return 'clock';
   if(_beType==='moodtoggle')return 'lightbulb';
   if(_beType==='flowtoggle')return 'toggle-left';
   if(_beType==='flow')return 'lightning';
@@ -14987,6 +15000,16 @@ function openBtnEdit(i,keep){const b=CONFIG.BUTTONS[i]||{};_beIdx=i;ensureFlows(
       +'Ikonen visar läget: snöflinga för kyla, låga för värme, termometer när '
       +'temperaturen redan ligger rätt. Ett frågetecken betyder att värdet är äldre än '
       +'45 minuter.<br><br>Inget att ställa in — bara namnet.</div>';
+  }else if(T==='vanor'){
+    h+='<div class="cfg-hint" style="margin-top:8px">Öppnar en lista med de enheter '
+      +'du brukar tända eller släcka <b>just den här tiden på dygnet</b>. Listan är '
+      +'inte fast — den byggs av vad som faktiskt händer i huset.<br><br>'
+      +'Varje ändring bokförs med klockslag, oavsett om den kom härifrån, från '
+      +'Homey-appen eller från en strömbrytare. Vanor som upphör tynar bort på '
+      +'ungefär en månad.<br><br>'
+      +'Minnet ligger i <b>den här webbläsaren</b>: plattan och telefonen lär sig '
+      +'var för sig. Tills den har lärt sig något visar den i stället det som är '
+      +'tänt just nu.<br><br>Inget att ställa in — bara namnet.</div>';
   }else if(T==='special'){
     h+='<div class="cfg-hint" style="margin-top:8px">Släcker alla lampor i hemmet med ett tryck.</div>';
   }
@@ -15069,6 +15092,10 @@ function beSave(i){
        ar fasta, och tva tryck kravs alltid oavsett kryssrutan. */
     cfg={label:label||'Ladda batteriet',type:'battladd',icon:_beIcon||'battery-charging',
       icoval:_beIcon?1:0};
+  }else if(T==='vanor'){
+    /* Som Breveden och diskmaskinen: inget att spara utover namnet. Vad
+       knappen visar bestams av vad som hant i huset, inte av en installning. */
+    cfg={label:label||'Enheter',type:'vanor',icon:_beIcon||'clock',icoval:_beIcon?1:0};
   }else if(T==='breveden'){
     /* Inget att spara utöver namnet: flows och logikvariabel är fasta, och
        skriptet äger all bedömning. */
@@ -15113,7 +15140,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v591';
+const APP_VERSION='v592';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16224,7 +16251,7 @@ async function load(){
       }
     }
   }
-  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
   else if(VISAR_CACHE){
     /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
        besked: det står redan siffror där, och de är gamla — vilket är precis
@@ -17541,6 +17568,241 @@ function rumHTML(){
   if(gard.length){h+=dSec(gard.length>1?'Gardiner':'Gardin');h+=gard.map(gardRad).join('');}
   return h;
 }
+/* ===== ENHETSKNAPPEN SOM LÄR SIG =====
+   En knapp i knappraden som öppnar en popup med de enheter man brukar röra
+   just den här tiden på dygnet. Ingen fast lista: den byggs ur vad som
+   FAKTISKT har hänt i huset.
+
+   VARFÖR OBSERVERADE LÄGEN OCH INTE TRYCK I DASHBOARDEN. Det enklaste hade
+   varit att räkna knapptryck här i gränssnittet. Men lampor släcks lika ofta
+   från Homey-appen, från en väggströmbrytare eller av ett flow, och då hade
+   dashboarden aldrig fått veta det. I stället jämförs varje hämtning med den
+   förra: ändras onoff mellan två avläsningar är det en händelse, oavsett vem
+   som orsakade den.
+
+   TIDSSTÄMPELN MÅSTE VARA SANN. Ligger sidan stängd över natten och öppnas
+   klockan åtta ser första jämförelsen alla nattens ändringar på en gång — och
+   skulle bokföra dem klockan åtta. Därför bokförs bara ändringar där den förra
+   avläsningen är yngre än tre minuter. Hellre missa en händelse än att lära in
+   fel klockslag.
+
+   Detta är webbläsarkoden och inte HomeyScript, så getHours() ger korrekt
+   svensk lokaltid här. Minnet ligger i localStorage och är därför per enhet:
+   plattan i hallen och telefonen lär sig var för sig, vilket är meningen.
+
+   VAD SOM INTE FINNS ÄN: ingen skillnad på vardag och helg, och ingen hänsyn
+   till årstid eller mörker. Ett dygn med 24 fack är allt. */
+var VAN_KEY='vanor_v1';
+var VAN_HALV=30*864e5;      /* halveringstid: en vana som upphör tynar bort */
+var VAN_SIGMA=1.1;          /* hur brett i timmar en händelse smetas ut */
+var VAN_MIN=0.8;            /* under detta är det brus, inte en vana */
+var VAN_ANDEL=0.18;         /* och det som är mycket svagare än toppen tas bort */
+var VAN_MAX=6;              /* fler än så blir en lista att leta i */
+var VAN_FARSK=180000;       /* förra avläsningen får vara högst tre minuter gammal */
+var _van=null,_vanSist=null,_vanSistAt=0,_vanLista=null,_vanInfo=false,_vanGlomArm=0;
+
+function vanLas(){
+  if(_van)return _van;
+  try{_van=JSON.parse(localStorage.getItem(VAN_KEY)||'null');}catch(e){}
+  if(!_van||typeof _van!=='object'||!_van.d)_van={v:1,t:Date.now(),d:{}};
+  return _van;
+}
+/* Talen rundas till tre decimaler i minnet. Fullängds flyttal gjorde posten
+   fyra gånger så stor utan att ändra en enda ordning i listan. */
+function vanSpara(){try{localStorage.setItem(VAN_KEY,JSON.stringify(_van,
+  function(k,v){return (typeof v==='number'&&!isFinite(v))?0:
+    ((typeof v==='number'&&Math.floor(v)!==v)?Math.round(v*1000)/1000:v);}));}catch(e){}}
+/* Avstånd mellan två klockslag på ett dygn som går runt: 23 och 1 ligger två
+   timmar isär, inte tjugotvå. */
+function vanAvst(a,b){var d=Math.abs(a-b);return d>12?(24-d):d;}
+/* Allt tynar med tiden, annars skulle en vana man lade av med för ett halvår
+   sedan väga lika tungt som gårdagens. Räknas sällan — en gång var sjätte
+   timme räcker för en halveringstid på en månad. */
+function vanFalna(nu){
+  var o=vanLas();
+  /* KLOCKAN MASTE STARTAS. Forsta versionen skrev dt=nu-(o.t||nu), vilket gav
+     noll nar o.t saknades ELLER var 0 - och eftersom o.t bara sattes nar en
+     verklig falning skedde kunde ett minne med t=0 aldrig borja falna alls.
+     Det gick inte att se pa nagon siffra; vanorna bara vagrade tyna bort. */
+  if(!o.t){o.t=nu;return;}
+  var dt=nu-o.t;
+  if(!(dt>6*36e5))return;
+  var f=Math.pow(0.5,dt/VAN_HALV);o.t=nu;
+  for(var id in o.d){
+    var e=o.d[id],topp=0;
+    for(var i=0;i<24;i++){e.pa[i]*=f;e.av[i]*=f;
+      if(e.pa[i]>topp)topp=e.pa[i];if(e.av[i]>topp)topp=e.av[i];}
+    if(topp<0.05)delete o.d[id];
+  }
+}
+/* Vilka enheter som alls är värda att följa. Gruppmedlemmarna i RUM_DOLJ_DEV
+   hoppas över: tänder man Köksbord ändras även kök 1, 2 och 3, och då hade
+   fyra rader lärt sig samma vana och popupen fyllts av samma lampa. */
+/* ID:T KOMMER UTIFRAN. Forsta versionen kravde d.id och foll darfor tyst pa
+   demodatan, dar enheterna ar keyade pa id men inte bar det som ett falt. Det
+   ar nyckeln i DATA som ar sanningen om vilken enhet det ar; objektets egna
+   falt ar bara vad Homey rakade skicka med. */
+function vanFoljs(d,id){
+  if(!d)return false;
+  id=id||d.id;
+  if(id&&RUM_DOLJ_DEV[id])return false;
+  if(rArGardin(d))return true;
+  if(!rHar(d,'onoff'))return false;
+  if(rArLampa(d))return true;
+  var k=rKlass(d);
+  return k==='socket'||k==='fan';
+}
+/* Ett enda jämförbart värde per enhet, och vad en ändring till det betyder.
+   För en markis är \"ner\" motsvarigheten till tänd. */
+function vanLage(d){
+  if(rArGardin(d))return capOf(d,rGardCap(d));
+  var v=capOf(d,'onoff');return (v===true||v===false)?v:null;
+}
+function vanRiktning(d,v){
+  if(!rArGardin(d))return v===true;
+  if(rGardCap(d)==='windowcoverings_state')return v==='down';
+  return Number(v)<0.5;
+}
+function vanNotera(id,pa,nu){
+  var o=vanLas();vanFalna(nu);
+  var e=o.d[id];
+  if(!e){e={pa:[],av:[],n:0,s:0};for(var i=0;i<24;i++){e.pa[i]=0;e.av[i]=0;}o.d[id]=e;}
+  var dt=new Date(nu),h=dt.getHours()+dt.getMinutes()/60;
+  var arr=pa?e.pa:e.av;
+  /* Händelsen smetas ut över närliggande timmar. Utan det hade 21:59 och 22:01
+     hamnat i skilda fack och ingen av dem sett ut som en vana. */
+  for(var b=0;b<24;b++){
+    var w=Math.exp(-Math.pow(vanAvst(b+0.5,h),2)/(2*VAN_SIGMA*VAN_SIGMA));
+    if(w>0.02)arr[b]+=w;
+  }
+  e.n++;e.s=nu;vanSpara();
+}
+/* Anropas efter varje lyckad hämtning. Första gången bara ställer den upp
+   jämförelsen; det finns inget \"förra\" att jämföra med än. */
+function vanTick(){
+  var nu=Date.now(),ny={};
+  for(var id in DATA){var d=DATA[id];if(vanFoljs(d,id))ny[id]=vanLage(d);}
+  if(_vanSist&&(nu-_vanSistAt)<VAN_FARSK){
+    for(var k in ny){
+      var f=_vanSist[k],v=ny[k];
+      if(f===undefined||f===null||v===null||f===v)continue;
+      var d2=DATA[k];if(!d2)continue;
+      try{vanNotera(k,vanRiktning(d2,v),nu);}catch(e){}
+    }
+  }
+  _vanSist=ny;_vanSistAt=nu;
+}
+function vanPoang(id,nu){
+  var e=vanLas().d[id];if(!e||!e.pa)return null;
+  var dt=new Date(nu),b=Math.floor(dt.getHours()+dt.getMinutes()/60)%24;
+  var pa=e.pa[b]||0,av=e.av[b]||0;
+  return {pa:pa,av:av,tot:pa+av,n:e.n||0};
+}
+/* Listan som visas. Fryses när popupen öppnas — annars kunde raderna byta
+   plats under fingret var femtonde sekund. */
+function vanBygg(nu){
+  nu=nu||Date.now();
+  var ut=[],o=vanLas();
+  for(var id in o.d){
+    var d=DATA[id];if(!d||!vanFoljs(d,id))continue;
+    var p=vanPoang(id,nu);if(!p||p.tot<VAN_MIN)continue;
+    ut.push({id:id,p:p,lard:true});
+  }
+  ut.sort(function(a,b){return b.p.tot-a.p.tot;});
+  if(ut.length){var basta=ut[0].p.tot;
+    ut=ut.filter(function(x){return x.p.tot>=basta*VAN_ANDEL;});}
+  ut=ut.slice(0,VAN_MAX);
+  /* INNAN DEN HUNNIT LÄRA SIG NÅGOT ska popupen inte vara tom. Då fylls den på
+     med det som är tänt just nu — det är nästan alltid det man vill åt. */
+  if(ut.length<2){
+    var har={};ut.forEach(function(x){har[x.id]=1;});
+    var pa=[];
+    for(var id2 in DATA){var d2=DATA[id2];
+      if(har[id2]||!vanFoljs(d2,id2)||rArGardin(d2))continue;
+      if(capOf(d2,'onoff')===true)pa.push({id:id2,d:d2});}
+    pa.sort(function(a,b){return rSort(a.d,b.d);});
+    for(var i=0;i<pa.length&&ut.length<VAN_MAX;i++)ut.push({id:pa[i].id,p:null,lard:false});
+  }
+  return ut;
+}
+function vanText(x){
+  var d=DATA[x.id];
+  if(!x.lard||!x.p)return 'tänd nu';
+  if(rArGardin(d))return 'brukar ändras nu';
+  if(x.p.pa>x.p.av*1.6)return 'brukar tändas nu';
+  if(x.p.av>x.p.pa*1.6)return 'brukar släckas nu';
+  return 'brukar ändras nu';
+}
+function vanIkon(d,pa){
+  if(rArGardin(d))return 'elevator';
+  if(rKlass(d)==='light'||rArLampa(d))return pa?'lightbulb':'lightbulb-off';
+  return 'plug';
+}
+/* Raden. Ingen ljusreglering här — popupen är till för att snabbt slå av och
+   på; vill man dimra är rumsvyn rätt ställe och den har redan den knappen. */
+function vanRad(x){
+  var d=DATA[x.id];if(!d)return '';
+  if(rArGardin(d))return gardRad(d);
+  var pa=capOf(d,'onoff')===true;
+  var zon=zoneName(d.zone)||'';
+  /* Rummets namn star med: huset har tva enheter som heter "Tak" och en rad
+     utan rum gar inte att skilja fran den andra. */
+  return '<div class="dv-row'+(pa?' on':'')+'">'
+    +'<span class="dv-ic">'+icon(vanIkon(d,pa))+'</span>'
+    +'<span class="dv-n">'+esc(rNamn(d))
+    +'<small>'+esc((zon?zon+' \u00b7 ':'')+vanText(x))+'</small></span>'
+    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+x.id+'\')" aria-label="på/av"><i></i></button></div>';
+}
+function vanInfoTog(){_vanInfo=!_vanInfo;vanorUppdatera();}
+/* Två tryck för att glömma. Ett halvårs inlärning ska inte försvinna på en
+   felträff. */
+function vanGlom(){
+  if(Date.now()-_vanGlomArm>4000){_vanGlomArm=Date.now();vanorUppdatera();
+    setTimeout(function(){if(Date.now()-_vanGlomArm>=4000)vanorUppdatera();},4200);return;}
+  _vanGlomArm=0;_van={v:1,t:Date.now(),d:{}};vanSpara();
+  _vanSist=null;_vanSistAt=0;_vanLista=vanBygg();vanorUppdatera();
+}
+function vanorHTML(){
+  var lista=_vanLista||vanBygg(),o=vanLas(),antal=0;
+  for(var k in o.d)antal++;
+  var lard=lista.filter(function(x){return x.lard;}).length;
+  var h='';
+  if(!lista.length){
+    h+='<div class="isub" style="opacity:.75">Inget att visa än. Listan byggs '
+      +'av vad som faktiskt tänds och släcks i huset — låt dashboarden vara '
+      +'öppen en tid så fylls den på.</div>';
+  }else{
+    h+=dSec(lard?'Brukar användas nu':'Tänt just nu');
+    h+=lista.map(vanRad).join('');
+  }
+  h+='<div class="drow drow-t" onclick="vanInfoTog()" style="border-bottom:0">'
+    +'<span class="dk">Hur väljs de här? <span class="di-q">i</span></span></div>'
+    +'<div class="drow-info'+(_vanInfo?' open':'')+'" id="van-info">'
+    +'Varje gång något tänds eller släcks i huset bokförs klockslaget — oavsett '
+    +'om det skedde härifrån, från Homey-appen eller från en strömbrytare. '
+    +'Listan visar det som brukar hända just den här tiden på dygnet. Vanor som '
+    +'upphör tynar bort på ungefär en månad, och minnet ligger i den här '
+    +'webbläsaren, så plattan och telefonen lär sig var för sig. '
+    +'Följer '+antal+' enhet'+(antal===1?'':'er')+' just nu.'
+    +'<div style="margin-top:8px"><button class="gd-l'+(_vanGlomArm?' on':'')
+    +'" onclick="vanGlom()">'+(_vanGlomArm?'Säker? Tryck igen':'Glöm allt och börja om')
+    +'</button></div></div>';
+  return h;
+}
+function vanorUppdatera(){
+  try{if(_popupRebuild===vanorHTML){var b=$('dlg-body');if(b)b.innerHTML=vanorHTML();}}catch(e){}
+}
+function openVanor(){
+  if(_suppressClick){_suppressClick=false;return;}
+  _vanLista=vanBygg();_vanGlomArm=0;_vanInfo=false;
+  var dl=$('dlg');if(dl&&dl.classList){dl.classList.remove('wide');dl.classList.remove('edit');}
+  _popupRebuild=vanorHTML;
+  setT('dlg-title','Enheter nu');setIcon('dlg-ic','clock');
+  var bd=$('dlg-body');if(bd)bd.innerHTML=vanorHTML();
+  var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
+  dlgTop();
+}
+
 function openRum(zid){
   if(_suppressClick){_suppressClick=false;return;}
   _rumId=zid;
@@ -17606,7 +17868,7 @@ function renderRooms(){
 }
 /* Ett namn för både korten och den öppna popupen, så att varje skrivning bara
    behöver anropa ett. */
-function rumRita(){renderRooms();}
+function rumRita(){renderRooms();try{vanorUppdatera();}catch(e){}}
 
 /* ===== TV-RUTAN =====
    Ligger överst och syns bara när TV:n är på. EN bestämd enhet, inte alla med
