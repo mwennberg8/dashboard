@@ -3203,7 +3203,7 @@ function histMerge(a,b,cut){
 const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()=>capLive(DEV.solar,'measure_power')],['house',()=>capLive(DEV.consume,'measure_power')],
   ['batt',()=>capLive(DEV.battery,'measure_battery')],['t_kok',()=>capLive(DEV.vader,'measure_temperature')],
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
-  ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>capLive(DEV.battery,'measure_power')],
+  ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
   ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
   ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')]];
@@ -3312,7 +3312,7 @@ function parseEntries(d){
 async function seedHistory(){if(seeded)return;seeded=true;const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
   const want={solar:[DEV.solar,['measure_power','watt']],house:[DEV.consume,['measure_power','watt']],price:[DEV.tibber,['measure_price_total','price_total','price']],
     batt:[DEV.battery,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
-    grid:[DEV.pulse,['measure_power','watt']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[DEV.battery,['measure_power','watt']],
+    grid:[DEV.pulse,['measure_power','watt']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[DEV.battery,['energy_power']],
     wind:[DEV.windMs,['measure_wind_strength']],gust:[DEV.windMs,['measure_gust_strength']],winddir:[DEV.windNet,['measure_wind_angle']],rain:[DEV.rain,['measure_rain.24h']],
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
@@ -9038,9 +9038,50 @@ function infoVisa(id){
   var e=$('info-'+id);
   if(e)e.classList.toggle('open',!!_infoOppen[id]);
 }
-function battPowSerie(){
-  var a=HIST['battpow']||[];
-  return a.map(function(p){return {t:p.t,v:(p.v==null?null:-p.v)};});
+/* BATTERIETS TECKEN HAMTAS DAR DET ER OBSERVERBART.
+   Forra losningen las measure_power och VANDE tecknet vid ritningen, med en
+   kommentar daterad 2026-08-21 om att measure_power skulle peka at motsatt
+   hall mot energy_power. Den uppgiften gar inte att kontrollera: batteriet har
+   ingen Insights-logg for measure_power, bara for energy_power och
+   measure_battery. Ett antagande om polaritet som ingen kan mata ar precis den
+   sortens pastaende som inte hor hemma i koden.
+
+   Uppmatt 2026-08-30, tva oberoende kontroller:
+     energy_power +5000 W kl 09:35-15:15 medan nivan steg 41 % -> 99 %
+     energy_power -3000..-5000 W kl 16:55-17:50 medan nivan foll 100 % -> 82 %
+     SolarEdges egna laddregister measure_power.batt_charge visade 31 -> 272 W
+     kl 17:57 samtidigt som energy_power visade +55 -> +250 W.
+   Alltsa: positivt = laddar. Det ar den konvention historiken redan foljer.
+
+   Har tas darfor BELOPPET och tecknet ur battery_charging_state, precis som
+   rutorna pa startsidan gor, med energy_power som forstahandskalla nar den
+   finns. Ingen polaritet att ha fel om, och live och historik kan inte glida
+   isar eftersom bada pekar at samma hall av konstruktion. */
+function battEffektNu(){
+  var e=capLive(DEV.battery,'energy_power');
+  if(e!=null&&isFinite(e))return e;              /* uppmatt: + = laddar */
+  var w=capLive(DEV.battery,'measure_power');
+  if(w==null||!isFinite(w))return null;
+  var st=capLive(DEV.battery,'battery_charging_state');
+  if(st==='charging')return Math.abs(w);
+  if(st==='discharging')return -Math.abs(w);
+  if(st==='idle')return 0;
+  return null;   /* okant lage: hellre en lucka i grafen an fel tecken */
+}
+/* Serien lagras redan med ratt tecken. Funktionen finns kvar for att dygnsvyn
+   och historiken ska ga genom samma ingang. */
+function battPowSerie(){return HIST['battpow']||[];}
+/* ENGANGSSTADNING. Punkter som spelades in fore v593 ligger kvar i webblasaren
+   med det gamla, ovanda tecknet, och de skulle sitta kvar till midnatt och
+   blanda ihop de tva konventionerna i samma kurva. De kastas en gang; serien
+   fylls pa igen fran Insights vid nasta seedHistory och lopande av matningen. */
+function battPowStad(){
+  try{
+    if(localStorage.getItem('battpow_v2'))return;
+    if(HIST&&HIST['battpow'])delete HIST['battpow'];
+    saveHist();
+    localStorage.setItem('battpow_v2','1');
+  }catch(e){}
 }
 /* ===================== historik, sju dygn =====================
    Dashboarden sparar själv bara ett dygn. Homeys Insights har mer, och samma
@@ -15140,7 +15181,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v592';
+const APP_VERSION='v593';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -16340,7 +16381,7 @@ const DEMO={
 };
 const DEMO_ZONES={"9919ee1e-ffbc-480b-bc4b-77fb047e9e68":{name:"Hem"},"2ab5a003-0120-4c01-80f2-a237dcf4ba14":{name:"K\u00f6k"},"5a349f9e-a371-44ec-bb9a-fbb8c555f9a3":{name:"Uterum"},"9eb2975d-49ea-4033-8db0-105a3e982117":{name:"Vardagsrum"},"3f7e329d-97d7-4be5-83e3-94cc439b2f78":{name:"Snickarboa"},"ddc3cdaa-8172-4c4a-97c9-22d8ec462972":{name:"Sovrum"},"1815c884-af06-4d53-a2c1-6f4c77e9eb4e":{name:"Kontor"},"31ebbf87-d88a-45d7-989c-c67bd2919d8f":{name:"El"},"a72f1f69-29a1-4ea7-9bc2-0ba940dc5274":{name:"Utomhus"},"04a44634-aa34-41ed-87c0-d1ab5ce4bedd":{name:"Breveden"},"3efd5258-2221-49c2-aa98-e22e8ac8425d":{name:"Poolrum"},"98deb58e-be42-497a-bc32-d0e1ef61b2c1":{name:"G\u00e4strum"},"37782dac-6d40-40a2-a0a4-17a0dd05003a":{name:"K\u00e4llare"},"b044ba53-b4f4-4a2c-b139-6ef1ab37ac64":{name:"Lekrum"},"478cfd92-6475-4214-80d9-27125e39863a":{name:"Hall"}};
 
-initIcons();applyKiosk();loadHist();
+initIcons();applyKiosk();loadHist();battPowStad();
 try{document.addEventListener('fullscreenchange',fsSync);document.addEventListener('webkitfullscreenchange',fsSync);}catch(e){}
 try{if(CFG.autoFull)armAutoFull();}catch(e){}
 try{syncThemeColor();pwaMakeMaskable();stickyBars();applyMobGap();lasPortratt();}catch(e){}
