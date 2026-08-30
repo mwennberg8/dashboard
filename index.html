@@ -2146,16 +2146,27 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
    spänner hela rutnätets höjd ger raka linjer av samma längd. */
 .pn-tiles{position:relative;align-items:stretch}
 .pn-tiles>.stat{position:relative}
-/* SAMMA avdelare som mellan Väder och Vind: 6 px indrag upptill och nedtill,
-   och samma luft på BÅDA sidor om linjen. Förut satt luften bara efter linjen,
-   så kolumnen före låg tätt intill medan den efter fick 16 px — det såg
-   snedfördelat ut och gav intryck av mycket tomrum. */
-/* Linjen spänner rutans höjd minus --avd-pad i vardera änden, alltså exakt lika
-   långt in som innehållet står. Ett fast 6 px gav olika resultat när
-   avdelarmåttet ändrades. */
-.pn-tiles>.stat+.stat::before{content:'';position:absolute;left:0;top:50%;
-  height:var(--div-h,44px);width:1px;background:var(--line);
-  transform:translateY(-50%)}
+/* INDRAGET, INTE LANGDEN, AR DET SOM SKA VARA LIKA.
+   Har stod tidigare en fast hojd pa 44 px, centrerad i raden, med motiveringen
+   att linjerna annars blir olika langa i olika avsnitt - vaderraden har en
+   46 px ikon, rutraden bara text. Det var fel sak att halla lika. Det man ser
+   ar avstandet mellan det lodrata strecket och det vagrata ovanfor och nedanfor
+   det, och med en fast hojd i en rad vars hojd varierar blir just det avstandet
+   olika: matt i skarmdumpen 2026-08-30 lag strecket 50 bildpunkter under den
+   ovre avdelaren och 38 over den undre, i en rad dar bada borde varit lika.
+   Andrar man dessutom textstorleken vaxer raden medan de 44 px star still, och
+   strecket ser kortare och kortare ut.
+   Nu binds strecket till --avd-pad i vardera anden, precis som i rutnatet med
+   de sex rutorna. Da ar avstandet till de vagrata avdelarna detsamma i alla
+   avsnitt och foljer med nar innehallet skalas. Att linjerna darmed blir olika
+   LANGA i olika rader ar meningen: de ar lika langa som sitt innehall. */
+.pn-tiles>.stat+.stat::before{content:'';position:absolute;left:0;
+  top:var(--avd-pad);bottom:var(--avd-pad);
+  width:1px;background:var(--line)}
+/* Sist i panelen bar raden ingen padding nedtill - da finns ingen vagrat
+   avdelare under att halla avstand till, och panelens egen innerkant gor
+   jobbet. Strecket far ga hela vagen ner till innehallets underkant. */
+.pn-tiles:last-child>.stat+.stat::before{bottom:0}
 /* Lika luft runt hela rutan — upp, ner och ut mot avdelarna. */
 /* ===== RUTORNA =====
    Avsnittet var sex fristaende kort i ett rutnat och stack ut mot de ovriga,
@@ -2179,10 +2190,17 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
 .fl-tiles>.stat::before{content:'';position:absolute;left:0;
   top:var(--avd-pad);bottom:var(--avd-pad);
   width:1px;background:var(--line)}
-/* Forsta raden har ingen linje ovanfor och andra raden ingen under, sa dar ska
-   indraget inte heller finnas - annars ser avdelaren kortare ut an den ar. */
-.fl-tiles>.stat:nth-child(-n+3)::before{top:0}
-.fl-tiles>.stat:nth-child(n+4)::before{bottom:0}
+/* AVDELARNA GAR INTE UT I KANTEN.
+   Forut drogs de lodrata strecken anda ut till rutnatets over- och underkant
+   (top:0 pa forsta raden, bottom:0 pa den sista). Nar panelens innerkant
+   flyttades in i rutorna i v588 blev rutnatets kant samma sak som PANELENS
+   kant, och da gick strecken hela vagen ut. Ingen annan panel gor sa: deras
+   avdelare ar indragna.
+   Matt i skarmdumpen fran plattan: avdelaren i energipanelen och den i
+   vaderpanelen gar bada fran x=38 till x=761, med panelens ram pa 19 och 780.
+   Alltsa 19 bildpunkter in fran ramen - vilket ar --avd-pad. Samma indrag
+   galler nu har, upptill, nedtill och at sidorna, sa att avdelarnas andar
+   ligger i linje med innehallets kanter. */
 /* EN LINJE, INTE TRE HOPSATTA BITAR.
    Forsta forsoket lat varje ruta rita sin egen bit av den vagrata linjen och
    drog ut varje bit en bildpunkt at bada hallen, sa att de skulle mota varandra
@@ -2200,7 +2218,8 @@ body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:17
    fran allra forsta raden, som inte har nagon rad ovanfor sig. */
 .fl-tiles>.stat::after{content:none}
 .fl-tiles>.stat:nth-child(3n+1):not(:first-child)::after{content:'';display:block;
-  position:absolute;top:0;left:0;width:300%;height:1px;background:var(--line)}
+  position:absolute;top:0;left:var(--avd-pad);
+  width:calc(300% - var(--avd-pad) * 2);height:1px;background:var(--line)}
 /* Tre kolumner: inget lodratt streck forst pa raden. */
 .fl-tiles>.stat:nth-child(3n+1)::before{display:none}
 /* CENTRERINGEN maste vara mer specifik an rutnatets egna regler. ".ic-mitt"
@@ -15094,7 +15113,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v589';
+const APP_VERSION='v591';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
