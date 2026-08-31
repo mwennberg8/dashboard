@@ -344,15 +344,30 @@ body.mobile .statusbar.stuck{
    man tände med flit. */
 .lamna{padding:14px 16px;display:flex;flex-direction:column;gap:10px;
   border-color:rgba(235,203,139,.4);background:linear-gradient(180deg,rgba(235,203,139,.13),var(--panel-b))}
+/* LUFT MELLAN RADERNA. Rubriken, brickorna och knapparna låg direkt på
+   varandra: ingenstans i .lm-* fanns ett enda vertikalt mått, så det enda som
+   skilde raderna åt var radhöjdens spill. Tre olika slags innehåll som ser ut
+   som ett block är svårt att läsa i en ruta man bara hinner kasta ett öga på.
+   Ett gap på behållaren i stället för marginaler på varje rad: då kan ingen
+   rad glömmas bort, och en ny rad får rätt avstånd utan att någon minns det. */
+.lm-del{display:flex;flex-direction:column;gap:10px}
 .lm-h{display:flex;align-items:center;gap:10px;min-width:0}
 .lm-ic{width:22px;height:22px;color:var(--gold);flex:0 0 auto;display:inline-flex}
 .lm-ic .ic{width:100%;height:100%}
 .lm-t{flex:1 1 auto;min-width:0;font-size:13px;font-weight:750;letter-spacing:-.01em}
 .lm-t small{display:block;font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0}
 .lm-lista{display:flex;flex-wrap:wrap;gap:6px}
-.lm-c{background:var(--inset);border:1px solid var(--line-soft);border-radius:11px;padding:4px 9px;
-  font-size:11.5px;font-weight:650;color:var(--dim)}
+.lm-lista{row-gap:7px}
+/* Brickorna bär enhetsnamnen, alltså rutans egentliga innehåll. 11,5 px i en
+   dämpad färg var mindre än underrubriken ovanför dem. */
+.lm-c{background:var(--inset);border:1px solid var(--line-soft);border-radius:12px;padding:5px 10px;
+  font-size:12.5px;font-weight:650;color:var(--ink)}
 .lm-knappar{display:flex;gap:8px;flex-wrap:wrap}
+.lm-val{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.lm-v{appearance:none;font:inherit;font-size:12px;font-weight:650;cursor:pointer;
+  background:var(--inset);border:1px solid var(--line-soft);color:var(--ink);
+  border-radius:12px;padding:5px 10px}
+.lm-v.av{background:var(--gold);border-color:var(--gold);color:#2e3440;text-decoration:line-through}
 .lm-b{appearance:none;flex:1 1 auto;border:1px solid var(--line);background:var(--inset);color:var(--ink);
   font:inherit;font-size:12.5px;font-weight:700;border-radius:13px;padding:10px 12px;cursor:pointer;box-sizing:border-box}
 .lm-b.pri{background:var(--gold);border-color:var(--gold);color:#2e3440}
@@ -844,7 +859,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.43.0';
+const APP_VERSION = 'v1.44.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1979,7 +1994,61 @@ function lamnaPa(){
     if(arLampa(d)||k==='socket'||k==='tv'||k==='fan')ut.push(d);
   });
   /* Enheter som bara speglar ett läge hör inte hit. */
-  return ut.filter(d=>d.zone!==ZON.modes&&d.id!==DEV.bambuUt);
+  return ut.filter(d=>d.zone!==ZON.modes&&d.id!==DEV.bambuUt&&!LAMNA_DOLJ[d.id]);
+}
+/* ===== SAKER SOM ALLTID ÄR PÅ =====
+   Luftrenaren och CC Ström står på dygnet runt. De är alltid med i listan, de
+   ska aldrig stängas av när bilen åker, och de gör rutan längre utan att säga
+   något. Undantagen ligger på ID och inte på namn — en namnregel hade slutat
+   gälla vid nästa omdöpning, och den här filen har redan två enheter med
+   kommentaren "nytt id efter omparning".
+
+   Listan går att ändra i inställningarna, under Varningsrutan, eftersom vad som
+   är "alltid på" skiljer sig mellan hem och kan ändras. */
+const LAMNA_DOLJ_KEY='gbglamnadolj_v1';
+function lamnaDoljLadda(){
+  try{const a=JSON.parse(localStorage.getItem(LAMNA_DOLJ_KEY)||'null');
+    if(a&&typeof a==='object'&&!Array.isArray(a))return a;}catch(e){}
+  return null;
+}
+var LAMNA_DOLJ=lamnaDoljLadda()||{};
+var _lamnaSeedad=!!lamnaDoljLadda();
+function lamnaDoljSpara(){
+  try{localStorage.setItem(LAMNA_DOLJ_KEY,JSON.stringify(LAMNA_DOLJ));}catch(e){}
+  _lamnaSeedad=true;
+}
+/* FÖRSTA STARTEN, en enda gång. Luftrenaren har ett känt id i DEV. CC Ström
+   har inget, så den slås upp på namn HÄR OCH ENDAST HÄR: träffen sparas
+   omedelbart som id, och därefter rörs namnet aldrig mer. Byter du namn på den
+   i morgon fortsätter undantaget att gälla. Hittas den inte alls händer
+   ingenting — då får du kryssa i den själv i inställningarna. */
+function lamnaDoljSeed(){
+  if(_lamnaSeedad)return;
+  if(!Object.keys(DATA||{}).length)return;   /* vänta tills enheterna finns */
+  if(DEV.luftren)LAMNA_DOLJ[DEV.luftren]=1;
+  const cc=devs().find(d=>String(namn(d)||'').trim().toLowerCase()==='cc ström');
+  if(cc)LAMNA_DOLJ[cc.id]=1;
+  lamnaDoljSpara();
+}
+/* Vad man kan välja mellan: det som skulle synas i rutan just nu, plus det som
+   redan är dolt. Att lista alla enheter vore en vägg av namn. */
+function lamnaKandidater(){
+  const ut=[],sedd={};
+  devs().forEach(d=>{
+    if(iGrupp(d))return;
+    const k=klass(d);
+    if(!(arLampa(d)||k==='socket'||k==='tv'||k==='fan'))return;
+    if(d.zone===ZON.modes||d.id===DEV.bambuUt)return;
+    if(capOf(d,'onoff')!==true&&!LAMNA_DOLJ[d.id])return;
+    if(sedd[d.id])return;
+    sedd[d.id]=1;ut.push(d);
+  });
+  return ut.sort((a,b)=>String(namn(a)).localeCompare(String(namn(b)),'sv'));
+}
+function lamnaDoljVaxla(id){
+  if(LAMNA_DOLJ[id])delete LAMNA_DOLJ[id];else LAMNA_DOLJ[id]=1;
+  lamnaDoljSpara();renderVarning();
+  try{openInst();}catch(e){}
 }
 /* "Inte nu" tystar rutan tills bilen kommit hem igen — inte i evighet, och inte
    bara några minuter. Kommer du hem och åker igen är frågan relevant på nytt. */
@@ -2426,6 +2495,19 @@ function varnDemoHTML(){
     +'<span class="lvl">K\u00f6k</span></div></div>'
     +'<div class="setup-t" style="margin:2px 0 0">F\u00f6rhandsvisning \u2014 st\u00e4ngs av i inst\u00e4llningarna.</div>';
 }
+/* Vilka enheter som inte ska räknas när bilen åker. Visar det som är på just nu
+   plus det som redan är dolt — en dold enhet måste gå att få tillbaka. */
+function lamnaDoljHTML(){
+  const kand=lamnaKandidater();
+  let h='<div class="setup-t" style="margin-top:8px">Saker som alltid st\u00e5r p\u00e5 beh\u00f6ver inte r\u00e4knas. \u00d6verstrukna r\u00e4knas inte och st\u00e4ngs inte av.</div>';
+  if(!kand.length)return h+'<div class="setup-t">Inget \u00e4r p\u00e5 just nu.</div>';
+  h+='<div class="lm-val">';
+  kand.forEach(function(d){
+    h+='<button class="lm-v'+(LAMNA_DOLJ[d.id]?' av':'')+'" onclick="lamnaDoljVaxla(\''+d.id+'\')">'
+      +esc(namn(d))+'</button>';
+  });
+  return h+'</div>';
+}
 function varnDemoAv(){_varnDemo=false;renderVarning();toast('F\u00f6rhandsvisning av');}
 function varnDemoPa(v){
   _varnDemo=!!v;renderVarning();
@@ -2434,6 +2516,7 @@ function varnDemoPa(v){
 }
 function renderVarning(){
   const el=$('varning');if(!el)return;
+  lamnaDoljSeed();
   if(_varnDemo){el.innerHTML=varnDemoHTML();el.hidden=false;initIcons(el);return;}
   const a=varnLamna(),b=varnBatterier();
   if(!a&&!b){el.hidden=true;el.innerHTML='';return;}
@@ -3316,17 +3399,21 @@ function openInst(){
   h+=dSec('Knappar')
     +'<div class="setup-t">L\u00e4gg till, flytta, byt namn, ikon och vad varje styrknapp g\u00f6r.</div>'
     +'<button class="dbtn wide" data-knapp="meny" onclick="openKnappar()">\u00d6ppna knappinst\u00e4llningar</button>'
-    +'<div class="drow"><span class="dk">Knappinst\u00e4llningar (reserv)</span>'
-    +'<span class="dv"><button class="dbtn" data-knapp="meny">\u00d6ppna</button></span></div>'
+    /* Reservraden "Knappinst\u00e4llningar (reserv)" \u00e4r borttagen. Den kom till n\u00e4r
+       knappen ovanf\u00f6r inte gjorde n\u00e5got p\u00e5 telefonen - ett fel som satt i closeDlg
+       och \u00e4r r\u00e4ttat sedan dess, se kommentaren d\u00e4r. Tv\u00e5 knappar som g\u00f6r samma sak
+       \u00e4r bara en fr\u00e5ga om vilken man ska trycka p\u00e5. L\u00e5ngtrycket p\u00e5 en styrknapp
+       finns kvar som tredje v\u00e4g in. */
     +dRow('Senaste tryck i rutan','<span style="font-size:11px;opacity:.8">'+esc(_sistTryck)+'</span>')
     +'<div class="setup-t">G\u00e5r det inte att \u00f6ppna h\u00e4rifr\u00e5n: h\u00e5ll inne en styrknapp p\u00e5 startsidan i en halv sekund, s\u00e5 \u00f6ppnas samma redigerare f\u00f6r just den knappen.</div>';
   h+=dSec('Anslutning')
     +'<div class="dbtn-row"><button class="dbtn" onclick="load()">Uppdatera nu</button>'
-    +'<button class="dbtn" onclick="loggaUt()">Logga ut</button></div>';
+    +'<button class="dbtn" id="dbtn-ut" onclick="loggaUt()">Logga ut</button></div>';
   h+=dSec('Varningsrutan')
     +'<div class="setup-t">Rutan högst upp visar om något är på hemma när bilen åkt, och batterier under '+CONFIG.BATTERY_WARN+' %. Finns inget av det syns ingen ruta alls.</div>'
     +'<div class="dbtn-row"><button class="dbtn'+(_varnDemo?' pri':'')+'" data-varn="1" onclick="varnDemoPa(true)">Förhandsvisa</button>'
-    +'<button class="dbtn'+(_varnDemo?'':' pri')+'" data-varn="0" onclick="varnDemoPa(false)">Av</button></div>';
+    +'<button class="dbtn'+(_varnDemo?'':' pri')+'" data-varn="0" onclick="varnDemoPa(false)">Av</button></div>'
+    +lamnaDoljHTML();
   h+=dSec('Bakgrundsloggning')
     +dRow('Homey-appen','<span style="font-size:11px">'+appStatus()+'</span>')
     +'<div class="setup-t">Städningar, utskrifter, batterinivåer och när bilen åker loggas av appen '+esc(APP_ID)+', som kör även när dashboarden är stängd.</div>'
@@ -3395,7 +3482,17 @@ function openGrupper(){
       +'<pre class="cfg-diag" style="white-space:pre-wrap;font-size:11px;margin-top:8px">'+esc(grpText())+'</pre>','grupper');
   }catch(e){toast('Kunde inte \u00f6ppna: '+((e&&e.message)||'ok\u00e4nt fel'));}
 }
+/* TVÅ TRYCK. Att logga ut slänger token och Homey-id ur webbläsaren, och att få
+   tillbaka dem betyder att leta upp en ny token i Homey — ett omedvetet tryck
+   kostar alltså mer än något annat i den här menyn. Samma spärr som
+   styrknapparna använder: första trycket väntar och syns, andra inom fyra
+   sekunder utför, och gör man inget går knappen tillbaka av sig själv. */
 function loggaUt(){
+  if(!bekraftKlar('loggaut',function(vantar){
+    const b=$('dbtn-ut');if(!b)return;
+    b.textContent=vantar?'Tryck igen':'Logga ut';
+    b.classList.toggle('pri',!!vantar);
+  },true))return;
   try{localStorage.removeItem(CRED_KEY);}catch(e){}
   stangDlg();BASE='';DATA={};location.reload();}
 
