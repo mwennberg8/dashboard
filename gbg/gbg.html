@@ -859,7 +859,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.44.0';
+const APP_VERSION = 'v1.45.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3230,11 +3230,16 @@ const KV_W=320,KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
 function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*60+ +m[2]):0;}
 /* 00:00 i kurvan betyder dygnets SLUT nar den star sist - annars hamnar sista
    punkten ovanpa den forsta. */
+/* tid foljer med ut. Varderaden under grafen stod utan klockslag darfor att
+   den fragade efter p.tid pa ETT sorterat objekt som aldrig bar nagot tid -
+   bara i, m, dim och temp. Provet "p.tid===undefined" var alltsa alltid sant
+   och etiketten blev tom, varje gang. Nu kommer bade ordningen och klockslaget
+   ur samma stalle, sa de kan inte glida isar. */
 function kvSort(){
   return KURVA.map(function(p,i){
     let m=kvMin(p.tid);
     if(m===0&&i===KURVA.length-1)m=1440;
-    return {i:i,m:m,dim:p.dim,temp:p.temp};
+    return {i:i,m:m,tid:p.tid,dim:p.dim,temp:p.temp};
   }).sort(function(a,b){return a.m-b.m;});
 }
 function kvX(m){return KV_L+(m/1440)*(KV_W-KV_L-KV_R);}
@@ -3276,7 +3281,7 @@ function kurvaHTML(){
     +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span></div>';
   h+=dSec('V\u00e4rden');
   pts.forEach(function(p){
-    h+=dRow(p.tid===undefined?'':KURVA[p.i].tid,
+    h+=dRow(p.tid||(KURVA[p.i]&&KURVA[p.i].tid)||'',
       '<span style="color:var(--gold)">'+Math.round(p.dim*100)+' %</span> \u00b7 '
       +'<span style="color:var(--blue)">'+Math.round(p.temp*100)+'</span>');
   });
