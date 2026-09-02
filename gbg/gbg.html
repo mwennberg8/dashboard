@@ -659,6 +659,26 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 /* Knapprader i mediapopupen. Wrap i stället för sidled-skroll: knapparna ska
    aldrig hamna utanför kanten. */
 .tv-rad{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+/* ===== DEN DYNAMISKA TV-RUTAN =====
+   Samma ruta som pa Gottskar: ligger overst och syns bara nar TV:n ar pa.
+   Brickan bland de andra rutorna ar kvar - den sager att TV:n ar pa, den har
+   sager det ocksa men ger volymen och avstangningen utan att man forst maste
+   oppna nagot. */
+.tvbox{padding:13px 14px;display:flex;flex-direction:column;gap:9px}
+.tvrad{display:flex;align-items:center;gap:9px;min-width:0}
+.tv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.tv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
+.tv-oppna{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;
+  align-items:center;gap:9px;flex:1 1 auto;min-width:0;color:inherit;font:inherit;
+  text-align:left;cursor:pointer}
+.tv-k{appearance:none;flex:0 0 auto;width:42px;height:36px;border:1px solid var(--line);
+  background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:16px;font-weight:700;
+  border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.tv-k .ic{width:17px;height:17px}
+.tv-k:active{transform:scale(.96)}
+.tv-k.pa{background:rgba(235,203,139,.18);border-color:rgba(235,203,139,.5);color:var(--gold)}
+.tv-k.av{color:var(--warm)}
 .tv-b{appearance:none;flex:1 1 auto;min-width:64px;display:inline-flex;align-items:center;
   justify-content:center;gap:6px;border:1px solid var(--line);background:var(--inset);
   color:var(--ink);font:inherit;font-size:12px;font-weight:700;border-radius:13px;
@@ -733,6 +753,9 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
     <span class="db-t">Demoläge — påhittad data, inget skickas till Homey</span>
     <button class="db-x" onclick="demoAvsluta()">Avsluta</button>
   </section>
+
+  <!-- TV-rutan. Ritas bara nar TV:n ar pa; renderTVtopp satter hidden annars. -->
+  <section class="panel tvbox" id="tv-sec" data-sec="tv" hidden></section>
 
   <section class="panel lamna" id="varning" hidden></section>
 
@@ -859,7 +882,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.45.0';
+const APP_VERSION = 'v1.47.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1167,9 +1190,24 @@ function arGrupp(d){return !!grpInfo().grupper[d&&d.id];}
 function iGrupp(d){return !!grpInfo().iGrupp[d&&d.id];}
 function grpMedlemmar(d){return (grpInfo().grupper[d&&d.id]||[]).map(id=>DATA[id]).filter(Boolean);}
 /* Lamporna i en zon. Medlemmar i en grupp döljs — gruppen styr dem ändå, och
-   annars står samma lampa två gånger i listan. taMed=true ger alla. */
+   annars står samma lampa två gånger i listan. taMed=true ger alla.
+
+   ORDNINGEN: tända först, sedan bokstavsordning. Listan kom förut i den
+   ordning Homey råkade lämna enheterna, vilket varken är stabilt eller
+   sökbart. Tänt först är det som gör listan värd att öppna — det man vill
+   göra något åt står överst — och bokstavsordning inom varje halva gör att
+   samma lampa hamnar på samma ställe varje gång, så länge den inte tänds eller
+   släcks. Sorteringen ligger här och inte i varje vy, så rumsvyn och popupen
+   inte kan råka få olika ordning. */
+function ljusOrdna(a){
+  return a.slice().sort(function(x,y){
+    const px=capOf(x,'onoff')===true?0:1, py=capOf(y,'onoff')===true?0:1;
+    if(px!==py)return px-py;
+    return String(namn(x)).localeCompare(String(namn(y)),'sv');
+  });
+}
 function ljusIZon(zid,taMed){
-  return devsIZon(zid).filter(d=>arLampa(d)&&har(d,'onoff')&&(taMed||!iGrupp(d)));
+  return ljusOrdna(devsIZon(zid).filter(d=>arLampa(d)&&har(d,'onoff')&&(taMed||!iGrupp(d))));
 }
 
 /* ===== sparade uppgifter ===== */
@@ -1563,6 +1601,7 @@ function render(){
   try{applyTheme();}catch(e){}
   try{renderTopWx();}catch(e){}
   try{renderPrinter();}catch(e){}
+  try{renderTVtopp();}catch(e){}
 
   try{renderControls();}catch(e){}
   try{renderRooms();}catch(e){}
@@ -2834,16 +2873,35 @@ function gardValjare(gid){
   h+='<button class="gd-v'+(v==='bada'?' on':'')+'" onclick="gardValj(\''+gid+'\',\'bada\')">B\u00e5da</button>';
   return h+'</div>';
 }
-/* Lägesraden. För en grupp styr den det som är valt vid namnet. */
+/* REGLAGET TILLBAKA, LÄGENA KVAR.
+   De fyra knapparna räcker för det man gör oftast, men bara för de fyra värden
+   de står för — allt däremellan gick inte att nå alls. Nu finns båda: dra i
+   reglaget för vilket värde som helst mellan 0 och 100, eller tryck på ett av
+   lägena. Ändarna ÄR två av de fyra, så helt öppen och helt stängd är fortsatt
+   ett tryck och kräver ingen träffsäkerhet i änden av ett reglage.
+
+   Dragningen går genom gardLage och inte genom gardinSatt, för att en grupp
+   ska skrivas på samma sätt som knapparna gör det: både på gruppen och på
+   medlemmarna, och bara på medlemmarna när mastern är virtuell. Annars hade
+   dragning och tryck gett olika resultat på samma rad. */
 function gardKnappar(d){
   const gid=GARD_GRUPP[d.id]?d.id:null;
   const val=gid?gardValt(gid):null;
   const mal=(val&&val!=='bada')?(DATA[val]||d):d;   /* vems läge som ska visas */
   const akt=gardAktivt(mal);
   const till=(val&&val!=='bada')?val:d.id;
-  return '<div class="gd-lagen">'+gardLagen(d).map((x,i)=>
+  const v=capOf(mal,'windowcoverings_set');
+  const p=(v==null||!isFinite(v))?0:Math.round(v*100);
+  return slxHTML(till,p,'gardDra',0,100)
+    +'<div class="gd-lagen">'+gardLagen(d).map((x,i)=>
     '<button class="gd-l'+(i===akt?' on':'')+'" onclick="gardLage(\''+till+'\','+x.v+')">'+esc(x.l)+'</button>'
   ).join('')+'</div>';
+}
+/* Reglaget lämnar 0-100, gardLage vill ha 0-1. */
+async function gardDra(id,p){
+  const f=Math.max(0,Math.min(1,Number(p)/100));
+  if(!isFinite(f))return;
+  await gardLage(id,f);
 }
 function gardRad(d,indragen){
   const v=capOf(d,'windowcoverings_set');
@@ -2897,6 +2955,68 @@ function tvTryck(id,cap){
   if(cap==='onoff'){devTanda(id);return;}
   if(cap==='volume_mute'){satt(id,cap,!(capOf(d,'volume_mute')===true)).then(load).catch(()=>{});return;}
   satt(id,cap,true).then(()=>setTimeout(load,400)).catch(()=>{});
+}
+/* ===== DEN DYNAMISKA TV-RUTAN =====
+   Pa/av och volym sitter pa sjalva TV:n (DEV.tvPanel), uppspelningen och appen
+   pa streamern (DEV.tvChrome) - samma delning som brickan bland rutorna redan
+   bygger pa. Rutan visas nar NAGON av dem ar pa, eftersom streamern kan vara
+   igang medan panelen annu inte hunnit svara, men knapparna gar till panelen
+   nar den finns: det ar den som ager ljudet.
+
+   Volymkorten ar knapp-capabilities. Homey bryr sig inte om vardet men vill ha
+   ett, sa de skickas som true, och de speglas INTE tillbaka i DATA - de har
+   inget lage att spegla. Mute och av har lagen och speglas darfor direkt, sa
+   knappen svarar utan att vanta pa nasta hamtning. */
+function tvToppStyr(){return DATA[DEV.tvPanel]||DATA[DEV.tvChrome]||null;}
+function tvToppPa(){
+  const p=DATA[DEV.tvPanel],t=DATA[DEV.tvChrome];
+  return (capOf(p,'onoff')===true||capOf(t,'onoff')===true);
+}
+function tvToppRad(){
+  const styr=tvToppStyr();if(!styr)return '';
+  const t=DATA[DEV.tvChrome];
+  const mute=capOf(styr,'volume_mute')===true;
+  const titel=capOf(t,'speaker_track')||tvApp(t)||'';
+  const kn=(hand,inne,kl,lbl)=>'<button class="tv-k'+(kl?(' '+kl):'')+'" onclick="'+hand
+    +'" aria-label="'+esc(lbl)+'">'+inne+'</button>';
+  return '<div class="tvrad">'
+    +'<button class="tv-oppna" onclick="openTV()" aria-label="\u00d6ppna TV-panelen">'
+    +'<span class="dv-ic">'+icon('television')+'</span>'
+    +'<span class="tv-n">'+esc(namn(styr)||'TV')
+      +(titel?('<small>'+esc(String(titel).slice(0,42))+'</small>'):'')+'</span></button>'
+    +(har(styr,'volume_down')?kn("tvToppVol('"+styr.id+"',false)",'\u2212','','s\u00e4nk volymen'):'')
+    +(har(styr,'volume_up')?kn("tvToppVol('"+styr.id+"',true)",'+','','h\u00f6j volymen'):'')
+    +(har(styr,'volume_mute')?kn("tvToppMute('"+styr.id+"')",icon(mute?'speaker-x':'speaker-high'),
+        mute?'pa':'',mute?'sl\u00e5 p\u00e5 ljudet':'tysta'):'')
+    +kn("tvToppAv('"+styr.id+"')",icon('power'),'av','st\u00e4ng av')
+    +'</div>';
+}
+function renderTVtopp(){
+  const sec=$('tv-sec');if(!sec)return;
+  const pa=tvToppPa();
+  sec.hidden=!pa;
+  sec.innerHTML=pa?tvToppRad():'';
+  if(!sec.hidden)initIcons(sec);
+}
+async function tvToppVol(id,upp){
+  const c=upp?'volume_up':'volume_down';
+  const d=DATA[id];if(!d||!har(d,c)){toast('TV:n har ingen volymknapp');return;}
+  try{await satt(id,c,true);}catch(e){toast('Kunde inte n\u00e5 Homey');}
+}
+async function tvToppMute(id){
+  const d=DATA[id];if(!d||!har(d,'volume_mute'))return;
+  const ny=!(capOf(d,'volume_mute')===true);
+  try{await satt(id,'volume_mute',ny);
+    if(d.capabilitiesObj&&d.capabilitiesObj.volume_mute)d.capabilitiesObj.volume_mute.value=ny;
+    renderTVtopp();setTimeout(load,900);}
+  catch(e){toast('Kunde inte n\u00e5 Homey');}
+}
+async function tvToppAv(id){
+  const d=DATA[id];if(!d)return;
+  try{await satt(id,'onoff',false);
+    if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=false;
+    renderTVtopp();setTimeout(load,900);}
+  catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
 /* Styrkorset. Tre gånger tre rutor där hörnen står tomma; Bakåt och Hem får
    de tomma platserna uppe till vänster och höger, där de inte är i vägen. */
