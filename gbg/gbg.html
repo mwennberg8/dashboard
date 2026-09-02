@@ -663,22 +663,29 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
    Samma ruta som pa Gottskar: ligger overst och syns bara nar TV:n ar pa.
    Brickan bland de andra rutorna ar kvar - den sager att TV:n ar pa, den har
    sager det ocksa men ger volymen och avstangningen utan att man forst maste
-   oppna nagot. */
+   oppna nagot.
+
+   EGET KLASSPREFIX, tvt-. Forsta forsoket tog namnen rakt av fran Gottskar,
+   och dar var .tv-k ledigt. Har ar den redan STYRKORSET i fjarrkontrollen:
+   kvadratiska knappar med aspect-ratio 1, 16 px horn och 21 px ikoner. Mina
+   regler stod senare i filen och vann, sa fjarren blev platta 42x36-knappar
+   med fel ikonstorlek. Att aterbruka ett klassnamn i ett enfilsdokument ar att
+   lita pa att ingen annan redan tankt samma tanke. */
 .tvbox{padding:13px 14px;display:flex;flex-direction:column;gap:9px}
-.tvrad{display:flex;align-items:center;gap:9px;min-width:0}
-.tv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
+.tvtrad{display:flex;align-items:center;gap:9px;min-width:0}
+.tvt-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
-.tv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
-.tv-oppna{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;
+.tvt-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
+.tvt-oppna{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;
   align-items:center;gap:9px;flex:1 1 auto;min-width:0;color:inherit;font:inherit;
   text-align:left;cursor:pointer}
-.tv-k{appearance:none;flex:0 0 auto;width:42px;height:36px;border:1px solid var(--line);
+.tvt-k{appearance:none;flex:0 0 auto;width:42px;height:36px;border:1px solid var(--line);
   background:var(--inset);color:var(--dim);font-family:var(--sans);font-size:16px;font-weight:700;
   border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-.tv-k .ic{width:17px;height:17px}
-.tv-k:active{transform:scale(.96)}
-.tv-k.pa{background:rgba(235,203,139,.18);border-color:rgba(235,203,139,.5);color:var(--gold)}
-.tv-k.av{color:var(--warm)}
+.tvt-k .ic{width:17px;height:17px}
+.tvt-k:active{transform:scale(.96)}
+.tvt-k.pa{background:rgba(235,203,139,.18);border-color:rgba(235,203,139,.5);color:var(--gold)}
+.tvt-k.av{color:var(--warm)}
 .tv-b{appearance:none;flex:1 1 auto;min-width:64px;display:inline-flex;align-items:center;
   justify-content:center;gap:6px;border:1px solid var(--line);background:var(--inset);
   color:var(--ink);font:inherit;font-size:12px;font-weight:700;border-radius:13px;
@@ -882,7 +889,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.47.0';
+const APP_VERSION = 'v1.48.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2977,12 +2984,12 @@ function tvToppRad(){
   const t=DATA[DEV.tvChrome];
   const mute=capOf(styr,'volume_mute')===true;
   const titel=capOf(t,'speaker_track')||tvApp(t)||'';
-  const kn=(hand,inne,kl,lbl)=>'<button class="tv-k'+(kl?(' '+kl):'')+'" onclick="'+hand
+  const kn=(hand,inne,kl,lbl)=>'<button class="tvt-k'+(kl?(' '+kl):'')+'" onclick="'+hand
     +'" aria-label="'+esc(lbl)+'">'+inne+'</button>';
-  return '<div class="tvrad">'
-    +'<button class="tv-oppna" onclick="openTV()" aria-label="\u00d6ppna TV-panelen">'
+  return '<div class="tvtrad">'
+    +'<button class="tvt-oppna" onclick="openTV()" aria-label="\u00d6ppna TV-panelen">'
     +'<span class="dv-ic">'+icon('television')+'</span>'
-    +'<span class="tv-n">'+esc(namn(styr)||'TV')
+    +'<span class="tvt-n">'+esc(namn(styr)||'TV')
       +(titel?('<small>'+esc(String(titel).slice(0,42))+'</small>'):'')+'</span></button>'
     +(har(styr,'volume_down')?kn("tvToppVol('"+styr.id+"',false)",'\u2212','','s\u00e4nk volymen'):'')
     +(har(styr,'volume_up')?kn("tvToppVol('"+styr.id+"',true)",'+','','h\u00f6j volymen'):'')
