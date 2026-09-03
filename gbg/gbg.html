@@ -909,7 +909,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.51.0';
+const APP_VERSION = 'v1.52.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1687,8 +1687,24 @@ async function bambuStang(){
     toast('Uttaget avstängt');render();setTimeout(load,1200);
   }catch(e){toast('Kunde inte nå Homey');}
 }
+/* TOM FORST, SEDAN FYLL.
+   Skrivarrutan kunde sta synlig utan innehall. Uppmatt i skarmdumpen: rutans
+   vansterkant ligger pa samma x som statusraden och dagsstrecket, alltsa en
+   vanlig panel, men dess ram ar varm - (226,196,187) mot de andras
+   (224,225,229). Den enda panel med varm ram ar .printer; .lamna ar gyllene,
+   .demobar violett och .tvbox arver den neutrala.
+
+   VARFOR den stod kvar vet jag inte. Med Homeys verkliga varden (100 %,
+   munstycket 24,8 grader, uttaget av) doljer funktionen den i mitt prov. Nagon
+   vag dit har lamnat den synlig och tom - ett avbrutet anrop, ett tryck som
+   oppnade den, eller nagot jag inte hittat.
+
+   Darfor tas beslutet inte langre i slutet av varje gren. Rutan doljs och toms
+   FORST, och blir bara synlig igen om det faktiskt skrevs nagot i den. Da kan
+   den inte sta tom oavsett vilken vag koden tog dit. */
 function renderPrinter(){
   const el=$('printer');if(!el)return;
+  el.hidden=true;el.innerHTML='';
   const d=DATA[DEV.bambu];
   if(!bambuSkriver(d)){
     if(bambuKlarKvar()){
@@ -1698,10 +1714,10 @@ function renderPrinter(){
         +'<span class="pr-n">Utskriften är klar<small>uttaget står kvar på'
         +(noz!=null?(' · munstycket '+num(noz,0)+'°'):'')+'</small></span></div>'
         +'<div class="lm-knappar"><button class="lm-b pri" onclick="event.stopPropagation();bambuStang()">Stäng av uttaget</button></div>';
-      el.hidden=false;initIcons(el);return;
+      el.hidden=!el.innerHTML.trim();initIcons(el);return;
     }
     el.classList.remove('pr-klar');
-    el.hidden=true;el.innerHTML='';return;
+    return;                      /* redan dold och tom */
   }
   el.classList.remove('pr-klar');
   const p=capOf(d,'bambu_progress_percentage')||0;
@@ -1721,7 +1737,7 @@ function renderPrinter(){
     +'<span class="pr-p">'+num(p,0)+'<small>%</small></span></div>'
     +'<div class="pr-bar"><i style="width:'+Math.max(0,Math.min(100,p)).toFixed(1)+'%"></i></div>'
     +(m?('<div class="pr-m">'+m+'</div>'):'');
-  el.hidden=false;initIcons(el);
+  el.hidden=!el.innerHTML.trim();initIcons(el);
 }
 function innetemp(){
   const v=cap(DEV.sensVard,'measure_temperature');
