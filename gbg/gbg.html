@@ -334,7 +334,9 @@ body.mobile .statusbar.stuck{
 /* hidden är bara display:none i webbläsarens egen stilmall, och den förlorar
    mot en klassregel med display:flex. Därför störde rutan kvar som en tom
    ram när skrivaren vilade. Samma fälla gäller kameraruta med display. */
-.printer[hidden],.cam[hidden],.demobar[hidden],.lamna[hidden]{display:none!important}
+.printer/* Listan finns for att varje panel som satter ett eget display-varde annars
+   kan vinna over [hidden]. .tvbox har display:flex och hor darfor hit. */
+[hidden],.cam[hidden],.demobar[hidden],.lamna[hidden],.tvbox[hidden]{display:none!important}
 /* Varningsrutan bär två sorters innehåll. Finns inget av dem syns ingenting
    alls — en tom ruta som säger "inget att åtgärda" är en rad man slutar läsa. */
 .lamna .warn{border-bottom:0;padding:8px 0}
@@ -407,6 +409,24 @@ body.mobile .statusbar.stuck{
 /* Rumskorten ligger i EN ruta, precis som styrknapparna: ytterpanelen håller
    luften, korten inuti är infällda i stället för att vara egna paneler. */
 .roomswrap{padding:var(--kn-luft)}
+/* ===== RUMMEN HOPFALLNA =====
+   Raden ar bade sammanfattning och knapp: den sager hur mycket som lyser och
+   oppnar hela rutnatet nar man trycker. I utfallt lage star samma rad kvar
+   overst, sa vagen tillbaka ar densamma som vagen in. */
+.room-komp{grid-column:1/-1;display:flex;align-items:center;gap:9px;min-width:0;
+  cursor:pointer;appearance:none;text-align:left;width:100%;
+  background:var(--inset);border:1px solid var(--line);border-radius:18px;
+  padding:11px 13px;color:inherit;font:inherit}
+.room-komp.on{background:linear-gradient(180deg,rgba(235,203,139,.13),var(--panel-b));
+  border-color:rgba(235,203,139,.32)}
+.room-komp .room-ic{width:22px;height:22px}
+.room-komp.on .room-ic{color:var(--gold)}
+.rk-txt{flex:1 1 auto;min-width:0}
+.rk-n{font-size:13.5px;font-weight:750;letter-spacing:-.01em}
+.rk-s{display:block;font-size:11px;color:var(--faint);font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk-pil{flex:0 0 auto;width:16px;height:16px;color:var(--faint);transition:transform .18s}
+.room-komp.ut .rk-pil{transform:rotate(180deg)}
 .rooms{grid-template-columns:repeat(auto-fit,minmax(158px,1fr));column-gap:var(--kn-luft);row-gap:var(--kn-luft)}
 .room{padding:13px 14px;display:flex;flex-direction:column;gap:9px;cursor:pointer;transition:.16s;
   background:var(--inset);border:1px solid var(--line);border-radius:18px;margin:0;box-shadow:none}
@@ -889,7 +909,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.48.0';
+const APP_VERSION = 'v1.49.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1864,11 +1884,40 @@ function rumsZoner(){
   return Object.keys(ZONES).map(k=>ZONES[k])
     .filter(z=>z&&z.id!==rot&&!arModesZon(z)&&z.parent===rot)
     .sort((a,b)=>(a.name||'').localeCompare(b.name||'','sv'));}
+/* Hopfallt som utgangslage. Valet ar per webblasare, som allt annat som ror
+   hur sidan ser ut pa just den har skarmen. */
+const RUM_KOMP_KEY='gbgrumkomp_v1';
+function rumKomp(){try{return localStorage.getItem(RUM_KOMP_KEY)!=='0';}catch(e){return true;}}
+function rumKompVaxla(){
+  try{localStorage.setItem(RUM_KOMP_KEY,rumKomp()?'0':'1');}catch(e){}
+  renderRooms();
+}
+/* Det viktigaste ar hur manga lampor som lyser och var. Rumsnamnen radas upp
+   sa lange de far plats; resten blir ett antal, sa raden aldrig vaxer sig hog. */
+function rumKompRad(zs,ut){
+  let tanda=0,alla=0;const rum=[];
+  zs.forEach(function(z){
+    const lj=ljusIZon(z.id),pa=lj.filter(d=>capOf(d,'onoff')===true);
+    tanda+=pa.length;alla+=lj.length;
+    if(pa.length)rum.push(z.name);
+  });
+  const t=[];
+  t.push(tanda?('<b>'+tanda+'</b> av '+alla+' t\u00e4nda'):'Allt sl\u00e4ckt');
+  if(rum.length)t.push(rum.slice(0,3).join(', ')+(rum.length>3?(' +'+(rum.length-3)):''));
+  return '<button class="room-komp'+(tanda?' on':'')+(ut?' ut':'')+'" onclick="rumKompVaxla()"'
+    +' aria-expanded="'+(ut?'true':'false')+'">'
+    +'<span class="room-ic ic-slot" data-ic="house"></span>'
+    +'<span class="rk-txt"><span class="rk-n">Rum</span>'
+    +'<span class="rk-s">'+t.join(' \u00b7 ')+'</span></span>'
+    +'<span class="rk-pil ic-slot" data-ic="caret-down"></span></button>';
+}
 function renderRooms(){
   const el=$('rooms');if(!el)return;
   const zs=rumsZoner();
   if(!zs.length){el.innerHTML='';return;}
-  el.innerHTML=zs.map(z=>{
+  const hop=rumKomp();
+  if(hop){el.innerHTML=rumKompRad(zs,false);initIcons(el);return;}
+  el.innerHTML=rumKompRad(zs,true)+zs.map(z=>{
     const lj=ljusIZon(z.id),pa=lj.filter(d=>capOf(d,'onoff')===true);
     const dimbara=pa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
     const medel=dimbara.length?dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length:null;
@@ -2975,9 +3024,18 @@ function tvTryck(id,cap){
    inget lage att spegla. Mute och av har lagen och speglas darfor direkt, sa
    knappen svarar utan att vanta pa nasta hamtning. */
 function tvToppStyr(){return DATA[DEV.tvPanel]||DATA[DEV.tvChrome]||null;}
+/* AR TV:N PA? Forsta versionen svarade ja sa fort NAGON av de tva var pa, med
+   motiveringen att streamern kan hinna fore panelen. Det gav en ruta som stod
+   kvar tom nar TV:n var avstangd: en Google TV-streamer rapporterar onoff=true
+   sa lange den har strom, alltsa dygnet runt, och da fanns varken volym eller
+   titel att visa - bara ett namn och en av-knapp.
+   Nu ar det PANELEN som avgor, eftersom det ar den som ar "TV:n". Streamern far
+   svara bara om panelen saknar onoff helt, alltsa om det inte finns nagot annat
+   att ga pa. */
 function tvToppPa(){
   const p=DATA[DEV.tvPanel],t=DATA[DEV.tvChrome];
-  return (capOf(p,'onoff')===true||capOf(t,'onoff')===true);
+  if(p&&har(p,'onoff'))return capOf(p,'onoff')===true;
+  return capOf(t,'onoff')===true;
 }
 function tvToppRad(){
   const styr=tvToppStyr();if(!styr)return '';
@@ -3000,9 +3058,11 @@ function tvToppRad(){
 }
 function renderTVtopp(){
   const sec=$('tv-sec');if(!sec)return;
-  const pa=tvToppPa();
-  sec.hidden=!pa;
-  sec.innerHTML=pa?tvToppRad():'';
+  /* Bygg forst, dolj sedan pa resultatet. Blir raden tom av nagot skal vi inte
+     tankt pa ska rutan forsvinna, inte sta kvar som en tom panel. */
+  const h=tvToppPa()?tvToppRad():'';
+  sec.innerHTML=h;
+  sec.hidden=!h;
   if(!sec.hidden)initIcons(sec);
 }
 async function tvToppVol(id,upp){
