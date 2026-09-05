@@ -1802,6 +1802,17 @@ body.mobile{--ds-sun:14px}
 /* Talet mellan minus och plus är ingen knapp och ska inte se ut som en. */
 .brv-tal{flex:1 1 auto;min-width:74px;text-align:center;align-self:center;
   font-size:15px;font-weight:800;color:var(--ink)}
+/* VISA MER. Snabbvalen och temperaturen är det man kommer för; läge, fläkt och
+   spjäll är sådant man ställer en gång och sedan låter vara. De ligger därför
+   hopfällda — men i samma ruta, inte på ett annat ställe. */
+.brv-mer{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+  margin:13px 0 0;background:none;border:0;padding:8px 4px;cursor:pointer;
+  font:inherit;font-size:11px;font-weight:750;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--faint)}
+.brv-mer .ic{width:13px;height:13px;transition:transform .18s}
+.brv-mer.open .ic{transform:rotate(180deg)}
+.brv-doldt{display:none}
+.brv-doldt.open{display:block}
 .cfg-btns{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:9px}
 .cfg-btns.synced{margin-bottom:9px}
 .cfg-btns .cfg-opt{flex:1 1 auto}
@@ -3772,11 +3783,10 @@ async function btnTap(i){
       openVanor();
       return;
     }else if(b.type==='breveden'){
-      /* Trycket blockeras ALDRIG här, inte ens när nastaLage är 'ok' —
-         skriptet svarar då med en push, och den vägen ska gå genom Homey. */
-      await brvTryck();
-      flashCtl(i,(btnState(b)?'stänger…':'startar…'));
-      setTimeout(renderControls,2200);
+      /* Knappen öppnar rutan sedan v606. Start och stopp via skriptet ligger
+         kvar som snabbvalet "Auto" därinne — ett tryck som ändrar något ska
+         göras där man ser vad som gäller, inte blint från knapprutan. */
+      openDetail('breveden');
       return;
     }else if(b.type==='battladd'){
       var bl2=battLaddLage();
@@ -12415,6 +12425,11 @@ function brvSnabbLista(){
   return ut;
 }
 var _brvSkriver=false,_brvFel=null;
+/* Öppet eller hopfällt lever utanför DOM:en: rutan byggs om vid varje skrivning
+   och varje hämtning, och ett läge som bara fanns i markupen hade fällts ihop
+   mitt i inställningen. Samma skäl som dragpunktens _avlVald. */
+var _brvMer=false;
+function brvMerTog(){_brvMer=!_brvMer;brvPopRita();}
 async function brvSnabb(k){
   if(k==='auto'){try{await brvTryck();}catch(e){}return;}
   var q=null;
@@ -12509,30 +12524,41 @@ function brvPopHTML(){
   if(_brvSkriver)h+='<div class="brv-status">Skickar till Homey…</div>';
   else if(_brvFel)h+='<div class="brv-status brv-fel">Gick inte: '+esc(_brvFel)+'</div>';
 
-  h+='<div class="dsec">Styrning</div>';
-  h+='<div class="cfg-btns"><button class="cfg-opt'+(acOn===true?' on':'')
-    +'" onclick="brvTog()">'+(acOn===true?'På':'Av')+'</button></div>';
-  var lagen=brvVal('thermostat_mode');
-  if(lagen){
-    h+='<div class="cfg-sec">Läge</div>'
-      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){return acModeSv(x.id,true)||x.namn;});
-  }
+  /* FRAMME: temperaturen. Den ändrar man ofta och den hör ihop med snabbvalen. */
   var tO=brvCapObj('target_temperature');
   if(tO){
-    h+='<div class="cfg-sec">Inställd temperatur</div>'
+    h+='<div class="dsec">Inställd temperatur</div>'
       +'<div class="cfg-btns">'
       +'<button class="cfg-opt" onclick="brvSattTemp(-1)">\u2013</button>'
       +'<span class="brv-tal">'+(acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')+'</span>'
       +'<button class="cfg-opt" onclick="brvSattTemp(1)">+</button></div>';
   }
+
+  /* HOPFÄLLT: på/av, läge, fläkt och spjäll. Byggs bara om enheten har något
+     att visa — en tom "visa mer" är värre än ingen alls. */
+  var doldt='';
+  doldt+='<div class="cfg-sec">På eller av</div>'
+    +'<div class="cfg-btns"><button class="cfg-opt'+(acOn===true?' on':'')
+    +'" onclick="brvTog()">'+(acOn===true?'På':'Av')+'</button></div>';
+  var lagen=brvVal('thermostat_mode');
+  if(lagen){
+    doldt+='<div class="cfg-sec">Läge</div>'
+      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){return acModeSv(x.id,true)||x.namn;});
+  }
   var flakt=brvVal('fan_speed')||brvNumVal('fan_speed');
-  if(flakt)h+='<div class="cfg-sec">Fläkt</div>'+brvKnappRad('fan_speed',acFan,flakt);
+  if(flakt)doldt+='<div class="cfg-sec">Fläkt</div>'+brvKnappRad('fan_speed',acFan,flakt);
   var lod=brvVal('vertical');
-  if(lod)h+='<div class="cfg-sec">Luftriktning lodrätt</div>'
+  if(lod)doldt+='<div class="cfg-sec">Luftriktning lodrätt</div>'
     +brvKnappRad('vertical',cap(ac,'vertical'),lod);
   var sid=brvVal('horizontal');
-  if(sid)h+='<div class="cfg-sec">Luftriktning i sidled</div>'
+  if(sid)doldt+='<div class="cfg-sec">Luftriktning i sidled</div>'
     +brvKnappRad('horizontal',cap(ac,'horizontal'),sid);
+  if(doldt){
+    var op=_brvMer?' open':'';
+    h+='<button class="brv-mer'+op+'" id="brv-mer-btn" onclick="brvMerTog()">'
+      +(_brvMer?'Visa mindre':'Visa mer')+icon('caret-down')+'</button>'
+      +'<div class="brv-doldt'+op+'" id="brv-doldt">'+doldt+'</div>';
+  }
 
   h+='<div class="dsec">Nu</div>'
     +dRow('Läge',esc(acModeSv(acMode,acOn)))
@@ -16062,7 +16088,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v605';
+const APP_VERSION='v606';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
