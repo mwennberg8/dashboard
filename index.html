@@ -2507,13 +2507,16 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    flyttades ut ur SVG:n. Position i procent följer med när rutan ändrar bredd.
    touch-action:pan-y, inte none: ett lodrätt svep ska fortfarande rulla
    popupen. Greppet tas först när fingret rör sig mer i sidled. */
-.avl-lager{position:relative;touch-action:pan-y}
+/* ETIKETTEN LIGGER I EN EGEN RAD OVANFÖR RITYTAN, inte inuti den. Förut satt
+   den i grafens översta pixlar och krockade med varje topp som nådde dit.
+   Egen rad kostar fjorton pixlar och kan inte krocka med någonting. */
+.avl-lager{position:relative}
+.avl-rad{position:relative;height:14px;margin-bottom:1px}
+.avl-graf{position:relative;touch-action:pan-y}
 .avl-ovl{position:absolute;inset:0;pointer-events:none}
-/* Strecket börjar UNDER etiketten. Förut gick det tvärs igenom siffrorna:
-   båda satt överst och centrerade på samma x, så linjen delade texten i två.
-   Etiketten äger de översta 15 pixlarna, strecket resten — och eftersom det
-   är samma regel för alla grafer ser avläsningen likadan ut i allihop. */
-.avl-lin{position:absolute;top:15px;bottom:0;width:0;border-left:1.5px dashed var(--ink);opacity:.5}
+/* Strecket får gå hela ritytans höjd igen — etiketten ligger inte längre i
+   vägen. Samma regel för alla grafer, så avläsningen ser likadan ut överallt. */
+.avl-lin{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--ink);opacity:.5}
 .avl-lager.drar .avl-lin{border-left-style:solid;opacity:.85}
 .avl-dot{position:absolute;width:7px;height:7px;border-radius:50%;
   transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel-b)}
@@ -2521,7 +2524,7 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .avl-tag{position:absolute;top:0;height:14px;line-height:14px;
   display:flex;gap:6px;align-items:center;
   font-size:10px;font-weight:800;color:var(--ink);white-space:nowrap;
-  letter-spacing:-.01em;text-shadow:0 1px 3px var(--panel-b),0 0 2px var(--panel-b)}
+  letter-spacing:-.01em}
 .avl-tag i{font-style:normal;font-weight:700;color:var(--dim)}
 .pgraph-x{display:flex;justify-content:space-between;font-size:9.5px;color:var(--dim);margin-top:2px;padding:0 4px}
 .pgraph-empty{padding:26px 14px;text-align:center;font-size:12.5px;color:var(--dim);line-height:1.5;background:var(--panel-b);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
@@ -3380,7 +3383,7 @@ function drawChart(elId,ss,opts){
     const d=pts.map((p,i)=>(i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.v).toFixed(1)).join(' ');
     if(s.area){const gid='g'+(_gid++);defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+s.color+'" stop-opacity="0.28"/><stop offset="1" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>';
       body+='<path d="'+d+' L '+X(pts[pts.length-1].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' L '+X(pts[0].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' Z" fill="url(#'+gid+')"/>';}
-    body+='<path d="'+d+'" fill="none" stroke="'+s.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+    body+='<path d="'+d+'" fill="none" stroke="'+s.color+'"'+GRAF_LINJE+'/>';
     const last=pts[pts.length-1];body+='<circle cx="'+X(last.t).toFixed(1)+'" cy="'+Y(last.v).toFixed(1)+'" r="3" fill="'+s.color+'"/>';});
   let svg='<svg class="chart" viewBox="0 0 '+Wd+' '+H+'" preserveAspectRatio="none" role="img" aria-label="graf"><defs>'+defs+'</defs>'+body+'</svg>';
   svg=avlLager(elId,svg,{W:Wd,H:H,X:X,ser:avlSer});
@@ -4065,7 +4068,7 @@ function progKurvaSVG(){
   if(fakt.length>1){
     var fd='';
     for(var i=0;i<fakt.length;i++)fd+=(i?'L':'M')+X(fakt[i].t).toFixed(1)+' '+Y(fakt[i].v).toFixed(1)+' ';
-    b+='<path d="'+fd+'" fill="none" stroke="var(--solar)" stroke-width="2.4" '
+    b+='<path d="'+fd+'" fill="none" stroke="var(--solar)"'+GRAF_LINJE+' '
       +'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
   }
   /* Prognosen är timvärden mitt i sin timme — samma punkter som ytan ritas av.
@@ -4380,7 +4383,7 @@ function windChartHTML(){
   ser.forEach(function(s){
     var d='';
     for(var j=0;j<s.p.length;j++)d+=(j?'L':'M')+X(s.p[j].t).toFixed(1)+' '+Y(s.p[j].v,s.axel).toFixed(1)+' ';
-    b+='<path d="'+d+'" fill="none" stroke="'+s.farg+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"'
+    b+='<path d="'+d+'" fill="none" stroke="'+s.farg+'"'+GRAF_LINJE+' '
       +(s.axel==='deg'?' stroke-dasharray="5 4" opacity=".85"':'')+'/>';
     var sist=s.p[s.p.length-1];
     b+='<circle cx="'+X(sist.t).toFixed(1)+'" cy="'+Y(sist.v,s.axel).toFixed(1)+'" r="3" fill="'+s.farg+'"/>';});
@@ -4414,14 +4417,18 @@ function windSectionHTML(){
            :(_windInsBusy?'Hämtar ur Homey Insights…'
            :(_windInsFel?('Kunde inte läsa Insights ('+esc(_windInsFel)+') – visar egna mätningar.')
            :'Visar egna mätningar.'));
-  return '<div class="dsec">Högsta nu <em class="dsec-x">• '+WIND_NU_H+'h</em></div>'
+  /* Grafen först. Den är det man öppnar rutan för; sifferraderna är
+     uppföljningsfrågor. Den ligger kvar INNE i windSectionHTML så att
+     uppdateringen när Insights svarar byter ut både graf och toppvärden
+     i ett svep. */
+  return '<div class="dsec">Idag</div>'
+    +'<div id="wind-chart">'+windChartHTML()+'</div>'
+    +'<div class="dsec">Högsta nu <em class="dsec-x">• '+WIND_NU_H+'h</em></div>'
     +windMaxRow('Max vind',nW.v,nW.t,1)
     +windMaxRow('Max by',nG.v,nG.t,1)
     +'<div class="dsec">Högsta idag</div>'
     +windMaxRow('Max vind dygn',dW.v,dW.t,1)
     +windMaxRow('Max by dygn',dG.v,dG.t,1)
-    +'<div class="dsec">Idag</div>'
-    +'<div id="wind-chart">'+windChartHTML()+'</div>'
     +'<div class="drow drow-t" onclick="windInfoTog()" style="border-bottom:0">'
     +'<span class="dk">Vad visar siffrorna? <span class="di-q">i</span></span></div>'
     +'<div class="drow-info'+(_windInfoOpen?' open':'')+'" id="wind-info">'
@@ -4596,7 +4603,7 @@ function gridPowerSVG(pts){
   // dela i färgade sträckor: en sträcka är antingen köp (>=0) eller sälj (<0)
   let paths=[], curPts=[], curSign=null;
   const flush=()=>{ if(curPts.length>=2){const col=curSign>=0?BLA:GRO;
-    paths.push('<path d="'+smoothPath(curPts)+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>');} };
+    paths.push('<path d="'+smoothPath(curPts)+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/>');} };
   for(let i=0;i<pl.length;i++){
     const pt=pl[i], xy=[X(pt.t),Y(pt.v)];
     const sign=pt.v>0?1:pt.v<0?-1:(curSign==null?1:curSign);
@@ -4649,7 +4656,7 @@ function ptsLineSVG(pts,colKey,unit,id){const now=Date.now();
   const area=line+' L'+P2[P2.length-1][0].toFixed(1)+' '+(H2-pad)+' L'+P2[0][0].toFixed(1)+' '+(H2-pad)+' Z';
   const g=areaGrad(col,0.28);
   const spanH=Math.round(tr/3600000),u=unit||'°C';
-  let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs><path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs><path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager(id||('pts-'+colKey+'-'+u),svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,1)+' '+u;}}]});
   return '<div class="viz">'+svgm+'<div class="viz-cap">senaste ~'+(spanH>=1?spanH+' h':'stunden')+' · '+num(ylo,1)+'–'+num(yhi,1)+' '+u+'</div></div>';}
@@ -5247,10 +5254,29 @@ function avlHem(id){
   }
   return (t==null)?g.t1:t;
 }
-function avlOverlay(id){
-  var g=_avlGeo[id];if(!g)return '';
-  var t=_avlVald[id];if(t==null)return '';
-  var xp=avlXp(g,t),h='',rutor='';
+/* Referensserien är den med flest punkter — den beskriver bäst var det
+   överhuvudtaget finns mätvärden att peka på. */
+function avlRef(g){
+  var b=g.ser[0];
+  for(var i=1;i<g.ser.length;i++)if(g.ser[i].pts.length>b.pts.length)b=g.ser[i];
+  return b;
+}
+/* LÄGET FÄSTS VID ETT VERKLIGT MÄTVÄRDE.
+   Förut satt pricken på fingrets x men på närmaste punkts y. I en tät serie
+   syns det inte, men badtemperaturen kan ha fyra värden på två dygn — då
+   hamnade pricken mitt emellan två sampel i sidled och långt vid sidan av
+   kurvan i höjdled. Nu låses streck, prick och etikett i samma sampel, och
+   varje serie får dessutom sin EGEN x ur sin egen närmaste punkt. Då ligger
+   pricken per definition på en av kurvans hörnpunkter. */
+function avlFast(g,t){
+  var p=avlPunkt(avlRef(g).pts,t);
+  return p?p.t:t;
+}
+function avlDelar(id){
+  var tom={rad:'',graf:''};
+  var g=_avlGeo[id];if(!g)return tom;
+  var vald=_avlVald[id];if(vald==null)return tom;
+  var t=avlFast(g,vald), xp=avlXp(g,t), h='', rutor='';
   h+='<span class="avl-lin" style="left:'+xp.toFixed(2)+'%"></span>';
   for(var i=0;i<g.ser.length;i++){
     var s=g.ser[i],p=avlPunkt(s.pts,t);
@@ -5258,16 +5284,15 @@ function avlOverlay(id){
     var yp=avlYp(g,s,p.v);
     if(yp==null)continue;
     var f=(typeof s.farg==='function')?s.farg(p.v):(s.farg||'var(--ink)');
-    h+='<span class="avl-dot" style="left:'+xp.toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
+    h+='<span class="avl-dot" style="left:'+avlXp(g,p.t).toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
     rutor+='<b style="color:'+f+'">'+esc(avlText(s,p.v))+'</b>';
   }
-  if(!rutor)return '';
+  if(!rutor)return tom;
   /* Nära kanten förankras etiketten i sidan i stället för i mitten, annars
      klipps den — samma regel som pgTagg(). */
   var stil=(xp<16)?'left:2px':((xp>84)?'right:2px':'left:'+xp.toFixed(2)+'%;transform:translateX(-50%)');
   var kl=(typeof g.kl==='function')?g.kl(t):avlKl(t);
-  h+='<span class="avl-tag" style="'+stil+'"><i>'+esc(kl)+'</i>'+rutor+'</span>';
-  return h;
+  return {rad:'<span class="avl-tag" style="'+stil+'"><i>'+esc(kl)+'</i>'+rutor+'</span>',graf:h};
 }
 function avlLager(id,svg,geo){
   if(!geo||typeof geo.X!=='function')return svg;
@@ -5285,13 +5310,16 @@ function avlLager(id,svg,geo){
   _avlGeo[id]=geo;
   var v=_avlVald[id];
   if(v==null||v<geo.t0||v>geo.t1)_avlVald[id]=avlHem(id);
+  var del=avlDelar(id);
   /* onclick stoppas här: popupen stängs vid tryck utanför, och ett släpp efter
      en dragning får inte bubbla upp och räknas som ett sådant tryck. */
-  return '<div class="avl-lager" id="avl-'+id+'" data-avl="'+id+'"'
+  return '<div class="avl-lager">'
+    +'<div class="avl-rad" id="avl-rad-'+id+'">'+del.rad+'</div>'
+    +'<div class="avl-graf" id="avl-'+id+'" data-avl="'+id+'"'
     +' onpointerdown="avlNer(event,\''+id+'\')" onpointermove="avlRor(event)"'
     +' onpointerup="avlUpp(event)" onpointercancel="avlUpp(event)"'
     +' onclick="event.stopPropagation()">'
-    +svg+'<div class="avl-ovl" id="avl-ovl-'+id+'">'+avlOverlay(id)+'</div></div>';
+    +svg+'<div class="avl-ovl" id="avl-ovl-'+id+'">'+del.graf+'</div></div></div>';
 }
 function avlEl(id){
   try{return (typeof document!=='undefined'&&document.getElementById)?document.getElementById(id):null;}
@@ -5300,8 +5328,9 @@ function avlEl(id){
 /* Ritar om BARA overlayen. Att bygga om grafens HTML under ett pågående drag
    tappar pekfångsten — samma lärdom som pgUppdatera(). */
 function avlMala(id){
-  var el=avlEl('avl-ovl-'+id);
-  if(el)el.innerHTML=avlOverlay(id);
+  var del=avlDelar(id);
+  var a=avlEl('avl-ovl-'+id); if(a)a.innerHTML=del.graf;
+  var b=avlEl('avl-rad-'+id); if(b)b.innerHTML=del.rad;
 }
 function avlTid(e,id){
   var g=_avlGeo[id];if(!g)return null;
@@ -5379,13 +5408,13 @@ function dayChart(series,pctSerie,fonster){
   segs.forEach(function(o){
     var seg=o.seg,pts=seg.map(function(p){return [X(p.t),Y(p.v)];});
     if(pts.length<2)return;
-    var line=smoothPath(pts),k=o.s.key,bw=2.2,on=(!active||sel[k]);
+    var line=smoothPath(pts),k=o.s.key,bw=GRAF_LW,on=(!active||sel[k]);
     var fillIt=(active?!!sel[k]:(k==='solar'));
     if(fillIt){
       var g=areaGrad(o.s.col,0.26);defs+=g.def;
       areas+='<path data-k="'+k+'" data-bw="0" d="'+line+' L'+pts[pts.length-1][0].toFixed(1)+' '+yBase.toFixed(1)+' L'+pts[0][0].toFixed(1)+' '+yBase.toFixed(1)+' Z" fill="url(#'+g.id+')" style="opacity:'+(on?1:0.09)+'"/>';
     }
-    lines+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+o.s.col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+(on?1:0.09)+'"/>';
+    lines+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+o.s.col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" style="opacity:'+(on?1:0.09)+'"/>';
   });
   /* Avläsningen läser mot SAMMA glesade segment som ritades, och bara mot de
      linjer som faktiskt syns — är en linje bortvald i förklaringen ska den
@@ -5450,9 +5479,9 @@ function yearOverlayChart(key,colMap,cid){
   function pathPts(vals){var pts=[];for(var i=0;i<12;i++){if(vals[i]!=null)pts.push([x(i+1),y(vals[i])]);}return pts;}
   var sel=_chartSel[cid]||{},active=Object.keys(sel).length>0;
   var defs='',body='';
-  byYear.forEach(function(o){var col=colMap[o.year]||'var(--dim)',isC=(o.year===cy),k=''+o.year,on=(!active||sel[k]);var pts=pathPts(o.vals);if(pts.length<2)return;var line=smoothPath(pts),bw=isC?3:2.2;
+  byYear.forEach(function(o){var col=colMap[o.year]||'var(--dim)',isC=(o.year===cy),k=''+o.year,on=(!active||sel[k]);var pts=pathPts(o.vals);if(pts.length<2)return;var line=smoothPath(pts),bw=isC?(GRAF_LW+0.8):GRAF_LW;
     if((isC||sel[k])&&on){var g=areaGrad(col,0.26);defs+=g.def;var area=line+' L'+pts[pts.length-1][0].toFixed(1)+' '+(H-padB)+' L'+pts[0][0].toFixed(1)+' '+(H-padB)+' Z';body+='<path d="'+area+'" fill="url(#'+g.id+')"/>';}
-    body+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" style="opacity:'+(on?1:0.09)+'"/>';});
+    body+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" style="opacity:'+(on?1:0.09)+'"/>';});
   /* AVLÄSNINGSPUNKT ÄVEN HÄR. x-axeln är månad 1–12 och inte epoktid, så
      modulen får en egen etikettformaterare — samma sak som prognosrutans
      timindex. Bara år med en ritad kurva kommer med; ett år utan data ska
@@ -6434,6 +6463,9 @@ function radarFetch(){
         _radarPath=(last&&last.path)||null;
         if(j&&j.host)_radarHost=(''+j.host).replace(/\/$/,'');
         _radarT=Date.now();_radarFail=!_radarPath;_radarBusy=false;
+        /* Ny bildruta = ny rörelse att mäta. framMat() har egen nyckelvakt och
+           gör ingenting om den redan mätt just den här rutan. */
+        try{framMat();}catch(e){}
         try{if(document.getElementById('vdr-body')&&wxShow()!=='tryck')renderVader();}catch(e){}
       },function(){_radarBusy=false;_radarFail=true;_radarT=Date.now();});
   }catch(e){_radarBusy=false;_radarFail=true;}
@@ -6656,6 +6688,199 @@ function prgLagerHTML(ti){
    ar ett vanligt paslag men jag har inte matt det for Onsala. Vill du
    kalibrera: spola fram en halvtimme, vanta, och jamfor med den riktiga
    bilden. Ligger framskrivningen efter ska talet upp. */
+
+/* ===== RIKTNINGEN MÄTS UR RADARN, INTE UR VINDEN =====
+   Framskrivningen flyttade förut bilden längs MARKVINDEN gånger en faktor som
+   fick ställas för hand tills övergången slutade rycka. Det är ett indirekt
+   mått: nederbördsområden styrs av vinden några kilometer upp, som varken har
+   samma riktning eller samma fart som den vid marken. Därav pillandet med
+   1,6 och sedan 1,0 — faktorn var ett försök att gissa sig till skillnaden.
+
+   Nu mäts förskjutningen ur radarbilderna själva. Två på varandra följande
+   bilder ritas i var sin liten ruta och jämförs: den förskjutning som gör den
+   senare bilden mest lik den tidigare ÄR den riktning och den fart
+   nederbörden faktiskt rört sig den sista biten. Ingen faktor, ingen
+   kalibrering, och riktningen kan avvika från markvinden utan att bli fel.
+
+   VARFÖR DET STOD ATT DET INTE GICK. Den gamla kommentaren sa att
+   bildpunkterna inte går att läsa ur en canvas fylld med bilder från ett annat
+   ursprung. Det stämmer — men bara om servern inte tillåter det. Rutorna
+   laddas nu med crossOrigin="anonymous": skickar RainViewer
+   Access-Control-Allow-Origin går avläsningen igenom, annars kastar
+   getImageData och vi faller tillbaka på vinden precis som förut.
+   JAG HAR INTE KUNNAT PRÖVA DET HÄRIFRÅN. Vilken källa som faktiskt används
+   står i kartans förklaring, så svaret syns direkt på plattan.
+
+   VAD DEN FORTFARANDE INTE KAN. Skurar flyttas, men de växer inte till och dör
+   inte ut. Metoden är rimlig i en halvtimme och sedan inte. */
+/* SAMMA LINJESTIL I ALLA TIDSSERIEGRAFER.
+   Bredderna hade glidit isär: 2, 2,2 och 2,4 beroende på vem som ritade. Värre
+   var att bredden räknas i grafens EGNA koordinater — en 2,2 i en 300 enheter
+   bred vy och en 2,2 i en 1000 enheter bred vy blir olika tjocka på skärmen,
+   eftersom vyerna sträcks till samma bredd. vector-effect="non-scaling-stroke"
+   ritar strecket i skärmens bildpunkter i stället, så alla kurvor blir lika
+   tjocka oavsett vilken viewBox de råkar ha.
+   Spotprisgrafen står utanför: den har egen mekanik och lämnas orörd. */
+var GRAF_LW=2.2;
+var GRAF_LINJE=' stroke-width="'+GRAF_LW+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"';
+var FRAM_RUT=96;            /* mätrutans sida i bildpunkter */
+var FRAM_SOK=20;            /* största sökta förskjutning, i mätrutans punkter */
+var FRAM_MINTACK=0.004;     /* under detta finns för lite eko att matcha mot */
+var FRAM_MAXTACK=0.85;      /* över detta är bilden nästan heltäckande */
+/* KVOTGRÄNSEN ÄR MÄTT, INTE GISSAD. Två oberoende ekofält — alltså fall där
+   det INTE finns någon gemensam rörelse — matchades till kvot 0,82–0,90: en
+   fri sökning hittar alltid någon förskjutning som ser lite bättre ut än
+   ingen. En verklig förskjutning gav 0,00 utan utveckling och 0,34 även när
+   skurarna växte och krympte 60 % mellan bilderna. Gränsen ligger mitt
+   emellan, med god marginal åt båda hållen. Mitt första värde var 0,92 och
+   hade släppt igenom rent brus som en riktning. */
+var FRAM_KVOT=0.55;
+/* TVÅ PAR MÅSTE VARA ÖVERENS. Advektion är trög: rör sig nederbörden nio
+   bildpunkter på tio minuter gör den ungefär detsamma nästa tio minuter.
+   Slumpmässiga träffar gör inte det, och två oberoende par som pekar åt olika
+   håll är det tydligaste tecknet på att matchningen tagit fel. */
+var FRAM_SPRID=0.6;
+var FRAM_ALDER=40*60000;    /* en mätning äldre än så beskriver inte längre nu */
+var _framFlt=null,_framFel=null,_framBusy=false,_framNyckel=null;
+
+/* Blockmatchning. Söker den förskjutning (dx,dy) som gör bild B mest lik bild
+   A, mätt som MEDELbeloppsfel över den del som överlappar. Medelvärde och inte
+   summa: annars vinner stora förskjutningar bara för att färre punkter jämförs.
+   Varannan punkt räcker — fältet är mjukt och det går fyra gånger fortare. */
+function framMatcha(a,b,W,H,max){
+  var bast=null,noll=null,dx,dy,x,y;
+  for(dy=-max;dy<=max;dy++){
+    for(dx=-max;dx<=max;dx++){
+      var y0=Math.max(0,-dy),y1=Math.min(H,H-dy);
+      var x0=Math.max(0,-dx),x1=Math.min(W,W-dx);
+      var sum=0,n=0;
+      for(y=y0;y<y1;y+=2){
+        var ra=y*W, rb=(y+dy)*W+dx;
+        for(x=x0;x<x1;x+=2){sum+=Math.abs(a[ra+x]-b[rb+x]);n++;}
+      }
+      if(n<(W*H)/8)continue;
+      var v=sum/n;
+      if(dx===0&&dy===0)noll=v;
+      if(bast==null||v<bast.v)bast={dx:dx,dy:dy,v:v};
+    }
+  }
+  if(!bast)return null;
+  /* Kvoten säger hur mycket bättre den bästa förskjutningen är än att inte
+     flytta alls. Ligger den nära 1 har mätningen inte hittat någon rörelse —
+     då är det ärligare att inte påstå en riktning än att påstå en svag. */
+  bast.noll=noll;
+  bast.kvot=(noll!=null&&noll>0)?(bast.v/noll):1;
+  return bast;
+}
+/* Hur stor del av rutan som har eko alls. */
+function framTackning(a){
+  var n=0;
+  for(var i=0;i<a.length;i++)if(a[i]>16)n++;
+  return a.length?n/a.length:0;
+}
+/* Ritar en radarbild i en liten ruta och lämnar tillbaka genomskinligheten som
+   ett gråskalefält. Alfakanalen är noll där det inte regnar, så den duger som
+   intensitet utan att färgskalan behöver tolkas. */
+function framRitaRuta(path){
+  return new Promise(function(klar,fel){
+    var Z=radarViewZ(), rz=Math.min(Z,RADAR_MAX_Z), VW=RADAR_VIEW;
+    var tiles=(rz===Z)?osmGrid(VW.lat,VW.lon,Z,VW.W,VW.H).tiles.map(function(t){
+                         return {x:t.x,y:t.y,z:t.z,left:t.left,top:t.top,size:256};})
+                     :osmGridScaled(VW.lat,VW.lon,Z,VW.W,VW.H,rz);
+    if(!tiles.length){fel(new Error('inga kartrutor'));return;}
+    var sk=FRAM_RUT/VW.W, cv, ctx;
+    try{cv=document.createElement('canvas');cv.width=FRAM_RUT;cv.height=FRAM_RUT;ctx=cv.getContext('2d');}
+    catch(e){fel(new Error('ingen canvas'));return;}
+    if(!ctx){fel(new Error('ingen canvas'));return;}
+    var kvar=tiles.length, klart=false;
+    var vakt=setTimeout(function(){if(!klart){klart=true;fel(new Error('rutorna hann inte hämtas'));}},8000);
+    tiles.forEach(function(t){
+      var im=new Image();
+      /* Utan det här blir canvasen "tainted" och getImageData kastar. */
+      im.crossOrigin='anonymous';
+      im.onload=function(){try{ctx.drawImage(im,t.left*sk,t.top*sk,t.size*sk,t.size*sk);}catch(e){} klarRuta();};
+      im.onerror=function(){klarRuta();};
+      im.src=radarTileUrl(t,path);
+    });
+    function klarRuta(){
+      if(--kvar>0||klart)return;
+      klart=true;clearTimeout(vakt);
+      var d;
+      try{d=ctx.getImageData(0,0,FRAM_RUT,FRAM_RUT).data;}
+      catch(e){fel(new Error('kartrutorna får inte läsas (CORS)'));return;}
+      var a=new Uint8Array(FRAM_RUT*FRAM_RUT);
+      for(var i=0,q=3;i<a.length;i++,q+=4)a[i]=d[q];
+      klar(a);
+    }
+  });
+}
+/* Mäter rörelsen ur de tre senaste MÄTTA bilderna. Nyckeln gör att samma
+   bildruta aldrig mäts två gånger — mätningen laddar rutorna på nytt och ska
+   köras en gång per radaruppdatering, inte en gång per omritning. */
+function framMat(){
+  if(_framBusy||typeof Promise==='undefined')return;
+  var n=Math.min(_radarNow,_radarFrames.length-1);
+  if(!(n>=1))return;
+  var lista=[];
+  if(n>=2)lista.push(_radarFrames[n-2]);
+  lista.push(_radarFrames[n-1]);lista.push(_radarFrames[n]);
+  lista=lista.filter(function(f){return f&&f.time&&f.path;});
+  if(lista.length<2)return;
+  var nyckel=radarViewZ()+':'+lista[lista.length-1].time;
+  if(_framNyckel===nyckel)return;
+  _framNyckel=nyckel;_framBusy=true;
+  Promise.all(lista.map(function(f){return framRitaRuta(f.path);})).then(function(bild){
+    var par=[];
+    for(var i=1;i<bild.length;i++){
+      var tk=framTackning(bild[i]);
+      if(tk<FRAM_MINTACK||tk>FRAM_MAXTACK)continue;
+      var m=framMatcha(bild[i-1],bild[i],FRAM_RUT,FRAM_RUT,FRAM_SOK);
+      if(!m||m.kvot>FRAM_KVOT)continue;
+      var minuter=(lista[i].time-lista[i-1].time)/60;
+      if(!(minuter>0))continue;
+      par.push({dx:m.dx/minuter,dy:m.dy/minuter,kvot:m.kvot});
+    }
+    if(!par.length){_framFlt=null;_framFel='ingen tydlig rörelse i radarn';_framBusy=false;framOmRita();return;}
+    if(par.length>1){
+      var a1=par[par.length-2],a2=par[par.length-1];
+      var skild=Math.sqrt((a1.dx-a2.dx)*(a1.dx-a2.dx)+(a1.dy-a2.dy)*(a1.dy-a2.dy));
+      var langd=(Math.sqrt(a1.dx*a1.dx+a1.dy*a1.dy)+Math.sqrt(a2.dx*a2.dx+a2.dy*a2.dy))/2;
+      if(skild>FRAM_SPRID*langd+0.3){
+        _framFlt=null;_framFel='rörelsen pekar åt olika håll mellan bilderna';
+        _framBusy=false;framOmRita();return;
+      }
+    }
+    var sx=0,sy=0,sk=0;
+    par.forEach(function(p){sx+=p.dx;sy+=p.dy;sk+=p.kvot;});
+    /* Mätrutan är FRAM_RUT bred och vyn RADAR_VIEW.W. Vektorn räknas om till
+       vyns bildpunkter redan här, så resten av koden slipper veta att
+       mätningen gjordes i en mindre ruta. */
+    var k=RADAR_VIEW.W/FRAM_RUT;
+    _framFlt={dx:(sx/par.length)*k,dy:(sy/par.length)*k,kvot:sk/par.length,
+              par:par.length,z:radarViewZ(),at:Date.now()};
+    _framFel=null;_framBusy=false;framOmRita();
+  },function(e){
+    _framFlt=null;_framFel=(e&&e.message)||'mätningen misslyckades';_framBusy=false;framOmRita();
+  });
+}
+function framOmRita(){
+  try{if(document.getElementById('vdr-body')&&wxShow()!=='tryck')renderVader();}catch(e){}
+}
+/* Mätningen gäller bara den skala den gjordes i, och bara en kort stund. */
+function framFlode(){
+  var f=_framFlt;
+  if(!f)return null;
+  if(f.z!==radarViewZ())return null;
+  if(Date.now()-f.at>FRAM_ALDER)return null;
+  return f;
+}
+/* Åt vilket håll nederbörden rör sig, i kompassgrader. */
+function framRiktning(){
+  var f=framFlode();
+  if(f)return ((Math.atan2(f.dx,-f.dy)*180/Math.PI)+360)%360;
+  var deg=windDeg();
+  return (deg==null)?null:((deg+180)%360);
+}
 var FRAM_STEG=[10,20,30];      /* minuter - samma indelning som radarn */
 /* VINDFAKTORN, alltsa hur mycket snabbare nederbordsomradena ror sig an vinden
    vid marken. 1,6 var en larobokssiffra och den overskattade: bilden flyttade
@@ -6678,17 +6903,36 @@ function framMpp(){
 /* measure_wind_angle ar riktningen vinden kommer IFRAN, sa rorelsen gar at
    motsatt hall. 0 grader ar nordlig vind, alltsa rorelse soderut. */
 function framForskjut(min){
-  /* vindMs och inte cap: radarns framskrivning flyttar bilden ms * sekunder
-     METER. Med det rada vardet, som ar km/h, blev forflyttningen 3,6 ganger
-     for lang - tio minuter framat sag ut som trettiosex. */
+  /* MÄTNINGEN FÖRST. _framFlt är bildpunkter i vyn per minut, så förskjutningen
+     är en ren multiplikation — ingen vindfaktor, för det är inte vinden som
+     mäts utan nederbördens egen rörelse. */
+  var f=framFlode();
+  if(f){
+    var dx=f.dx*min, dy=f.dy*min;
+    return {dx:dx, dy:dy, m:Math.sqrt(dx*dx+dy*dy)*framMpp(), kalla:'radar'};
+  }
+  /* RESERV: markvinden, som förut. Används när radarbilderna inte gick att
+     läsa eller inte visade någon tydlig rörelse.
+     vindMs och inte cap: framskrivningen flyttar bilden ms * sekunder METER.
+     Med det råa värdet, som är km/h, blev förflyttningen 3,6 gånger för lång —
+     tio minuter framåt såg ut som trettiosex. */
   var deg=windDeg(), ms=vindMs();
   if(deg==null||ms==null||!isFinite(ms)||ms<=0)return null;
   var mot=(deg+180)*Math.PI/180;
   var m=ms*framFaktor()*min*60;
   var mpp=framMpp();
-  return {dx:(m*Math.sin(mot))/mpp, dy:(-m*Math.cos(mot))/mpp, m:m};
+  return {dx:(m*Math.sin(mot))/mpp, dy:(-m*Math.cos(mot))/mpp, m:m, kalla:'vind'};
 }
 function framGar(){return framForskjut(10)!==null&&_radarFrames.length>0;}
+/* Vilken källa framskrivningen faktiskt vilar på. Står i klartext i kartan:
+   utan det går det inte att se om mätningen lyckades eller om vi kört på
+   vinden hela tiden — och det är just det som inte gick att pröva härifrån. */
+function framKallaText(){
+  var f=framForskjut(10);
+  if(!f)return '';
+  if(f.kalla==='radar')return 'i den riktning radarn visar att den rört sig';
+  return 'längs vindriktningen'+(_framFel?' \u2013 rörelsen gick inte att mäta: '+esc(_framFel):'');
+}
 /* Bilden flyttas som helhet. Inga bildpunkter lases, inget ritas om. */
 function framLagerHTML(min){
   var f=framForskjut(min);
@@ -7323,7 +7567,7 @@ function wxGraphSVG(){
   var last=seg[seg.length-1].v;
   var svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs>'
     +'<path d="'+area+'" fill="url(#'+g.id+')"/>'
-    +'<path d="'+line+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+    +'<path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager('wx-'+S.k,svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,S.dec)+' '+S.u;}}]});
   var h='<div class="viz">'+svgm;
@@ -7504,11 +7748,20 @@ function renderVader(){
     if(_wxInfo&&framGar()){
       /* Egen klass, inte wxm-zoom: den raden ar kartans skala och ligger numera
          i kartans horn. Att lana klassen hade gjort dem omojliga att skilja at. */
-      h+='<div class="wxm-fram" style="margin-top:6px">'
-        +'<button class="wxm-z" onclick="framFaktorStep(-0.1)">\u2013</button>'
-        +'<span class="wxm-zl">framskrivning \u00d7<b id="fram-f">'+framFaktor().toFixed(1)+'</b>'
-        +' \u00b7 '+Math.round(Math.abs(framForskjut(10)?framForskjut(10).m:0)/100)/10+' km/10 min</span>'
-        +'<button class="wxm-z" onclick="framFaktorStep(0.1)">+</button></div>';
+      var ff=framForskjut(10), fkm=Math.round(Math.abs(ff?ff.m:0)/100)/10;
+      if(ff&&ff.kalla==='radar'){
+        /* Ingen faktor att ställa när rörelsen är mätt — det finns inget att
+           kalibrera bort. Raden säger vad mätningen kom fram till i stället. */
+        var mot=framRiktning(), ab=(mot==null)?null:windAbbr(mot);
+        h+='<div class="wxm-fram" style="margin-top:6px"><span class="wxm-zl">'
+          +'mätt ur radarn \u00b7 '+fkm+' km/10 min'+(ab?(' mot '+esc(ab)):'')+'</span></div>';
+      }else{
+        h+='<div class="wxm-fram" style="margin-top:6px">'
+          +'<button class="wxm-z" onclick="framFaktorStep(-0.1)">\u2013</button>'
+          +'<span class="wxm-zl">vind \u00d7<b id="fram-f">'+framFaktor().toFixed(1)+'</b>'
+          +' \u00b7 '+fkm+' km/10 min</span>'
+          +'<button class="wxm-z" onclick="framFaktorStep(0.1)">+</button></div>';
+      }
     }}
 
   h+='<div class="wxm-opt"><span class="wxm-ol">Visa</span><div class="wxm-btns">';
@@ -7533,7 +7786,7 @@ function renderVader(){
                ? 'Stegen efter \'nu\' är radarns egen korttidsprognos och alltså inte uppmätta. '
                : '<b>Allt som visas är uppmätt</b> – RainViewers fria API ger bara historik, inte prognos. ')):'')
          +'Radarrutor finns bara till zoom 7, därför den här skalan. '
-         +'Stegen efter \'nu\' är <b>samma radarbild förskjuten</b> längs vindriktningen — '
+         +'Stegen efter \'nu\' är <b>samma radarbild förskjuten</b> '+framKallaText()+' — '
          +'skurarna flyttas, men de växer inte till och dör inte ut. '
          +'Väderdata från <b>RainViewer</b>.'))
     +'</div>';
@@ -8722,7 +8975,7 @@ function multiGraf(kurvor,enhet,xTid,markT){
     var d='';
     x.pts.forEach(function(p,i){
       d+=(i?'L':'M')+px(p.t).toFixed(1)+' '+py(p.v).toFixed(1);});
-    h+='<path d="'+d+'" fill="none" stroke="var(--'+(x.farg||'gold')+')" stroke-width="2"'
+    h+='<path d="'+d+'" fill="none" stroke="var(--'+(x.farg||'gold')+')"'+GRAF_LINJE+' '
       +' stroke-linejoin="round" stroke-linecap="round"/>';});
   h+='</svg>';
   h=avlLager(avlNamn,h,{W:W,H:H,X:px,kl:(avlEpok?null:pgKl),
@@ -9636,7 +9889,7 @@ function multiTempSVG(){
   var g='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
   for(var q=0;q<out.length;q++){var o=out[q],d='';
     for(var r=0;r<o.s.length;r++)d+=(r?'L':'M')+X(o.s[r].t).toFixed(1)+' '+Y(o.s[r].v).toFixed(1)+' ';
-    g+='<path d="'+d+'" fill="none" stroke="'+tempCol(o.t)+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';}
+    g+='<path d="'+d+'" fill="none" stroke="'+tempCol(o.t)+'"'+GRAF_LINJE+'/>';}
   g+='</svg>';
   g=avlLager('temps',g,{W:W,H:H,X:X,t0:t0,t1:t1,
     ser:out.map(function(o){return {namn:o.t.lab,farg:tempCol(o.t),pts:o.s,Y:Y,
@@ -9817,8 +10070,9 @@ function openDetail(which){
    något annat än den uppmätta vinkeln. Den lades till i v291 för att spåra
    den fastnade VSV-texten. Vanligtvis är skillnaden bara att texten släpar
    efter någon minut, så raden är borttagen. Vinkeln styr fortfarande. */
-    body=dRow('Hastighet',num(vindMs(),1)+' m/s')+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Riktning',(windDirTxt(wdir)||'–')+(wdir!=null?' · '+num(wdir,0)+'°':''))+dRow('SMHI-vind',num(cap(DEV.smhi,'measure_wind_speed_cp'),1)+' m/s');
-    body+='<div id="wind-sec">'+windSectionHTML()+'</div>';
+    /* Grafen längst upp i rutan, före sifferraderna. */
+    body='<div id="wind-sec">'+windSectionHTML()+'</div>'
+      +dRow('Hastighet',num(vindMs(),1)+' m/s')+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Riktning',(windDirTxt(wdir)||'–')+(wdir!=null?' · '+num(wdir,0)+'°':''))+dRow('SMHI-vind',num(cap(DEV.smhi,'measure_wind_speed_cp'),1)+' m/s');
     windInsFetch();                                  /* dygnets toppar ur Insights */
     _dlgWide=true;                                   /* grafen behöver bredden */
   }else if(which==='seatemp'){title='Badtemp · '+(CONFIG.BATH_NAME||'havet');
@@ -9880,7 +10134,7 @@ function openDetail(which){
      v597, och brickans generella histSVG lade en andra graf ovanpå den — två
      bilder av samma batteri i samma ruta, med olika fönster och olika skala.
      Samma skäl som 'grid' redan står här av. */
-  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
+  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'&&which!=='wind'){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
   setT('dlg-title',title);setIcon('dlg-ic',icn);const bd=$('dlg-body');if(bd)bd.innerHTML=body;
   const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
 function closeDetail(e){if(e){const t=e.target,onX=t&&t.closest&&t.closest('.dlg-x'),onBack=t&&t.classList&&t.classList.contains('dlg-back');if(!onX&&!onBack)return;}
@@ -11937,13 +12191,17 @@ function histSVG(key,cfg){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
   const spanH=Math.round(tr/3600000),unit=(cfg&&cfg.unit)?cfg.unit:'';
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
     +'<path d="'+area+'" fill="'+col+'" opacity=".10"/>'
-    +'<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+    +'<path d="'+d+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/>'
     +'<circle cx="'+X(seg[seg.length-1][0]).toFixed(1)+'" cy="'+Y(seg[seg.length-1][1]).toFixed(1)+'" r="3" fill="'+col+'"/></svg>';
   /* Insiktsserien lagras som [t,v]-par, inte som {t,v}. Modulen läser {t,v},
      så den ritade listan skrivs om — inte råserien. */
   svgm=avlLager('hist-'+key,svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg.map(function(q){return {t:q[0],v:q[1]};}),Y:Y,
-      fmt:function(v){return num(v,Math.abs(v)<10?1:0)+(unit?' '+unit:'');}}]});
+      /* Decimalen styrs av seriens SPANN, inte av talets storlek. Regeln
+         "under tio ger en decimal" avrundade badtemperaturen 15,9 till 16 —
+         hela variationen i den grafen är tre grader, så decimalen är det enda
+         som säger något. Ett ppm-värde mellan 400 och 1200 behöver den inte. */
+      fmt:function(v){return num(v,(yhi-ylo)<20?1:0)+(unit?' '+unit:'');}}]});
   return '<div class="viz">'+svgm
     +'<div class="viz-cap">senaste ~'+(spanH>=1?spanH+' h':'stunden')+' · '+num(ylo,ylo<10?1:0)+'–'+num(yhi,yhi<10?1:0)+(unit?' '+unit:'')+'</div></div>';}
 function metricVizIsBars(cfg){if(!cfg||cfg.type!=='computed')return false;return ['solday','solyear','boughtyear','soldyear','sold','bought'].indexOf(cfg.key)>=0;}
@@ -15515,7 +15773,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v599';
+const APP_VERSION='v601';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
