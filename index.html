@@ -668,10 +668,13 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
    höjd gav tomma band över och under när innehållet inte fyllde lådan. */
 .chart{width:100%;height:auto;display:block}
 .grid-l{stroke:var(--line-soft);stroke-width:1;vector-effect:non-scaling-stroke}
-.chart-x{position:absolute;bottom:0;font-size:11px;color:var(--faint);font-weight:500}.chart-x.l{left:0}.chart-x.r{right:0}
 .chart-empty{padding:36px 10px;text-align:center;color:var(--faint);font-size:12.5px;font-style:italic}
-.legend{display:flex;gap:15px;flex-wrap:wrap;margin-top:11px;font-size:11.5px;color:var(--dim);font-weight:500}
-.legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:12px;height:3px;border-radius:2px;display:inline-block}
+/* SAMMA FÖRKLARING UNDER ALLA GRAFER: samma storlek, samma avstånd, samma
+   färgprick. .mchart-lg2 lägger till att den går att klicka i. */
+.legend,.mgraf-f,.mchart-lg2{display:flex;flex-wrap:wrap;gap:16px;justify-content:center;
+  margin-top:9px;font-size:10.5px;font-weight:700;color:var(--dim)}
+.legend span,.mgraf-f span,.mchart-lg2 span{display:inline-flex;align-items:center;gap:6px}
+.legend i,.mgraf-f i,.mchart-lg2 i{width:12px;height:3px;border-radius:2px;display:inline-block}
 
 .clim{padding:clamp(16px,2vw,21px);margin-bottom:13px}
 .clim-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));column-gap:var(--pg-gap);row-gap:var(--pg-gap-y)}
@@ -1212,8 +1215,20 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .krpop .kr-v{font-size:14px}
 .krpop .kr-l{font-size:8.5px}
 .krpop .kr-x{font-size:9.5px}
-.krpop-x{position:absolute;top:9px;right:11px;background:none;border:0;color:var(--faint);
-  font-size:21px;line-height:1;cursor:pointer;padding:2px 5px}
+/* SAMMA KRYSS SOM I ALLA ANDRA POPUPAR. Det här var en naken textteckenknapp i
+   faint-grått medan .dlg-x är en rund, inramad knapp med gränssnittets egen
+   ikon — och batteriet-tomt-rutan är en krpop, så den stack ut mot resten.
+   Reglerna är kopierade ur .dlg-x i stället för att delas via en gemensam
+   selektor: krpop och dlg ligger långt ifrån varandra i filen, och en delad
+   regel hade varit lätt att råka ändra för bara den ena. */
+.krpop-x{position:absolute;top:10px;right:10px;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--ink);
+  opacity:.92;cursor:pointer;padding:0;z-index:6;border-radius:999px;
+  box-shadow:0 2px 8px rgba(0,0,0,.25);line-height:1}
+.krpop-x .ic{width:18px;height:18px}
+.krpop-x:hover{opacity:1;background:var(--panel-a,var(--card))}
+.krpop-x:active{transform:scale(.94);opacity:.9}
 .krpop-h{display:flex;align-items:center;gap:9px;font-size:11px;font-weight:800;
   color:var(--faint);text-transform:uppercase;letter-spacing:.06em}
 .krpop-i{width:16px;height:16px;color:var(--gold);display:inline-flex}
@@ -1247,9 +1262,6 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
    bredd, så 9 px i viewBox blir under 4 px på en telefon — oläsligt. */
 .chart .mg-ax{font-size:34px;fill:var(--dim);font-weight:700}
 .mgraf-l{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:2px}
-.mgraf-f{display:flex;flex-wrap:wrap;gap:11px;margin-top:7px;font-size:11px;color:var(--dim)}
-.mgraf-f span{display:inline-flex;align-items:center;gap:5px}
-.mgraf-f i{width:11px;height:2.5px;border-radius:2px;display:inline-block}
 .krpop-bred{max-width:440px}
 .krpop-grid{margin-top:12px}
 /* Svaret på frågan, i klartext ovanför rutorna. */
@@ -1427,8 +1439,6 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .mchart-lg span::before{content:'';width:11px;height:3px;border-radius:2px;display:inline-block}
 .mc-f::before{background:var(--warm)}
 .mc-p::before{background:var(--sun,#f2b705)}
-.mchart-lg2{display:flex;gap:16px;justify-content:center;margin-top:9px;font-size:10.5px;font-weight:700;color:var(--dim)}
-.mchart-lg2 span{display:inline-flex;align-items:center;gap:6px}
 .mc-sw{width:12px;height:3px;border-radius:2px;display:inline-block;flex:0 0 auto}
 .cmp-hero{background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:13px 14px;margin:0 0 9px}
 .cmp-hero-top{display:flex;align-items:center;gap:11px}
@@ -1658,10 +1668,6 @@ body.tabprev.cmp-open{overflow:auto}
 .g2-plot svg{width:100%;height:132px;display:block}
 /* Ingen vänstermarginal längre: de 34 px var plats åt y-kolumnen, och utan
    den skulle klockslagen ha stått förskjutna mot sin egen graf. */
-.g2-xax{position:relative;height:12px;margin:3px 0 0;font-size:9px;color:var(--faint)}
-.g2-xax span{position:absolute;transform:translateX(-50%);white-space:nowrap}
-.g2-xax-even{display:flex;justify-content:space-between}
-.g2-xax-even span{position:static;transform:none}
 .cmp{margin:2px 0 2px}
 .cmp-row{display:flex;align-items:baseline;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line)}
 .cmp-row:last-child{border-bottom:0}
@@ -1877,7 +1883,10 @@ body{background-image:radial-gradient(900px 420px at 50% -8%,rgba(129,161,193,.0
 /* viz i popuper */
 .viz{margin:2px 0 14px}
 .viz svg{width:100%;height:74px;display:block}
-.viz-cap{text-align:center;font-size:10px;color:var(--faint);font-weight:600;margin-top:5px}
+/* SAMMA TEXT UNDER ALLA GRAFER. Bildtexterna hade tre olika storlekar och
+   fyra olika färger beroende på vem som ritade grafen. Klasserna är kvar —
+   det är bara utseendet som slagits ihop. */
+.viz-cap,.tg-cap,.avl-cap{text-align:center;font-size:10px;color:var(--faint);font-weight:600;margin-top:5px}
 .viz-empty{padding:16px;text-align:center;font-size:11.5px;color:var(--faint);background:var(--inset);border:1px solid var(--line);border-radius:12px;margin-bottom:14px}
 .te-glow.gr{flex:1}
 
@@ -2514,6 +2523,15 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .avl-rad{position:relative;height:14px;margin-bottom:1px}
 .avl-graf{position:relative;touch-action:pan-y}
 .avl-ovl{position:absolute;inset:0;pointer-events:none}
+/* EN TIDSAXEL FÖR ALLA GRAFER. Förut fanns fyra: g2-xax under dygnsgrafen,
+   chart-x i hörnen på vind- och insiktsgraferna, klockslag ritade INUTI svg:n
+   i multiGraf och solprognosen, och ingen alls i de mindre rutorna. Nu äger
+   avläsningsmodulen axeln — den känner ändå t0, t1 och X. */
+.avl-tid{position:relative;height:12px;margin-top:3px;font-size:9px;
+  color:var(--faint);font-weight:600;font-variant-numeric:tabular-nums}
+.avl-tid span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.avl-tid span.v{left:0;transform:none}
+.avl-tid span.h{left:auto;right:0;transform:none}
 /* Strecket får gå hela ritytans höjd igen — etiketten ligger inte längre i
    vägen. Samma regel för alla grafer, så avläsningen ser likadan ut överallt. */
 .avl-lin{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--ink);opacity:.5}
@@ -3380,7 +3398,7 @@ function drawChart(elId,ss,opts){
     /* Avlast mot den SORTERADE listan — det är den kurvan ritades av. */
     avlSer.push({namn:s.name||'',farg:s.color,pts:pts,Y:Y,
       fmt:v=>(opts.fmtY||(x=>''+(Math.round(x*100)/100)))(v)});
-    const d=pts.map((p,i)=>(i?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.v).toFixed(1)).join(' ');
+    const d=smoothPath(pts.map(p=>[X(p.t),Y(p.v)]));
     if(s.area){const gid='g'+(_gid++);defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+s.color+'" stop-opacity="0.28"/><stop offset="1" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>';
       body+='<path d="'+d+' L '+X(pts[pts.length-1].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' L '+X(pts[0].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' Z" fill="url(#'+gid+')"/>';}
     body+='<path d="'+d+'" fill="none" stroke="'+s.color+'"'+GRAF_LINJE+'/>';
@@ -3389,7 +3407,7 @@ function drawChart(elId,ss,opts){
   svg=avlLager(elId,svg,{W:Wd,H:H,X:X,ser:avlSer});
   const fy=opts.fmtY||(v=>(''+(Math.round(v*100)/100))),hh=t=>new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
   const leg=ss.filter(s=>s.name).map(s=>'<span><i style="background:'+s.color+'"></i>'+s.name+'</span>').join('');
-  el.innerHTML='<div class="chart-wrap">'+svg+'<div class="chart-x l">'+hh(tMin)+'</div><div class="chart-x r">'+hh(tMax)+'</div></div>'+(leg?'<div class="legend">'+leg+'</div>':'');
+  el.innerHTML='<div class="chart-wrap">'+svg+'</div>'+(leg?'<div class="legend">'+leg+'</div>':'');
 }
 function addRow(p,ic,acc,k,sub,v){p.insertAdjacentHTML('beforeend','<div class="row"><span class="ri '+(acc||'')+'">'+icon(ic)+'</span><span class="rk">'+esc(k)+(sub?'<small>'+esc(sub)+'</small>':'')+'</span><span class="rv">'+v+'</span></div>');}
 
@@ -4027,19 +4045,18 @@ function progKurvaSVG(){
     d+=' L'+hx.toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
   }
   d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L'+vxL+' '+(H-pB)+' Z';
-  /* Klockslag på x-axeln. Utan dem gick det inte att avgöra om kurvorna låg
-     förskjutna mot varandra eller bara hade olika form — och skillnaden är
-     viktig: den ena vore ett fel, den andra är verkligheten. */
-  /* Fyra klockslag: start, två emellan, slut. Fönstret är beskuret till
-     soltimmarna, så fasta timmar som 00 och 24 hade hamnat utanför bilden. */
+  /* Klockslagen ritades förut som <text> här inne. De ligger numera i den
+     gemensamma tidsaxeln under grafen — samma ställe och samma stil som i alla
+     andra grafer. Stödlinjerna på tredjedelarna är kvar: utan dem gick det
+     inte att se om kurvorna låg förskjutna mot varandra eller bara hade olika
+     form, och skillnaden är viktig — den ena vore ett fel, den andra är
+     verkligheten.
+     De använde getHours() rakt av, alltså webbläsarens lokaltid. Här går det
+     bra (dashboarden kör i webbläsaren), men de är ändå borta nu. */
   var xax='';
-  [0,1/3,2/3,1].forEach(function(f,i2){
-    var t=t0+(t1-t0)*f, x=X(t);
-    var dt=new Date(t);
-    var lbl=String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
-    xax+='<text x="'+Math.min(W-2,Math.max(vxL,x)).toFixed(1)+'" y="'+(H-12)+'" class="mg-ax"'
-      +' text-anchor="'+(i2===0?'start':(i2===3?'end':'middle'))+'">'+lbl+'</text>';
-    if(i2>0&&i2<3)xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
+  [1/3,2/3].forEach(function(f){
+    var x=X(t0+(t1-t0)*f);
+    xax+='<line x1="'+x.toFixed(1)+'" y1="'+pT+'" x2="'+x.toFixed(1)+'" y2="'+(H-pB)
       +'" stroke="var(--line)" stroke-width="1" opacity=".3"/>';});
   var b='<path d="'+d+'" fill="var(--gold)" opacity=".16"/>';
   /* Y-AXELN INUTI grafen. Toppvärdet låg som ett HTML-element bredvid och
@@ -4066,10 +4083,8 @@ function progKurvaSVG(){
      krockade den med toppen och nedanför med nollan — kolumnen är för smal för
      två rader, och ett tal med enhet läses ändå lättare än två separata. */
   if(fakt.length>1){
-    var fd='';
-    for(var i=0;i<fakt.length;i++)fd+=(i?'L':'M')+X(fakt[i].t).toFixed(1)+' '+Y(fakt[i].v).toFixed(1)+' ';
-    b+='<path d="'+fd+'" fill="none" stroke="var(--solar)"'+GRAF_LINJE+' '
-      +'stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>';
+    var fd=smoothPath(fakt.map(function(q){return [X(q.t),Y(q.v)];}));
+    b+='<path d="'+fd+'" fill="none" stroke="var(--solar)"'+GRAF_LINJE+'/>';
   }
   /* Prognosen är timvärden mitt i sin timme — samma punkter som ytan ritas av.
      Utfallet är fakt, beskuret till samma fönster som kurvan. */
@@ -4381,8 +4396,7 @@ function windChartHTML(){
   for(var g=0;g<=2;g++){var gy=pT+(H-pT-pB)*g/2;
     b+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+W+'" y2="'+gy.toFixed(1)+'"/>';}
   ser.forEach(function(s){
-    var d='';
-    for(var j=0;j<s.p.length;j++)d+=(j?'L':'M')+X(s.p[j].t).toFixed(1)+' '+Y(s.p[j].v,s.axel).toFixed(1)+' ';
+    var d=smoothPath(s.p.map(function(q){return [X(q.t),Y(q.v,s.axel)];}));
     b+='<path d="'+d+'" fill="none" stroke="'+s.farg+'"'+GRAF_LINJE+' '
       +(s.axel==='deg'?' stroke-dasharray="5 4" opacity=".85"':'')+'/>';
     var sist=s.p[s.p.length-1];
@@ -4399,10 +4413,7 @@ function windChartHTML(){
      Båda talen står i dragpunktens etikett, var och en i sin egen enhet, och
      grafen får hela bredden. harMs/harDeg styr fortfarande vilka serier som
      ritas och vilken toppskala msMax får. */
-  return chips+'<div class="chart-wrap">'
-    +svgm
-    +'<div class="chart-x l">'+hhmm(new Date(tMin))+'</div>'
-    +'<div class="chart-x r">'+hhmm(new Date(tMax))+'</div></div>';}
+  return chips+'<div class="chart-wrap">'+svgm+'</div>';}
 var _windInfoOpen=false;
 function windInfoTog(){_windInfoOpen=!_windInfoOpen;
   var e=document.getElementById('wind-info');if(e)e.classList.toggle('open',_windInfoOpen);}
@@ -4600,19 +4611,21 @@ function gridPowerSVG(pts){
       pl.push({t:cur.t+(nx.t-cur.t)*f, v:0, cross:true});
     }
   }
-  // dela i färgade sträckor: en sträcka är antingen köp (>=0) eller sälj (<0)
-  let paths=[], curPts=[], curSign=null;
-  const flush=()=>{ if(curPts.length>=2){const col=curSign>=0?BLA:GRO;
-    paths.push('<path d="'+smoothPath(curPts)+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/>');} };
-  for(let i=0;i<pl.length;i++){
-    const pt=pl[i], xy=[X(pt.t),Y(pt.v)];
-    const sign=pt.v>0?1:pt.v<0?-1:(curSign==null?1:curSign);
-    if(curSign==null){curSign=sign;curPts=[xy];}
-    else if(pt.cross){curPts.push(xy);flush();curPts=[xy];curSign=(pl[i+1]&&pl[i+1].v<0)?-1:1;}
-    else if(sign!==curSign&&pt.v!==0){curPts.push(xy);flush();curPts=[xy];curSign=sign;}
-    else curPts.push(xy);
-  }
-  flush();
+  /* EN ENDA KURVA, FÄRGAD MED KLIPPMASK.
+     Förut ritades varje teckenbyte som en egen smoothPath, och då blev den
+     ritade linjen inte samma kurva som en spline genom hela punktlistan —
+     avläsningen kunde därför inte räkna fram en punkt som garanterat låg på
+     den. Nu läggs samma d ut två gånger, klippt över respektive under
+     nollinjen. Bilden är densamma; skillnaden är att det finns EN kurva att
+     räkna på. */
+  const gpId='gp'+(_grN++);
+  const gpD=smoothPath(pl.map(pt=>[X(pt.t),Y(pt.v)]));
+  let paths=['<defs>'
+    +'<clipPath id="'+gpId+'k"><rect x="0" y="0" width="'+W2+'" height="'+zeroY.toFixed(1)+'"/></clipPath>'
+    +'<clipPath id="'+gpId+'s"><rect x="0" y="'+zeroY.toFixed(1)+'" width="'+W2+'" height="'+(H2-zeroY).toFixed(1)+'"/></clipPath>'
+    +'</defs>'
+    +'<path d="'+gpD+'" fill="none" stroke="'+BLA+'"'+GRAF_LINJE+' clip-path="url(#'+gpId+'k)"/>'
+    +'<path d="'+gpD+'" fill="none" stroke="'+GRO+'"'+GRAF_LINJE+' clip-path="url(#'+gpId+'s)"/>'];
   // fyllning per sträcka mot nollinjen
   let fills=[]; let fPts=[], fSign=null;
   const flushF=()=>{ if(fPts.length>=2){const col=fSign>=0?BLA:GRO;const g=areaGrad(col,0.22);
@@ -4636,7 +4649,10 @@ function gridPowerSVG(pts){
     +'</svg>';
   /* Avlast mot seg — de mätvärden kurvan bygger på. pl innehåller dessutom
      inlagda nollgenomgångar, som är uträknade och inte uppmätta. */
-  svgm=avlLager('grid',svgm,{W:W2,H:H2,X:X,ser:[{namn:'',pts:seg,Y:Y,
+  /* pl och inte seg: kurvan ritas genom pl, och avläsningen ska räkna på
+     exakt den listan. Nollgenomgångarna i pl är räknade, men de ligger på
+     linjen mellan två mätvärden och ändrar inget om vad som mätts. */
+  svgm=avlLager('grid',svgm,{W:W2,H:H2,X:X,ser:[{namn:'',pts:pl,Y:Y,
     farg:function(v){return v>=0?BLA:GRO;},
     fmt:function(v){return (v<0?'säljer ':'köper ')+W(Math.abs(v));}}]});
   return '<div class="viz">'+svgm+'<div class="viz-cap"><span style="color:'+BLA+'">köper</span> · <span style="color:'+GRO+'">säljer</span> · senaste '+(spanH>=1?spanH+' h':'stunden')
@@ -5138,9 +5154,6 @@ function areaGrad(col,topOp){var id='grd'+(_grN++);return {id:id,def:'<linearGra
 
 /* Övre grafen: sol, förbrukning, batteri – allt i watt, per-timme tidsaxel */
 function daySeg(pts){if(!pts||pts.length<3)return null;var now=Date.now(),cut=now-24*3600000;var seg=pts.filter(function(p){return p.t>=cut;});if(seg.length<3)seg=pts.slice(-48);return (seg&&seg.length>=3)?seg:null;}
-/* pctSerie ritas på EGEN skala: 0 % vid nollinjen, 100 % högst upp. Watt och
-   procent har inget gemensamt mått, så att lägga dem på samma axel vore att
-   ljuga med en snygg kurva. Den här linjen är streckad för att skilja sig. */
 /* GLESA UT FÖRE RITNING.
    Ett dygn med en punkt i minuten är 1440 värden — grafen är 300 enheter bred,
    så fem punkter trängs på varje pixel. Resultatet blir en luddig linje som
@@ -5254,37 +5267,73 @@ function avlHem(id){
   }
   return (t==null)?g.t1:t;
 }
-/* Referensserien är den med flest punkter — den beskriver bäst var det
-   överhuvudtaget finns mätvärden att peka på. */
-function avlRef(g){
-  var b=g.ser[0];
-  for(var i=1;i<g.ser.length;i++)if(g.ser[i].pts.length>b.pts.length)b=g.ser[i];
-  return b;
+/* PRICKEN GLIDER LÄNGS KURVAN, DEN HOPPAR INTE MELLAN SAMPEL.
+   Två fel i rad ledde hit. Först satt pricken på fingrets x men på närmaste
+   sampels y — den lämnade kurvan så fort serien var gles. Sedan låstes hela
+   avläsningen vid närmaste sampel, och då satt den visserligen på kurvan men
+   ryckte mellan punkterna i stället för att följa fingret.
+
+   Rätt svar är att räkna fram punkten PÅ kurvan vid fingrets x. Alla grafer
+   ritas med smoothPath, så avläsningen räknar exakt samma kubiska Bézier med
+   exakt samma styrpunkter, i samma bildkoordinater som lades i path-attributet.
+   Då kan pricken per konstruktion inte ligga någon annanstans än på linjen. */
+function avlBez(a,b,c,d,u){var m=1-u;return m*m*m*a+3*m*m*u*b+3*m*u*u*c+u*u*u*d;}
+/* Y är affin i v hos samtliga ritare, så inversen ges exakt av två punkter med
+   olika värde. En helt platt serie har bara ett värde att svara med. */
+function avlYinv(s,pts,y){
+  var a=null,b=null;
+  for(var i=0;i<pts.length;i++){
+    var q=pts[i];
+    if(!q||q.v==null||!isFinite(q.v))continue;
+    if(a===null)a=q; else if(q.v!==a.v){b=q;break;}
+  }
+  if(a===null)return null;
+  if(b===null)return a.v;
+  var ya=s.Y(a.v),yb=s.Y(b.v);
+  if(!isFinite(ya)||!isFinite(yb)||ya===yb)return a.v;
+  return a.v+((y-ya)/(yb-ya))*(b.v-a.v);
 }
-/* LÄGET FÄSTS VID ETT VERKLIGT MÄTVÄRDE.
-   Förut satt pricken på fingrets x men på närmaste punkts y. I en tät serie
-   syns det inte, men badtemperaturen kan ha fyra värden på två dygn — då
-   hamnade pricken mitt emellan två sampel i sidled och långt vid sidan av
-   kurvan i höjdled. Nu låses streck, prick och etikett i samma sampel, och
-   varje serie får dessutom sin EGEN x ur sin egen närmaste punkt. Då ligger
-   pricken per definition på en av kurvans hörnpunkter. */
-function avlFast(g,t){
-  var p=avlPunkt(avlRef(g).pts,t);
-  return p?p.t:t;
+function avlKurva(g,s,t){
+  var pts=s.pts,n=pts?pts.length:0;
+  if(!n)return null;
+  if(n===1)return {x:g.X(pts[0].t),y:s.Y(pts[0].v),v:pts[0].v};
+  var tt=Math.max(pts[0].t,Math.min(pts[n-1].t,t));
+  var lo=0,hi=n-1;
+  while(hi-lo>1){var m=(lo+hi)>>1;if(pts[m].t<=tt)lo=m;else hi=m;}
+  var P=function(k){var q=pts[Math.max(0,Math.min(n-1,k))];return [g.X(q.t),s.Y(q.v)];};
+  var p0=P(lo-1),p1=P(lo),p2=P(lo+1),p3=P(lo+2);
+  var x=g.X(tt), dx=p2[0]-p1[0];
+  if(!(dx>0))return {x:p2[0],y:p2[1],v:pts[lo+1].v};
+  /* Exakt smoothPath: samma klämning mot dx/3, samma handtag. */
+  var lim=dx/3;
+  var h1x=(p2[0]-p0[0])/6,h1y=(p2[1]-p0[1])/6,s1=1;
+  if(h1x<0)s1=0;else if(h1x>lim)s1=lim/h1x;
+  var h2x=(p3[0]-p1[0])/6,h2y=(p3[1]-p1[1])/6,s2=1;
+  if(h2x<0)s2=0;else if(h2x>lim)s2=lim/h2x;
+  var c1x=p1[0]+h1x*s1,c1y=p1[1]+h1y*s1,c2x=p2[0]-h2x*s2,c2y=p2[1]-h2y*s2;
+  /* x(u) är växande: klämningen hindrar styrpunkterna från att hamna utanför
+     segmentet. Halveringsmetoden räcker och kan inte missa. */
+  var a=0,b=1,u=0.5;
+  for(var k=0;k<24;k++){
+    u=(a+b)/2;
+    if(avlBez(p1[0],c1x,c2x,p2[0],u)<x)a=u;else b=u;
+  }
+  u=(a+b)/2;
+  var y=avlBez(p1[1],c1y,c2y,p2[1],u);
+  return {x:x,y:y,v:avlYinv(s,pts,y)};
 }
 function avlDelar(id){
   var tom={rad:'',graf:''};
   var g=_avlGeo[id];if(!g)return tom;
   var vald=_avlVald[id];if(vald==null)return tom;
-  var t=avlFast(g,vald), xp=avlXp(g,t), h='', rutor='';
+  var t=vald, xp=avlXp(g,t), h='', rutor='';
   h+='<span class="avl-lin" style="left:'+xp.toFixed(2)+'%"></span>';
   for(var i=0;i<g.ser.length;i++){
-    var s=g.ser[i],p=avlPunkt(s.pts,t);
-    if(!p)continue;
-    var yp=avlYp(g,s,p.v);
-    if(yp==null)continue;
+    var s=g.ser[i],p=avlKurva(g,s,t);
+    if(!p||p.v==null||!isFinite(p.v)||!isFinite(p.y))continue;
+    var yp=Math.max(0,Math.min(100,(p.y/(g.H||1))*100));
     var f=(typeof s.farg==='function')?s.farg(p.v):(s.farg||'var(--ink)');
-    h+='<span class="avl-dot" style="left:'+avlXp(g,p.t).toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
+    h+='<span class="avl-dot" style="left:'+((p.x/(g.W||1))*100).toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
     rutor+='<b style="color:'+f+'">'+esc(avlText(s,p.v))+'</b>';
   }
   if(!rutor)return tom;
@@ -5293,6 +5342,26 @@ function avlDelar(id){
   var stil=(xp<16)?'left:2px':((xp>84)?'right:2px':'left:'+xp.toFixed(2)+'%;transform:translateX(-50%)');
   var kl=(typeof g.kl==='function')?g.kl(t):avlKl(t);
   return {rad:'<span class="avl-tag" style="'+stil+'"><i>'+esc(kl)+'</i>'+rutor+'</span>',graf:h};
+}
+/* Tidsaxeln under grafen. Etiketterna i kanterna förankras i sidan i stället
+   för i mitten — annars klipps första och sista klockslaget. */
+function avlTidsaxel(g){
+  var h='',i,n,t,xp;
+  var lagg=function(t){
+    var xp=avlXp(g,t);
+    var kl=(typeof g.kl==='function')?g.kl(t):avlKl(t);
+    var kla=(xp<3)?' class="v"':((xp>97)?' class="h"':'');
+    h+='<span'+kla+' style="'+((xp<3)?'':((xp>97)?'':'left:'+xp.toFixed(2)+'%'))+'">'+esc(kl)+'</span>';
+  };
+  if(g.t1>1e11&&typeof hourTicks==='function'){
+    /* Riktiga tidsstämplar får hela timmar, inte jämnt utlagda bråkdelar. */
+    var xl=hourTicks(g.t0,g.t1);
+    for(i=0;i<xl.length;i++)lagg(g.t0+xl[i].frac*(g.t1-g.t0));
+  }else{
+    /* Månader och timindex: fem jämnt fördelade steg. */
+    for(i=0;i<=4;i++)lagg(g.t0+(g.t1-g.t0)*i/4);
+  }
+  return '<div class="avl-tid">'+h+'</div>';
 }
 function avlLager(id,svg,geo){
   if(!geo||typeof geo.X!=='function')return svg;
@@ -5319,7 +5388,8 @@ function avlLager(id,svg,geo){
     +' onpointerdown="avlNer(event,\''+id+'\')" onpointermove="avlRor(event)"'
     +' onpointerup="avlUpp(event)" onpointercancel="avlUpp(event)"'
     +' onclick="event.stopPropagation()">'
-    +svg+'<div class="avl-ovl" id="avl-ovl-'+id+'">'+del.graf+'</div></div></div>';
+    +svg+'<div class="avl-ovl" id="avl-ovl-'+id+'">'+del.graf+'</div></div>'
+    +avlTidsaxel(geo)+'</div>';
 }
 function avlEl(id){
   try{return (typeof document!=='undefined'&&document.getElementById)?document.getElementById(id):null;}
@@ -5373,7 +5443,11 @@ function avlUpp(e){
   avlMala(d.id);
   try{dlgIdleReset();}catch(err){}
 }
-function dayChart(series,pctSerie,fonster){
+/* Procentserien (batteriets laddnivå på egen 0–100-skala, med "100 %" i
+   hörnet) är borttagen i v602. Två skalor i samma bild kräver att man håller
+   reda på vilken kurva som hör till vilken, och med dragpunkten på plats står
+   siffran ändå i etiketten. dayChart har därför bara EN skala. */
+function dayChart(series,fonster){
   var cid=(fonster&&fonster.cid)||'g2-day';
   /* Med ett fönster ritas exakt det dygnet, även om serien saknar punkter i
      början eller slutet — annars skulle x-axeln krympa till det som råkar
@@ -5424,34 +5498,10 @@ function dayChart(series,pctSerie,fonster){
     if(active&&!sel[o.s.key])return;
     avlSer.push({namn:o.s.label,farg:o.s.col,pts:o.seg,Y:Y,fmt:fmtW});
   });
-  /* Batteriets laddningsnivå. Y0 är nollinjen när skalan går under noll,
-     annars grafens botten — i båda fallen "0 %". */
-  var pctLinje='',pctText='';
-  if(pctSerie&&pctSerie.pts&&pctSerie.pts.length){
-    var pseg=klipp(pctSerie.pts);
-    if(pseg&&pseg.length>1){
-      var Y0=(vmin<0)?Y(0):(H-padB);
-      var YP=function(v){return Y0-(Math.max(0,Math.min(100,v))/100)*(Y0-padT);};
-      var ppts=pseg.map(function(p){return [X(p.t),YP(p.v)];});
-      var pk=pctSerie.key,pon=(!active||sel[pk]);
-      pctLinje='<path data-k="'+pk+'" data-bw="1.6" d="'+smoothPath(ppts)+'" fill="none" stroke="'+pctSerie.col
-        +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"'
-        +' style="opacity:'+(pon?0.95:0.09)+'"/>';
-      pctText='<text x="298" y="'+(padT+7).toFixed(1)+'" text-anchor="end" font-size="8" fill="'+pctSerie.col
-        +'" style="opacity:.75">100 %</text>';
-      /* Procentserien har EGEN skala. Den läggs in med YP, inte Y — annars
-         hade 62 % lästs av som 62 watt. */
-      if(!active||sel[pk])avlSer.push({namn:pctSerie.label,farg:pctSerie.col,pts:pseg,Y:YP,
-        fmt:function(v){return Math.round(Math.max(0,Math.min(100,v)))+' %';}});
-      segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
-    }
-  }
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+pctLinje+pctText+'</svg>';
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
-  var xl=hourTicks(t0,t1);
-  var xax='<div class="g2-xax">'+xl.map(function(o){return '<span style="left:'+(o.frac*100).toFixed(1)+'%">'+o.label+'</span>';}).join('')+'</div>';
   var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+o.s.col+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
-  return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+xax+lg+'</div>';
+  return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
 }
 function hourTicks(t0,t1){
   var spanH=(t1-t0)/3600000,step=Math.max(1,Math.ceil(spanH/6)),out=[];
@@ -5499,9 +5549,8 @@ function yearOverlayChart(key,colMap,cid){
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,0,vmax,H,padT,padB)+body+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:x,t0:1,t1:12,ser:avlSer,
     kl:function(mo){return MABBR[Math.max(0,Math.min(11,Math.round(mo)-1))];}});
-  var xax='<div class="g2-xax g2-xax-even"><span>jan</span><span>apr</span><span>jul</span><span>okt</span><span>dec</span></div>';
   var lg='<div class="mchart-lg2">'+byYear.map(function(o){var col=colMap[o.year]||'var(--dim)',isC=(o.year===cy),k=''+o.year;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':(isC?' class="cur"':'')))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+col+';height:'+(isC?4:3)+'px"></i>'+o.year+'</span>';}).join('')+'</div>';
-  return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+xax+lg+'</div>';
+  return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
 }
 var _cmpKey='f';
 /* v199: tillbaka till periodval PER RUTA. Det globala valet tvingade tre olika
@@ -8249,7 +8298,7 @@ function krPop(nyckel,period){
   if(!d)return;
   krPopStang();
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
-    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()" aria-label="stäng">'+icon('close')+'</button>'
     +'<div class="krpop-h"><span class="krpop-i">'+icon(d.ik||'circle')+'</span>'+esc(d.rubrik)+'</div>'
     +'<div class="krpop-v">'+d.varde+'</div>';
   if(d.rader&&d.rader.length){
@@ -8955,28 +9004,8 @@ function multiGraf(kurvor,enhet,xTid,markT){
     var y=top+f*(H-top-ax);
     h+='<line x1="'+vx+'" y1="'+y.toFixed(1)+'" x2="'+(W-6)+'" y2="'+y.toFixed(1)
       +'" stroke="var(--line)" stroke-width="1" opacity="'+(f===1?'0.9':'0.35')+'"/>';});
-  /* Klockslag på x-axeln: start, mitt och slut. */
-  if(markT!=null&&markT>=t0&&markT<=t1){
-    var mx=px(markT);
-    h+='<line x1="'+mx.toFixed(1)+'" y1="'+top+'" x2="'+mx.toFixed(1)+'" y2="'+(H-ax)
-      +'" stroke="var(--gold)" stroke-width="1.5" stroke-dasharray="3 3" opacity=".85"/>';
-  }
-  if(xTid!==false){
-    [0,0.5,1].forEach(function(f){
-      var t=t0+(t1-t0)*f, x=px(t);
-      var d=new Date(t);
-      var lbl=isFinite(d.getTime())
-        ? (String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'))
-        : String(Math.round(t));
-      h+='<text x="'+x.toFixed(1)+'" y="'+(H-3)+'" class="mg-ax" text-anchor="'
-        +(f===0?'start':(f===1?'end':'middle'))+'">'+esc(lbl)+'</text>';});
-  }
-  k.forEach(function(x){
-    var d='';
-    x.pts.forEach(function(p,i){
-      d+=(i?'L':'M')+px(p.t).toFixed(1)+' '+py(p.v).toFixed(1);});
-    h+='<path d="'+d+'" fill="none" stroke="var(--'+(x.farg||'gold')+')"'+GRAF_LINJE+' '
-      +' stroke-linejoin="round" stroke-linecap="round"/>';});
+  /* Klockslagen ritades förut här inne, i tre <text> längst ned. De ligger
+     numera i den gemensamma tidsaxeln under grafen, som alla andra grafer. */
   h+='</svg>';
   h=avlLager(avlNamn,h,{W:W,H:H,X:px,kl:(avlEpok?null:pgKl),
     ser:k.map(function(x){return {namn:x.namn||'',farg:'var(--'+(x.farg||'gold')+')',pts:x.pts,Y:py,
@@ -9047,7 +9076,7 @@ function dagPop(gi,ri){
   var q=iqBtnHtml(info);
   krPopStang();
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
-    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop"><button class="krpop-x" onclick="krPopStang()" aria-label="stäng">'+icon('close')+'</button>'
     +'<div class="krpop-h"><span class="krpop-i">'+icon(r.ik||'gauge')+'</span>'
     +esc(r.namn)+q.btn+'</div>'+q.box+kropp+'</div></div>';
   var w=document.createElement('div');w.innerHTML=h;
@@ -9554,16 +9583,15 @@ function energiSerier(kalla){
       {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
       {key:'house',pts:H['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
       {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'}
-    ],
-    procent:{key:'battpct',pts:(kalla==='hist'?(H['battpct']||[]):(H['batt']||[])),
-             col:(P.cyan||'#57b6c2'),label:'Batteri %'}
+    ]
   };
 }
 /* ===== HUSBATTERIET: TOLV TIMMAR =====
    Samma ritare som dygnsvyn (dayChart) med ett tolvtimmarsfönster, inte en
-   egen graf. Effekten går på huvudskalan i watt, laddnivån streckad på sin
-   egen 0–100 %-skala med nollinjen som 0 % — exakt som i förbrukning nu, och
-   av samma skäl: två egna implementationer av samma bild glider isär.
+   egen graf — två egna implementationer av samma bild glider isär.
+   Laddnivån låg här som en streckad kurva på egen 0–100-skala fram till v602.
+   Den är borttagen: en andra skala i samma bild kräver att man håller reda på
+   vilken kurva som hör till vilken, och siffran står i raden under grafen.
 
    Tecknet kommer från battPowSerie(), som läser energy_power och räknar rätt:
    positivt när batteriet laddas, negativt när det matar ut. Att vända det här
@@ -9576,7 +9604,6 @@ function battGrafHTML(){
   var t1=Date.now(),t0=t1-12*3600000;
   return dayChart(
     [{key:'battpow',pts:battPowSerie(),col:(P.green||'#7bc47f'),label:'Effekt'}],
-    {key:'battpct',pts:(HIST['batt']||[]),col:(P.cyan||'#57b6c2'),label:'Laddnivå'},
     {t0:t0,t1:t1,cid:'g2-batt'});
 }
 /* All infotext ligger bakom en knapp — och det är husets EGEN infoknapp, samma
@@ -9816,7 +9843,7 @@ function buildHistPopup(){
     return h;
   }
   var se=energiSerier('hist');
-  h+='<div class="hist-graf">'+dayChart(se.linjer,se.procent,{t0:f.t0,t1:f.t1,cid:'g2-hist'})+'</div>';
+  h+='<div class="hist-graf">'+dayChart(se.linjer,{t0:f.t0,t1:f.t1,cid:'g2-hist'})+'</div>';
   h+=histSammanfattning(f);
   return h;
 }
@@ -9839,7 +9866,7 @@ function buildEnergyPopup(){
   h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
   h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri'
     +infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. Batteriets effekt är positiv när det laddas och negativ när det laddar ur.')
-    +'</div>'+dayChart(se.linjer,se.procent);
+    +'</div>'+dayChart(se.linjer);
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
@@ -9887,8 +9914,8 @@ function multiTempSVG(){
   var tr=(t1-t0)||1,yr=(yhi-ylo)||1,mp=yr*0.12;ylo-=mp;yhi+=mp;yr=yhi-ylo;
   var X=function(v){return padL+(v-t0)/tr*(W-padL-padR);},Y=function(v){return padT+(1-(v-ylo)/yr)*(H-padT-padB);};
   var g='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
-  for(var q=0;q<out.length;q++){var o=out[q],d='';
-    for(var r=0;r<o.s.length;r++)d+=(r?'L':'M')+X(o.s[r].t).toFixed(1)+' '+Y(o.s[r].v).toFixed(1)+' ';
+  for(var q=0;q<out.length;q++){var o=out[q];
+    var d=smoothPath(o.s.map(function(pt){return [X(pt.t),Y(pt.v)];}));
     g+='<path d="'+d+'" fill="none" stroke="'+tempCol(o.t)+'"'+GRAF_LINJE+'/>';}
   g+='</svg>';
   g=avlLager('temps',g,{W:W,H:H,X:X,t0:t0,t1:t1,
@@ -9929,11 +9956,10 @@ function openDetail(which){
       +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
   }else if(which==='batt'){const bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();title='Husbatteri';
-    body='<div class="ww-h">Tolv timmar · effekt &amp; laddnivå'
+    body='<div class="ww-h">Tolv timmar · effekt'
       +infoBlock('battgraf','Skalan är watt. Effekten är positiv när batteriet '
-        +'laddas och negativ när det matar ut. Den streckade linjen är laddnivån '
-        +'på egen skala: 0 % vid nollinjen, 100 % högst upp. Dra i grafen för att '
-        +'läsa av båda vid en och samma tidpunkt.')
+        +'laddas och negativ när det matar ut. Dra i grafen för att läsa av '
+        +'effekten vid en viss tidpunkt.')
       +'</div>'+battGrafHTML()
       +dSec('Nu')
       +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
@@ -10461,7 +10487,7 @@ function btPop(){
   var q=iqBtnHtml(info);
 
   var h='<div class="krpop-bak" id="krpop" onclick="if(event.target===this)krPopStang()">'
-    +'<div class="krpop krpop-bred"><button class="krpop-x" onclick="krPopStang()">×</button>'
+    +'<div class="krpop krpop-bred"><button class="krpop-x" onclick="krPopStang()" aria-label="stäng">'+icon('close')+'</button>'
     +'<div class="krpop-h"><span class="krpop-i">'+icon('battery-low')+'</span>'
     +'Batteriet tomt'+q.btn+'</div>'+q.box
     /* Valet av huvudtal ligger här, vid siffrorna det gäller — inte i en
@@ -12186,8 +12212,10 @@ function histSVG(key,cfg){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
   const t0=seg[0][0],t1=seg[seg.length-1][0]||now,tr=(t1-t0)||1;
   const ys=seg.map(p=>p[1]),ylo=Math.min.apply(null,ys),yhi=Math.max.apply(null,ys),yr=(yhi-ylo)||Math.max(1,Math.abs(yhi)||1);
   const X=t=>pad+(t-t0)/tr*(W2-2*pad),Y=v=>H2-pad-(v-ylo)/yr*(H2-2*pad);
-  let d='';seg.forEach((p,i)=>{d+=(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)+' ';});
-  const area='M'+X(seg[0][0]).toFixed(1)+' '+(H2-pad)+' '+d.replace(/^M/,'L').trim()+' L'+X(seg[seg.length-1][0]).toFixed(1)+' '+(H2-pad)+' Z';
+  /* Mjuk kurva som i alla andra grafer — brutna linjer här och mjuka där var
+     den mest iögonfallande stilskillnaden mellan graferna. */
+  const d=smoothPath(seg.map(p=>[X(p[0]),Y(p[1])]));
+  const area=d+' L'+X(seg[seg.length-1][0]).toFixed(1)+' '+(H2-pad)+' L'+X(seg[0][0]).toFixed(1)+' '+(H2-pad)+' Z';
   const spanH=Math.round(tr/3600000),unit=(cfg&&cfg.unit)?cfg.unit:'';
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
     +'<path d="'+area+'" fill="'+col+'" opacity=".10"/>'
@@ -15773,7 +15801,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v601';
+const APP_VERSION='v602';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
