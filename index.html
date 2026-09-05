@@ -1795,6 +1795,13 @@ body.mobile{--ds-sun:14px}
 .cfg{display:flex;flex-direction:column}
 .cfg-sec{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:15px 2px 7px}
 .cfg-sec:first-child{margin-top:0}
+/* Kvittensraden i Brevedens ruta. Egen klass och inte .drow-info: den är
+   dold tills den öppnas, och statusen ska synas direkt. */
+.brv-status{font-size:11.5px;font-weight:650;color:var(--dim);padding:2px 2px 8px}
+.brv-fel{color:var(--warm)}
+/* Talet mellan minus och plus är ingen knapp och ska inte se ut som en. */
+.brv-tal{flex:1 1 auto;min-width:74px;text-align:center;align-self:center;
+  font-size:15px;font-weight:800;color:var(--ink)}
 .cfg-btns{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:9px}
 .cfg-btns.synced{margin-bottom:9px}
 .cfg-btns .cfg-opt{flex:1 1 auto}
@@ -10061,19 +10068,7 @@ function openDetail(which){
     tb+='<div class="cfg-btns" style="margin:10px 0 4px"><button class="te-alt" onclick="tempAll()">Visa alla</button><button class="te-use" onclick="openDetail(\'breveden\')">Breveden · AC</button></div>';
     body=tb;
   }else if(which==='breveden'){title='Breveden · AC';
-    var ac=DEV.attefall;
-    var acT=cap(ac,'measure_temperature'),acTgt=cap(ac,'target_temperature'),acMode=cap(ac,'thermostat_mode'),
-        acOn=cap(ac,'onoff'),acFan=cap(ac,'fan_speed'),acPw=cap(ac,'measure_power'),acKwh=cap(ac,'meter_power'),
-        acOut=cap(ac,'measure_temperature.outdoor');
-    body=ptsLineSVG(HIST['t_breveden']||[],'violet')
-      +dRow('Läge',esc(acModeSv(acMode,acOn)))
-      +dRow('Inställd temperatur',acTgt==null?'–':num(acTgt,0)+' °C')
-      +dRow('Temperatur nu',acT==null?'–':num(acT,1)+' °C')
-      +(acT!=null&&acTgt!=null?dRow('Mot målet',(acT-acTgt>=0?'+':'')+num(acT-acTgt,1)+' °C'):'')
-      +dRow('Fläkt',acFan==null?'–':String(acFan))
-      +dRow('Effekt nu',acPw==null?'–':num(acPw,0)+' W')
-      +dRow('Förbrukat totalt',acKwh==null?'–':num(acKwh,1)+' kWh')
-      +(acOut!=null?dRow('Ute (AC)',num(acOut,1)+' °C'):'');
+    body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
@@ -12339,6 +12334,218 @@ async function homeySetMood(id){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=with
    triggar rätt flow och visar tillståndet. Trycket blockeras ALDRIG här, inte
    ens när nastaLage är 'ok' — då svarar skriptet med en push, och det är
    avsiktligt att den vägen går genom Homey. */
+
+/* ===== BREVEDEN: HELA AC:N I EN RUTA =====
+   Knappen startade och stoppade genom HomeyScriptet och det var allt. Nu
+   öppnar den en ruta där allt går att ställa, med skriptets gamla beteende
+   kvar som en av snabbknapparna.
+
+   INGA LÄGESLISTOR SKRIVNA FÖR HAND. Enheten (Attefall, MELCloud) rapporterar
+   själv vilka lägen, fläktsteg och spjällägen den har, och listorna skiljer
+   sig mellan modeller. De läses därför ur enhetens egen capability vid
+   ritning. Saknas listan ritas inga knappar för just den — ett värde jag inte
+   kan belägga ska inte se ut som ett val.
+
+   SKRIPTET ÄGER FORTFARANDE AUTOMATIKEN. Ett manuellt läge kan skrivas över
+   nästa gång breveden-skriptet kör; det står i rutans infotext. Dashboarden
+   har medvetet ingen egen bedömning av om kyla eller värme behövs. */
+function brvDev(){return DEV.attefall;}
+function brvCapObj(c){
+  var d=DATA[brvDev()];
+  return (d&&d.capabilitiesObj&&d.capabilitiesObj[c])?d.capabilitiesObj[c]:null;
+}
+/* Uppräkningsvärden ur enheten. Homey lämnar dem som values:[{id,title}], men
+   fältet har hetat olika i olika versioner, så båda formerna tas emot. */
+function brvVal(c){
+  var o=brvCapObj(c);
+  var v=o&&(o.values||o.options);
+  if(!Array.isArray(v)||!v.length)return null;
+  var ut=[];
+  for(var i=0;i<v.length;i++){
+    var x=v[i];
+    if(x&&typeof x==='object'){if(x.id!=null)ut.push({id:x.id,namn:x.title||x.label||String(x.id)});}
+    else if(x!=null)ut.push({id:x,namn:String(x)});
+  }
+  return ut.length?ut:null;
+}
+/* Talvärden med få steg (fläkten) ritas också som knappar. Är steget så fint
+   att det blir ett dussin knappar duger de inte som knapprad. */
+function brvNumVal(c){
+  var o=brvCapObj(c);
+  if(!o||o.type!=='number')return null;
+  var mn=(o.min!=null)?o.min:null, mx=(o.max!=null)?o.max:null, st=o.step||1;
+  if(mn==null||mx==null||!(mx>mn)||!(st>0))return null;
+  if((mx-mn)/st>9)return null;
+  var ut=[];
+  for(var v=mn;v<=mx+1e-9;v+=st)ut.push({id:Math.round(v*1000)/1000,namn:String(Math.round(v*1000)/1000)});
+  return ut;
+}
+function brvLageNamn(id){
+  var v=brvVal('thermostat_mode');
+  if(v)for(var i=0;i<v.length;i++)if(v[i].id===id)return acModeSv(id,true)||v[i].namn;
+  return acModeSv(id,true);
+}
+function brvHarLage(id){
+  var v=brvVal('thermostat_mode');
+  if(!v)return true;                  /* listan okänd – hindra inte */
+  for(var i=0;i<v.length;i++)if(v[i].id===id)return true;
+  return false;
+}
+
+/* SNABBVALEN.
+   'auto' gör exakt det knappen gjorde förut: triggar skriptets flow och låter
+   det avgöra. De övriga sätter capabilities direkt.
+   Ordningen i sekvensen spelar roll: läget först, sedan temperaturen, och
+   strömmen sist — annars hinner enheten gå igång i fel läge. */
+var BRV_SNABB=[
+  {k:'auto',lbl:'Auto',ic:'sparkle'},
+  {k:'h15', lbl:'Håll 15°',ic:'flame',   lage:'heat',temp:15},
+  {k:'g21', lbl:'Gäster 21°',ic:'house', lage:'heat',temp:21},
+  {k:'kyl', lbl:'Kyl 22°',ic:'snowflake',lage:'cool',temp:22},
+  {k:'dry', lbl:'Avfukta',ic:'drop',     lage:'dry'},
+  {k:'av',  lbl:'Stäng av',ic:'power',   av:true}
+];
+function brvSnabbLista(){
+  var ut=[];
+  for(var i=0;i<BRV_SNABB.length;i++){
+    var q=BRV_SNABB[i];
+    if(q.lage&&!brvHarLage(q.lage))continue;
+    ut.push(q);
+  }
+  return ut;
+}
+var _brvSkriver=false,_brvFel=null;
+async function brvSnabb(k){
+  if(k==='auto'){try{await brvTryck();}catch(e){}return;}
+  var q=null;
+  for(var i=0;i<BRV_SNABB.length;i++)if(BRV_SNABB[i].k===k)q=BRV_SNABB[i];
+  if(!q)return;
+  if(q.av){await brvSkriv([['onoff',false]]);return;}
+  var steg=[];
+  if(q.lage)steg.push(['thermostat_mode',q.lage]);
+  if(q.temp!=null)steg.push(['target_temperature',q.temp]);
+  steg.push(['onoff',true]);
+  await brvSkriv(steg);
+}
+/* Skriver en sekvens och läser tillbaka. homeyPut svarar inte med värdet, så
+   det som visas direkt efteråt är optimistiskt — nästa hämtning rättar det. */
+async function brvSkriv(steg){
+  if(_brvSkriver)return;
+  _brvSkriver=true;_brvFel=null;brvPopRita();
+  var id=brvDev();
+  try{
+    for(var i=0;i<steg.length;i++){
+      await homeyPut(id,steg[i][0],steg[i][1]);
+      var o=brvCapObj(steg[i][0]);
+      if(o)o.value=steg[i][1];
+    }
+  }catch(e){_brvFel=(e&&e.message)||'kunde inte nå Homey';}
+  _brvSkriver=false;brvPopRita();
+  /* Skriptets logikvariabel läses om: den styr brickans läge och "Auto"-valet,
+     och den vet inget om att vi just ställt om enheten för hand. */
+  try{brvHamta();}catch(e){}
+}
+/* Löftet lämnas vidare, inte bara startas: annars går det inte att veta när
+   skrivningen är klar — varken i ett prov eller i en framtida kedja. */
+function brvSattLage(m){return brvSkriv(m==='off'?[['thermostat_mode','off']]:[['thermostat_mode',m],['onoff',true]]);}
+function brvSattTemp(d){
+  var o=brvCapObj('target_temperature');
+  var v=(o&&typeof o.value==='number')?o.value:19;
+  var st=(o&&o.step)||1, mn=(o&&o.min!=null)?o.min:10, mx=(o&&o.max!=null)?o.max:30;
+  v=Math.max(mn,Math.min(mx,Math.round((v+d*st)*10)/10));
+  return brvSkriv([['target_temperature',v]]);
+}
+function brvSattCap(c,v){return brvSkriv([[c,v]]);}
+function brvPa(){var o=brvCapObj('onoff');return o?!!o.value:false;}
+function brvTog(){return brvSkriv([['onoff',!brvPa()]]);}
+
+/* Ritar om BARA rutans innehåll, inte hela vyn: att gå via openDetail hade
+   rullat tillbaka till toppen mitt i en inställning. */
+function brvPopRita(){
+  try{
+    if(_dlgWhich!=='breveden')return;
+    var b=$('dlg-body');
+    if(b)b.innerHTML=brvPopHTML();
+  }catch(e){}
+}
+function brvKnappRad(cap,vald,lista,fmt){
+  if(!lista||!lista.length)return '';
+  var h='<div class="cfg-btns">';
+  for(var i=0;i<lista.length;i++){
+    var x=lista[i], pa=(x.id===vald);
+    h+='<button class="cfg-opt'+(pa?' on':'')+'" onclick="brvSattCap(\''+cap+'\','
+      +(typeof x.id==='number'?x.id:('\''+String(x.id).replace(/'/g,'')+'\''))+')">'
+      +esc(fmt?fmt(x):x.namn)+'</button>';
+  }
+  return h+'</div>';
+}
+function brvPopHTML(){
+  var ac=brvDev();
+  var acT=cap(ac,'measure_temperature'),acTgt=cap(ac,'target_temperature'),
+      acMode=cap(ac,'thermostat_mode'),acOn=cap(ac,'onoff'),acFan=cap(ac,'fan_speed'),
+      acPw=cap(ac,'measure_power'),acKwh=cap(ac,'meter_power'),
+      acDag=cap(ac,'meter_power.daily'),acOut=cap(ac,'measure_temperature.outdoor');
+  var B=brvState();
+  var h=ptsLineSVG(HIST['t_breveden']||[],'violet','°C','brv-temp');
+
+  h+='<div class="dsec">Snabbval'
+    +infoBlock('brvsnabb','<b>Auto</b> gör samma sak som knappen gjorde förut: '
+      +'startar eller stoppar via HomeyScriptet, som självt avgör om kyla eller '
+      +'värme behövs. De övriga ställer enheten direkt.<br><br>'
+      +'Ett handpålagt läge kan skrivas över nästa gång skriptet kör. Skriptet '
+      +'äger automatiken — dashboarden har med flit ingen egen bedömning.')
+    +'</div>';
+  var sn=brvSnabbLista();
+  h+='<div class="cfg-btns">';
+  for(var i=0;i<sn.length;i++){
+    var q=sn[i];
+    var pa=(q.k==='auto')?!!(B&&B.aktiv)
+      :(q.av?(acOn===false)
+        :(acOn===true&&acMode===q.lage&&(q.temp==null||acTgt===q.temp)));
+    h+='<button class="cfg-opt'+(pa?' on':'')+'" onclick="brvSnabb(\''+q.k+'\')">'
+      +esc(q.lbl)+'</button>';
+  }
+  h+='</div>';
+  if(_brvSkriver)h+='<div class="brv-status">Skickar till Homey…</div>';
+  else if(_brvFel)h+='<div class="brv-status brv-fel">Gick inte: '+esc(_brvFel)+'</div>';
+
+  h+='<div class="dsec">Styrning</div>';
+  h+='<div class="cfg-btns"><button class="cfg-opt'+(acOn===true?' on':'')
+    +'" onclick="brvTog()">'+(acOn===true?'På':'Av')+'</button></div>';
+  var lagen=brvVal('thermostat_mode');
+  if(lagen){
+    h+='<div class="cfg-sec">Läge</div>'
+      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){return acModeSv(x.id,true)||x.namn;});
+  }
+  var tO=brvCapObj('target_temperature');
+  if(tO){
+    h+='<div class="cfg-sec">Inställd temperatur</div>'
+      +'<div class="cfg-btns">'
+      +'<button class="cfg-opt" onclick="brvSattTemp(-1)">\u2013</button>'
+      +'<span class="brv-tal">'+(acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')+'</span>'
+      +'<button class="cfg-opt" onclick="brvSattTemp(1)">+</button></div>';
+  }
+  var flakt=brvVal('fan_speed')||brvNumVal('fan_speed');
+  if(flakt)h+='<div class="cfg-sec">Fläkt</div>'+brvKnappRad('fan_speed',acFan,flakt);
+  var lod=brvVal('vertical');
+  if(lod)h+='<div class="cfg-sec">Luftriktning lodrätt</div>'
+    +brvKnappRad('vertical',cap(ac,'vertical'),lod);
+  var sid=brvVal('horizontal');
+  if(sid)h+='<div class="cfg-sec">Luftriktning i sidled</div>'
+    +brvKnappRad('horizontal',cap(ac,'horizontal'),sid);
+
+  h+='<div class="dsec">Nu</div>'
+    +dRow('Läge',esc(acModeSv(acMode,acOn)))
+    +dRow('Inställd temperatur',acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')
+    +dRow('Temperatur nu',acT==null?'\u2013':num(acT,1)+' \u00b0C')
+    +(acT!=null&&acTgt!=null?dRow('Mot målet',(acT-acTgt>=0?'+':'')+num(acT-acTgt,1)+' \u00b0C'):'')
+    +dRow('Fläkt',acFan==null?'\u2013':String(acFan))
+    +dRow('Effekt nu',acPw==null?'\u2013':num(acPw,0)+' W')
+    +(acDag!=null?dRow('Förbrukat idag',num(acDag,1)+' kWh'):'')
+    +dRow('Förbrukat totalt',acKwh==null?'\u2013':num(acKwh,1)+' kWh')
+    +(acOut!=null?dRow('Ute (AC)',num(acOut,1)+' \u00b0C'):'');
+  return h;
+}
 var BRV_VAR='9a2ac08e-b68b-45ea-bbf7-a10e7c00ac41';
 var BRV_FLOW_PA='063fb9f7-37e9-41c0-a114-eba03f1914a1';
 var BRV_FLOW_AV='435b6694-67c4-4b5c-a7e6-1b796ffa0dd4';
@@ -15214,10 +15421,8 @@ function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
 function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=gridTiles(g)[i];if(!cfg)return;const m=computeMetric(cfg);
   if(m&&m.det==='batttom'){try{btPop();}catch(e){}return;}
-  /* Breveden: ett tryck STARTAR eller STOPPAR, det öppnar ingen detaljvy.
-     Trycket går alltid igenom — skriptet avgör och svarar med en push om
-     ingenting behövs. */
-  if(m&&m.det==='breveden'){try{brvTryck();}catch(e){}return;}
+  /* Breveden öppnar sin ruta sedan v605. Det gamla trycket — starta eller
+     stoppa via skriptet — ligger kvar som snabbvalet "Auto" därinne. */
   _tapCfg=cfg;
   if(cfg.type==='computed'){if(m.det)openDetail(m.det);else _tapCfg=null;}
   else if(cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature')openDetail('pool');
@@ -15857,7 +16062,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v604';
+const APP_VERSION='v605';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
