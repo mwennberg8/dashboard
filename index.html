@@ -6553,6 +6553,25 @@ function radarFetch(){
    justeras i kartans inställningar. Radardata är ~1 km upplöst ändå. */
 var RADAR_MAX_Z=7;                       /* RainViewers dokumenterade tak */
 var RADAR_VIEW={lat:57.4200,lon:12.0500,W:560,H:560};
+/* ===== HELSKÄRMEN HAR EN ANNAN KARTRAM ÄN KORTET =====
+   Kartan ritades förut genom att RADAR_VIEW.W/H tillfälligt skrevs om till
+   skärmens mått och ställdes tillbaka direkt. Själva bygget är synkront, så
+   den första bilden blev rätt — men radarlagret ritas OM efteråt: varje gång
+   man drar i tidslinjen, stegar en bildruta eller en ny hämtning kommer in.
+   Då hade RADAR_VIEW hunnit tillbaka till 560×560 medan svg:n bar skärmens
+   viewBox, och rutorna lades ut för fel ram. Överlägget hamnade i ett hörn i
+   fel storlek, medan bakgrundskartan låg kvar rätt.
+
+   Ramen är därför inte längre något man skriver om och tillbaka, utan ett
+   läge man frågar efter. Alla som ritar i kartan — radarrutor,
+   framskrivning, prognosfält och rörelsemätningen — läser radarVy(), så de
+   kan inte hamna i olika ramar. */
+var _wxFullW=0,_wxFullH=0;
+function radarVy(){
+  if(_wxFull&&_wxFullW>0&&_wxFullH>0)
+    return {lat:RADAR_VIEW.lat,lon:RADAR_VIEW.lon,W:_wxFullW,H:_wxFullH};
+  return RADAR_VIEW;
+}
 /* Zoom 9 ger ~165 m per bildpunkt på vår breddgrad – 560 px blir 92 km brett. */
 var WX_VIEW_Z=9;
 function radarViewZ(){var z=(CFG&&CFG.radarViewZ);return (z>=6&&z<=9)?z:WX_VIEW_Z;}
@@ -6561,7 +6580,7 @@ function radarTileUrl(t,path){return _radarHost+(path||_radarPath)+'/256/'+t.z+'
 /* Rutorna för en given bildruta. Geometrin är densamma varje gång, så vid
    spolning byts bara adresserna ut – kartan under ritas aldrig om. */
 function radarLayerHTML(path){
-  var Z=radarViewZ(), rz=Math.min(Z,RADAR_MAX_Z), VW=RADAR_VIEW;
+  var Z=radarViewZ(), rz=Math.min(Z,RADAR_MAX_Z), VW=radarVy();
   var tiles=(rz===Z)?osmGrid(VW.lat,VW.lon,Z,VW.W,VW.H).tiles.map(function(t){
                        return {x:t.x,y:t.y,z:t.z,left:t.left,top:t.top,size:256};})
                    :osmGridScaled(VW.lat,VW.lon,Z,VW.W,VW.H,rz);
@@ -6598,12 +6617,12 @@ function radarLayerHTML(path){
    det är beräknat framgår av etiketten i stället.
    Enheten är mm/h i båda fallen, så färgskalan är gemensam. */
 var PRG_N=33, PRG_BAK=1, PRG_FRAM=2, PRG_KLUMP=280;
-var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null;
+var _prgPkt=null,_prgTid=[],_prgVal=null,_prgAt=0,_prgBusy=false,_prgFel=null,_prgZ=null,_prgRam=null;
 
 /* Kartans hörn i grader. Samma projektion som kartrutorna använder, baklänges,
    så att fälten hamnar där de ska även när man zoomar. */
 function prgRutnat(){
-  var Z=radarViewZ(),VW=RADAR_VIEW;
+  var Z=radarViewZ(),VW=radarVy();
   var n=Math.pow(2,Z),world=n*256;
   var px=(VW.lon+180)/360*world;
   var la=VW.lat*Math.PI/180;
@@ -6618,13 +6637,15 @@ function prgRutnat(){
     lats.push((no+(sy-no)*r/(PRG_N-1)).toFixed(3));
     lons.push((v+(o-v)*c/(PRG_N-1)).toFixed(3));
   }
-  return {lats:lats,lons:lons,z:Z};
+  return {lats:lats,lons:lons,z:Z,ram:VW.W+'x'+VW.H};
 }
 function prgHamta(){
   if(_prgBusy)return;
-  var Z=radarViewZ();
-  /* Zoomar man om måste rutnätet hämtas på nytt - punkterna sitter i kartan. */
-  if(_prgZ===Z&&_prgAt&&Date.now()-_prgAt<20*60000&&_prgVal)return;
+  var Z=radarViewZ(), VW=radarVy(), ram=VW.W+'x'+VW.H;
+  /* Zoomar man om måste rutnätet hämtas på nytt - punkterna sitter i kartan.
+     Detsamma gäller när ramen byter form: helskärmen täcker en annan yta än
+     kortet, och ett rutnät hämtat för den ena sträcks fel över den andra. */
+  if(_prgZ===Z&&_prgRam===ram&&_prgAt&&Date.now()-_prgAt<20*60000&&_prgVal)return;
   _prgBusy=true;
   var g=prgRutnat();
   /* Punkterna delas i klumpar. Ordningen måste bevaras - svaren sätts ihop i
@@ -6657,7 +6678,7 @@ function prgHamta(){
       if(!lista.length||!lista[0]||!lista[0].hourly){_prgFel='oväntat svar';_prgBusy=false;_prgAt=Date.now();return;}
       _prgTid=(lista[0].hourly.time||[]).map(function(t){return t*1000;});
       _prgVal=lista.map(function(x){return (x&&x.hourly&&x.hourly.precipitation)||[];});
-      _prgPkt=g;_prgZ=g.z;_prgAt=Date.now();_prgFel=null;_prgBusy=false;
+      _prgPkt=g;_prgZ=g.z;_prgRam=g.ram;_prgAt=Date.now();_prgFel=null;_prgBusy=false;
       try{if(document.getElementById('vdr-body'))renderVader();}catch(e){}
     },function(e){_prgFel=(e&&e.message)||'kunde inte nå Open-Meteo';_prgBusy=false;_prgAt=Date.now();});
   }catch(e){_prgBusy=false;_prgFel=String(e&&e.message);}
@@ -6711,7 +6732,7 @@ function prgLagerHTML(ti){
   if(!_prgPkt||!_prgTid.length||ti==null)return '';
   var px=prgPixlar(ti);
   if(prgTom(px))return '';
-  var VW=RADAR_VIEW, cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1);
+  var VW=radarVy(), cw=VW.W/(PRG_N-1), ch=VW.H/(PRG_N-1);
   var url=null;
   try{
     var cv=document.createElement('canvas');cv.width=PRG_N;cv.height=PRG_N;
@@ -6860,7 +6881,7 @@ function framTackning(a){
    intensitet utan att färgskalan behöver tolkas. */
 function framRitaRuta(path){
   return new Promise(function(klar,fel){
-    var Z=radarViewZ(), rz=Math.min(Z,RADAR_MAX_Z), VW=RADAR_VIEW;
+    var Z=radarViewZ(), rz=Math.min(Z,RADAR_MAX_Z), VW=radarVy();
     var tiles=(rz===Z)?osmGrid(VW.lat,VW.lon,Z,VW.W,VW.H).tiles.map(function(t){
                          return {x:t.x,y:t.y,z:t.z,left:t.left,top:t.top,size:256};})
                      :osmGridScaled(VW.lat,VW.lon,Z,VW.W,VW.H,rz);
@@ -6906,6 +6927,7 @@ function framMat(){
   var nyckel=radarViewZ()+':'+lista[lista.length-1].time;
   if(_framNyckel===nyckel)return;
   _framNyckel=nyckel;_framBusy=true;
+  var vyW=radarVy().W;
   Promise.all(lista.map(function(f){return framRitaRuta(f.path);})).then(function(bild){
     var par=[];
     for(var i=1;i<bild.length;i++){
@@ -6929,10 +6951,14 @@ function framMat(){
     }
     var sx=0,sy=0,sk=0;
     par.forEach(function(p){sx+=p.dx;sy+=p.dy;sk+=p.kvot;});
-    /* Mätrutan är FRAM_RUT bred och vyn RADAR_VIEW.W. Vektorn räknas om till
-       vyns bildpunkter redan här, så resten av koden slipper veta att
-       mätningen gjordes i en mindre ruta. */
-    var k=RADAR_VIEW.W/FRAM_RUT;
+    /* Mätrutan är FRAM_RUT bred och vyn vyW. Vektorn räknas om till vyns
+       bildpunkter redan här, så resten av koden slipper veta att mätningen
+       gjordes i en mindre ruta.
+       vyW fångades INNAN bilderna ritades: öppnas helskärmen medan hämtningen
+       pågår byter radarVy() bredd, och då hade omräkningen skett med en annan
+       ram än den som mättes. En bildpunkt i vyn är samma sak som en
+       kartrutepunkt oavsett ram, så vektorn gäller i båda lägena. */
+    var k=vyW/FRAM_RUT;
     _framFlt={dx:(sx/par.length)*k,dy:(sy/par.length)*k,kvot:sk/par.length,
               par:par.length,z:radarViewZ(),at:Date.now()};
     _framFel=null;_framBusy=false;framOmRita();
@@ -6975,7 +7001,7 @@ function framFaktor(){
 }
 
 function framMpp(){
-  return 156543.03392*Math.cos(RADAR_VIEW.lat*Math.PI/180)/Math.pow(2,radarViewZ());
+  return 156543.03392*Math.cos(radarVy().lat*Math.PI/180)/Math.pow(2,radarViewZ());
 }
 /* measure_wind_angle ar riktningen vinden kommer IFRAN, sa rorelsen gar at
    motsatt hall. 0 grader ar nordlig vind, alltsa rorelse soderut. */
@@ -7470,7 +7496,7 @@ function wxMapSVG(){
   var syn=(show==='tryck');
   /* Närvyn använder radarns vyram: den är utzoomad nog att radarrutorna
      (som bara finns till zoom 7) ser skarpa ut, och vind ritas i samma bild. */
-  var VW=syn?SYN_VIEW:RADAR_VIEW;
+  var VW=syn?SYN_VIEW:radarVy();
   var W=VW.W, H=VW.H, Z=syn?SYN_VIEW.z:radarViewZ();
   var G=osmGrid(VW.lat, VW.lon, Z, W, H);
   var wdir=cap(DEV.windNet,'measure_wind_angle'); if(wdir==null)wdir=cap(DEV.smhi,'measure_wind_direction_cp');
@@ -7776,22 +7802,19 @@ function wxReglageHTML(){
    täcker allt; tillbakaknappen och Android-bakåt stänger den. */
 var _wxFull=false;
 function wxFullOppna(){if(_wxFull)return;_wxFull=true;renderVader();}
-function wxFullStang(){if(!_wxFull)return;_wxFull=false;radarStop();renderVader();}
+function wxFullStang(){if(!_wxFull)return;_wxFull=false;_wxFullW=0;_wxFullH=0;radarStop();renderVader();}
 function wxFullRita(){
   var o=$('wxfs');if(!o)return;
   if(!_wxFull){o.hidden=true;o.innerHTML='';return;}
   o.hidden=false;
   /* KARTAN RITAS I SKÄRMENS FORM, inte som en kvadrat med marginaler runt.
-     RADAR_VIEW styr hur många rutor som hämtas och hur bilden sätts ihop, så
-     den ställs om till skärmens mått, kartan byggs, och måtten ställs
-     tillbaka direkt. Bygget är synkront — ingenting annat hinner läsa värdena
-     medan de är omställda. Alternativet, att skala upp kvadraten tills den
-     täcker, hade klippt bort halva kartan i sidled. */
-  var W0=RADAR_VIEW.W,H0=RADAR_VIEW.H,karta;
-  var bw=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerWidth)||W0));
-  var bh=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerHeight)||H0));
-  try{RADAR_VIEW.W=bw;RADAR_VIEW.H=bh;karta=wxMapSVG();}
-  finally{RADAR_VIEW.W=W0;RADAR_VIEW.H=H0;}
+     Måtten SÄTTS här och står kvar så länge helskärmen är öppen — de skrivs
+     inte om och tillbaka. Radarlagret ritas om långt efter det här anropet,
+     och skulle då ha läst fel ram. Alternativet, att skala upp kvadraten tills
+     den täcker, hade klippt bort halva kartan i sidled. */
+  _wxFullW=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerWidth)||RADAR_VIEW.W));
+  _wxFullH=Math.max(320,Math.round((typeof window!=='undefined'&&window.innerHeight)||RADAR_VIEW.H));
+  var karta=wxMapSVG();
   o.innerHTML='<div class="wxmap">'+karta+'</div>'
     +'<div class="wxfs-h">'
     +'<button class="wxfs-b" onclick="wxFullStang()">'+icon('arrow-left')+'Tillbaka</button>'
@@ -15834,7 +15857,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v603';
+const APP_VERSION='v604';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
