@@ -1425,10 +1425,6 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .extfr-back:active{background:rgba(232,228,218,.18)}
 .extfr-ch{font-size:15px;line-height:1;margin-top:-1px}
 .extfr iframe{flex:1 1 auto;width:100%;height:100%;border:0;background:var(--vk-ink);display:block}
-.wind-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 6px}
-.wind-chips .wxm-b{display:inline-flex;align-items:center;gap:6px}
-.wind-chips .wxm-b i{width:11px;height:3px;border-radius:2px;display:inline-block;opacity:.45}
-.wind-chips .wxm-b.on i{opacity:1}
 .drow-info.open{display:block}
 .dv.yoy-good{color:var(--ok)}.dv.yoy-bad{color:var(--warm)}
 .mchart-wrap{margin-top:4px}
@@ -4375,13 +4371,17 @@ function windChartHTML(){
     if(pa.indexOf(S[0])<0)continue;
     var p=windPoints(S[0]);
     if(p.length>1)ser.push({k:S[0],namn:S[1],farg:S[2],axel:S[3],p:p});}
-  var chips='<div class="wind-chips">';
+  /* Vind, byvind och riktning väljs numera i samma sorts förklaring som
+     dygnsgrafens sol/förbrukning/batteri: samma klass, samma färgstreck, samma
+     plats UNDER grafen. Förut var de knappar i chipsform ovanför den, alltså
+     ett eget mönster för samma sak. */
+  var chips='<div class="mchart-lg2">';
   for(var q=0;q<WIND_SER.length;q++){var C=WIND_SER[q],av=(pa.indexOf(C[0])>=0);
-    chips+='<button class="wxm-b'+(av?' on':'')+'" onclick="windSerTog(\''+C[0]+'\')">'
-      +'<i style="background:'+C[2]+'"></i>'+C[1]+'</button>';}
+    chips+='<span'+(av?' class="on"':' class="dim"')+' onclick="windSerTog(\''+C[0]+'\')">'
+      +'<i class="mc-sw" style="background:'+C[2]+'"></i>'+esc(C[1])+'</span>';}
   chips+='</div>';
-  if(!ser.length)return chips+'<div class="chart-empty">'
-    +(pa.length?'samlar data… grafen fylls på medan sidan är öppen':'välj vad som ska visas')+'</div>';
+  if(!ser.length)return '<div class="chart-empty">'
+    +(pa.length?'samlar data… grafen fylls på medan sidan är öppen':'välj vad som ska visas')+'</div>'+chips;
   var tMin=t0, tMax=Date.now();
   ser.forEach(function(s){var l=s.p[s.p.length-1].t;if(l>tMax)tMax=l;});
   var msMax=0,harMs=false,harDeg=false;
@@ -4413,7 +4413,7 @@ function windChartHTML(){
      Båda talen står i dragpunktens etikett, var och en i sin egen enhet, och
      grafen får hela bredden. harMs/harDeg styr fortfarande vilka serier som
      ritas och vilken toppskala msMax får. */
-  return chips+'<div class="chart-wrap">'+svgm+'</div>';}
+  return '<div class="chart-wrap">'+svgm+'</div>'+chips;}
 var _windInfoOpen=false;
 function windInfoTog(){_windInfoOpen=!_windInfoOpen;
   var e=document.getElementById('wind-info');if(e)e.classList.toggle('open',_windInfoOpen);}
@@ -5443,30 +5443,38 @@ function avlUpp(e){
   avlMala(d.id);
   try{dlgIdleReset();}catch(err){}
 }
-/* Procentserien (batteriets laddnivå på egen 0–100-skala, med "100 %" i
-   hörnet) är borttagen i v602. Två skalor i samma bild kräver att man håller
-   reda på vilken kurva som hör till vilken, och med dragpunkten på plats står
-   siffran ändå i etiketten. dayChart har därför bara EN skala. */
+/* Batteriets laddnivå ritas som en STRECKAD kurva på egen 0–100-skala: 0 % vid
+   nollinjen, 100 % vid grafens tak. Watt och procent har inget gemensamt mått,
+   så att lägga dem på samma axel vore att ljuga med en snygg kurva.
+   "100 %"-märket i övre högra hörnet är däremot borta — det var det enda som
+   skulle bort i v602, och jag tog i mitt förra försök bort hela kurvan.
+   Serien skickas in som fonster.pct. Att lägga den i optionsobjektet i stället
+   för som ett eget argument gör att battGrafHTML, som inte vill ha någon
+   procentkurva, kan låta bli utan att skicka en null-plats. */
 function dayChart(series,fonster){
   var cid=(fonster&&fonster.cid)||'g2-day';
+  var pctSerie=(fonster&&fonster.pct)||null;
+  /* Ett fönster är ett fönster först när det har en tidsgräns. Anropet från
+     förbrukning nu skickar bara pct och ska ha dygnsbeteendet. */
+  var fen=(fonster&&fonster.t0!=null)?fonster:null;
   /* Med ett fönster ritas exakt det dygnet, även om serien saknar punkter i
      början eller slutet — annars skulle x-axeln krympa till det som råkar
      finnas och två dygn bli osjämförbara. */
   var klipp=function(pts){
     var seg;
-    if(!fonster)seg=daySeg(pts);
+    if(!fen)seg=daySeg(pts);
     else{
       if(!pts||!pts.length)return null;
-      seg=pts.filter(function(p){return p.t>=fonster.t0&&p.t<=fonster.t1;});
+      seg=pts.filter(function(p){return p.t>=fen.t0&&p.t<=fen.t1;});
       if(seg.length<2)return null;
     }
     return seg?glesa(seg):seg;
   };
   var segs=series.map(function(s){return {s:s,seg:klipp(s.pts)};}).filter(function(o){return o.seg;});
-  if(!segs.length)return '<div class="viz-empty">'+(fonster?'Ingen data för det dygnet.':'Samlar in data… grafen fylls på efter hand.')+'</div>';
+  if(!segs.length)return '<div class="viz-empty">'+(fen?'Ingen data för det dygnet.':'Samlar in data… grafen fylls på efter hand.')+'</div>';
   var now=Date.now();
-  var t0=fonster?fonster.t0:Math.min.apply(null,segs.map(function(o){return o.seg[0].t;}));
-  var t1=fonster?fonster.t1:(Math.max.apply(null,segs.map(function(o){return o.seg[o.seg.length-1].t;}))||now);
+  var t0=fen?fen.t0:Math.min.apply(null,segs.map(function(o){return o.seg[0].t;}));
+  var t1=fen?fen.t1:(Math.max.apply(null,segs.map(function(o){return o.seg[o.seg.length-1].t;}))||now);
   var tr=(t1-t0)||1,W=300,H=132,padT=8,padB=6;
   var vs=[];segs.forEach(function(o){o.seg.forEach(function(p){vs.push(p.v);});});
   var vmax=niceMax(Math.max.apply(null,vs)),vmin=niceMin(Math.min.apply(null,vs));
@@ -5498,7 +5506,27 @@ function dayChart(series,fonster){
     if(active&&!sel[o.s.key])return;
     avlSer.push({namn:o.s.label,farg:o.s.col,pts:o.seg,Y:Y,fmt:fmtW});
   });
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+'</svg>';
+  /* Laddnivån: egen skala med nollinjen som 0 % och grafens tak som 100 %.
+     Streckad för att inte kunna förväxlas med watt-kurvorna. Inget märke i
+     hörnet — siffran står i dragpunktens etikett när man pekar. */
+  var pctLinje='';
+  if(pctSerie&&pctSerie.pts&&pctSerie.pts.length){
+    var pseg=klipp(pctSerie.pts);
+    if(pseg&&pseg.length>1){
+      var Y0=(vmin<0)?Y(0):(H-padB);
+      var YP=function(v){return Y0-(Math.max(0,Math.min(100,v))/100)*(Y0-padT);};
+      var ppts=pseg.map(function(q){return [X(q.t),YP(q.v)];});
+      var pk=pctSerie.key,pon=(!active||sel[pk]);
+      pctLinje='<path data-k="'+pk+'" data-bw="1.6" d="'+smoothPath(ppts)+'" fill="none" stroke="'+pctSerie.col
+        +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"'
+        +' vector-effect="non-scaling-stroke" style="opacity:'+(pon?0.95:0.09)+'"/>';
+      /* EGEN Y i avläsningen — annars hade 62 % lästs av som 62 watt. */
+      if(pon)avlSer.push({namn:pctSerie.label,farg:pctSerie.col,pts:pseg,Y:YP,
+        fmt:function(v){return Math.round(Math.max(0,Math.min(100,v)))+' %';}});
+      segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
+    }
+  }
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB)+areas+lines+pctLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
   var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+o.s.col+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
@@ -9583,7 +9611,9 @@ function energiSerier(kalla){
       {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
       {key:'house',pts:H['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
       {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'}
-    ]
+    ],
+    procent:{key:'battpct',pts:(kalla==='hist'?(H['battpct']||[]):(H['batt']||[])),
+             col:(P.cyan||'#57b6c2'),label:'Batteri %'}
   };
 }
 /* ===== HUSBATTERIET: TOLV TIMMAR =====
@@ -9843,7 +9873,7 @@ function buildHistPopup(){
     return h;
   }
   var se=energiSerier('hist');
-  h+='<div class="hist-graf">'+dayChart(se.linjer,{t0:f.t0,t1:f.t1,cid:'g2-hist'})+'</div>';
+  h+='<div class="hist-graf">'+dayChart(se.linjer,{t0:f.t0,t1:f.t1,cid:'g2-hist',pct:se.procent})+'</div>';
   h+=histSammanfattning(f);
   return h;
 }
@@ -9861,12 +9891,15 @@ function buildEnergyPopup(){
   h+='<div class="ww-div"></div>';
   h+='<div class="ww-box"><span class="ww-ic" style="color:var(--ok)">'+icon('sun')+'</span><div class="ww-bt"><div class="ww-line"><span class="ww-big">'+pw(sol)+'</span></div><div class="ww-sub">solproduktion</div></div></div>';
   h+='</div>';
-  h+='<div class="ww-insight"><span class="ww-insight-ic">'+icon(_isAI?'sparkle':'leaf')+'</span><span>'+esc(energyInsight())+'</span></div>';
+  /* Insiktsraden är borttagen i v603. Grafen står direkt under mätvärdena nu.
+     _isAI och energyInsight() används fortfarande på andra håll. */
   var se=energiSerier('live');
-  h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
   h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri'
     +infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. Batteriets effekt är positiv när det laddas och negativ när det laddar ur.')
-    +'</div>'+dayChart(se.linjer);
+    +'</div>'+dayChart(se.linjer,{pct:se.procent});
+  /* Historikknappen UNDER grafen: den leder vidare från det man just tittat
+     på, och ovanför grafen sköt den ned det man öppnade rutan för. */
+  h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
   h+='<div class="pop-gap"></div>';
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
@@ -15801,7 +15834,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v602';
+const APP_VERSION='v603';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
