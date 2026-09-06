@@ -9967,21 +9967,33 @@ function grafHelskarm(id){
      rätt koordinater; misslyckas det (iOS, desktop) står grafen upprätt och
      fyller ändå, utan att något hänger. Måste ske i samma tryck-gest som
      öppnandet — därför här, inte i en callback. */
-  /* INGEN requestFullscreen — MEDVETET. "Dra från toppen och tryck på
-     bakåtknappen" är Chromes egen text vid requestFullscreen och går inte att
-     ta bort; enda sättet att slippa den är att aldrig begära fullscreen.
-     Helskärmen är ändå ett fixed-lager som täcker hela vyn.
-     Orienteringslåset försöks fortfarande: som INSTALLERAD PWA (lägg till på
-     hemskärmen) får det göras utan fullscreen och vrider skärmen till
-     liggande automatiskt. I en vanlig flik avvisas det tyst — då vrider man
-     telefonen själv. Avvägningen är gjord med flit: hellre ingen notis och
-     manuell vridning än automatisk vridning med en notis varje gång. */
+  /* LIGGANDE FRAMFÖR NOTISFRIHET. Chrome kräver fullscreen för att låsa
+     orienteringen i en vanlig flik, och fullscreen ger dess egen notis ("dra
+     från toppen…"), som inte går att ta bort. Båda går inte att få i en flik
+     — v619 valde bort notisen och tappade liggande; det var fel prioritering.
+     Ordningen minimerar notisen ändå: låset FÖRST (lyckas utan fullscreen som
+     installerad PWA → ingen notis), fullscreen bara som reserv när låset
+     avvisas. Vill man slippa notisen helt: lägg till dashboarden på hemskärmen. */
+  var las=function(){
+    try{
+      if(screen&&screen.orientation&&screen.orientation.lock)
+        return screen.orientation.lock('landscape');
+    }catch(e){}
+    return Promise.reject(new Error('inget orienteringslås'));
+  };
+  var medFullscreen=function(){
+    try{
+      var re=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
+      if(!re)return;
+      var pr=re.call(el);
+      var efter=function(){las().catch(function(){});};
+      if(pr&&pr.then)pr.then(efter,function(){}); else efter();
+    }catch(e){}
+  };
   try{
-    if(screen&&screen.orientation&&screen.orientation.lock){
-      var forsok=screen.orientation.lock('landscape');
-      if(forsok&&forsok.catch)forsok.catch(function(){});
-    }
-  }catch(e){}
+    var forsok=las();
+    if(forsok&&forsok.then)forsok.then(function(){},medFullscreen); else medFullscreen();
+  }catch(e){medFullscreen();}
 }
 function grafFullStang(){
   _grafFull=null;
@@ -16681,7 +16693,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v619';
+const APP_VERSION='v620';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
