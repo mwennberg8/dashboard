@@ -1428,7 +1428,7 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .drow-info.open{display:block}
 .dv.yoy-good{color:var(--ok)}.dv.yoy-bad{color:var(--warm)}
 .mchart-wrap{margin-top:4px}
-.mchart{width:100%;height:118px;display:block}
+.mchart{width:100%;height:146px;display:block}
 .mchart-x{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);margin-top:3px}
 .mchart-lg{display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:10.5px;font-weight:700;color:var(--dim)}
 .mchart-lg span{display:inline-flex;align-items:center;gap:6px}
@@ -1931,8 +1931,8 @@ body{background-image:radial-gradient(900px 420px at 50% -8%,rgba(129,161,193,.0
 .kiosk .hd{margin-bottom:8px}
 .kiosk .warns.tick{padding:8px 13px;min-height:36px}.kiosk .warns.tick .wt{font-size:11.5px}
 /* viz i popuper */
-.viz{margin:2px 0 14px}
-.viz svg{width:100%;height:74px;display:block}
+.viz{margin:2px 0 6px}
+.viz svg{width:100%;height:146px;display:block}
 /* SAMMA TEXT UNDER ALLA GRAFER. Bildtexterna hade tre olika storlekar och
    fyra olika färger beroende på vem som ritade grafen. Klasserna är kvar —
    det är bara utseendet som slagits ihop. */
@@ -2570,7 +2570,7 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    den i grafens översta pixlar och krockade med varje topp som nådde dit.
    Egen rad kostar fjorton pixlar och kan inte krocka med någonting. */
 .avl-lager{position:relative}
-.avl-rad{position:relative;height:14px;margin-bottom:1px}
+.avl-rad{position:relative;height:18px;margin-bottom:2px}
 .avl-graf{position:relative;touch-action:pan-y}
 .avl-ovl{position:absolute;inset:0;pointer-events:none}
 /* EN TIDSAXEL FÖR ALLA GRAFER. Förut fanns fyra: g2-xax under dygnsgrafen,
@@ -2589,10 +2589,12 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .avl-dot{position:absolute;width:7px;height:7px;border-radius:50%;
   transform:translate(-50%,-50%);box-shadow:0 0 0 2px var(--panel-b)}
 .avl-lager.drar .avl-dot{width:9px;height:9px;box-shadow:0 0 0 2.5px var(--panel-b)}
-.avl-tag{position:absolute;top:0;height:14px;line-height:14px;
-  display:flex;gap:6px;align-items:center;
-  font-size:10px;font-weight:800;color:var(--ink);white-space:nowrap;
+.avl-tag{position:absolute;top:0;height:17px;line-height:17px;
+  display:flex;gap:7px;align-items:center;
+  font-size:12px;font-weight:800;color:var(--ink);white-space:nowrap;
   letter-spacing:-.01em}
+.avl-tag i{font-size:11px;font-weight:700;color:var(--dim)}
+.avl-tag b{font-size:12.5px}
 .avl-tag i{font-style:normal;font-weight:700;color:var(--dim)}
 .pgraph-x{display:flex;justify-content:space-between;font-size:9.5px;color:var(--dim);margin-top:2px;padding:0 4px}
 .pgraph-empty{padding:26px 14px;text-align:center;font-size:12.5px;color:var(--dim);line-height:1.5;background:var(--panel-b);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
@@ -5383,13 +5385,19 @@ function avlDelar(id){
   var g=_avlGeo[id];if(!g)return tom;
   var vald=_avlVald[id];if(vald==null)return tom;
   var t=vald, xp=avlXp(g,t), h='', rutor='';
-  h+='<span class="avl-lin" style="left:'+xp.toFixed(2)+'%"></span>';
+  /* Strecket är 1,5 px; kläm så att det inte hamnar utanför ritytans kant. */
+  var linX=Math.max(0.3,Math.min(99.7,xp));
+  h+='<span class="avl-lin" style="left:'+linX.toFixed(2)+'%"></span>';
   for(var i=0;i<g.ser.length;i++){
     var s=g.ser[i],p=avlKurva(g,s,t);
     if(!p||p.v==null||!isFinite(p.v)||!isFinite(p.y))continue;
     var yp=Math.max(0,Math.min(100,(p.y/(g.H||1))*100));
     var f=(typeof s.farg==='function')?s.farg(p.v):(s.farg||'var(--ink)');
-    h+='<span class="avl-dot" style="left:'+((p.x/(g.W||1))*100).toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
+    /* Pricken är 9 px och centrerad på sin punkt (translate -50%). Vid NU, som
+       ligger på 100 %, hamnade halva utanför ritytan. left kläms så att prickens
+       MITT aldrig kommer närmare kanten än dess egen radie (~1,6 % av 300 px). */
+    var dx=Math.max(1.6,Math.min(98.4,(p.x/(g.W||1))*100));
+    h+='<span class="avl-dot" style="left:'+dx.toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
     rutor+='<b style="color:'+f+'">'+esc(avlText(s,p.v))+'</b>';
   }
   if(!rutor)return tom;
@@ -10069,14 +10077,21 @@ function openDetail(which){
        låste hela sidan; man kunde inte ens stänga popupen. */
     if(!_prog)progHamta().then(function(){progUppdatera();});
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
-    body=gridPowerSVG(HIST['grid']||[])
+    /* Samma ram som Solpaneler: en .dsec-rubrik med i-knapp överst, grafen
+       under, undertexten i .avl-cap. */
+    body='<div class="dsec">Senaste 12 timmarna'
+      +infoBlock('gridgraf','Blå kurva och yta är effekt du köper från nätet, '
+        +'grön är effekt du säljer. Nollinjen skiljer köp från sälj. Dra i '
+        +'grafen för att läsa av effekten vid en viss tidpunkt.')
+      +'</div>'+gridPowerSVG(HIST['grid']||[])
       +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
   }else if(which==='batt'){const bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();title='Husbatteri';
-    body='<div class="ww-h">Tolv timmar · effekt'
+    body='<div class="dsec">Senaste 12 timmarna'
       +infoBlock('battgraf','Skalan är watt. Effekten är positiv när batteriet '
-        +'laddas och negativ när det matar ut. Dra i grafen för att läsa av '
-        +'effekten vid en viss tidpunkt.')
+        +'laddas och negativ när det matar ut. Den streckade kurvan är '
+        +'laddnivån på egen 0–100-skala. Dra i grafen för att läsa av båda vid '
+        +'en viss tidpunkt.')
       +'</div>'+battGrafHTML()
       +dSec('Nu')
       +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
@@ -16240,7 +16255,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v609';
+const APP_VERSION='v610';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
