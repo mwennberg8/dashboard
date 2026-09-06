@@ -4159,22 +4159,22 @@ function progKurvaSVG(){
     /* Klockslagen ritas numera inuti svg:n och följer det beskurna fönstret.
        De fasta 00 och 24 här hade blivit fel så fort grafen zoomades in. */
     +'</div>'
-    +'<div class="isub" style="margin-top:5px;opacity:.7">'
-    +'<span style="color:var(--gold)">▬</span> prognos &nbsp; '
-    +'<span style="color:var(--solar)">▬</span> faktiskt'
-    /* Säg VARIFRÅN mätningen börjar. Appens solserie är tom, så kurvan har bara
-       dashboardens egen inspelning — den startar när sidan öppnades. Utan den
-       här upplysningen ser det ut som att panelerna stod stilla på morgonen. */
+    /* Samma färgförklaring som under batterigrafen: .mchart-lg2, centrerad,
+       med .mc-sw-färgprick. Inte klickbar här (sol har inget serieval), men
+       utseendet är identiskt. */
+    +'<div class="mchart-lg2">'
+    +'<span><i class="mc-sw" style="background:var(--gold)"></i>Prognos</span>'
+    +'<span><i class="mc-sw" style="background:var(--solar)"></i>Faktiskt</span>'
+    +'</div>'
+    /* "Mätt från"-upplysningen står kvar men på egen rad under legenden — den
+       hör inte till färgförklaringen och ska inte breda ut den. */
     +(fakt.length&&(fakt[0].t-dayStart())>45*60000
-      ? ('<span style="color:var(--faint)"> · mätt från '
+      ? ('<div class="avl-cap">mätt från '
          +new Date(fakt[0].t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'})
-         /* Säg VARFÖR den börjar sent. Utan appens serie är kurvan bara så lång
-            som sidan varit öppen, och det är en helt annan sak än att solen
-            inte lyste. */
          +((_serKalla.solar&&_serKalla.solar.app)?'':' (appen loggar inte solen)')
-         +'</span>')
+         +'</div>')
       : '')
-    +'</div>';}
+    +'';}
 
 /* Staplar for de senaste 14 dygnen. Avvikelsen i procent sager mer an kWh:
    ett fel pa 5 kWh betyder helt olika saker i juni och i december. */
@@ -4710,8 +4710,14 @@ function gridPowerSVG(pts){
   svgm=avlLager('grid',svgm,{W:W2,H:H2,X:X,ser:[{namn:'',pts:pl,Y:Y,
     farg:function(v){return v>=0?BLA:GRO;},
     fmt:function(v){return (v<0?'säljer ':'köper ')+W(Math.abs(v));}}]});
-  return '<div class="viz">'+svgm+'<div class="viz-cap"><span style="color:'+BLA+'">köper</span> · <span style="color:'+GRO+'">säljer</span> · senaste '+(spanH>=1?spanH+' h':'stunden')
-    +(pkKop>0?' · max köp '+W(pkKop):'')+(pkSal>0?' · max sälj '+W(pkSal):'')+'</div></div>';}
+  /* Bara köper/säljer kvar, i SAMMA form som under batterigrafen: .mchart-lg2,
+     centrerad, med .mc-sw-färgprick. "Senaste X h" och maxvärdena är borttagna
+     — de stod inte under de andra graferna och gjorde raden till en annan sak. */
+  return '<div class="viz">'+svgm
+    +'<div class="mchart-lg2">'
+    +'<span><i class="mc-sw" style="background:'+BLA+'"></i>Köper</span>'
+    +'<span><i class="mc-sw" style="background:'+GRO+'"></i>Säljer</span>'
+    +'</div></div>';}
 /* id: två popupar kan visa samma serie (utetemperaturen finns både i
    väderrutan och i temperaturrutan). Utan skilda id skulle de dela vald punkt.
    Utelämnas det byggs ett av färgnyckel och enhet, som skiljer dem åt i dag. */
@@ -16255,7 +16261,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v610';
+const APP_VERSION='v611';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
