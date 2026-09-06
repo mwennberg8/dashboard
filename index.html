@@ -3666,40 +3666,46 @@ function battLaddText(){
    den new Date() — dashboarden kör i webbläsaren med rätt svensk lokaltid. */
 var _battNuTest=null;
 function battNu(){return _battNuTest!=null?new Date(_battNuTest):new Date();}
-var BATT_PRIS_MARG=0.05;   /* kr/kWh: mindre höjning än så är brus, inte dyrtim */
+/* NIVÅN SOM RÄKNAS SOM DYRT — SAMMA SOM FÄRGLÄGGER GRAFEN.
+   Prisgrafen färgas efter frac = (pris − dagens lägsta) / (dagens högsta −
+   lägsta): grön i botten, gul i mitten, RÖD i övre delen (priceColor slår om
+   mot rött runt frac 0,5–0,6). "Stäng av innan grafen blir röd" blir alltså
+   frac över tröskeln nedan — och då säger knappen samma sak som du ser i
+   grafen, oavsett hur dagens kurva råkar se ut. En absolut marginal i kr gjorde
+   fel: minsta krusning över dagens botten räknades som dyrtim. */
+var BATT_PRIS_FRAC=0.55;   /* andel av dagens prisspann; över = rött = dyrt */
 var BATT_PRIS_FORE=10;     /* minuter före dyrtimmen som avstängning läggs */
 
-/* Nästa tidpunkt (minuter från midnatt, lokal tid) då priset stiger märkbart
-   över nuläget, eller null om det inte gör det före dygnets slut. */
+/* Nästa tidpunkt (minuter från midnatt, lokal tid) då priset går in i den
+   DYRA (röda) delen av dagen, mätt precis som grafen färgläggs. Null om priset
+   inte når dit före dygnets slut.
+   Tröskeln räknas mot HELA dygnets spann (samma ylo/yhi som grafen), inte mot
+   nuläget — då blir "rött" samma sak för knappen som för ögat. En dag utan
+   någon riktig dyrtopp (nästan platt kurva) ger inget spann att tala om, och då
+   stängs den inte av i förväg; det är rätt, för det finns ingen dyrtim att
+   ladda undan för. */
 function battPrisUppgang(){
   var pts=prisDygn(0);
   if(!pts||pts.length<2)return null;
-  var nu=battNu(), nuMin=nu.getHours()*60+nu.getMinutes();
-  var nuH=nuMin/60;
-  /* Priset just nu = värdet i det intervall vi står i. pts är [timme, pris]
-     med sista punkten utdragen till 24. */
-  var nuPris=null;
-  for(var i=0;i<pts.length-1;i++){
-    if(nuH>=pts[i][0]&&nuH<pts[i+1][0]){nuPris=pts[i][1];break;}
-  }
-  if(nuPris==null)nuPris=pts[pts.length-1][1];
-  /* Leta första intervallgräns FRAMÅT där priset kliver upp märkbart. Jämför
-     mot det billigaste vi sett hittills i fönstret, inte bara mot nuPris —
-     annars missas en långsam upptrappning där varje steg är litet men summan
-     stor. */
-  var basPris=nuPris;
+  var ys=pts.map(function(p){return p[1];});
+  var ylo=Math.min.apply(null,ys), yhi=Math.max.apply(null,ys), yr=yhi-ylo;
+  /* Nästan platt dygn: ingen meningsfull dyrtim. 0,20 kr spann är knappt värt
+     att stänga av för. */
+  if(!(yr>0.20))return null;
+  var gr=ylo+BATT_PRIS_FRAC*yr;         /* priset som räknas som rött */
+  var nu=battNu(), nuMin=nu.getHours()*60+nu.getMinutes(), nuH=nuMin/60;
+  /* Första intervallet FRAMÅT vars pris ligger i det röda. pts är [timme, pris]
+     i tim- eller kvartssteg, med sista punkten utdragen till 24. */
   for(var j=0;j<pts.length;j++){
     var h=pts[j][0], pr=pts[j][1];
     if(h<=nuH)continue;                 /* redan passerat */
-    if(pr<basPris)basPris=pr;           /* priset dök ytterligare — ny botten */
-    if(pr>=basPris+BATT_PRIS_MARG){
-      /* Dyrtimmen börjar vid h. Lägg avstängningen strax före. */
+    if(pr>=gr){
       var av=h*60-BATT_PRIS_FORE;
-      if(av<=nuMin)av=nuMin;            /* redan inne i uppgången: stäng nu */
-      return {avMin:av, dyrH:h, nuPris:nuPris, nyPris:pr};
+      if(av<=nuMin)av=nuMin;            /* redan inne i det röda: stäng nu */
+      return {avMin:av, dyrH:h, nuPris:pr, nyPris:pr, gr:gr};
     }
   }
-  return null;
+  return null;                          /* redan förbi dagens dyra topp */
 }
 /* Text som HH:MM för ett minutvärde från midnatt. */
 function battKl(min){
@@ -16451,7 +16457,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v613';
+const APP_VERSION='v614';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
