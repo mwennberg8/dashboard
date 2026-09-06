@@ -2604,17 +2604,22 @@ body.graf-full-open .graf-full-back{display:flex}
   border:1px solid var(--line);background:var(--inset);color:var(--ink);
   border-radius:999px;cursor:pointer;padding:0}
 .graf-full-x .ic{width:18px;height:18px}
+/* Grafen fyller HELA höjden som blir över mellan rubriken och tidsvalsraden.
+   min-height:0 så flexboxen får krympa barnen; höjden styrs av flex, inte av
+   SVG:ernas fasta CSS-höjd (som annars skulle låsa dem för korta). */
 .graf-full-graf{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
-/* Grafen fyller helskärmen: SVG:erna har fast CSS-höjd, så höj dem här. */
-.graf-full-graf .mchart{height:100%;min-height:46vh}
-.graf-full-graf .viz svg{height:100%;min-height:46vh}
-.graf-full-graf .viz{margin:0}
-/* På en stående telefon roteras hela ramen till liggande. På en redan liggande
-   skärm (platta i landskap) behövs ingen rotation. */
-@media (orientation:portrait){
-  .graf-full-ram{transform:rotate(90deg);transform-origin:center center;
-    width:100vh;height:100vw}
-}
+.graf-full-graf>*{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
+.graf-full-graf .avl-lager{width:100%;height:100%}
+.graf-full-graf .avl-graf{flex:1 1 auto;min-height:0}
+.graf-full-graf .mchart,.graf-full-graf .viz svg,.graf-full-graf .chart{height:100%;width:100%;min-height:0}
+.graf-full-graf .viz{margin:0;flex:1 1 auto;display:flex;min-height:0}
+/* INGEN CSS-ROTATION. Att rotera ramen 90° vred hela koordinatsystemet, och då
+   stämde inte pekpunkterna (avlLager läser getBoundingClientRect i skärmens
+   OROTERADE koordinater) — dragningen blev obrukbar och krysset gick inte att
+   träffa fast det syntes. I stället låses skärmen till liggande via
+   Fullscreen- + Orientation-API (grafHelskarm), som vrider enhetens UI på
+   riktigt. Går det inte (t.ex. iOS) visas grafen upprätt och fyller ändå
+   skärmen; användaren får vrida telefonen själv, men inget hänger. */
 .avl-tid{position:relative;height:12px;margin-top:3px;font-size:9px;
   color:var(--faint);font-weight:600;font-variant-numeric:tabular-nums}
 .avl-tid span{position:absolute;transform:translateX(-50%);white-space:nowrap}
@@ -9916,12 +9921,33 @@ function grafHelskarm(id){
   }
   grafFullRita();
   document.body.classList.add('graf-full-open');
+  /* Riktig helskärm + liggande lås. Allt bakom feature-detektion och try/catch:
+     lyckas det vrids enhetens UI till landskap och grafen fyller skärmen med
+     rätt koordinater; misslyckas det (iOS, desktop) står grafen upprätt och
+     fyller ändå, utan att något hänger. Måste ske i samma tryck-gest som
+     öppnandet — därför här, inte i en callback. */
+  try{
+    var re=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
+    if(re){
+      var pr=re.call(el);
+      var las=function(){try{
+        if(screen&&screen.orientation&&screen.orientation.lock)
+          screen.orientation.lock('landscape').catch(function(){});
+      }catch(e){}};
+      if(pr&&pr.then)pr.then(las,function(){}); else las();
+    }
+  }catch(e){}
 }
 function grafFullStang(){
   _grafFull=null;
   var el=document.getElementById('graf-full-lager');
   if(el)el.innerHTML='';
   document.body.classList.remove('graf-full-open');
+  try{if(screen&&screen.orientation&&screen.orientation.unlock)screen.orientation.unlock();}catch(e){}
+  try{
+    var ex=document.exitFullscreen||document.webkitExitFullscreen||document.mozCancelFullScreen;
+    if(ex&&(document.fullscreenElement||document.webkitFullscreenElement))ex.call(document);
+  }catch(e){}
 }
 function grafFullRita(){
   var id=_grafFull;if(!id)return;
@@ -16609,7 +16635,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v615';
+const APP_VERSION='v616';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
