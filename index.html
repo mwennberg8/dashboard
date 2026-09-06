@@ -2590,29 +2590,42 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
   border-radius:9px;color:var(--dim);cursor:pointer;padding:0}
 .graf-full .ic{width:16px;height:16px}
 .graf-full:active{transform:scale(.95)}
-/* Helskärm i liggande läge. Overlay över allt; ramen roteras 90° på stående
-   skärmar så grafen får hela längden att breda ut sig på. */
-.graf-full-back{position:fixed;inset:0;z-index:400;background:var(--bg,#20242c);
-  display:none;align-items:center;justify-content:center}
+/* Helskärm i liggande läge. Enheten vrids till landskap via Fullscreen- +
+   Orientation-API (ingen CSS-rotation). Layouten är ett GRID med tre rader:
+   rubrik (auto), grafyta (1fr) och verktygsrad (auto). Grid i stället för flex
+   så grafcellen har en BESTÄMD höjd och inte kan svämma över knappraden —
+   det var därför tryck på knapparna och krysset inte gick fram: den
+   genomskinliga dragytan låg ovanpå dem. */
+.graf-full-back{position:fixed;inset:0;z-index:2000;background:var(--bg,#20242c);
+  display:none}
 body.graf-full-open{overflow:hidden}
-body.graf-full-open .graf-full-back{display:flex}
-.graf-full-ram{width:100%;height:100%;display:flex;flex-direction:column;
-  box-sizing:border-box;padding:14px 18px}
+body.graf-full-open .graf-full-back{display:block}
+/* Fullscreen-elementet ligger i webbläsarens top layer. Ge det en egen
+   bakgrund och tvinga fram visning oavsett body-klassens descendant-selektor,
+   som inte alltid slår igenom i top layer. */
+.graf-full-back:fullscreen,.graf-full-back:-webkit-full-screen{display:block;background:var(--bg,#20242c)}
+.graf-full-ram{width:100%;height:100%;box-sizing:border-box;
+  padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right))
+          max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;row-gap:6px}
 .graf-full-h{display:flex;align-items:center;justify-content:space-between;
-  font-size:14px;font-weight:800;color:var(--ink);margin-bottom:6px}
-.graf-full-x{width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;color:var(--ink);z-index:2;min-height:0}
+.graf-full-x{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--inset);color:var(--ink);
   border-radius:999px;cursor:pointer;padding:0}
-.graf-full-x .ic{width:18px;height:18px}
-/* Grafen fyller HELA höjden som blir över mellan rubriken och tidsvalsraden.
-   min-height:0 så flexboxen får krympa barnen; höjden styrs av flex, inte av
-   SVG:ernas fasta CSS-höjd (som annars skulle låsa dem för korta). */
-.graf-full-graf{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
-.graf-full-graf>*{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
-.graf-full-graf .avl-lager{width:100%;height:100%}
+.graf-full-x .ic{width:20px;height:20px}
+/* Grafcellen: bestämd höjd (grid 1fr), döljer allt som spiller över, och
+   ligger UNDER knapparna i staplingen. */
+.graf-full-graf{min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction:column;position:relative;z-index:1}
+.graf-full-graf>*{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.graf-full-graf .avl-lager{width:100%;height:100%;display:flex;flex-direction:column}
+.graf-full-graf .avl-rad{flex:0 0 auto}
 .graf-full-graf .avl-graf{flex:1 1 auto;min-height:0}
+.graf-full-graf .avl-tid{flex:0 0 auto}
 .graf-full-graf .mchart,.graf-full-graf .viz svg,.graf-full-graf .chart{height:100%;width:100%;min-height:0}
-.graf-full-graf .viz{margin:0;flex:1 1 auto;display:flex;min-height:0}
+.graf-full-graf .viz{margin:0;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+/* Verktygsraden överst i stapling så inget kan hamna över knapparna. */
+.graf-full-ram>.graf-verktyg{z-index:2;margin:0}
 /* INGEN CSS-ROTATION. Att rotera ramen 90° vred hela koordinatsystemet, och då
    stämde inte pekpunkterna (avlLager läser getBoundingClientRect i skärmens
    OROTERADE koordinater) — dragningen blev obrukbar och krysset gick inte att
@@ -16635,7 +16648,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v616';
+const APP_VERSION='v617';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
