@@ -3643,6 +3643,100 @@ function battLaddText(){
   if(dm==='3')return 'laddar max';
   return 'fjärrstyrd';
 }
+/* ===== LADDA MAX: STÄNG AV INNAN PRISET STIGER =====
+   Poängen med att ladda från nätet är att göra det medan elen är billig. När
+   priset är på väg upp ska batteriet sluta köpa och gå tillbaka till normal
+   drift (egenkonsumtion) — annars fylls det på dyr el.
+
+   Avstängningstiden läses ur SAMMA prisserie som spotprisgrafen ritar
+   (prisDygn), så knappen och grafen aldrig säger emot varandra. Metoden:
+   börja vid nu, gå framåt tills priset stiger MÄRKBART över den nivå som
+   gäller just nu, och lägg avstängningen i början av den dyrare perioden minus
+   en liten marginal (växelriktaren hinner ställa om, och man vill vara i
+   normalläge när dyrtimmen börjar, inte mitt i den).
+
+   Bara innevarande dygn (offset 0). Går uppgången efter midnatt finns
+   morgondagens priser ännu inte alltid, och då stängs den inte i förväg — det
+   är ärligare än att gissa. Flödet 'Batteri · fullt → normal drift' fångar
+   ändå 100 %-fallet oberoende av det här.
+
+   Allt räknas i webbläsarens lokaltid, som är svensk — dashboarden kör inte i
+   HomeyScript-sandlådan. */
+/* Klockan bakom en funktion så proven kan sätta en bestämd tidpunkt. I drift är
+   den new Date() — dashboarden kör i webbläsaren med rätt svensk lokaltid. */
+var _battNuTest=null;
+function battNu(){return _battNuTest!=null?new Date(_battNuTest):new Date();}
+var BATT_PRIS_MARG=0.05;   /* kr/kWh: mindre höjning än så är brus, inte dyrtim */
+var BATT_PRIS_FORE=10;     /* minuter före dyrtimmen som avstängning läggs */
+
+/* Nästa tidpunkt (minuter från midnatt, lokal tid) då priset stiger märkbart
+   över nuläget, eller null om det inte gör det före dygnets slut. */
+function battPrisUppgang(){
+  var pts=prisDygn(0);
+  if(!pts||pts.length<2)return null;
+  var nu=battNu(), nuMin=nu.getHours()*60+nu.getMinutes();
+  var nuH=nuMin/60;
+  /* Priset just nu = värdet i det intervall vi står i. pts är [timme, pris]
+     med sista punkten utdragen till 24. */
+  var nuPris=null;
+  for(var i=0;i<pts.length-1;i++){
+    if(nuH>=pts[i][0]&&nuH<pts[i+1][0]){nuPris=pts[i][1];break;}
+  }
+  if(nuPris==null)nuPris=pts[pts.length-1][1];
+  /* Leta första intervallgräns FRAMÅT där priset kliver upp märkbart. Jämför
+     mot det billigaste vi sett hittills i fönstret, inte bara mot nuPris —
+     annars missas en långsam upptrappning där varje steg är litet men summan
+     stor. */
+  var basPris=nuPris;
+  for(var j=0;j<pts.length;j++){
+    var h=pts[j][0], pr=pts[j][1];
+    if(h<=nuH)continue;                 /* redan passerat */
+    if(pr<basPris)basPris=pr;           /* priset dök ytterligare — ny botten */
+    if(pr>=basPris+BATT_PRIS_MARG){
+      /* Dyrtimmen börjar vid h. Lägg avstängningen strax före. */
+      var av=h*60-BATT_PRIS_FORE;
+      if(av<=nuMin)av=nuMin;            /* redan inne i uppgången: stäng nu */
+      return {avMin:av, dyrH:h, nuPris:nuPris, nyPris:pr};
+    }
+  }
+  return null;
+}
+/* Text som HH:MM för ett minutvärde från midnatt. */
+function battKl(min){
+  var h=Math.floor(min/60)%24, m=Math.round(min%60);
+  return ('0'+h).slice(-2)+':'+('0'+m).slice(-2);
+}
+/* När ladda-max ska stängas av, som HH:MM — eller null om ingen uppgång väntar
+   eller läget inte är på. */
+function battAvstangKl(){
+  if(battLaddLage()!==true)return null;
+  var u=battPrisUppgang();
+  return u?battKl(u.avMin):null;
+}
+
+/* AUTOBEVAKNING. Körs periodiskt: står ladda-max på och avstängningstiden är
+   passerad, trigga normal drift. En gång per övergång — _battAvGjort minns
+   vilket dygn+minut som redan hanterats så flödet inte spammas var 15:e sekund
+   medan minuten pågår. */
+var _battAvBusy=false, _battAvGjort='';
+function battAutoKoll(){
+  try{
+    if(battLaddLage()!==true){_battAvGjort='';return;}
+    var u=battPrisUppgang();
+    if(!u)return;
+    var nu=battNu(), nuMin=nu.getHours()*60+nu.getMinutes();
+    if(nuMin<u.avMin)return;                 /* inte dags än */
+    var stampel=dayKey(nu)+':'+u.dyrH;
+    if(_battAvGjort===stampel)return;         /* redan gjort för den här dyrtimmen */
+    if(_battAvBusy)return;
+    _battAvBusy=true;
+    homeyTriggerFlow('standard',BATT_FLOW_AV).then(function(){
+      _battAvGjort=stampel;_battAvBusy=false;
+      try{toast('Batteriet: normal drift – priset stiger '+battKl(u.dyrH*60));}catch(e){}
+      try{renderControls();}catch(e){}
+    },function(){_battAvBusy=false;});        /* misslyckas: försök igen nästa varv */
+  }catch(e){_battAvBusy=false;}
+}
 function btnState(b){ // returnerar true om "på/aktiv"
   if(b.type==='toggle'){const v=cap(b.device,b.cap);return b.cap==='onoff'?v===true:v===b.on;}
   /* BREVEDEN: läget kommer från logikvariabeln, inte från något lokalt minne.
@@ -3742,7 +3836,13 @@ function renderControls(){
          Undertexten ar borttagen - den sa samma sak en gang till. */
       var bl=battLaddLage();
       if(beAuto())ic=(bl===true)?'battery-charging':'battery-high';
-      lbl=(bl===null)?'Ingen kontakt':(bl?'Laddar max':'Ladda max');
+      if(bl===null){lbl='Ingen kontakt';}
+      else if(bl){
+        /* På: säg NÄR den stänger av av sig själv pga stigande pris. Utan en
+           kommande uppgång står bara "Laddar max". */
+        var avk=battAvstangKl();
+        lbl=avk?('Laddar max · till '+avk):'Laddar max';
+      }else{lbl='Ladda max';}
     }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
@@ -12222,14 +12322,104 @@ function progLogText(){
     +'missa, at bada hallen. Dygn under 0,5 kWh raknas inte: da blir procenten vanvettig.</div>';
   return h;
 }
-function openProgLogg(){
+/* TIMVIS EXPORT — prognos per timme mot uppmätt effekt per timme.
+   Dygnssummorna säger OM prognosen bommar; timvärdena säger NÄR på dagen och
+   därmed varför — en molnkoefficient som tar fel på morgonsolen syns bara här.
+   Prognosen finns per timme i _prog.dagar[d].timmar[h] (Wh, mitt i timmen).
+   Faktiskt kommer ur HIST7['solar'], som är effektpunkter (W) från Insights
+   över de senaste dygnen; de medelvärdesbildas per timme i svensk tid, vilket
+   ger ungefär Wh för den timmen. Bara timmar som HAR ett mätvärde tas med — en
+   tom timme är inte noll produktion, den är okänd, och en påhittad nolla skulle
+   dra kalibreringen fel.
+   Bara ~7 dygn bakåt: längre bak finns ingen timvis faktiskt. */
+function progTimKey(t){
+  try{var f=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',
+    month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'});
+    var p={};f.formatToParts(new Date(t)).forEach(function(x){p[x.type]=x.value;});
+    return {dag:p.year+'-'+p.month+'-'+p.day,tim:parseInt(p.hour,10)};
+  }catch(e){var d=new Date(t);return {dag:'?',tim:d.getHours()};}
+}
+function progTimCSV(){
+  if(!_prog||!_prog.dagar)return '';
+  var sol=HIST7&&HIST7['solar'];
+  if(!sol||!sol.length)return '';
+  /* Summera faktiska effektpunkter per dag+timme: medelvärde × 1 h ≈ Wh. */
+  var bucket={};
+  for(var i=0;i<sol.length;i++){
+    var pt=sol[i];
+    if(!pt||pt.v==null||!isFinite(pt.v))continue;
+    var k=progTimKey(pt.t),nyckel=k.dag+'|'+k.tim;
+    var b=bucket[nyckel]||(bucket[nyckel]={s:0,n:0});
+    b.s+=pt.v;b.n++;
+  }
+  var nr=function(v){return v==null?'':String(Math.round(v)).replace('.',',');};
+  var ut='datum;timme;prognos_wh;faktiskt_wh;fel_wh\n';
+  var dagar=Object.keys(_prog.dagar).sort();
+  var rader=0;
+  dagar.forEach(function(d){
+    var e=_prog.dagar[d];
+    if(!e||!e.timmar||e.timmar.length!==24)return;
+    for(var h=0;h<24;h++){
+      var b=bucket[d+'|'+h];
+      if(!b||!b.n)continue;                 /* ingen mätning den timmen: hoppa */
+      var fakt=b.s/b.n;                      /* medeleffekt W ≈ Wh för timmen */
+      var prog=e.timmar[h];
+      if((prog==null||prog<1)&&fakt<1)continue;   /* natt: båda ~0, ointressant */
+      var fel=(prog!=null)?(prog-fakt):null;
+      ut+=d+';'+String(h).padStart(2,'0')+';'+nr(prog)+';'+nr(fakt)+';'+nr(fel)+'\n';
+      rader++;
+    }
+  });
+  return rader?ut:'';
+}
+function progTimKopiera(){
+  var t=document.querySelector('.prog-exp-tim');
+  var klar=function(ok){try{toast(ok?'Kopierat':'Markera i rutan och kopiera for hand');}catch(e){}};
+  if(!t){klar(false);return;}
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t.value).then(function(){klar(true);},function(){
+        t.select();var o=false;try{o=document.execCommand('copy');}catch(e){}klar(o);});
+      return;
+    }
+  }catch(e){}
+  t.select();var o=false;try{o=document.execCommand('copy');}catch(e){}klar(o);
+}
+/* Kroppen bruten ut så den timvisa hämtningens callback kan rita om rutan när
+   Insights svarat, utan att bygga hela popupen på nytt. */
+function progLoggBody(){
+
   const csv=progLogCSV(),rader=csv.split('\n').length-2;
   let h=progLogText();
-  h+=dSec('Export')
-    +'<div class="setup-t">'+rader+' dygn. Markera allt i rutan och klistra in i chatten '
-    +'sa gar det att kalibrera mot.</div>'
+  h+=dSec('Export · per dygn')
+    +'<div class="setup-t">'+rader+' dygn med både prognos och utfall. Markera allt '
+    +'i rutan och klistra in i chatten så går det att kalibrera mot.</div>'
     +'<textarea class="prog-exp" readonly onclick="this.select()">'+esc(csv)+'</textarea>'
-    +'<div class="dbtn-row"><button class="dbtn" onclick="progKopiera()">Kopiera</button></div>';
+    +'<div class="dbtn-row"><button class="dbtn" onclick="progKopiera()">Kopiera dygn</button></div>';
+  /* Timvis export. Kräver Insights-serien (HIST7), som hämtas separat — be om
+     den om den saknas och rita om rutan när den kommit. */
+  var tcsv=progTimCSV();
+  var trad=tcsv?(tcsv.split('\n').length-2):0;
+  h+=dSec('Export · per timme')
+    +'<div class="setup-t">'
+    +(tcsv
+      ? (trad+' timmar från de senaste dygnen — prognos mot uppmätt effekt, timme '
+         +'för timme. Säger inte bara hur mycket prognosen bommar utan när på '
+         +'dagen. Bäst underlag att kalibrera mot.')
+      : 'Timdata hämtas från Homey Insights… öppna rutan igen om en stund. '
+        +'Finns bara för de senaste ~7 dygnen.')
+    +'</div>'
+    +(tcsv
+      ? ('<textarea class="prog-exp prog-exp-tim" readonly onclick="this.select()">'+esc(tcsv)+'</textarea>'
+         +'<div class="dbtn-row"><button class="dbtn" onclick="progTimKopiera()">Kopiera timmar</button></div>')
+      : '');
+  /* Utan HIST7 finns ingen timvis faktiskt — starta hämtningen och rita om. */
+  if(!tcsv){try{hist7Hamta&&hist7Hamta().then(function(){if(_dlgWhich==='proglogg'){var b=$('dlg-body');if(b)b.innerHTML=progLoggBody();}});}catch(e){}}
+  return h;
+}
+function openProgLogg(){
+  _dlgWhich='proglogg';
+  var h=progLoggBody();
   const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
   _popupRebuild=null;
   setT('dlg-title','Solprognos · träffsäkerhet');setIcon('dlg-ic','sun');
@@ -16261,7 +16451,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v611';
+const APP_VERSION='v613';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -18188,6 +18378,10 @@ _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);setInterval(ti
 /* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
    sekund och det vore fyrtio gånger fler anrop än nödvändigt. */
 setInterval(function(){try{kronKoll();}catch(e){}},60000);
+/* Ladda max stänger av sig själv innan priset stiger. Var 30:e sekund är tätt
+   nog — avstängningen läggs på hela minuten och en halv minuts släp märks inte,
+   medan var 15:e vore fyrdubbelt fler priskontroller än nödvändigt. */
+setInterval(function(){try{battAutoKoll();}catch(e){}},30000);
 /* Breveden var femte minut — variabeln uppdateras var 15:e i Homey, men även
    vid varje temperaturändring på Attefall, så tätare läsning ger färskare kort
    utan att kosta något nämnvärt. */
