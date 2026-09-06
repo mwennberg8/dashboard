@@ -2605,8 +2605,10 @@ body.graf-full-open .graf-full-back{display:block}
    som inte alltid slår igenom i top layer. */
 .graf-full-back:fullscreen,.graf-full-back:-webkit-full-screen{display:block;background:var(--bg,#20242c)}
 .graf-full-ram{width:100%;height:100%;box-sizing:border-box;
-  padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right))
-          max(10px,env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  /* Rejäl marginal i sidled så krysset och grafens kanter inte ligger dikt an
+     mot skärmkanten (eller under rundade hörn / kameraurtag). */
+  padding:max(12px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-right))
+          max(10px,env(safe-area-inset-bottom)) max(24px,env(safe-area-inset-left));
   display:grid;grid-template-rows:auto minmax(0,1fr) auto;row-gap:6px}
 .graf-full-h{display:flex;align-items:center;justify-content:space-between;
   font-size:15px;font-weight:800;color:var(--ink);z-index:2;min-height:0}
@@ -2617,13 +2619,23 @@ body.graf-full-open .graf-full-back{display:block}
 /* Grafcellen: bestämd höjd (grid 1fr), döljer allt som spiller över, och
    ligger UNDER knapparna i staplingen. */
 .graf-full-graf{min-height:0;min-width:0;overflow:hidden;display:flex;flex-direction:column;position:relative;z-index:1}
+/* Hela kedjan ned till ritytan är flex-kolumner som fyller: grafcellen →
+   (.g2 | .viz) → .g2-main/.g2-plot → .avl-lager → .avl-graf. Etikettraden,
+   tidsaxeln och förklaringen har fast höjd (flex 0 0 auto), ritytan tar
+   resten. */
 .graf-full-graf>*{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
-.graf-full-graf .avl-lager{width:100%;height:100%;display:flex;flex-direction:column}
-.graf-full-graf .avl-rad{flex:0 0 auto}
-.graf-full-graf .avl-graf{flex:1 1 auto;min-height:0}
-.graf-full-graf .avl-tid{flex:0 0 auto}
-.graf-full-graf .mchart,.graf-full-graf .viz svg,.graf-full-graf .chart{height:100%;width:100%;min-height:0}
 .graf-full-graf .viz{margin:0;flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.graf-full-graf .g2-main,.graf-full-graf .g2-plot{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.graf-full-graf .avl-lager{flex:1 1 auto;min-height:0;width:100%;display:flex;flex-direction:column}
+.graf-full-graf .avl-rad,.graf-full-graf .avl-tid,.graf-full-graf .mchart-lg2{flex:0 0 auto}
+.graf-full-graf .avl-graf{flex:1 1 auto;min-height:0;position:relative}
+/* SVG:N ABSOLUT I RITYTAN. height:100% på en svg i en flex-kolumn utan bestämd
+   höjd faller tillbaka på svg:ns EGNA proportioner (viewBox 300×146 sträckt
+   över 2000 px bredd blir ~1000 px hög) — den svämmade över, klippte bort
+   negativa värden och tryckte ut tidsaxeln. Absolut inset:0 räknar mot
+   ritytans faktiska ruta, så svg:n fyller exakt det flex gav den. */
+.graf-full-graf .avl-graf>svg{position:absolute;inset:0;width:100%;height:100%;min-height:0}
+.graf-full-graf .mchart,.graf-full-graf .viz svg,.graf-full-graf .chart{height:100%;width:100%;min-height:0}
 /* Verktygsraden överst i stapling så inget kan hamna över knapparna. */
 .graf-full-ram>.graf-verktyg{z-index:2;margin:0}
 /* INGEN CSS-ROTATION. Att rotera ramen 90° vred hela koordinatsystemet, och då
@@ -9896,10 +9908,16 @@ function energiSerier(kalla){
    följer med när tiden går utan att man rör inställningen. */
 var GRAF_TIM=[1,3,6,12,24];
 var _grafTim={};
-function grafTim(id){var v=_grafTim[id];return (GRAF_TIM.indexOf(v)>=0)?v:12;}
+/* HELSKÄRMEN RITAR MED ETT EGET ID. Popupen ligger kvar bakom, och ritade
+   båda med samma id (avl-g2-batt) hittade getElementById ALLTID popupens
+   dolda graf — dragningen skedde, men på fel overlay, så inget syntes i
+   helskärm. Helskärmen använder därför <id>-full för sin avl-geometri, medan
+   tidsfönstret läses från bas-id:t så 1h/3h/… förblir delat. */
+function grafBasId(id){return String(id||'').replace(/-full$/,'');}
+function grafTim(id){var v=_grafTim[grafBasId(id)];return (GRAF_TIM.indexOf(v)>=0)?v:12;}
 function grafFonster(id){var t1=Date.now();return {t0:t1-grafTim(id)*3600000,t1:t1};}
 function grafSattTim(id,h){
-  _grafTim[id]=h;
+  _grafTim[grafBasId(id)]=h;
   /* Rita om båda vyerna som kan visa fönstret: popupkroppen (via _grafOmRita,
      som popupen satt till sin byggare) OCH en öppen helskärm. Valet är delat,
      så det ska synas på båda direkt. */
@@ -9909,16 +9927,20 @@ function grafSattTim(id,h){
 /* Knapprad för tidsval + en helskärmsknapp till höger. cid är grafens id (samma
    som avlLager använder), byggFn() returnerar grafens HTML för helskärmen. */
 var _grafByggare={};
-function grafTidsval(id){
+/* utanFull=true i helskärmen: där finns redan krysset, och en till
+   helskärmsknapp inne i helskärmen är bara förvirrande. */
+function grafTidsval(id,utanFull){
+  var bas=grafBasId(id);
   var h='<div class="graf-verktyg"><div class="graf-tim">';
   for(var i=0;i<GRAF_TIM.length;i++){
-    var t=GRAF_TIM[i], pa=(t===grafTim(id));
-    h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+id+'\','+t+')">'
+    var t=GRAF_TIM[i], pa=(t===grafTim(bas));
+    h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+t+')">'
       +(t<24?t+'h':'24h')+'</button>';
   }
-  h+='</div><button class="graf-full" onclick="grafHelskarm(\''+id+'\')" aria-label="Helskärm">'
-    +icon('corners-out')+'</button></div>';
-  return h;
+  h+='</div>';
+  if(!utanFull)h+='<button class="graf-full" onclick="grafHelskarm(\''+bas+'\')" aria-label="Helskärm">'
+    +icon('corners-out')+'</button>';
+  return h+'</div>';
 }
 
 /* ===== HELSKÄRM ===== */
@@ -9939,17 +9961,32 @@ function grafHelskarm(id){
      rätt koordinater; misslyckas det (iOS, desktop) står grafen upprätt och
      fyller ändå, utan att något hänger. Måste ske i samma tryck-gest som
      öppnandet — därför här, inte i en callback. */
-  try{
-    var re=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
-    if(re){
+  /* ORDNINGEN SPELAR ROLL FÖR ANDROIDS NOTIS. "Dra från toppen och tryck på
+     bakåtknappen" är Chromes egen text vid requestFullscreen, och den går inte
+     att ta bort — men den behövs bara om låsningen KRÄVER fullscreen. Som
+     installerad PWA (standalone) får orientation.lock göras direkt, utan
+     fullscreen och därmed utan notis. Prova därför låset först; fall tillbaka på
+     fullscreen + lås bara om det avvisas (vanlig flik). */
+  var las=function(){
+    try{
+      if(screen&&screen.orientation&&screen.orientation.lock)
+        return screen.orientation.lock('landscape');
+    }catch(e){}
+    return Promise.reject(new Error('inget orienteringslås'));
+  };
+  var medFullscreen=function(){
+    try{
+      var re=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
+      if(!re)return;
       var pr=re.call(el);
-      var las=function(){try{
-        if(screen&&screen.orientation&&screen.orientation.lock)
-          screen.orientation.lock('landscape').catch(function(){});
-      }catch(e){}};
-      if(pr&&pr.then)pr.then(las,function(){}); else las();
-    }
-  }catch(e){}
+      var efter=function(){las().catch(function(){});};
+      if(pr&&pr.then)pr.then(efter,function(){}); else efter();
+    }catch(e){}
+  };
+  try{
+    var forsok=las();
+    if(forsok&&forsok.then)forsok.then(function(){},medFullscreen); else medFullscreen();
+  }catch(e){medFullscreen();}
 }
 function grafFullStang(){
   _grafFull=null;
@@ -9967,14 +10004,14 @@ function grafFullRita(){
   var el=document.getElementById('graf-full-lager');if(!el)return;
   var b=_grafByggare[id];
   var titel=(b&&b.titel)||'Graf';
-  var graf=(b&&typeof b.full==='function')?b.full():'';
-  /* Tidsvalet finns även i helskärm — men helskärmens egen kopia, med samma
-     _grafTim-state, så valet gäller båda vyerna. */
+  /* Byggaren får helskärmens eget id, så dess avl-lager inte krockar med
+     popupens. Tidsfönstret läses ändå från bas-id:t (grafBasId). */
+  var graf=(b&&typeof b.full==='function')?b.full(id+'-full'):'';
   el.innerHTML='<div class="graf-full-ram">'
     +'<div class="graf-full-h"><span>'+esc(titel)+'</span>'
     +'<button class="graf-full-x" onclick="grafFullStang()" aria-label="Stäng">'+icon('close')+'</button></div>'
     +'<div class="graf-full-graf">'+graf+'</div>'
-    +grafTidsval(id)+'</div>';
+    +grafTidsval(id,true)+'</div>';
 }
 /* När fönstret eller data ändras och helskärmen är öppen ska den ritas om. */
 function grafOmRitaAlla(){
@@ -10261,9 +10298,10 @@ function buildEnergyPopup(){
     +dayChart(se.linjer,{pct:se.procent,cid:'g2-day',t0:_ef.t0,t1:_ef.t1})
     +grafTidsval('g2-day');
   /* Byggare + omritning så tidsval och helskärm kan rita om just den här vyn. */
-  _grafByggare['g2-day']={titel:'Sol, förbrukning & batteri',full:function(){
-    var s2=energiSerier('live'),f2=grafFonster('g2-day');
-    return dayChart(s2.linjer,{pct:s2.procent,cid:'g2-day',t0:f2.t0,t1:f2.t1});}};
+  _grafByggare['g2-day']={titel:'Sol, förbrukning & batteri',full:function(cid){
+    cid=cid||'g2-day';
+    var s2=energiSerier('live'),f2=grafFonster(cid);
+    return dayChart(s2.linjer,{pct:s2.procent,cid:cid,t0:f2.t0,t1:f2.t1});}};
   /* Historikknappen UNDER grafen: den leder vidare från det man just tittat
      på, och ovanför grafen sköt den ned det man öppnade rutan för. */
   h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
@@ -10390,12 +10428,12 @@ function openDetail(which){
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
        kan rita om just den här vyn. */
-    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(){return gridPowerSVG(HIST['grid']||[],'grid');}};
+    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(HIST['grid']||[],cid||'grid');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
     body=byggGrid();
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
   }else if(which==='batt'){title='Husbatteri';
-    _grafByggare['g2-batt']={titel:'Husbatteri',full:function(){return battGrafHTML('g2-batt');}};
+    _grafByggare['g2-batt']={titel:'Husbatteri',full:function(cid){return battGrafHTML(cid||'g2-batt');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
     body=byggBatt();
   }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=cap(DEV.consume,'measure_power'),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
@@ -16648,7 +16686,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v617';
+const APP_VERSION='v618';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
