@@ -1797,7 +1797,43 @@ body.mobile{--ds-sun:14px}
 .cfg-sec:first-child{margin-top:0}
 /* Kvittensraden i Brevedens ruta. Egen klass och inte .drow-info: den är
    dold tills den öppnas, och statusen ska synas direkt. */
-.brv-status{font-size:11.5px;font-weight:650;color:var(--dim);padding:2px 2px 8px}
+
+/* ===== BREVEDENS RUTA =====
+   Allt scopat under .brv-pop. .dsec ritar ett streck under rubriken, och
+   innehållet låg tidigare direkt mot det utan en enda pixels luft. */
+.brv-pop .dsec+*{margin-top:12px}
+.brv-pop .cfg-sec{margin:16px 2px 8px}
+.brv-pop .cfg-btns{margin-bottom:0}
+.brv-pop .cfg-btns+.cfg-sec{margin-top:18px}
+/* Snabbvalen: ikon över text, tre i bredd. Etiketterna är olika långa och
+   flex-wrap gav ojämna rader — ett rutnät ger lika stora ytor att träffa. */
+.brv-snabb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.brv-q{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;min-height:62px;padding:9px 5px;background:var(--inset);
+  border:1px solid var(--line);border-radius:13px;color:var(--ink);
+  font:inherit;font-size:11px;font-weight:700;line-height:1.15;text-align:center;cursor:pointer}
+.brv-q .ic{width:19px;height:19px;color:var(--faint)}
+.brv-q.on{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.brv-q.on .ic{color:var(--blue)}
+.brv-q:active{transform:scale(.97)}
+/* Temperaturen: minus, tal, plus i en rad där talet får ta plats. */
+.brv-temp{display:flex;align-items:center;gap:10px}
+.brv-step{flex:0 0 auto;width:52px;height:46px;display:flex;align-items:center;
+  justify-content:center;background:var(--inset);border:1px solid var(--line);
+  border-radius:13px;color:var(--ink);font:inherit;font-size:19px;font-weight:700;cursor:pointer}
+.brv-step:active{transform:scale(.95)}
+.brv-step[disabled]{opacity:.35}
+/* Spjällen ställs i en bild av inomhusdelen. En pil är lättare att peka på än
+   ett ord som "Mellanhög", och bilden visar vad valet faktiskt gör. */
+.brv-fig{width:100%;height:auto;display:block;margin:2px 0 4px;touch-action:manipulation}
+.brv-fig .tr{cursor:pointer}
+.brv-figtxt{text-align:center;font-size:11px;font-weight:700;color:var(--dim);margin-bottom:4px}
+.brv-sekh{display:flex;align-items:center;gap:7px}
+.brv-sekh .ic{width:13px;height:13px;color:var(--faint)}
+.brv-pop .cfg-opt{display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.brv-pop .cfg-opt .ic{width:14px;height:14px;color:var(--faint);flex:0 0 auto}
+.brv-pop .cfg-opt.on .ic{color:var(--blue)}
+.brv-status{font-size:11.5px;font-weight:650;color:var(--dim);padding:8px 2px 0}
 .brv-fel{color:var(--warm)}
 /* Talet mellan minus och plus är ingen knapp och ska inte se ut som en. */
 .brv-tal{flex:1 1 auto;min-width:74px;text-align:center;align-self:center;
@@ -12403,18 +12439,36 @@ function brvHarLage(id){
 }
 
 /* SNABBVALEN.
-   'auto' gör exakt det knappen gjorde förut: triggar skriptets flow och låter
-   det avgöra. De övriga sätter capabilities direkt.
+   Alla fyra ställer enheten direkt — vilket den kan och inte kan syns i
+   lägeslistan den själv rapporterar, så ett val vars läge saknas ritas inte.
+
+     Auto      enhetens eget auto-läge, med den temperatur som redan är inställd.
+               Rör därför INTE target_temperature.
+     Värm 15   heat 15 — värmer om det behövs, kyler aldrig.
+     Håll 21   auto 21 — håller 21 med både värme och kyla.
+     Kyl 21    cool 21 — kyler om det behövs, värmer aldrig.
+
    Ordningen i sekvensen spelar roll: läget först, sedan temperaturen, och
    strömmen sist — annars hinner enheten gå igång i fel läge. */
 var BRV_SNABB=[
-  {k:'auto',lbl:'Auto',ic:'sparkle'},
-  {k:'h15', lbl:'Håll 15°',ic:'flame',   lage:'heat',temp:15},
-  {k:'g21', lbl:'Gäster 21°',ic:'house', lage:'heat',temp:21},
-  {k:'kyl', lbl:'Kyl 22°',ic:'snowflake',lage:'cool',temp:22},
-  {k:'dry', lbl:'Avfukta',ic:'drop',     lage:'dry'},
-  {k:'av',  lbl:'Stäng av',ic:'power',   av:true}
+  {k:'auto',lbl:'Auto',    ic:'sparkle',           lage:'auto'},
+  {k:'v15', lbl:'Värm 15', ic:'flame',             lage:'heat',temp:15},
+  {k:'h21', lbl:'Håll 21', ic:'thermometer-simple',lage:'auto',temp:21},
+  {k:'k21', lbl:'Kyl 21',  ic:'snowflake',         lage:'cool',temp:21},
+  {k:'av',  lbl:'Stäng av',ic:'power',             av:true}
 ];
+/* Auto och Håll 21 delar läge. Utan den här regeln hade båda lyst så fort
+   auto-läget var på med 21 inställt, och då säger markeringen ingenting. */
+function brvSnabbPa(q,acOn,acMode,acTgt){
+  if(q.av)return acOn===false;
+  if(acOn!==true||acMode!==q.lage)return false;
+  if(q.temp!=null)return acTgt===q.temp;
+  for(var i=0;i<BRV_SNABB.length;i++){
+    var o=BRV_SNABB[i];
+    if(o!==q&&o.lage===q.lage&&o.temp!=null&&acTgt===o.temp)return false;
+  }
+  return true;
+}
 function brvSnabbLista(){
   var ut=[];
   for(var i=0;i<BRV_SNABB.length;i++){
@@ -12431,7 +12485,6 @@ var _brvSkriver=false,_brvFel=null;
 var _brvMer=false;
 function brvMerTog(){_brvMer=!_brvMer;brvPopRita();}
 async function brvSnabb(k){
-  if(k==='auto'){try{await brvTryck();}catch(e){}return;}
   var q=null;
   for(var i=0;i<BRV_SNABB.length;i++)if(BRV_SNABB[i].k===k)q=BRV_SNABB[i];
   if(!q)return;
@@ -12471,6 +12524,85 @@ function brvSattTemp(d){
   return brvSkriv([['target_temperature',v]]);
 }
 function brvSattCap(c,v){return brvSkriv([[c,v]]);}
+
+/* SPJÄLLÄGENAS ID:N. De här kommer ur enhetens EGNA villkorskort i Homey
+   (vertical_condition och horizontal_condition), inte ur en gissning:
+   lodrätt auto/upwards/mid_high/middle/mid_low/downwards/swing,
+   i sidled auto/leftwards/center_left/center/center_right/rightwards/wide/swing.
+   Kartan säger bara var i BILDEN varje läge ska ritas. Ett läge som inte står
+   här ritas som en vanlig knapp bredvid bilden — en okänd riktning ska inte
+   få en påhittad pil. */
+var BRV_LOD={upwards:-40,mid_high:-19,middle:2,mid_low:23,downwards:44};
+var BRV_SID={leftwards:-52,center_left:-26,center:0,center_right:26,rightwards:52};
+var BRV_MODE_IC={off:'power',heat:'flame',cool:'snowflake',dry:'drop',fan:'fan',auto:'sparkle'};
+
+/* En pil från spjället. Två linjer: en bred genomskinlig att träffa med
+   fingret, och en smal synlig. Spetsen ritas som en liten triangel. */
+/* Längden klipps mot bildens kant. En fast längd räckte inte: de brantaste
+   pilarna sköt ut ovanför och under ramen och kapades av svg:n. Nu slutar
+   varje pil vid väggen, vilket dessutom läser som luft som fyller rummet. */
+function brvNaKant(x0,y0,dx,dy,W,H,mar){
+  var t=1e9;
+  if(dx>1e-6)t=Math.min(t,(W-mar-x0)/dx);
+  if(dx<-1e-6)t=Math.min(t,(mar-x0)/dx);
+  if(dy>1e-6)t=Math.min(t,(H-mar-y0)/dy);
+  if(dy<-1e-6)t=Math.min(t,(mar-y0)/dy);
+  return t;
+}
+function brvPil(x0,y0,vinkel,maxlangd,pa,cid,id,W,H){
+  var r=vinkel*Math.PI/180, dx=Math.sin(r), dy=-Math.cos(r);
+  var langd=Math.max(34,Math.min(maxlangd,brvNaKant(x0,y0,dx,dy,W,H,11)));
+  var ax=x0+dx*12, ay=y0+dy*12, bx=x0+dx*langd, by=y0+dy*langd;
+  var col=pa?'var(--blue)':'var(--line)';
+  var sp=6, px=bx-dx*sp, py=by-dy*sp, nx=-dy*sp*0.62, ny=dx*sp*0.62;
+  return '<g class="tr" onclick="brvSattCap(\''+cid+'\',\''+id+'\')">'
+    +'<line x1="'+x0.toFixed(1)+'" y1="'+y0.toFixed(1)+'" x2="'+bx.toFixed(1)+'" y2="'+by.toFixed(1)
+      +'" stroke="transparent" stroke-width="26" stroke-linecap="round"/>'
+    +'<line x1="'+ax.toFixed(1)+'" y1="'+ay.toFixed(1)+'" x2="'+px.toFixed(1)+'" y2="'+py.toFixed(1)
+      +'" stroke="'+col+'" stroke-width="'+(pa?3:2)+'" stroke-linecap="round"/>'
+    +'<path d="M'+bx.toFixed(1)+' '+by.toFixed(1)+' L'+(px+nx).toFixed(1)+' '+(py+ny).toFixed(1)
+      +' L'+(px-nx).toFixed(1)+' '+(py-ny).toFixed(1)+' Z" fill="'+col+'"/></g>';
+}
+/* Inomhusdelen, sedd framifrån eller ovanifrån beroende på vridning. */
+function brvEnhetRit(x,y,b,h){
+  return '<rect x="'+x+'" y="'+y+'" width="'+b+'" height="'+h+'" rx="'+(h/2.6).toFixed(1)
+    +'" fill="var(--inset)" stroke="var(--line)" stroke-width="1.5"/>'
+    +'<line x1="'+(x+7)+'" y1="'+(y+h-5).toFixed(1)+'" x2="'+(x+b-7)+'" y2="'+(y+h-5).toFixed(1)
+    +'" stroke="var(--line)" stroke-width="2" stroke-linecap="round"/>';
+}
+/* Bilden för ett spjäll. lodratt=true ger sidvy, annars vy uppifrån.
+   Lägen som saknas i kartan hamnar i knappraden under bilden. */
+function brvSpjallFig(cid,karta,lodratt,rubrik,ikon){
+  var lista=brvVal(cid);
+  if(!lista||!lista.length)return '';
+  var vald=cap(brvDev(),cid);
+  var pilar=[],ovriga=[],i;
+  for(i=0;i<lista.length;i++){
+    if(karta[lista[i].id]!=null)pilar.push(lista[i]);else ovriga.push(lista[i]);
+  }
+  var h='<div class="cfg-sec brv-sekh">'+icon(ikon)+'<span>'+esc(rubrik)+'</span></div>';
+  if(pilar.length){
+    var W=300,H=126,sv='<svg class="brv-fig" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(rubrik)+'">';
+    if(lodratt){
+      /* Sidvy: enheten till vänster, luften ut åt höger. Pilvinkeln räknas
+         från rakt upp, så 90 grader är rakt fram. */
+      sv+=brvEnhetRit(10,44,64,34);
+      for(i=0;i<pilar.length;i++)
+        sv+=brvPil(78,61,90+karta[pilar[i].id],200,pilar[i].id===vald,cid,pilar[i].id,W,H);
+    }else{
+      /* Vy uppifrån: enheten överst, luften nedåt i rummet. */
+      sv+=brvEnhetRit(105,8,90,26);
+      for(i=0;i<pilar.length;i++)
+        sv+=brvPil(150,38,180-karta[pilar[i].id],110,pilar[i].id===vald,cid,pilar[i].id,W,H);
+    }
+    h+=sv+'</svg>';
+    var namn='';
+    for(i=0;i<lista.length;i++)if(lista[i].id===vald)namn=lista[i].namn;
+    h+='<div class="brv-figtxt">'+esc(namn||'\u2013')+'</div>';
+  }
+  if(ovriga.length)h+=brvKnappRad(cid,vald,ovriga);
+  return h;
+}
 function brvPa(){var o=brvCapObj('onoff');return o?!!o.value:false;}
 function brvTog(){return brvSkriv([['onoff',!brvPa()]]);}
 
@@ -12483,14 +12615,17 @@ function brvPopRita(){
     if(b)b.innerHTML=brvPopHTML();
   }catch(e){}
 }
-function brvKnappRad(cap,vald,lista,fmt){
+/* rahtml=true betyder att fmt lämnar färdig HTML (en ikon plus text) och inte
+   ska escapas. Utan flaggan hade ikonens svg-taggar skrivits ut som text. */
+function brvKnappRad(cap,vald,lista,fmt,rahtml){
   if(!lista||!lista.length)return '';
   var h='<div class="cfg-btns">';
   for(var i=0;i<lista.length;i++){
     var x=lista[i], pa=(x.id===vald);
+    var txt=fmt?fmt(x):x.namn;
     h+='<button class="cfg-opt'+(pa?' on':'')+'" onclick="brvSattCap(\''+cap+'\','
       +(typeof x.id==='number'?x.id:('\''+String(x.id).replace(/'/g,'')+'\''))+')">'
-      +esc(fmt?fmt(x):x.namn)+'</button>';
+      +(rahtml?txt:esc(txt))+'</button>';
   }
   return h+'</div>';
 }
@@ -12501,24 +12636,24 @@ function brvPopHTML(){
       acPw=cap(ac,'measure_power'),acKwh=cap(ac,'meter_power'),
       acDag=cap(ac,'meter_power.daily'),acOut=cap(ac,'measure_temperature.outdoor');
   var B=brvState();
-  var h=ptsLineSVG(HIST['t_breveden']||[],'violet','°C','brv-temp');
+  var h=ptsLineSVG(HIST['t_breveden']||[],'violet','°C','brv-graf');
 
   h+='<div class="dsec">Snabbval'
-    +infoBlock('brvsnabb','<b>Auto</b> gör samma sak som knappen gjorde förut: '
-      +'startar eller stoppar via HomeyScriptet, som självt avgör om kyla eller '
-      +'värme behövs. De övriga ställer enheten direkt.<br><br>'
-      +'Ett handpålagt läge kan skrivas över nästa gång skriptet kör. Skriptet '
-      +'äger automatiken — dashboarden har med flit ingen egen bedömning.')
+    +infoBlock('brvsnabb','<b>Auto</b> startar enheten i dess eget auto-läge '
+      +'med den temperatur som redan är inställd.<br>'
+      +'<b>Värm 15</b> värmer till 15° och kyler aldrig.<br>'
+      +'<b>Håll 21</b> håller 21° med både värme och kyla.<br>'
+      +'<b>Kyl 21</b> kyler till 21° och värmer aldrig.<br><br>'
+      +'Ett handpålagt läge kan skrivas över nästa gång breveden-skriptet kör. '
+      +'Skriptet äger automatiken — dashboarden har med flit ingen egen bedömning.')
     +'</div>';
   var sn=brvSnabbLista();
-  h+='<div class="cfg-btns">';
+  h+='<div class="brv-snabb">';
   for(var i=0;i<sn.length;i++){
     var q=sn[i];
-    var pa=(q.k==='auto')?!!(B&&B.aktiv)
-      :(q.av?(acOn===false)
-        :(acOn===true&&acMode===q.lage&&(q.temp==null||acTgt===q.temp)));
-    h+='<button class="cfg-opt'+(pa?' on':'')+'" onclick="brvSnabb(\''+q.k+'\')">'
-      +esc(q.lbl)+'</button>';
+    var pa=brvSnabbPa(q,acOn,acMode,acTgt);
+    h+='<button class="brv-q'+(pa?' on':'')+'" onclick="brvSnabb(\''+q.k+'\')">'
+      +icon(q.ic)+'<span>'+esc(q.lbl)+'</span></button>';
   }
   h+='</div>';
   if(_brvSkriver)h+='<div class="brv-status">Skickar till Homey…</div>';
@@ -12527,11 +12662,16 @@ function brvPopHTML(){
   /* FRAMME: temperaturen. Den ändrar man ofta och den hör ihop med snabbvalen. */
   var tO=brvCapObj('target_temperature');
   if(tO){
+    /* Knapparna gråas när enhetens egen gräns är nådd — ett tryck som ändå
+       skickar samma värde ser ut som att ingenting händer. */
+    var tmn=(tO.min!=null)?tO.min:10, tmx=(tO.max!=null)?tO.max:30;
     h+='<div class="dsec">Inställd temperatur</div>'
-      +'<div class="cfg-btns">'
-      +'<button class="cfg-opt" onclick="brvSattTemp(-1)">\u2013</button>'
+      +'<div class="brv-temp">'
+      +'<button class="brv-step"'+((acTgt!=null&&acTgt<=tmn)?' disabled':'')
+      +' onclick="brvSattTemp(-1)">\u2212</button>'
       +'<span class="brv-tal">'+(acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')+'</span>'
-      +'<button class="cfg-opt" onclick="brvSattTemp(1)">+</button></div>';
+      +'<button class="brv-step"'+((acTgt!=null&&acTgt>=tmx)?' disabled':'')
+      +' onclick="brvSattTemp(1)">+</button></div>';
   }
 
   /* HOPFÄLLT: på/av, läge, fläkt och spjäll. Byggs bara om enheten har något
@@ -12542,17 +12682,16 @@ function brvPopHTML(){
     +'" onclick="brvTog()">'+(acOn===true?'På':'Av')+'</button></div>';
   var lagen=brvVal('thermostat_mode');
   if(lagen){
-    doldt+='<div class="cfg-sec">Läge</div>'
-      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){return acModeSv(x.id,true)||x.namn;});
+    doldt+='<div class="cfg-sec brv-sekh">'+icon('thermometer-simple')+'<span>Läge</span></div>'
+      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){
+         return (BRV_MODE_IC[x.id]?icon(BRV_MODE_IC[x.id]):'')+'<span>'
+           +esc(acModeSv(x.id,true)||x.namn)+'</span>';},true);
   }
   var flakt=brvVal('fan_speed')||brvNumVal('fan_speed');
-  if(flakt)doldt+='<div class="cfg-sec">Fläkt</div>'+brvKnappRad('fan_speed',acFan,flakt);
-  var lod=brvVal('vertical');
-  if(lod)doldt+='<div class="cfg-sec">Luftriktning lodrätt</div>'
-    +brvKnappRad('vertical',cap(ac,'vertical'),lod);
-  var sid=brvVal('horizontal');
-  if(sid)doldt+='<div class="cfg-sec">Luftriktning i sidled</div>'
-    +brvKnappRad('horizontal',cap(ac,'horizontal'),sid);
+  if(flakt)doldt+='<div class="cfg-sec brv-sekh">'+icon('fan')+'<span>Fläkt</span></div>'
+    +brvKnappRad('fan_speed',acFan,flakt);
+  doldt+=brvSpjallFig('vertical',BRV_LOD,true,'Luftriktning lodrätt','arrow-up');
+  doldt+=brvSpjallFig('horizontal',BRV_SID,false,'Luftriktning i sidled','wind');
   if(doldt){
     var op=_brvMer?' open':'';
     h+='<button class="brv-mer'+op+'" id="brv-mer-btn" onclick="brvMerTog()">'
@@ -12570,7 +12709,7 @@ function brvPopHTML(){
     +(acDag!=null?dRow('Förbrukat idag',num(acDag,1)+' kWh'):'')
     +dRow('Förbrukat totalt',acKwh==null?'\u2013':num(acKwh,1)+' kWh')
     +(acOut!=null?dRow('Ute (AC)',num(acOut,1)+' \u00b0C'):'');
-  return h;
+  return '<div class="brv-pop">'+h+'</div>';
 }
 var BRV_VAR='9a2ac08e-b68b-45ea-bbf7-a10e7c00ac41';
 var BRV_FLOW_PA='063fb9f7-37e9-41c0-a114-eba03f1914a1';
@@ -12834,6 +12973,11 @@ async function brvHamta(){
   try{renderControls();}catch(e){}
   return _brv;}
 
+/* INGEN ANROPARE KVAR sedan v608. Knappen i knapprutan öppnar rutan (v606) och
+   snabbvalet Auto ställer numera enhetens eget auto-läge i stället för att
+   trigga skriptets flow. Funktionen står kvar orörd — skriptet finns och
+   flowet finns, det är bara vägen dit från dashboarden som är borta. Säg till
+   om den ska tillbaka som ett eget val. */
 async function brvTryck(){
   var B=_brv;
   var flow=(B&&B.aktiv)?BRV_FLOW_AV:BRV_FLOW_PA;
@@ -16088,7 +16232,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v606';
+const APP_VERSION='v608';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
