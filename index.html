@@ -2577,6 +2577,44 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    chart-x i hörnen på vind- och insiktsgraferna, klockslag ritade INUTI svg:n
    i multiGraf och solprognosen, och ingen alls i de mindre rutorna. Nu äger
    avläsningsmodulen axeln — den känner ändå t0, t1 och X. */
+/* ===== TIDSVAL + HELSKÄRMSKNAPP ===== */
+.graf-verktyg{display:flex;align-items:center;gap:8px;margin:8px 0 4px}
+.graf-tim{display:flex;gap:4px;flex:1 1 auto;justify-content:center}
+.graf-tim-b{background:var(--inset);border:1px solid var(--line);border-radius:9px;
+  padding:5px 9px;color:var(--dim);font:inherit;font-size:11px;font-weight:700;
+  cursor:pointer;min-width:34px}
+.graf-tim-b.on{border-color:var(--blue);color:var(--ink);box-shadow:inset 0 0 0 1px var(--blue)}
+.graf-tim-b:active{transform:scale(.95)}
+.graf-full{flex:0 0 auto;width:34px;height:32px;display:flex;align-items:center;
+  justify-content:center;background:var(--inset);border:1px solid var(--line);
+  border-radius:9px;color:var(--dim);cursor:pointer;padding:0}
+.graf-full .ic{width:16px;height:16px}
+.graf-full:active{transform:scale(.95)}
+/* Helskärm i liggande läge. Overlay över allt; ramen roteras 90° på stående
+   skärmar så grafen får hela längden att breda ut sig på. */
+.graf-full-back{position:fixed;inset:0;z-index:400;background:var(--bg,#20242c);
+  display:none;align-items:center;justify-content:center}
+body.graf-full-open{overflow:hidden}
+body.graf-full-open .graf-full-back{display:flex}
+.graf-full-ram{width:100%;height:100%;display:flex;flex-direction:column;
+  box-sizing:border-box;padding:14px 18px}
+.graf-full-h{display:flex;align-items:center;justify-content:space-between;
+  font-size:14px;font-weight:800;color:var(--ink);margin-bottom:6px}
+.graf-full-x{width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--ink);
+  border-radius:999px;cursor:pointer;padding:0}
+.graf-full-x .ic{width:18px;height:18px}
+.graf-full-graf{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;min-height:0}
+/* Grafen fyller helskärmen: SVG:erna har fast CSS-höjd, så höj dem här. */
+.graf-full-graf .mchart{height:100%;min-height:46vh}
+.graf-full-graf .viz svg{height:100%;min-height:46vh}
+.graf-full-graf .viz{margin:0}
+/* På en stående telefon roteras hela ramen till liggande. På en redan liggande
+   skärm (platta i landskap) behövs ingen rotation. */
+@media (orientation:portrait){
+  .graf-full-ram{transform:rotate(90deg);transform-origin:center center;
+    width:100vh;height:100vw}
+}
 .avl-tid{position:relative;height:12px;margin-top:3px;font-size:9px;
   color:var(--faint);font-weight:600;font-variant-numeric:tabular-nums}
 .avl-tid span{position:absolute;transform:translateX(-50%);white-space:nowrap}
@@ -4745,14 +4783,14 @@ function fasHTML(){
     +'. Ändra säkringen i inställningarna om talet är fel.</div>';
   return h;
 }
-function gridPowerSVG(pts){
+function gridPowerSVG(pts,cid){
+  cid=cid||'grid';
   const now=Date.now();
   if(!pts||pts.length<3)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
-  /* TOLV TIMMAR, inte ett dygn. Grafen ar 300 enheter bred; ett dygn ger drygt
-     tolv enheter per timme och kurvan blir en luddig rad taggar. Halva tiden
-     pa samma bredd ger dubbelt sa mycket plats at varje timme, och det man
-     oppnar elnatsrutan for ar vad som hant nyss - inte i natt. */
-  const TIM=12;
+  /* Fönstret väljs numera (1–24 h) via _grafTim; grafen är 300 enheter bred, så
+     ett kortare fönster ger mer plats åt varje timme. Faller tillbaka på de 48
+     senaste punkterna om intervallet är för glest. */
+  const TIM=grafTim(cid);
   const cut=now-TIM*3600000;let seg=pts.filter(p=>p.t>=cut);if(seg.length<3)seg=pts.slice(-48);
   const P=PAL[curTheme]||PAL.dark, BLA=P.blue||'#81a1c1', GRO=P.green||'#a3be8c';
   const W2=300,H2=74,pad=5;
@@ -4813,7 +4851,7 @@ function gridPowerSVG(pts){
   /* pl och inte seg: kurvan ritas genom pl, och avläsningen ska räkna på
      exakt den listan. Nollgenomgångarna i pl är räknade, men de ligger på
      linjen mellan två mätvärden och ändrar inget om vad som mätts. */
-  svgm=avlLager('grid',svgm,{W:W2,H:H2,X:X,ser:[{namn:'',pts:pl,Y:Y,
+  svgm=avlLager(cid,svgm,{W:W2,H:H2,X:X,ser:[{namn:'',pts:pl,Y:Y,
     farg:function(v){return v>=0?BLA:GRO;},
     fmt:function(v){return (v<0?'säljer ':'köper ')+W(Math.abs(v));}}]});
   /* Bara köper/säljer kvar, i SAMMA form som under batterigrafen: .mchart-lg2,
@@ -9829,15 +9867,91 @@ function energiSerier(kalla){
 
    Tolv timmar, inte ett dygn — samma val som elnätsrutan gjorde: grafen är 300
    enheter bred, och ett helt dygn trycker ihop det man öppnade rutan för. */
-function battGrafHTML(){
+/* ===== TIDSVAL OCH HELSKÄRM FÖR TIDSSERIEGRAFERNA =====
+   Batteriet och elnätet visade tidigare ett fast tolvtimmarsfönster. Nu kan
+   fönstret väljas per graf (1/3/6/12/24 h), och grafen kan öppnas i helskärm i
+   liggande läge med samma dragpunkter, samma serier och samma förklaring.
+
+   Valet ligger i _grafTim[id] (timmar), inte i DOM:en: popuparna byggs om av
+   render() och ett läge som bara fanns i markupen skulle nollställas — samma
+   skäl som dragpunktens _avlVald. Fönstret är alltid [nu − N h, nu], så det
+   följer med när tiden går utan att man rör inställningen. */
+var GRAF_TIM=[1,3,6,12,24];
+var _grafTim={};
+function grafTim(id){var v=_grafTim[id];return (GRAF_TIM.indexOf(v)>=0)?v:12;}
+function grafFonster(id){var t1=Date.now();return {t0:t1-grafTim(id)*3600000,t1:t1};}
+function grafSattTim(id,h){
+  _grafTim[id]=h;
+  /* Rita om båda vyerna som kan visa fönstret: popupkroppen (via _grafOmRita,
+     som popupen satt till sin byggare) OCH en öppen helskärm. Valet är delat,
+     så det ska synas på båda direkt. */
+  try{if(typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
+  try{if(_grafFull)grafFullRita();}catch(e){}
+}
+/* Knapprad för tidsval + en helskärmsknapp till höger. cid är grafens id (samma
+   som avlLager använder), byggFn() returnerar grafens HTML för helskärmen. */
+var _grafByggare={};
+function grafTidsval(id){
+  var h='<div class="graf-verktyg"><div class="graf-tim">';
+  for(var i=0;i<GRAF_TIM.length;i++){
+    var t=GRAF_TIM[i], pa=(t===grafTim(id));
+    h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+id+'\','+t+')">'
+      +(t<24?t+'h':'24h')+'</button>';
+  }
+  h+='</div><button class="graf-full" onclick="grafHelskarm(\''+id+'\')" aria-label="Helskärm">'
+    +icon('corners-out')+'</button></div>';
+  return h;
+}
+
+/* ===== HELSKÄRM ===== */
+var _grafFull=null;
+function grafHelskarm(id){
+  _grafFull=id;
+  var el=document.getElementById('graf-full-lager');
+  if(!el){
+    el=document.createElement('div');el.id='graf-full-lager';
+    el.className='graf-full-back';
+    el.onclick=function(e){if(e.target===el)grafFullStang();};
+    document.body.appendChild(el);
+  }
+  grafFullRita();
+  document.body.classList.add('graf-full-open');
+}
+function grafFullStang(){
+  _grafFull=null;
+  var el=document.getElementById('graf-full-lager');
+  if(el)el.innerHTML='';
+  document.body.classList.remove('graf-full-open');
+}
+function grafFullRita(){
+  var id=_grafFull;if(!id)return;
+  var el=document.getElementById('graf-full-lager');if(!el)return;
+  var b=_grafByggare[id];
+  var titel=(b&&b.titel)||'Graf';
+  var graf=(b&&typeof b.full==='function')?b.full():'';
+  /* Tidsvalet finns även i helskärm — men helskärmens egen kopia, med samma
+     _grafTim-state, så valet gäller båda vyerna. */
+  el.innerHTML='<div class="graf-full-ram">'
+    +'<div class="graf-full-h"><span>'+esc(titel)+'</span>'
+    +'<button class="graf-full-x" onclick="grafFullStang()" aria-label="Stäng">'+icon('close')+'</button></div>'
+    +'<div class="graf-full-graf">'+graf+'</div>'
+    +grafTidsval(id)+'</div>';
+}
+/* När fönstret eller data ändras och helskärmen är öppen ska den ritas om. */
+function grafOmRitaAlla(){
+  try{if(typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
+  if(_grafFull)grafFullRita();
+}
+function battGrafHTML(cid){
+  cid=cid||'g2-batt';
   var P=(PAL&&PAL[curTheme])||{};
-  var t1=Date.now(),t0=t1-12*3600000;
+  var f=grafFonster(cid),t0=f.t0,t1=f.t1;
   /* Laddnivån tillbaka i samma bild, på egen 0–100-skala precis som i
      förbrukning nu (fonster.pct). Nollinjen släckt: effekten korsar noll men
      procenten gör det inte, så en gemensam nollinje sa emot den ena kurvan. */
   return dayChart(
     [{key:'battpow',pts:battPowSerie(),col:(P.green||'#7bc47f'),label:'Effekt'}],
-    {t0:t0,t1:t1,cid:'g2-batt',dromNoll:true,
+    {t0:t0,t1:t1,cid:cid,dromNoll:true,
      pct:{key:'battpct',pts:(HIST['batt']||[]),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
 }
 /* All infotext ligger bakom en knapp — och det är husets EGEN infoknapp, samma
@@ -10098,9 +10212,19 @@ function buildEnergyPopup(){
   /* Insiktsraden är borttagen i v603. Grafen står direkt under mätvärdena nu.
      _isAI och energyInsight() används fortfarande på andra håll. */
   var se=energiSerier('live');
-  h+='<div class="ww-h">Dygn · sol, förbrukning &amp; batteri'
-    +infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. Batteriets effekt är positiv när det laddas och negativ när det laddar ur.')
-    +'</div>'+dayChart(se.linjer,{pct:se.procent});
+  /* Samma tidsval (1–24 h) och helskärm som elnät och batteri, via cid g2-day.
+     grafRubrik skriver ut valt fönster i rubriken; grafFonster ger t0/t1. */
+  var _ef=grafFonster('g2-day');
+  h+=grafRubrik('g2-day','Sol, förbrukning &amp; batteri',
+      infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets '
+        +'laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. '
+        +'Batteriets effekt är positiv när det laddas och negativ när det laddar ur.'))
+    +dayChart(se.linjer,{pct:se.procent,cid:'g2-day',t0:_ef.t0,t1:_ef.t1})
+    +grafTidsval('g2-day');
+  /* Byggare + omritning så tidsval och helskärm kan rita om just den här vyn. */
+  _grafByggare['g2-day']={titel:'Sol, förbrukning & batteri',full:function(){
+    var s2=energiSerier('live'),f2=grafFonster('g2-day');
+    return dayChart(s2.linjer,{pct:s2.procent,cid:'g2-day',t0:f2.t0,t1:f2.t1});}};
   /* Historikknappen UNDER grafen: den leder vidare från det man just tittat
      på, och ovanför grafen sköt den ned det man öppnade rutan för. */
   h+='<div class="te-adv" style="margin:11px 0 0"><button class="te-use" onclick="openDetail(\'energihist\')">Historik · sju dygn</button></div>';
@@ -10166,8 +10290,44 @@ function acModeSv(m,on){if(on===false)return 'Av';
   var t={off:'Av',heat:'Värme',cool:'Kyla',auto:'Auto',dry:'Avfuktning',fan:'Fläkt',fan_only:'Fläkt'}[m];
   return t||(m?String(m):(on===true?'På':'–'));}
 
+/* Kroppsbyggare för de två tidsseriepopuparna. Egna funktioner så tidsvalet
+   och helskärmen kan rita om exakt samma innehåll som openDetail först byggde.
+   Rubriken visar valt fönster i klartext. */
+function grafRubrik(id,text,info){
+  var t=grafTim(id);
+  return '<div class="dsec">'+text+' · '+(t<24?('senaste '+t+' h'):'senaste dygnet')
+    +(info||'')+'</div>';
+}
+function byggGrid(){
+  var pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;
+  return grafRubrik('grid','Elnät',infoBlock('gridgraf',
+      'Blå kurva och yta är effekt du köper från nätet, grön är effekt du '
+      +'säljer. Nollinjen skiljer köp från sälj. Dra i grafen för att läsa av '
+      +'effekten vid en viss tidpunkt.'))
+    +gridPowerSVG(HIST['grid']||[],'grid')
+    +grafTidsval('grid')
+    +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
+    +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
+}
+function byggBatt(){
+  var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
+  return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
+      'Skalan är watt. Effekten är positiv när batteriet laddas och negativ när '
+      +'det matar ut. Den streckade kurvan är laddnivån på egen 0–100-skala. Dra '
+      +'i grafen för att läsa av båda vid en viss tidpunkt.'))
+    +battGrafHTML('g2-batt')
+    +grafTidsval('g2-batt')
+    +dSec('Nu')
+    +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
+    +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
+    +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh');
+}
 var _dlgWhich=null;
+/* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
+   rita om rätt vy. Nollställs när en popup utan tidsseriegraf öppnas. */
+var _grafOmRita=null;
 function openDetail(which){
+  _grafOmRita=null;
   if(_suppressClick){_suppressClick=false;_tapCfg=null;return;}
   let _dlgWide=false;
   _dlgWhich=which;
@@ -10189,26 +10349,16 @@ function openDetail(which){
        låste hela sidan; man kunde inte ens stänga popupen. */
     if(!_prog)progHamta().then(function(){progUppdatera();});
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
-    /* Samma ram som Solpaneler: en .dsec-rubrik med i-knapp överst, grafen
-       under, undertexten i .avl-cap. */
-    body='<div class="dsec">Senaste 12 timmarna'
-      +infoBlock('gridgraf','Blå kurva och yta är effekt du köper från nätet, '
-        +'grön är effekt du säljer. Nollinjen skiljer köp från sälj. Dra i '
-        +'grafen för att läsa av effekten vid en viss tidpunkt.')
-      +'</div>'+gridPowerSVG(HIST['grid']||[])
-      +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
+    /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
+       kan rita om just den här vyn. */
+    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(){return gridPowerSVG(HIST['grid']||[],'grid');}};
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
+    body=byggGrid();
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
-  }else if(which==='batt'){const bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();title='Husbatteri';
-    body='<div class="dsec">Senaste 12 timmarna'
-      +infoBlock('battgraf','Skalan är watt. Effekten är positiv när batteriet '
-        +'laddas och negativ när det matar ut. Den streckade kurvan är '
-        +'laddnivån på egen 0–100-skala. Dra i grafen för att läsa av båda vid '
-        +'en viss tidpunkt.')
-      +'</div>'+battGrafHTML()
-      +dSec('Nu')
-      +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
-      +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
-      +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh');
+  }else if(which==='batt'){title='Husbatteri';
+    _grafByggare['g2-batt']={titel:'Husbatteri',full:function(){return battGrafHTML('g2-batt');}};
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
+    body=byggBatt();
   }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=cap(DEV.consume,'measure_power'),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
     const gi=(pw!=null&&pw>0)?pw:0,bi=(bsx==='discharging')?Math.abs(bw):0,si=Math.max(0,(hW||0)-gi-bi);title='Självförsörjning';
     body=dRow('Förbrukning nu',hW==null?'–':W(hW))+dRow('Från sol',W(si))+dRow('Från batteri',W(bi))+dRow('Från nät',W(gi))+dRow('Egen el',(hW?Math.round((si+bi)/hW*100):(pw!=null&&pw<0?100:0))+' %');
@@ -10365,6 +10515,8 @@ function openDetail(which){
       +dRow('Källa','Utomhus-sensorn');
   }else if(which==='energyfull'){const dlgw=$('dlg');if(dlgw&&dlgw.classList){dlgw.classList.add('wide');dlgw.classList.add('nohead');}
     _energyAlt=false;_energyOpen=true;_popupRebuild=energyPopupRender;
+    /* Tidsvalet på förbrukning nu-grafen (g2-day) ritar om via _grafOmRita. */
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=energyPopupRender();};
     const bde=$('dlg-body');if(bde)bde.innerHTML=energyPopupRender();
     const bke=$('dlg-back');if(bke&&bke.classList)bke.classList.add('open');dlgTop();return;
   }else if(which==='energihist'){const dlgh=$('dlg');if(dlgh&&dlgh.classList){dlgh.classList.add('wide');dlgh.classList.add('nohead');}
@@ -16457,7 +16609,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v614';
+const APP_VERSION='v615';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -17012,6 +17164,10 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{yearDataMaybe();}catch(e){}
+  /* En öppen batteri-/elnätspopup och en öppen helskärmsgraf ritas om med
+     färsk data. _grafOmRita pekar på rätt kroppsbyggare; helskärmen på sin. */
+  try{var _gb=$('dlg-back');if(_gb&&_gb.classList&&_gb.classList.contains('open')&&typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
+  try{if(_grafFull)grafFullRita();}catch(e){}
   /* Hämtas från appen, som räknar. Cachad i fem minuter — en episod som varat
      i timmar behöver inte läsas var femtonde sekund. */
   try{if(SOURCE!=='demo-data')btHamta();}catch(e){}
