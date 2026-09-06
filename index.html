@@ -5749,7 +5749,7 @@ function dayChart(series,fonster){
   var avlSer=[];
   segs.forEach(function(o){
     if(active&&!sel[o.s.key])return;
-    avlSer.push({namn:o.s.label,farg:o.s.col,pts:o.seg,Y:Y,fmt:fmtW});
+    avlSer.push({namn:o.s.label,farg:o.s.col,pts:o.seg,Y:Y,fmt:(o.s.fmt||fmtW)});
   });
   /* Laddnivån: egen skala med nollinjen som 0 % och grafens tak som 100 %.
      Streckad för att inte kunna förväxlas med watt-kurvorna. Inget märke i
@@ -9878,7 +9878,13 @@ function energiSerier(kalla){
     linjer:[
       {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
       {key:'house',pts:H['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
-      {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'}
+      {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'},
+      /* Elnätet (Pulse): positivt = köper, negativt = säljer — samma tecken som
+         elnätsrutans egen graf. Blått som dess köp-färg, så det känns igen.
+         Egen fmt: dragpunkten säger "köper 1,2 kW"/"säljer 0,8 kW" i stället
+         för ett naket minus som man måste tolka. */
+      {key:'grid', pts:H['grid']||[], col:(P.blue||'#81a1c1'),label:'Elnät',
+       fmt:function(v){return (v<0?'säljer ':'köper ')+fmtW(Math.abs(v));}}
     ],
     procent:{key:'battpct',pts:(kalla==='hist'?(H['battpct']||[]):(H['batt']||[])),
              col:(P.cyan||'#57b6c2'),label:'Batteri %'}
@@ -9961,32 +9967,21 @@ function grafHelskarm(id){
      rätt koordinater; misslyckas det (iOS, desktop) står grafen upprätt och
      fyller ändå, utan att något hänger. Måste ske i samma tryck-gest som
      öppnandet — därför här, inte i en callback. */
-  /* ORDNINGEN SPELAR ROLL FÖR ANDROIDS NOTIS. "Dra från toppen och tryck på
-     bakåtknappen" är Chromes egen text vid requestFullscreen, och den går inte
-     att ta bort — men den behövs bara om låsningen KRÄVER fullscreen. Som
-     installerad PWA (standalone) får orientation.lock göras direkt, utan
-     fullscreen och därmed utan notis. Prova därför låset först; fall tillbaka på
-     fullscreen + lås bara om det avvisas (vanlig flik). */
-  var las=function(){
-    try{
-      if(screen&&screen.orientation&&screen.orientation.lock)
-        return screen.orientation.lock('landscape');
-    }catch(e){}
-    return Promise.reject(new Error('inget orienteringslås'));
-  };
-  var medFullscreen=function(){
-    try{
-      var re=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen;
-      if(!re)return;
-      var pr=re.call(el);
-      var efter=function(){las().catch(function(){});};
-      if(pr&&pr.then)pr.then(efter,function(){}); else efter();
-    }catch(e){}
-  };
+  /* INGEN requestFullscreen — MEDVETET. "Dra från toppen och tryck på
+     bakåtknappen" är Chromes egen text vid requestFullscreen och går inte att
+     ta bort; enda sättet att slippa den är att aldrig begära fullscreen.
+     Helskärmen är ändå ett fixed-lager som täcker hela vyn.
+     Orienteringslåset försöks fortfarande: som INSTALLERAD PWA (lägg till på
+     hemskärmen) får det göras utan fullscreen och vrider skärmen till
+     liggande automatiskt. I en vanlig flik avvisas det tyst — då vrider man
+     telefonen själv. Avvägningen är gjord med flit: hellre ingen notis och
+     manuell vridning än automatisk vridning med en notis varje gång. */
   try{
-    var forsok=las();
-    if(forsok&&forsok.then)forsok.then(function(){},medFullscreen); else medFullscreen();
-  }catch(e){medFullscreen();}
+    if(screen&&screen.orientation&&screen.orientation.lock){
+      var forsok=screen.orientation.lock('landscape');
+      if(forsok&&forsok.catch)forsok.catch(function(){});
+    }
+  }catch(e){}
 }
 function grafFullStang(){
   _grafFull=null;
@@ -16686,7 +16681,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v618';
+const APP_VERSION='v619';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
