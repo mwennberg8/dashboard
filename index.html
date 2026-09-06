@@ -5741,7 +5741,21 @@ function dayChart(series,fonster){
       var g=areaGrad(o.s.col,0.26);defs+=g.def;
       areas+='<path data-k="'+k+'" data-bw="0" d="'+line+' L'+pts[pts.length-1][0].toFixed(1)+' '+yBase.toFixed(1)+' L'+pts[0][0].toFixed(1)+' '+yBase.toFixed(1)+' Z" fill="url(#'+g.id+')" style="opacity:'+(on?1:0.09)+'"/>';
     }
-    lines+='<path data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke="'+o.s.col+'" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" style="opacity:'+(on?1:0.09)+'"/>';
+    var attr=' data-k="'+k+'" data-bw="'+bw+'" d="'+line+'" fill="none" stroke-width="'+(sel[k]?(bw+0.8):bw).toFixed(1)+'" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" style="opacity:'+(on?1:0.09)+'"';
+    if(o.s.col2&&vmin<0){
+      /* TVÅ FÄRGER, EN KURVA — samma knep som elnätsgrafen: samma d ritas två
+         gånger, klippt över respektive under nollinjen. Bilden byter färg exakt
+         där kurvan korsar noll, och det finns fortfarande EN kurva för
+         dragpunkten att räkna på. Bara när skalan går under noll — annars
+         finns inget "under" att klippa mot. */
+      var kid='dc'+(_grN++), y0=Y(0);
+      defs+='<clipPath id="'+kid+'a"><rect x="0" y="0" width="'+W+'" height="'+y0.toFixed(1)+'"/></clipPath>'
+        +'<clipPath id="'+kid+'b"><rect x="0" y="'+y0.toFixed(1)+'" width="'+W+'" height="'+(H-y0).toFixed(1)+'"/></clipPath>';
+      lines+='<path'+attr+' stroke="'+o.s.col+'" clip-path="url(#'+kid+'a)"/>'
+        +'<path'+attr+' stroke="'+o.s.col2+'" clip-path="url(#'+kid+'b)"/>';
+    }else{
+      lines+='<path'+attr+' stroke="'+o.s.col+'"/>';
+    }
   });
   /* Avläsningen läser mot SAMMA glesade segment som ritades, och bara mot de
      linjer som faktiskt syns — är en linje bortvald i förklaringen ska den
@@ -5749,7 +5763,8 @@ function dayChart(series,fonster){
   var avlSer=[];
   segs.forEach(function(o){
     if(active&&!sel[o.s.key])return;
-    avlSer.push({namn:o.s.label,farg:o.s.col,pts:o.seg,Y:Y,fmt:(o.s.fmt||fmtW)});
+    avlSer.push({namn:o.s.label,pts:o.seg,Y:Y,fmt:(o.s.fmt||fmtW),
+      farg:o.s.col2?(function(c1,c2){return function(v){return v<0?c2:c1;};})(o.s.col,o.s.col2):o.s.col});
   });
   /* Laddnivån: egen skala med nollinjen som 0 % och grafens tak som 100 %.
      Streckad för att inte kunna förväxlas med watt-kurvorna. Inget märke i
@@ -5773,7 +5788,7 @@ function dayChart(series,fonster){
   }
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
-  var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+o.s.col+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
+  var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
 }
 function hourTicks(t0,t1){
@@ -9883,7 +9898,7 @@ function energiSerier(kalla){
          elnätsrutans egen graf. Blått som dess köp-färg, så det känns igen.
          Egen fmt: dragpunkten säger "köper 1,2 kW"/"säljer 0,8 kW" i stället
          för ett naket minus som man måste tolka. */
-      {key:'grid', pts:H['grid']||[], col:(P.blue||'#81a1c1'),label:'Elnät',
+      {key:'grid', pts:H['grid']||[], col:(P.blue||'#81a1c1'),col2:(P.green||'#a3be8c'),label:'Elnät',
        fmt:function(v){return (v<0?'säljer ':'köper ')+fmtW(Math.abs(v));}}
     ],
     procent:{key:'battpct',pts:(kalla==='hist'?(H['battpct']||[]):(H['batt']||[])),
@@ -16693,7 +16708,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v620';
+const APP_VERSION='v621';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
