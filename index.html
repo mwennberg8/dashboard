@@ -667,6 +667,9 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
 /* height:auto — svg:n får bestämma sin egen höjd ur bildförhållandet. En fast
    höjd gav tomma band över och under när innehållet inte fyllde lådan. */
 .chart{width:100%;height:auto;display:block}
+/* Vindgrafen i popupen: samma 146 px som elrutorna. preserveAspectRatio="none"
+   på den, så den sträcks till höjden i stället för att följa viewBox-formen. */
+#wind-chart .chart{height:146px}
 .grid-l{stroke:var(--line-soft);stroke-width:1;vector-effect:non-scaling-stroke}
 .chart-empty{padding:36px 10px;text-align:center;color:var(--faint);font-size:12.5px;font-style:italic}
 /* SAMMA FÖRKLARING UNDER ALLA GRAFER: samma storlek, samma avstånd, samma
@@ -2668,7 +2671,8 @@ body.graf-full-open .graf-full-back{display:block}
 .pgraph-empty{padding:26px 14px;text-align:center;font-size:12.5px;color:var(--dim);line-height:1.5;background:var(--panel-b);border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
 .be-ml{display:block;font-size:11px;color:var(--dim);margin:6px 0 3px;font-weight:650}
 
-.tg-svg{width:100%;height:136px;display:block}
+/* 146 px som elrutorna — samma höjd på alla tidsseriegrafer i popuparna. */
+.tg-svg{width:100%;height:146px;display:block}
 .tg-leg{display:flex;flex-wrap:wrap;margin:12px -4px 0}
 .tg-chip{display:flex;flex-direction:column;align-items:flex-start;padding:11px 10px 10px;border-radius:14px;cursor:pointer;box-sizing:border-box;
   width:calc(33.333% - 8px);margin:4px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);text-align:left;opacity:.42;transition:opacity .15s}
@@ -4539,8 +4543,9 @@ async function windInsFetch(force){
   }finally{_windInsBusy=false;}}
 /* Dygnets matpunkter: Insights sa langt den racker, egna matningar darefter.
    Ingen dubblering – HIST anvands bara for tiden EFTER sista Insights-punkten. */
-function windPoints(k){
-  var t0=dayStart(), ins=(_windSeries&&_windSeries[k])||[], ut=[];
+/* t0 kan skickas in (tidsvalet); annars dygnets start som förut. */
+function windPoints(k,t0In){
+  var t0=(t0In!=null)?t0In:dayStart(), ins=(_windSeries&&_windSeries[k])||[], ut=[];
   for(var i=0;i<ins.length;i++){var p=ins[i];
     if(p&&p.t>=t0&&p.v!=null&&isFinite(p.v))ut.push(p);}
   var senast=ut.length?ut[ut.length-1].t:0;
@@ -4592,13 +4597,15 @@ function windSerTog(k){
   if(i<0)pa.push(k); else pa.splice(i,1);
   CFG.windSer=pa;saveCfg();
   var e=document.getElementById('wind-chart');
-  if(e)e.innerHTML=windChartHTML();}
-function windChartHTML(){
-  var t0=dayStart(), pa=windSerOn(), W=1000,H=170,pT=12,pB=22;
+  if(e)e.innerHTML=windChartHTML('wind');}
+function windChartHTML(cid){
+  cid=cid||'wind';
+  var fen=grafFonster(cid);
+  var t0=fen.t0, pa=windSerOn(), W=1000,H=170,pT=12,pB=22;
   var ser=[];
   for(var i=0;i<WIND_SER.length;i++){var S=WIND_SER[i];
     if(pa.indexOf(S[0])<0)continue;
-    var p=windPoints(S[0]);
+    var p=windPoints(S[0],t0);
     if(p.length>1)ser.push({k:S[0],namn:S[1],farg:S[2],axel:S[3],p:p});}
   /* Vind, byvind och riktning väljs numera i samma sorts förklaring som
      dygnsgrafens sol/förbrukning/batteri: samma klass, samma färgstreck, samma
@@ -4633,7 +4640,7 @@ function windChartHTML(){
   /* Riktningen har EGEN axel (0–360°) och får därför sin egen Y — annars hade
      220 grader lästs av som 220 m/s. */
   var svgm='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Vind idag">'+b+'</svg>';
-  svgm=avlLager('wind',svgm,{W:W,H:H,X:X,t0:tMin,t1:tMax,
+  svgm=avlLager(cid,svgm,{W:W,H:H,X:X,t0:tMin,t1:tMax,
     ser:ser.map(function(s){var ax=s.axel;
       return {namn:s.namn,farg:s.farg,pts:s.p,
         Y:function(v){return Y(v,ax);},
@@ -4661,8 +4668,15 @@ function windSectionHTML(){
      uppföljningsfrågor. Den ligger kvar INNE i windSectionHTML så att
      uppdateringen när Insights svarar byter ut både graf och toppvärden
      i ett svep. */
-  return '<div class="dsec">Idag</div>'
-    +'<div id="wind-chart">'+windChartHTML()+'</div>'
+  /* Samma mönster som elrutorna: grafRubrik (skriver ut valt fönster) med
+     i-knapp, grafen, tidsval + helskärm. "Idag" byttes ut eftersom fönstret
+     nu är valbart och inte alltid är dygnet. */
+  return grafRubrik('wind','Vind',infoBlock('vindgraf',
+      'Vind och byvind i m/s på huvudskalan, riktning i grader på egen skala. '
+      +'Välj vilka som visas i förklaringen under grafen. Dra i grafen för att '
+      +'läsa av alla vid en viss tidpunkt.'))
+    +'<div id="wind-chart">'+windChartHTML('wind')+'</div>'
+    +grafTidsval('wind')
     +'<div class="dsec">Högsta nu <em class="dsec-x">• '+WIND_NU_H+'h</em></div>'
     +windMaxRow('Max vind',nW.v,nW.t,1)
     +windMaxRow('Max by',nG.v,nG.t,1)
@@ -10360,9 +10374,11 @@ function tempToggle(k){if(!CFG.tempLines)CFG.tempLines={};
 function tempAll(){if(!CFG.tempLines)CFG.tempLines={};
   for(var i=0;i<TEMPS.length;i++)CFG.tempLines[TEMPS[i].k]=true;saveCfg();openDetail('temps');}
 /* Kombinerad graf: alla valda zoner i samma diagram, egen färg per zon. */
-function multiTempSVG(){
+function multiTempSVG(cid){
+  cid=cid||'temps';
+  var fen=grafFonster(cid);
   var W=300,H=136,padL=4,padR=4,padT=10,padB=16;
-  var out=[],t0=Infinity,t1=-Infinity,ylo=Infinity,yhi=-Infinity,cut=Date.now()-24*3600000;
+  var out=[],t0=Infinity,t1=-Infinity,ylo=Infinity,yhi=-Infinity,cut=fen.t0;
   for(var i=0;i<TEMPS.length;i++){var t=TEMPS[i];if(!tempOn(t.k))continue;
     var raw=t.ser()||[],seg=[];
     for(var j=0;j<raw.length;j++){var pt=raw[j];if(pt&&pt.v!=null&&isFinite(pt.v)&&pt.t>=cut)seg.push(pt);}
@@ -10378,7 +10394,7 @@ function multiTempSVG(){
     var d=smoothPath(o.s.map(function(pt){return [X(pt.t),Y(pt.v)];}));
     g+='<path d="'+d+'" fill="none" stroke="'+tempCol(o.t)+'"'+GRAF_LINJE+'/>';}
   g+='</svg>';
-  g=avlLager('temps',g,{W:W,H:H,X:X,t0:t0,t1:t1,
+  g=avlLager(cid,g,{W:W,H:H,X:X,t0:t0,t1:t1,
     ser:out.map(function(o){return {namn:o.t.lab,farg:tempCol(o.t),pts:o.s,Y:Y,
       fmt:function(v){return num(v,1)+' °';}};})});
   var span=Math.round(tr/3600000);
@@ -10407,6 +10423,49 @@ function byggGrid(){
     +grafTidsval('grid')
     +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
     +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
+}
+/* ===== SAMMA MÖNSTER FÖR VÄDER-, POOL- OCH BADGRAFERNA =====
+   Elrutorna (elnät, batteri, förbrukning nu) satte mönstret: grafRubrik med
+   i-knapp, grafen i 146 px, tidsval 1–24 h och helskärm under. De fyra nedan
+   följer det. Pool och badtemp hade förut ingen egen graf i kroppen — de fick
+   brickans generiska histSVG prependad av openDetail, med fast 48 h-fönster
+   och utan rubrik. Nu bygger de sin graf själva, med cid som histSVG använder
+   både för avl-lagret och tidsvalet. */
+function byggTemps(){
+  var tb=grafRubrik('temps','Temperaturer',infoBlock('tempsgraf',
+      'En kurva per zon. Tryck på en zon nedanför för att visa eller dölja '
+      +'dess linje. Dra i grafen för att läsa av alla synliga zoner vid en viss '
+      +'tidpunkt.'))
+    +multiTempSVG('temps')+grafTidsval('temps');
+  tb+='<div class="tg-leg">';
+  var waiting=0;
+  for(var ti=0;ti<TEMPS.length;ti++){var T=TEMPS[ti],ov=T.val(),onx=tempOn(T.k),hd=tempHasData(T);
+    if(!hd)waiting++;
+    tb+='<button class="tg-chip'+(onx?' on':'')+(hd?'':' nodata')+'" onclick="tempToggle(\''+T.k+'\')"'+(hd?'':' title="Väntar på mätpunkter"')+'>'
+      +'<span class="tg-top"><span class="tg-dot" style="background:'+tempCol(T)+'"></span>'
+      +'<span class="tg-l">'+esc(T.lab)+'</span></span>'
+      +'<b class="tg-v">'+(ov==null?'–':num(ov,1)+'<span class="tg-u">°</span>')+'</b>'
+      +(hd?'':'<span class="tg-wait">väntar på data</span>')+'</button>';}
+  tb+='</div>';
+  tb+='<div class="tg-hint">Tryck på en zon för att visa eller dölja dess linje.'
+    +(waiting?' '+waiting+' zon'+(waiting>1?'er':'')+' saknar ännu mätpunkter – linjen ritas när historiken hunnit fyllas på.':'')+'</div>';
+  tb+='<div class="cfg-btns" style="margin:10px 0 4px"><button class="te-alt" onclick="tempAll()">Visa alla</button><button class="te-use" onclick="openDetail(\'breveden\')">Breveden · AC</button></div>';
+  return tb;
+}
+function byggPool(){
+  var pv=cap(DEV.pooltemp,'measure_temperature');
+  return grafRubrik('pool','Pooltemperatur',infoBlock('poolgraf',
+      'Poolens temperatur över tid. Dra i grafen för att läsa av vid en viss '
+      +'tidpunkt.'))
+    +histSVG('k:pool',{unit:'°C',icon:'swimming-pool'},'pool')
+    +grafTidsval('pool');
+}
+function byggSeatemp(){
+  return grafRubrik('seatemp','Badtemperatur',infoBlock('seagraf',
+      'Havets temperatur vid '+esc(CONFIG.BATH_NAME||'badplatsen')+'. Mäts '
+      +'sällan, så kurvan har få punkter. Dra i grafen för att läsa av.'))
+    +histSVG('k:seatemp',{unit:'°C',icon:'waves'},'seatemp')
+    +grafTidsval('seatemp');
 }
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
@@ -10482,21 +10541,9 @@ function openDetail(which){
     var note='Köpt är Tibbers egen siffra. Sålt är en uppskattning från hur många kWh elmätaren rapporterat ut på nätet.';
     body+='<div class="det-note">'+note+'</div>';
   }else if(which==='temps'){title='Temperaturer';
-    var tb=multiTempSVG();
-    tb+='<div class="tg-leg">';
-    var waiting=0;
-    for(var ti=0;ti<TEMPS.length;ti++){var T=TEMPS[ti],ov=T.val(),onx=tempOn(T.k),hd=tempHasData(T);
-      if(!hd)waiting++;
-      tb+='<button class="tg-chip'+(onx?' on':'')+(hd?'':' nodata')+'" onclick="tempToggle(\''+T.k+'\')"'+(hd?'':' title="Väntar på mätpunkter"')+'>'
-        +'<span class="tg-top"><span class="tg-dot" style="background:'+tempCol(T)+'"></span>'
-        +'<span class="tg-l">'+esc(T.lab)+'</span></span>'
-        +'<b class="tg-v">'+(ov==null?'–':num(ov,1)+'<span class="tg-u">°</span>')+'</b>'
-        +(hd?'':'<span class="tg-wait">väntar på data</span>')+'</button>';}
-    tb+='</div>';
-    tb+='<div class="tg-hint">Tryck på en zon för att visa eller dölja dess linje.'
-      +(waiting?' '+waiting+' zon'+(waiting>1?'er':'')+' saknar ännu mätpunkter – linjen ritas när historiken hunnit fyllas på.':'')+'</div>';
-    tb+='<div class="cfg-btns" style="margin:10px 0 4px"><button class="te-alt" onclick="tempAll()">Visa alla</button><button class="te-use" onclick="openDetail(\'breveden\')">Breveden · AC</button></div>';
-    body=tb;
+    _grafByggare['temps']={titel:'Temperaturer',full:function(cid){return multiTempSVG(cid||'temps');}};
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggTemps();};
+    body=byggTemps();
   }else if(which==='breveden'){title='Breveden · AC';
     body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
@@ -10509,6 +10556,10 @@ function openDetail(which){
       +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))+dRow('Lägsta idag',oren(elprisLo()))+dRow('Högsta idag',oren(elprisHi()))+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
       +dayBarsHTML('cost','kr per dag','warm');
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
+    _grafByggare['pool']={titel:'Pooltemperatur',full:function(cid){return histSVG('k:pool',{unit:'°C',icon:'swimming-pool'},cid||'pool');}};
+    /* Raderna räknas inline nedan med lokala variabler, så omritningen byter
+       bara grafdelen (#pool-graf) och lämnar raderna som de är. */
+    _grafOmRita=function(){var g=$('pool-graf');if(g)g.innerHTML=byggPool();};
     let prog='';if(rt!=null&&rt>=0.05&&pv!=null){const nextDeg=Math.floor(pv)+1,hrs=(nextDeg-pv)/rt;if(hrs>0&&hrs<24)prog=dRow('Når '+nextDeg+'°','ca '+hhmm(new Date(Date.now()+hrs*3600000)));}
     /* Dygnets förändring. Mätserien börjar vid midnatt om sidan varit igång, annars
        vid första mätvärdet efter att den öppnades – klockslaget skrivs ut så det syns
@@ -10537,7 +10588,9 @@ function openDetail(which){
       idag+=pRad('Veckan',pveck,VDAG[d0.getDay()]+' '+hhmm(d0))
         +dRow('Lägst / högst veckan',num(pveck.min,1)+' – '+num(pveck.max,1)+' °');
     }
-    body=dRow('Pooltemp',num(pv,1)+' °C')
+    body='<div id="pool-graf">'+byggPool()+'</div>'
+      +dSec('Nu')
+      +dRow('Pooltemp',num(pv,1)+' °C')
       +idag
       +dRow('Poolvärme',(ph==='on'||ph===true)?'på':'av')
       +(rt!=null?dRow('Trend',(rt>=0?'+':'')+num(rt,1)+' °/h'):'')
@@ -10577,16 +10630,23 @@ function openDetail(which){
    något annat än den uppmätta vinkeln. Den lades till i v291 för att spåra
    den fastnade VSV-texten. Vanligtvis är skillnaden bara att texten släpar
    efter någon minut, så raden är borttagen. Vinkeln styr fortfarande. */
-    /* Grafen längst upp i rutan, före sifferraderna. */
+    /* Grafen längst upp i rutan, före sifferraderna. Samma mönster som
+       elrutorna: rubrik, graf, tidsval, helskärm. */
+    _grafByggare['wind']={titel:'Vind',full:function(cid){return windChartHTML(cid||'wind');}};
+    _grafOmRita=function(){var w2=$('wind-sec');if(w2)w2.innerHTML=windSectionHTML();};
     body='<div id="wind-sec">'+windSectionHTML()+'</div>'
       +dRow('Hastighet',num(vindMs(),1)+' m/s')+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Riktning',(windDirTxt(wdir)||'–')+(wdir!=null?' · '+num(wdir,0)+'°':''))+dRow('SMHI-vind',num(cap(DEV.smhi,'measure_wind_speed_cp'),1)+' m/s');
     windInsFetch();                                  /* dygnets toppar ur Insights */
     _dlgWide=true;                                   /* grafen behöver bredden */
   }else if(which==='seatemp'){title='Badtemp · '+(CONFIG.BATH_NAME||'havet');
+    _grafByggare['seatemp']={titel:'Badtemperatur',full:function(cid){return histSVG('k:seatemp',{unit:'°C',icon:'waves'},cid||'seatemp');}};
+    _grafOmRita=function(){var g=$('sea-graf');if(g)g.innerHTML=byggSeatemp();};
     const t=(typeof FEED!=='undefined')?FEED.sea:null;
     let lo=null,hi=null;try{const e=learnGet()['k:seatemp'];if(e&&e.s&&e.s.length){const cut=Date.now()-24*3600000;const vs=e.s.filter(p=>p[0]>=cut).map(p=>p[1]);if(vs.length){lo=Math.min.apply(null,vs);hi=Math.max.apply(null,vs);}}}catch(e){}
     const cls=t==null?'':(t>=20?'skönt':t>=17?'friskt':t>=14?'svalt':'kallt');
-    body=dRow('Just nu',t==null?'–':num(t,1)+' °C'+(cls?' · '+cls:''))
+    body='<div id="sea-graf">'+byggSeatemp()+'</div>'
+      +dSec('Nu')
+      +dRow('Just nu',t==null?'–':num(t,1)+' °C'+(cls?' · '+cls:''))
       +(lo!=null?dRow('Dygnets lägsta',num(lo,1)+' °C'):'')
       +(hi!=null?dRow('Dygnets högsta',num(hi,1)+' °C'):'')
       +dRow('Plats',esc(CONFIG.BATH_NAME||'havet')+' ('+num(CONFIG.BATH_LAT,3)+', '+num(CONFIG.BATH_LON,3)+')')
@@ -10643,7 +10703,7 @@ function openDetail(which){
      v597, och brickans generella histSVG lade en andra graf ovanpå den — två
      bilder av samma batteri i samma ruta, med olika fönster och olika skala.
      Samma skäl som 'grid' redan står här av. */
-  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'&&which!=='wind'){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
+  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'&&which!=='wind'&&which!=='pool'&&which!=='seatemp'&&which!=='temps'){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
   setT('dlg-title',title);setIcon('dlg-ic',icn);const bd=$('dlg-body');if(bd)bd.innerHTML=body;
   const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
 function closeDetail(e){if(e){const t=e.target,onX=t&&t.closest&&t.closest('.dlg-x'),onBack=t&&t.classList&&t.classList.contains('dlg-back');if(!onX&&!onBack)return;}
@@ -12776,11 +12836,16 @@ function priceStats(){var e=null;try{e=learnGet()['price'];}catch(x){}
   if(v.length<50)return null;
   var q=function(pp){return v[Math.min(v.length-1,Math.floor(v.length*pp))];};
   return {p05:q(0.05),p95:q(0.95),med:q(0.5),min:v[0],max:v[v.length-1],n:v.length};}
-function histSVG(key,cfg){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
+/* cid: grafens avl-id OCH nyckel för tidsvalet (grafFonster). Skickas cid följer
+   fönstret 1–24 h-valet; utan cid gäller de gamla 48 timmarna (brickornas små
+   grafer i rutnätet, som inte har något tidsval). */
+function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
   const now=Date.now();
+  const fen=cid?grafFonster(cid):null;
   if(pts.length<4&&SOURCE==='demo-data'){const base=metricNumber(cfg);const b=(base==null||!isFinite(base))?100:base;pts=[];for(let i=48;i>=0;i--){const t=now-i*1800000;const wob=1+0.35*Math.sin(i/4)+0.12*Math.sin(i*1.3)+(Math.random()-0.5)*0.1;pts.push([t,Math.max(0,b*wob)]);}}
   if(pts.length<4)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
-  const cut=now-48*3600000;let seg=pts.filter(p=>p[0]>=cut);if(seg.length<4)seg=pts.slice(-48);
+  const cut=fen?fen.t0:(now-48*3600000);let seg=pts.filter(p=>p[0]>=cut);if(seg.length<4&&!fen)seg=pts.slice(-48);
+  if(seg.length<2)return '<div class="viz-empty">För få mätvärden i det valda fönstret.</div>';
   const P=PAL[curTheme]||PAL.dark,col=P[accColor(metricIcon(cfg))]||P.blue,W2=300,H2=74,pad=5;
   const t0=seg[0][0],t1=seg[seg.length-1][0]||now,tr=(t1-t0)||1;
   const ys=seg.map(p=>p[1]),ylo=Math.min.apply(null,ys),yhi=Math.max.apply(null,ys),yr=(yhi-ylo)||Math.max(1,Math.abs(yhi)||1);
@@ -12796,7 +12861,7 @@ function histSVG(key,cfg){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
     +'<circle cx="'+X(seg[seg.length-1][0]).toFixed(1)+'" cy="'+Y(seg[seg.length-1][1]).toFixed(1)+'" r="3" fill="'+col+'"/></svg>';
   /* Insiktsserien lagras som [t,v]-par, inte som {t,v}. Modulen läser {t,v},
      så den ritade listan skrivs om — inte råserien. */
-  svgm=avlLager('hist-'+key,svgm,{W:W2,H:H2,X:X,
+  svgm=avlLager(cid||('hist-'+key),svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg.map(function(q){return {t:q[0],v:q[1]};}),Y:Y,
       /* Decimalen styrs av seriens SPANN, inte av talets storlek. Regeln
          "under tio ger en decimal" avrundade badtemperaturen 15,9 till 16 —
@@ -16708,7 +16773,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v621';
+const APP_VERSION='v622';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
