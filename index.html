@@ -2541,6 +2541,9 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .pg-nu-v{font-size:23px;font-weight:850;letter-spacing:-.02em;line-height:1.1}
 .pg-nu-e{font-size:12.5px;font-weight:700;color:var(--dim)}
 .pg-nu-s{font-size:11px;color:var(--faint);font-weight:650;margin:0 0 7px;padding:0 2px}
+/* Batteriprocenten intill priset, i batterirutans cyan. Tom när kurvan inte
+   når dit (imorgon, eller bortom prognosens slut). */
+.pg-nu-b{margin-left:auto;font-size:11.5px;font-weight:750;color:var(--cyan,#57b6c2)}
 .pgraph{margin-bottom:12px}
 .pgraph-svg{width:100%;height:118px;display:block}
 /* Etiketterna är HTML ovanpå grafen, inte text i SVG:n — därför color och
@@ -12369,10 +12372,68 @@ function pgAvlast(){
   }
   return {kurva:v,visa:visa,under:under,nu:nuLage};
 }
+/* ===== BATTERIPROCENT I SPOTPRISGRAFEN =====
+   Två delar i samma kurva: FAKTISKT från dygnets start till nu (HIST['batt'],
+   heldragen) och en PROGNOS framåt (streckad). Prognosen är samma räkning som
+   batteribrickans "tid kvar" (battTimeStr): nuvarande effekt antas hålla i sig,
+   och laddnivån går linjärt mot 0 % (urladdning) eller 100 % (laddning). Den
+   slutar där den når gränsen eller vid 24:00. Ingen hänsyn till pris eller
+   sol — det är en rak framskrivning, precis som brickans siffra, och ska läsas
+   så. Bara för idag (offset 0): imorgon finns inget "nu" att utgå från. */
+function battKurva(){
+  var kwh=(CFG&&CFG.battkwh)||10;
+  var pw=cap(DEV.battery,'measure_power'), pct=cap(DEV.battery,'measure_battery'),
+      bs=cap(DEV.battery,'battery_charging_state');
+  var d0=dayStart(), nuH=pgTimmenNu();
+  var fakt=[];
+  var h=HIST['batt']||[];
+  for(var i=0;i<h.length;i++){var q=h[i];
+    if(!q||q.v==null||!isFinite(q.v)||q.t<d0)continue;
+    fakt.push({h:(q.t-d0)/3600000, v:Math.max(0,Math.min(100,q.v))});}
+  /* Ankare vid nu: enhetens nuvarande nivå, så prognosen börjar där bilden slutar. */
+  var nuPct=(pct!=null&&isFinite(pct))?Math.max(0,Math.min(100,pct)):(fakt.length?fakt[fakt.length-1].v:null);
+  if(nuPct!=null)fakt.push({h:nuH,v:nuPct});
+  var prog=[];
+  if(nuPct!=null&&pw!=null&&isFinite(pw)&&Math.abs(pw)>=60&&(bs==='charging'||bs==='discharging')){
+    var kWperH=Math.abs(pw)/1000, pctPerH=(kWperH/kwh)*100;
+    var rikt=(bs==='charging')?1:-1;
+    var slutPct=(rikt>0)?100:0;
+    var tim=Math.abs(slutPct-nuPct)/pctPerH;
+    var slutH=Math.min(24,nuH+tim);
+    var slutV=nuPct+rikt*pctPerH*(slutH-nuH);
+    /* Avrunda: 70 − 8,4·8,333 ger 2,8e-14, inte 0. Gränsen ska vara en ren 0
+       eller 100 när den nås. */
+    slutV=Math.round(slutV*1000)/1000;
+    prog=[{h:nuH,v:nuPct},{h:slutH,v:Math.max(0,Math.min(100,slutV))}];
+  }
+  return {fakt:fakt,prog:prog,nuH:nuH,nuPct:nuPct};
+}
+/* Laddnivå vid en timme: faktiskt bakåt (närmaste punkt), prognos framåt
+   (linjärt), null utanför bådadera. */
+function battPctVid(bk,h){
+  if(!bk)return null;
+  if(bk.prog.length===2&&h>=bk.prog[0].h){
+    if(h>bk.prog[1].h)return null;
+    var a=bk.prog[0],b=bk.prog[1],f=(b.h===a.h)?0:(h-a.h)/(b.h-a.h);
+    return a.v+(b.v-a.v)*f;
+  }
+  var bast=null,bd=Infinity;
+  for(var i=0;i<bk.fakt.length;i++){var d=Math.abs(bk.fakt[i].h-h);if(d<bd){bd=d;bast=bk.fakt[i];}}
+  return (bast&&bd<=0.5)?bast.v:null;
+}
+function pgBattText(){
+  var bk=_pgGeo&&_pgGeo.batt;if(!bk)return '';
+  var v=battPctVid(bk,_pgVald);
+  if(v==null)return '';
+  var prognos=(bk.prog.length===2&&_pgVald>bk.prog[0].h+0.02);
+  return 'batteri '+Math.round(v)+' %'+(prognos?' (prognos)':'');
+}
 function pgHuvud(){
   var a=pgAvlast();if(!a)return '';
+  var bt=pgBattText();
   return '<div class="pg-nu"><span class="pg-nu-v" id="pg-nu-v" style="color:'+pgFarg(a.kurva)+'">'
-    +num(a.visa,2)+' kr</span><span class="pg-nu-e">/kWh</span></div>'
+    +num(a.visa,2)+' kr</span><span class="pg-nu-e">/kWh</span>'
+    +'<span class="pg-nu-b" id="pg-nu-b">'+esc(bt)+'</span></div>'
     +'<div class="pg-nu-s" id="pg-nu-s">'+esc(a.under)+'</div>';
 }
 /* Ritar om de fyra sakerna som ändras — inte hela popupen. Att bygga om HTML
@@ -12385,6 +12446,7 @@ function pgUppdatera(){
   if(d2){d2.setAttribute('cx',x);d2.setAttribute('cy',pgY(a.kurva).toFixed(1));d2.setAttribute('fill',pgFarg(a.kurva));}
   if(tv){tv.textContent=num(a.visa,2)+' kr';tv.style.color=pgFarg(a.kurva);}
   if(ts)ts.textContent=a.under;
+  var tb=$('pg-nu-b');if(tb)tb.textContent=pgBattText();
 }
 function pgTimmeFran(e){
   var el=$('pg-lager');if(!el||!el.getBoundingClientRect)return null;
@@ -12506,7 +12568,20 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
      "nu" att peka på. */
   var hVal=(offset===0)?pgTimmenNu():xs[iLo];
-  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal};
+  /* BATTERIPROCENTEN, bara idag. Egen skala: 0 % vid grafens botten, 100 %
+     vid taket — priset och procenten har inget gemensamt mått. Heldragen där
+     det är uppmätt, streckad där det är framskrivet. Cyan som i batterirutan. */
+  var bk=(offset===0)?battKurva():null;
+  var YP=function(v){return padT+(1-Math.max(0,Math.min(100,v))/100)*(H-padT-padB);};
+  if(bk&&bk.fakt.length>1){
+    var bd='';bk.fakt.forEach(function(q,i){bd+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1)+' ';});
+    s+='<path d="'+bd+'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
+  }
+  if(bk&&bk.prog.length===2){
+    s+='<path d="M'+X(bk.prog[0].h).toFixed(1)+' '+YP(bk.prog[0].v).toFixed(1)+' L'+X(bk.prog[1].h).toFixed(1)+' '+YP(bk.prog[1].v).toFixed(1)
+      +'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".75"/>';
+  }
+  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk};
   _pgVald=hVal;
   var vy=pgPrisVid(hVal);
   s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'"/>';
@@ -16773,7 +16848,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v622';
+const APP_VERSION='v623';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
