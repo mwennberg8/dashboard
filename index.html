@@ -10487,6 +10487,23 @@ var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
    rita om rätt vy. Nollställs när en popup utan tidsseriegraf öppnas. */
 var _grafOmRita=null;
+/* Utbruten så _popupRebuild kan rita om den när Tibbers prisserie landar.
+   Symtom före v624: första gången rutan öppnades efter uppstart hade
+   prisVarHamta() inte hunnit hem, grafen ritades från den lokala prisloggen
+   (bara de priser dashboarden själv sett — en handfull steg och ett enda
+   jätteintervall, "861 minuter kvar"), och eftersom rutan aldrig byggdes om
+   stod den kvar så tills man växlade Idag/Imorgon för hand. */
+function buildCostPopup(){
+    var pdOff=_priceDay||0;
+    var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
+    var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
+      +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
+      +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
+        +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
+      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))+dRow('Lägsta idag',oren(elprisLo()))+dRow('Högsta idag',oren(elprisHi()))+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
+      +dayBarsHTML('cost','kr per dag','warm');
+  return body;
+}
 function openDetail(which){
   _grafOmRita=null;
   if(_suppressClick){_suppressClick=false;_tapCfg=null;return;}
@@ -10550,14 +10567,11 @@ function openDetail(which){
   }else if(which==='breveden'){title='Breveden · AC';
     body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
-    var pdOff=_priceDay||0;
-    var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
-    body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
-      +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
-        +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
-      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))+dRow('Lägsta idag',oren(elprisLo()))+dRow('Högsta idag',oren(elprisHi()))+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
-      +dayBarsHTML('cost','kr per dag','warm');
+    _popupRebuild=buildCostPopup;
+    /* Saknas Tibber-serien: hämta nu, förbi 15-minuterscachen. Rutan ritas
+       om av _popupRebuild när svaret kommer. */
+    if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
+    body=buildCostPopup();
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
     _grafByggare['pool']={titel:'Pooltemperatur',full:function(cid){return histSVG('k:pool',{unit:'°C',icon:'swimming-pool'},cid||'pool');}};
     /* Raderna räknas inline nedan med lokala variabler, så omritningen byter
@@ -12192,6 +12206,10 @@ function priceLogTick(){const pr=elprisNow();if(pr==null)return;const now=new Da
    plog_v1 finns kvar som reserv om variabeln saknas. */
 var PRIS_VAR='tibber_pris';
 var _prisJ=null,_prisAt=0,_prisFel=null;
+/* Läs den sparade serien vid uppstart. _prisAt lämnas 0 så prisVarHamta ändå
+   hämtar färskt — det sparade är bara för att grafen ska se rätt ut medan
+   hämtningen pågår. */
+try{var _pj=localStorage.getItem('prisJ_v1');if(_pj){var _pjo=JSON.parse(_pj);if(_pjo&&_pjo.d)_prisJ=_pjo;}}catch(e){}
 function prisDygn(offset){
   if(!_prisJ||!_prisJ.d)return null;
   var key=dayKey(new Date(Date.now()+(offset||0)*86400000));
@@ -12222,6 +12240,10 @@ async function prisVarHamta(){
     var j=null;try{j=JSON.parse(String(v.value||''));}catch(e){}
     if(!j||!j.d){_prisFel='kunde inte tolka '+PRIS_VAR;return;}
     _prisJ=j;_prisAt=Date.now();_prisFel=null;
+    /* Sparas så nästa uppstart har serien DIREKT, utan att vänta på Homey.
+       Datumnycklarna i j.d gör gammal data ofarlig: prisDygn hittar bara
+       dagens och morgondagens. */
+    try{localStorage.setItem('prisJ_v1',JSON.stringify(j));}catch(e){}
     /* Står prispopupen öppen ska den fyllas i direkt, inte vid nästa tryck. */
     try{if(typeof _popupRebuild==='function'){var b=$('dlg-body');if(b)b.innerHTML=_popupRebuild();}}catch(e){}
   }catch(e){_prisFel=(e&&e.message)||'fel vid hämtning';}
@@ -16848,7 +16870,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v623';
+const APP_VERSION='v624';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
