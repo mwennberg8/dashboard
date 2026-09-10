@@ -4170,26 +4170,54 @@ function progIdag(){
   if(!_prog||!_prog.dagar)return null;
   var e=_prog.dagar[_prog.idag];
   return (e&&e.summa_prognos!=null)?e:null;}
+/* ===== IGÅR / IDAG / IMORGON I PROGNOSGRAFEN =====
+   _progDag är valt dygn: -1 igår, 0 idag (standard), +1 imorgon. Ligger utanför
+   DOM:en som allt annat val, så det överlever ombyggnader av rutan. Appen
+   lämnar timmar[] för just de tre dygnen sedan 2.61.0. */
+var _progDag=0;
+function progDagKey(off){return dayKey(new Date(dayStart()+(off||0)*86400000));}
+function progDagE(off){
+  if(!_prog||!_prog.dagar)return null;
+  var e=_prog.dagar[progDagKey(off)];
+  return (e&&e.timmar&&e.timmar.length===24)?e:null;
+}
+function progDagSet(off){
+  _progDag=off;
+  var el=$('prog-sec');if(el)el.innerHTML=progAvsnitt();
+}
+/* Gårdagens faktiska produktion: dagens serie HIST['solar'] räcker inte
+   bakåt, men sjudygnsserien HIST7['solar'] (Insights) gör det. */
+function progFaktFor(off){
+  var t0=dayStart()+off*86400000, t1=t0+86400000;
+  var kalla=(off===0)?(HIST['solar']||[]):((HIST7&&HIST7['solar'])||[]);
+  return kalla.filter(function(p){
+    return p&&p.t>=t0&&p.t<t1&&p.v!=null&&isFinite(p.v)&&p.v>=0&&p.v<25000;})
+    .sort(function(a,b){return a.t-b.t;});
+}
 
 /* Prognoskurvan som svag yta bakom dagens faktiska. Timvarden mot en
    effektkurva: prognosen ar Wh per timme, den faktiska ar W vid en tidpunkt —
    over en timme ar de samma tal, sa de gar att lagga i samma diagram. */
 /* Soluppgång idag, som millisekunder. Kurvan ska börja där solen börjar, inte
    vid midnatt — en platt linje från 00 till 05 säger ingenting. */
-function t0Sol(){
+function t0Sol(dT0){
+  var bas=(dT0!=null)?dT0:dayStart();
   try{
-    var d=new Date(), tz=-d.getTimezoneOffset();
+    var d=new Date(bas+12*3600000), tz=-d.getTimezoneOffset();
     var sc=solar(d,CONFIG.LAT,CONFIG.LON,tz);
     /* solar() ger soluppgången färdig som decimaltimme. Att leta efter
        elevation>0 i en slinga vore både långsammare och fel: fältet heter
        elevation, inte alt, och en felstavning gav tyst midnatt. */
     if(sc&&typeof sc.sunrise==='number'&&isFinite(sc.sunrise))
-      return dayStart()+Math.max(0,sc.sunrise)*3600000;
+      return bas+Math.max(0,sc.sunrise)*3600000;
   }catch(e){}
-  return dayStart();}
+  return bas;}
 
-function progKurvaSVG(){
-  var e=progIdag();if(!e||!e.timmar||e.timmar.length!==24)return '';
+function progKurvaSVG(off){
+  off=(off==null)?_progDag:off;
+  var e=progDagE(off);if(!e)return '';
+  /* Imorgon finns inget uppmätt; igår finns det i sjudygnsserien. */
+  var dagT0=dayStart()+off*86400000;
   /* Högre ritruta och mer plats under. Bredden är 1000 enheter mot skärmens
      bredd, så en högre H ger en proportionellt högre graf — på en telefon i
      stället för en tunn remsa. pB rymmer klockslagen i läsbar storlek. */
@@ -4206,9 +4234,7 @@ function progKurvaSVG(){
      källor kan ligga i fel ordning, och en enda punkt med mätarställning i
      stället för effekt drar kurvan rakt upp. 25 kW är långt över vad 19,44 kWp
      kan ge. */
-  var fakt=(HIST['solar']||[]).filter(function(p){
-      return p&&p.t>=dayStart()&&p.v!=null&&isFinite(p.v)&&p.v>=0&&p.v<25000;})
-    .sort(function(a,b){return a.t-b.t;});
+  var fakt=(off>0)?[]:progFaktFor(off);
   /* Börja vid NOLL, inte där mätningen råkade starta. Saknas punkter före
      första mätvärdet drogs kurvan lodrätt upp från golvet mitt på dagen, som om
      panelerna slagit på med ett ryck. Före soluppgången producerar de ingenting,
@@ -4216,11 +4242,11 @@ function progKurvaSVG(){
      första punkten ligger efter gryningen OCH är låg nog att ha vuxit fram. */
   if(fakt.length){
     var forsta=fakt[0];
-    var gryning=t0Sol();
+    var gryning=t0Sol(dagT0);
     if(forsta.t>gryning+15*60000){
       fakt=[{t:gryning,v:0}].concat(fakt);
-    }else if(forsta.t>dayStart()+15*60000&&forsta.v<300){
-      fakt=[{t:dayStart(),v:0}].concat(fakt);
+    }else if(forsta.t>dagT0+15*60000&&forsta.v<300){
+      fakt=[{t:dagT0,v:0}].concat(fakt);
     }
   }
   /* Skalan sätts av dagens HÖGSTA PROGNOSTAL, inte av utfallet. Ett enstaka
@@ -4235,7 +4261,6 @@ function progKurvaSVG(){
      sa något, medan dagen som faktiskt hände blev liten och svårläst. Fönstret
      är första och sista timmen med något att visa, i prognos eller utfall, plus
      en halvtimmes marginal i vardera änden. */
-  var dagT0=dayStart();
   /* SOLUPPGÅNG OCH SOLNEDGÅNG som fönster, inte en tröskel i produktionen.
      Tröskelmetoden gick om intet så fort ett enda småvärde låg utanför — och
      eftersom både prognosen och mätningen kan ha sådana blev fönstret hela
@@ -4245,7 +4270,7 @@ function progKurvaSVG(){
      En halvtimme före uppgång och efter nedgång, så kurvan får landa i noll i
      stället för att klippas mitt i. */
   var sc=null;
-  try{sc=solar(new Date(),CONFIG.LAT,CONFIG.LON,-(new Date()).getTimezoneOffset());}catch(e){}
+  try{var dMitt=new Date(dagT0+12*3600000);sc=solar(dMitt,CONFIG.LAT,CONFIG.LON,-dMitt.getTimezoneOffset());}catch(e){}
   var upp=(sc&&isFinite(sc.sunrise))?sc.sunrise:6;
   var ner=(sc&&isFinite(sc.sunset))?sc.sunset:20;
   if(!(ner>upp)){upp=6;ner=20;}
@@ -4422,19 +4447,35 @@ function progAvsnitt(){
     +'här webbläsaren — och då bara så länge sidan varit öppen.</p>';
   var q=iqBtnHtml(info);
 
-  var h='<div class="dsec">Prognos idag'+q.btn+'</div>'+q.box;
-  if(e){
-    var fakt=cap(DEV.solar,'meter_power.day');
-    var pk=e.summa_prognos/1000;
-    h+=dRow('Prognos',num(pk,1)+' kWh')
-      +dRow('Hittills idag',fakt==null?'–':num(fakt,1)+' kWh');
-    if(fakt!=null&&pk>0){
-      var kvot=Math.round(fakt/pk*100);
-      h+=dRow('Andel av prognos',kvot+' %');
+  var dagNamn=(_progDag<0)?'igår':(_progDag>0?'imorgon':'idag');
+  var h='<div class="dsec">Prognos '+dagNamn+q.btn+'</div>'+q.box;
+  /* Igår / Idag / Imorgon — ALLTID synlig, även när valt dygn saknar prognos,
+     annars går det inte att byta tillbaka. Samma segmentknappar som prisrutan.
+     Knappar för dygn som saknar prognos gråas. */
+  h+='<div class="seg-row" style="margin:2px 0 8px">'
+    +[[-1,'Igår'],[0,'Idag'],[1,'Imorgon']].map(function(x){
+      var finns=!!progDagE(x[0]);
+      return '<button class="seg-btn'+(_progDag===x[0]?' on':'')+'"'+(finns?'':' disabled style="opacity:.4"')
+        +' onclick="progDagSet('+x[0]+')">'+x[1]+'</button>';}).join('')
+    +'</div>';
+  h+=(progDagE(_progDag)?progKurvaSVG():'<div class="viz-empty">'+(_progDag>0?'Morgondagens prognos räknas när molnprognosen publicerats (runt 13).':(_progDag<0?'Ingen sparad prognos för igår.':'Ingen prognos ännu.'))+'</div>');
+  /* Raderna följer valt dygn. Igår: prognos mot utfall med avvikelse. Idag:
+     prognos mot hittills. Imorgon: bara prognosen — inget finns att jämföra. */
+  var ed=progDagE(_progDag)||(_progDag===0?e:null);
+  if(ed){
+    var pk=ed.summa_prognos/1000;
+    h+=dRow('Prognos',num(pk,1)+' kWh');
+    if(_progDag===0){
+      var fakt=cap(DEV.solar,'meter_power.day');
+      h+=dRow('Hittills idag',fakt==null?'–':num(fakt,1)+' kWh');
+      if(fakt!=null&&pk>0)h+=dRow('Andel av prognos',Math.round(fakt/pk*100)+' %');
+    }else if(_progDag<0){
+      var uf=(ed.summa_utfall!=null)?ed.summa_utfall/1000:null;
+      h+=dRow('Utfall',uf==null?'–':num(uf,1)+' kWh');
+      if(uf!=null&&pk>0)h+=dRow('Avvikelse',(uf-pk>=0?'+':'')+num(uf-pk,1)+' kWh · '+Math.round(uf/pk*100)+' % av prognos');
     }
-    h+=progKurvaSVG();
   }else{
-    h+='<div class="isub" style="opacity:.7">Ingen prognos ställd för idag'
+    h+='<div class="isub" style="opacity:.7">Ingen prognos ställd för '+dagNamn
       +(_progFel?(' — '+esc(_progFel)):'')+'.</div>';
   }
 
@@ -12664,7 +12705,10 @@ function progLogTick(){
   Object.keys(_prog.dagar).forEach(function(d){
     const e=_prog.dagar[d];
     if(!e||e.summa_prognos==null||!isFinite(e.summa_prognos))return;
-    const v=Math.round(e.summa_prognos*10)/10;
+    /* summa_prognos kommer i Wh från appen; utfallet (dagar[d].sol) är kWh.
+       Loggen sparade Wh rakt av — 2026-08-29 stod 60653 mot utfall 10,9, och
+       felkolumnen blev 60642. Dela med 1000, som appen själv gör. */
+    const v=Math.round(e.summa_prognos/1000*10)/10;
     const rad=o[d]||(o[d]={});
     if(d>idag){ if(rad.f1!==v){rad.f1=v;andrat=true;} }        /* framtiden: skriv om tills dygnet borjar */
     else if(d===idag){ if(rad.f0!==v){rad.f0=v;andrat=true;} } /* idag: sista vardet vinner */
@@ -16870,7 +16914,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v624';
+const APP_VERSION='v627';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -17047,7 +17091,7 @@ var _cfgSec=null;
 var CFG_SECS=[['utseende','Utseende','sun-dim','Storlek, layout och färger'],
               ['glow','Glöd','sparkle','Styrka, skärpa och kalibrering'],
               ['skarm','Skärm & läge','moon','Nattklocka, skärmsläckare, kiosk'],
-              ['energi','Energi & pris','lightning','Mätning och spotpris'],
+              ['energi','Energi & pris','lightning','Mätning, spotpris och solprognos'],
               ['homey','Homey & synk','cloud','Synk, variabler, årsdata'],
               ['uppd','Uppdatering','clock-counter-clockwise','Version och auto-uppdatering'],
               /* 'wrench', inte 'gear' — den senare finns inte i ikonuppsättningen
@@ -17080,7 +17124,6 @@ function openConfig(){
   h+=cfgMi('openSizeMenu(\'chip\')','gauge','Energi- & väderrutor','Storlek på de små rutorna');
   h+=cfgMi('openSizeMenu(\'tile\')','tag','De sex rutorna','Storlek på flödesrutorna');
   h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
-  h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export');
   h+=cfgMi('openEnheter()','desktop','Enheter','Vilka som använder dashboarden, och vem de tillhör');
   h+=dRow('Huvudsäkring','<span class="dbtn-row" style="justify-content:flex-end">'
     +'<button class="dbtn" onclick="sakringStep(-1)">–</button>'
@@ -17158,6 +17201,10 @@ function openConfig(){
   h+='<div class="cfg-hint" style="margin-top:0">'+esc(monTibText())+' '+esc(monDiagText())+'</div>';
   h+='<div class="cfg-btns"><button class="cfg-opt" onclick="tibKrFetch();openConfig()">Läs Tibber-variabeln</button>'
     +'<button class="cfg-opt" onclick="monBackfillNu();openConfig()">Hämta ur Insights igen</button></div>';
+  /* Solprognosen låg förut under Utseende, bland storleks- och layoutval —
+     ingen letar efter en exportfunktion där. Hit hör den: det är energidata. */
+  h+='<div class="cfg-sec">Solprognos</div>';
+  h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export per dygn och per timme');
   h+='<div class="cfg-sec">Energimätning</div>';
   h+=stepRow('Batteri kWh','cfgnum-batt',((CFG.battkwh||10))+'','cfgBatt');
   h+='<div class="cfg-row"><span class="cfg-row-l">Köpt i år (kWh)</span><div class="cfg-step"><input id="cfg-boughtyear" class="cfg-inp" type="number" inputmode="numeric" value="'+(boughtYear()!=null?Math.round(boughtYear()):'')+'"><button class="cfg-pm wide" onclick="calibBoughtYear()">Kalibrera</button></div></div>';
