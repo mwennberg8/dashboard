@@ -2544,6 +2544,18 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 /* Batteriprocenten intill priset, i batterirutans cyan. Tom när kurvan inte
    når dit (imorgon, eller bortom prognosens slut). */
 .pg-nu-b{margin-left:auto;font-size:11.5px;font-weight:750;color:var(--cyan,#57b6c2)}
+/* Soltexten till vänster om batteriet; margin-left:auto sitter kvar på den
+   första av dem så paret trycks åt höger som en enhet. */
+.pg-nu-s2{margin-left:auto;font-size:11.5px;font-weight:750;color:var(--sun,#f2b705)}
+.pg-nu-s2:not(:empty)+.pg-nu-b{margin-left:9px}
+/* Av/på för extrakurvorna. Samma form som grafförklaringen: färgprick, dämpad
+   när avslagen. */
+.pg-lager{display:flex;gap:16px;justify-content:center;margin:7px 0 2px;
+  font-size:10.5px;font-weight:700;color:var(--dim)}
+.pg-lager span{display:inline-flex;align-items:center;gap:6px;cursor:pointer;
+  user-select:none;-webkit-user-select:none;transition:opacity .15s}
+.pg-lager span.av{opacity:.38}
+.pg-lager i{width:12px;height:3px;border-radius:2px;display:inline-block}
 .pgraph{margin-bottom:12px}
 .pgraph-svg{width:100%;height:118px;display:block}
 /* Etiketterna är HTML ovanpå grafen, inte text i SVG:n — därför color och
@@ -12473,6 +12485,48 @@ function battKurva(){
 }
 /* Laddnivå vid en timme: faktiskt bakåt (närmaste punkt), prognos framåt
    (linjärt), null utanför bådadera. */
+/* ===== SOLPRODUKTION I SPOTPRISGRAFEN =====
+   Faktiskt (uppmätt effekt, W) och prognos (timvärden ur appen, Wh) på en
+   gemensam W-skala — en timmes Wh är samma tal som medeleffekten i W, så de
+   går att lägga i samma bild. Skalan är egen och normeras mot dygnets högsta,
+   precis som batteriets: priset har inget gemensamt mått med varken procent
+   eller watt.
+   offset: -1 igår, 0 idag, +1 imorgon. Faktiskt finns för igår (sjudygns-
+   serien) och idag; imorgon bara prognos. */
+function solKurva(offset){
+  var off=offset||0, d0=dayStart()+off*86400000;
+  var e=(typeof progDagE==='function')?progDagE(off):null;
+  var prog=[];
+  if(e&&e.timmar&&e.timmar.length===24){
+    for(var h=0;h<24;h++){var v=e.timmar[h];
+      if(v!=null&&isFinite(v))prog.push({h:h+0.5,v:Math.max(0,v)});}
+  }
+  var fakt=[];
+  if(off<=0){
+    var kalla=(off===0)?(HIST['solar']||[]):((HIST7&&HIST7['solar'])||[]);
+    var t1=d0+86400000;
+    for(var i=0;i<kalla.length;i++){var q=kalla[i];
+      if(!q||q.v==null||!isFinite(q.v)||q.v<0||q.v>25000)continue;
+      if(q.t<d0||q.t>=t1)continue;
+      fakt.push({h:(q.t-d0)/3600000, v:q.v});}
+    fakt.sort(function(a,b){return a.h-b.h;});
+  }
+  var mx=0;
+  prog.forEach(function(q){if(q.v>mx)mx=q.v;});
+  fakt.forEach(function(q){if(q.v>mx)mx=q.v;});
+  if(!(mx>0))return null;
+  return {fakt:fakt,prog:prog,max:mx};
+}
+/* Solvärde vid en timme: faktiskt om det finns där, annars prognosen. */
+function solWVid(sk,h){
+  if(!sk)return null;
+  var b=null,bd=Infinity;
+  for(var i=0;i<sk.fakt.length;i++){var d=Math.abs(sk.fakt[i].h-h);if(d<bd){bd=d;b=sk.fakt[i];}}
+  if(b&&bd<=0.5)return {v:b.v,prognos:false};
+  var p=null,pd=Infinity;
+  for(var j=0;j<sk.prog.length;j++){var d2=Math.abs(sk.prog[j].h-h);if(d2<pd){pd=d2;p=sk.prog[j];}}
+  return p?{v:p.v,prognos:true}:null;
+}
 function battPctVid(bk,h){
   if(!bk)return null;
   if(bk.prog.length===2&&h>=bk.prog[0].h){
@@ -12491,11 +12545,18 @@ function pgBattText(){
   var prognos=(bk.prog.length===2&&_pgVald>bk.prog[0].h+0.02);
   return 'batteri '+Math.round(v)+' %'+(prognos?' (prognos)':'');
 }
+function pgSolText(){
+  var sk=_pgGeo&&_pgGeo.sol;if(!sk)return '';
+  var r=solWVid(sk,_pgVald);
+  if(!r||r.v==null)return '';
+  return 'sol '+fmtW(r.v)+(r.prognos?' (prognos)':'');
+}
 function pgHuvud(){
   var a=pgAvlast();if(!a)return '';
   var bt=pgBattText();
   return '<div class="pg-nu"><span class="pg-nu-v" id="pg-nu-v" style="color:'+pgFarg(a.kurva)+'">'
     +num(a.visa,2)+' kr</span><span class="pg-nu-e">/kWh</span>'
+    +'<span class="pg-nu-s2" id="pg-nu-s2">'+esc(pgSolText())+'</span>'
     +'<span class="pg-nu-b" id="pg-nu-b">'+esc(bt)+'</span></div>'
     +'<div class="pg-nu-s" id="pg-nu-s">'+esc(a.under)+'</div>';
 }
@@ -12510,6 +12571,7 @@ function pgUppdatera(){
   if(tv){tv.textContent=num(a.visa,2)+' kr';tv.style.color=pgFarg(a.kurva);}
   if(ts)ts.textContent=a.under;
   var tb=$('pg-nu-b');if(tb)tb.textContent=pgBattText();
+  var ts2=$('pg-nu-s2');if(ts2)ts2.textContent=pgSolText();
 }
 function pgTimmeFran(e){
   var el=$('pg-lager');if(!el||!el.getBoundingClientRect)return null;
@@ -12630,12 +12692,30 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      strecket skär kurvan, och båda flyttas av samma finger. Utgångsläget är
      nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
      "nu" att peka på. */
-  var hVal=(offset===0)?pgTimmenNu():xs[iLo];
+  /* Imorgon börjar avläsningen längst till vänster (00:00) i stället för vid
+     dygnets billigaste timme: man läser morgondagen framifrån. Draget fungerar
+     som förut — hVal är bara utgångsläget. */
+  var hVal=(offset===0)?pgTimmenNu():xs[0];
   /* BATTERIPROCENTEN, bara idag. Egen skala: 0 % vid grafens botten, 100 %
      vid taket — priset och procenten har inget gemensamt mått. Heldragen där
      det är uppmätt, streckad där det är framskrivet. Cyan som i batterirutan. */
-  var bk=(offset===0)?battKurva():null;
+  var bk=(_pgVisaBatt&&offset===0)?battKurva():null;
   var YP=function(v){return padT+(1-Math.max(0,Math.min(100,v))/100)*(H-padT-padB);};
+  /* SOLEN. Egen skala normerad mot dygnets högsta, så kurvans form syns även
+     en mulen dag. Faktiskt heldraget, prognos streckat — samma språk som
+     batteriet och som sol-nu-rutan. */
+  var sk=_pgVisaSol?solKurva(offset):null;
+  if(sk){
+    var YS=function(v){return padT+(1-Math.max(0,Math.min(1,v/sk.max)))*(H-padT-padB);};
+    if(sk.prog.length>1){
+      var sp='';sk.prog.forEach(function(q,i){sp+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YS(q.v).toFixed(1)+' ';});
+      s+='<path d="'+sp+'" fill="none" stroke="'+(P.sun||'#f2b705')+'" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".7"/>';
+    }
+    if(sk.fakt.length>1){
+      var sf='';sk.fakt.forEach(function(q,i){sf+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YS(q.v).toFixed(1)+' ';});
+      s+='<path d="'+sf+'" fill="none" stroke="'+(P.sun||'#f2b705')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
+    }
+  }
   if(bk&&bk.fakt.length>1){
     var bd='';bk.fakt.forEach(function(q,i){bd+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1)+' ';});
     s+='<path d="'+bd+'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
@@ -12644,7 +12724,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     s+='<path d="M'+X(bk.prog[0].h).toFixed(1)+' '+YP(bk.prog[0].v).toFixed(1)+' L'+X(bk.prog[1].h).toFixed(1)+' '+YP(bk.prog[1].v).toFixed(1)
       +'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".75"/>';
   }
-  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk};
+  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk,sol:sk};
   _pgVald=hVal;
   var vy=pgPrisVid(hVal);
   s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'"/>';
@@ -12655,7 +12735,24 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     +' onpointerup="pgUpp(event)" onpointercancel="pgUpp(event)">'+s+taggar+'</div>';
   s=pgHuvud()+s;
   s+='<div class="pgraph-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>';
+  /* Av/på för extrakurvorna. Batteriet finns bara för idag (det bygger på
+     "nu"), solen för alla tre dygnen. */
+  var lag='<div class="pg-lager">';
+  if(offset===0)lag+='<span class="'+(_pgVisaBatt?'':'av')+'" onclick="pgLagerTog(\'batt\')">'
+    +'<i style="background:'+(P.cyan||'#57b6c2')+'"></i>Batteri %</span>';
+  lag+='<span class="'+(_pgVisaSol?'':'av')+'" onclick="pgLagerTog(\'sol\')">'
+    +'<i style="background:'+(P.sun||'#f2b705')+'"></i>Solproduktion</span>';
+  s+=lag+'</div>';
   return s;}
+/* Vilka extrakurvor som visas i prisgrafen. Batteriet på som standard, solen
+   av — solen har en egen ruta, och två extrakurvor samtidigt gör prisbilden
+   svårläst om man inte bett om det. Ligger utanför DOM:en som alla andra val,
+   så de överlever att rutan byggs om. */
+var _pgVisaBatt=true, _pgVisaSol=false;
+function pgLagerTog(vilket){
+  if(vilket==='batt')_pgVisaBatt=!_pgVisaBatt; else _pgVisaSol=!_pgVisaSol;
+  var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();
+}
 var _priceDay=0;
 function priceDaySet(o){_priceDay=o;openDetail('cost');}
 function priceCurveSVG(){let o=plogGet();const cur=elprisNow();
@@ -16914,7 +17011,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v627';
+const APP_VERSION='v628';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
