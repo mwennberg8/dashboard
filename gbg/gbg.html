@@ -399,6 +399,12 @@ body.mobile .statusbar.stuck{
 .printer{padding:14px 16px;display:flex;flex-direction:column;gap:11px;cursor:pointer;
   border-color:rgba(208,135,112,.38);
   background:linear-gradient(180deg,rgba(208,135,112,.13),var(--panel-b))}
+/* KOMPAKTARE UNDER UTSKRIFT. Måste stå EFTER regeln ovan — mitt första försök
+   låg före och skrevs över, och panelen blev 16 px HÖGRE i stället för lägre
+   (mätt i renderad bild, 412 px bred). Luften styrs av flex-gap, så den ska
+   krympas där; egna marginaler ovanpå gap ger dubbel luft. */
+.printer{padding:11px 13px;gap:8px}
+.printer .pr-bar{height:6px}
 .pr-h{display:flex;align-items:center;gap:10px;min-width:0}
 .pr-ic{width:22px;height:22px;color:var(--warm);flex:0 0 auto;display:inline-flex}
 .pr-ic .ic{width:100%;height:100%}
@@ -414,9 +420,15 @@ body.mobile .statusbar.stuck{
 .pr-bar{height:7px;border-radius:999px;background:var(--inset);overflow:hidden;border:1px solid var(--line-soft)}
 .pr-bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--warm),var(--gold));
   transition:width .8s ease}
-.pr-m{display:flex;flex-wrap:wrap;gap:7px}
+/* FLEX-WRAP, INTE GRID. Jag provade ett tvåkolumnsgrid — mätt i renderad bild
+   blev det SÄMRE: fem chips låstes till 2+2+1 i tre rader, medan wrap packar
+   dem efter faktisk bredd. Med de kortare texterna (målvärdet i talet i
+   stället för i etiketten) ryms de på två rader.
+   Mätningen: 412 px bred panel, wkhtmltoimage, chip-rader räknade ur bilden. */
+.pr-m{display:flex;flex-wrap:wrap;gap:6px}
 .pr-c{background:var(--inset);border:1px solid var(--line-soft);border-radius:12px;padding:5px 9px;
-  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;color:var(--dim)}
+  display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:650;color:var(--dim);
+  min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .pr-c b{color:var(--ink);font-weight:750}
 .pr-c .ic{width:13px;height:13px}
 
@@ -924,7 +936,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.55.0';
+const APP_VERSION = 'v1.56.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1679,6 +1691,33 @@ function renderTopWx(){
 /* Skriver den just nu? Samma prövning som enhetsrutan använder: framsteg under
    100 % OCH ett varmt munstycke. Bara procenten duger inte — den står kvar på
    sitt sista värde när utskriften är klar. */
+/* MINUTER KVAR UR HOMEYS STRÄNG.
+   Fältet är text, inte ett tal, och formatet skiljer sig: Homey har visat både
+   '1h 12m' och '100 min'. Båda tolkas; allt annat ger null, och då skrivs
+   inget klarslag ut i stället för ett påhittat. */
+function bambuMinKvar(tid){
+  if(tid==null)return null;
+  const t=String(tid).trim().toLowerCase();
+  if(!t)return null;
+  let min=0,traff=false;
+  const h=t.match(/(\d+)\s*(?:h|tim|timmar?)\b/);
+  if(h){min+=Number(h[1])*60;traff=true;}
+  const m=t.match(/(\d+)\s*(?:m|min|minuter?)\b/);
+  if(m){min+=Number(m[1]);traff=true;}
+  /* Ett ensamt tal utan enhet tolkas som minuter — men bara om ingen enhet
+     hittats, annars skulle '1h 12m' räknas dubbelt. */
+  if(!traff){const n=t.match(/^(\d+)$/);if(n){min=Number(n[1]);traff=true;}}
+  return (traff&&isFinite(min)&&min>=0&&min<60*24*7)?min:null;
+}
+/* Klockslaget då utskriften är klar, som HH:MM. Räknas från NU plus minuterna
+   kvar. Webbläsarens lokaltid är svensk, så getHours duger här — det här är
+   inte HomeyScript. */
+function bambuKlarKl(tid){
+  const min=bambuMinKvar(tid);
+  if(min==null)return null;
+  const d=new Date(Date.now()+min*60000);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
 function bambuSkriver(d){
   if(!d)return false;
   const p=capOf(d,'bambu_progress_percentage'),noz=capOf(d,'measure_temperature.nozzle');
@@ -1742,10 +1781,17 @@ function renderPrinter(){
   const kam=capOf(d,'measure_temperature.chamber');
   const chip=(ic,v,e)=>'<span class="pr-c"><span class="ic-slot" data-ic="'+ic+'"></span><b>'+v+'</b>'+(e?(' '+esc(e)):'')+'</span>';
   let m='';
-  if(tid!=null&&String(tid).trim())m+=chip('timer',esc(String(tid)),'kvar');
+  /* Klarslaget står intill tiden kvar: "100 min kvar · klar 19:35". Saknas
+     ett tolkbart format visas bara tiden, inget påhittat klockslag. */
+  if(tid!=null&&String(tid).trim()){
+    const kl=bambuKlarKl(tid);
+    m+=chip('timer',esc(String(tid)),'kvar'+(kl?(' \u00b7 klar '+kl):''));
+  }
   if(lag!=null&&String(lag).trim())m+=chip('stairs',esc(String(lag)),'lager');
-  if(noz!=null)m+=chip('flame',num(noz,0)+'\u00b0',(nozM?('/ '+num(nozM,0)+'\u00b0'):'')+' munstycke');
-  if(bed!=null)m+=chip('oven',num(bed,0)+'\u00b0',(bedM?('/ '+num(bedM,0)+'\u00b0'):'')+' b\u00e4dd');
+  /* Målvärdet i b-taggen i stället för i etiketten: "245°/245°" tar mindre
+     plats än "245° / 245° munstycke" och chipsen blir lika breda. */
+  if(noz!=null)m+=chip('flame',num(noz,0)+'\u00b0'+(nozM?('/'+num(nozM,0)+'\u00b0'):''),'munstycke');
+  if(bed!=null)m+=chip('oven',num(bed,0)+'\u00b0'+(bedM?('/'+num(bedM,0)+'\u00b0'):''),'b\u00e4dd');
   if(kam!=null)m+=chip('thermometer',num(kam,0)+'\u00b0','kammare');
   el.innerHTML='<div class="pr-h"><span class="pr-ic ic-slot" data-ic="printer"></span>'
     +'<span class="pr-n">'+esc((d&&d.name)||'3D-skrivare')+' skriver</span>'
@@ -3269,7 +3315,11 @@ function openBambu(){
     }
     h+=dRow('Framsteg',num(capOf(d,'bambu_progress_percentage'),0)+' %')
       +dRow('Lager',esc(String(capOf(d,'bambu_print_layers')||'–')))
-      +dRow('Kvar',esc(String(capOf(d,'bambu_progress_time_remaining')||'–')))
+      +dRow('Kvar',(function(){
+          const t=capOf(d,'bambu_progress_time_remaining');
+          const kl=bambuKlarKl(t);
+          return esc(String(t||'–'))+(kl?(' <span style="opacity:.6">· klar '+kl+'</span>'):'');
+        })())
       +dSec('Temperaturer')
       +dRow('Munstycke',num(capOf(d,'measure_temperature.nozzle'),1)+' °C'
         +(capOf(d,'measure_temperature.nozzle_target')?(' <span style="opacity:.6">→ '+num(capOf(d,'measure_temperature.nozzle_target'),0)+'°</span>'):''))
