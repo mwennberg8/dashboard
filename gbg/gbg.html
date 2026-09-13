@@ -924,7 +924,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.54.0';
+const APP_VERSION = 'v1.55.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2449,9 +2449,24 @@ function renderDevs(){
     const p=capOf(bam,'bambu_progress_percentage'),lag=capOf(bam,'bambu_print_layers');
     const noz=capOf(bam,'measure_temperature.nozzle'),tid=capOf(bam,'bambu_progress_time_remaining');
     const skriver=(p!=null&&p<100&&noz!=null&&noz>60);
-    h+=stat('printer',skriver?'acc-warm':'acc-dim','Bambu P1P',
+    /* PÅ ELLER AV SYNS FRÅN STARTSIDAN. Brickan sa bara "vilar" oavsett om
+       skrivaren stod strömlös eller drog ström i vila — och det senare är just
+       det man vill upptäcka utan att öppna rutan. Uttaget (DEV.bambuUt) avgör:
+         skriver        varm, lager och tid kvar
+         på men vilar   grön, "på · vilar" (uttaget drar ström)
+         av             dämpad, "av"
+       Saknas uttagsenheten faller den tillbaka på det gamla beteendet i
+       stället för att påstå något om ett uttag den inte kan läsa. */
+    const ut=DATA[DEV.bambuUt];
+    const pa=ut?(capOf(ut,'onoff')===true):null;
+    let acc,meta;
+    if(skriver){acc='acc-warm';meta=(lag||'')+' · '+(tid||'');}
+    else if(pa===true){acc='acc-ok';meta='på · vilar';}
+    else if(pa===false){acc='acc-dim';meta='av';}
+    else {acc='acc-dim';meta='vilar';}
+    h+=stat('printer',acc,'Bambu P1P',
       (p!=null?(num(p,0)+'<small> %</small>'):'–'),
-      esc(skriver?((lag||'')+' · '+(tid||'')):'vilar'),'openBambu()');
+      esc(meta),'openBambu()');
   }
   const gard=devs().filter(d=>['curtain','windowcoverings','blinds'].indexOf(klass(d))>=0);
   if(gard.length){
