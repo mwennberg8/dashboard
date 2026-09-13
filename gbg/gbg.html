@@ -158,7 +158,6 @@ body.mobile .wrap{max-width:540px;padding:2px;
   padding-right:max(2px,env(safe-area-inset-right));
   padding-bottom:max(2px,env(safe-area-inset-bottom))}
 body.mobile .statusbar{padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top))}
-body.mobile .daystrip{padding:12px 16px}
 /* Kortens insida, samma tal som Gottskär på telefon. */
 body.mobile .stat,body.mobile .room{padding:12px 11px}
 body.mobile .ctl{padding:12px 6px}
@@ -273,10 +272,6 @@ body.mobile .statusbar.stuck{
    Remsan från Gottskär-dashboarden: ikon, klockslag, skala med solpricken,
    klockslag, ikon. Ingen tidsresa här — den hör till historikläget som den här
    dashboarden inte har. */
-.daystrip{position:relative;display:flex;align-items:center;gap:12px;padding:12px 20px;
-  font-size:12px;color:var(--dim);font-weight:500}
-.daystrip b{color:var(--ink);font-weight:700}
-.daystrip .ic{width:17px;height:17px}
 .ds-live{display:flex;align-items:center;gap:var(--ds-gap);flex:1 1 auto;min-width:0}
 .ds-live>b{flex:0 0 auto;min-width:34px;white-space:nowrap}
 .ds-live>b:first-of-type{text-align:left}
@@ -669,6 +664,10 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .dbtn:hover{border-color:var(--svg-stroke)}
 .dbtn.wide{width:100%;margin-top:9px}
 .dbtn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+/* Ta bort-knappen: markerad men inte skrikig. Röd ram och röd text, inte fylld
+   — den ska gå att hitta utan att dra blicken från Spara. */
+.dbtn.fara{border-color:var(--hot);color:var(--hot)}
+.dbtn.fara:hover{background:color-mix(in srgb,var(--hot) 12%,transparent);border-color:var(--hot)}
 .dbtn-row{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
 .dbtn-row .dbtn{flex:1 1 0}
 
@@ -794,12 +793,6 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
       <div class="en-wx" id="en-wx"></div>
       <div class="en-status en-cmp en-status-btn" id="en-status"><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div>
     </div>
-  </section>
-
-  <section class="panel daystrip" id="daystrip" data-sec="daystrip">
-    <div class="ds-live"><span class="ic-slot acc-gold" data-ic="sun-horizon"></span><b id="sunrise">–</b>
-    <div class="ds-track" id="ds-track"><span class="ds-tick" id="ds-rise"></span><span class="ds-tick set" id="ds-set"></span><span class="ds-sun" id="ds-sun" style="left:50%"></span></div>
-    <b id="sunset">–</b><span class="ic-slot acc-violet" data-ic="moon"></span></div>
   </section>
 
   <section class="panel demobar" id="demo-bar" hidden>
@@ -936,7 +929,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.56.0';
+const APP_VERSION = 'v1.57.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1559,21 +1552,9 @@ function slxTangent(e){
   e.preventDefault();
 }
 
-/* Solremsan. Klockslagen och pricken räknas ur solens bana för positionen.
-   Till skillnad från HomeyScript kör den här filen i webbläsaren, som har rätt
-   lokal tid — därför duger getHours() här. */
-function renderDaystrip(){
-  const tr=$('ds-track');if(!tr)return;
-  const d=new Date();
-  const sc=solar(d,CONFIG.LAT,CONFIG.LON,-d.getTimezoneOffset());
-  setT('sunrise',hm(sc.sunrise));setT('sunset',hm(sc.sunset));
-  const pct=v=>Math.max(0,Math.min(100,v/24*100));
-  const stt=(id,v)=>{const e=$(id);if(!e||!e.style)return;
-    if(v==null||!isFinite(v)){e.style.display='none';return;}
-    e.style.display='';e.style.left=pct(v)+'%';};
-  stt('ds-rise',sc.sunrise);stt('ds-set',sc.sunset);
-  stt('ds-sun',d.getHours()+d.getMinutes()/60+d.getSeconds()/3600);
-}
+/* renderDaystrip och solremsan är borttagna i v1.57.0 tillsammans med
+   daystrip-rutan. solar() används fortfarande av temavalet och av
+   väderrutans soltider. */
 /* Klockan togs bort ur toppraden. Funktionen finns kvar och gör ingenting om
    elementet saknas — den anropas från både render() och sekundslingan. */
 function klockan(){
@@ -1651,7 +1632,6 @@ function kannsSom(t,ws,rh){
 function render(){
   try{gardVirtBygg();}catch(e){}
   try{klockan();}catch(e){}
-  try{renderDaystrip();}catch(e){}
   try{applyTheme();}catch(e){}
   try{renderTopWx();}catch(e){}
   try{renderPrinter();}catch(e){}
@@ -3827,10 +3807,13 @@ function loggaUt(){
    vill se. Skrivarrutan ingår INTE — den ska alltid ligga överst när den syns,
    och en ruta som dyker upp mitt i listan är svår att hitta.
    Toppraden ligger också fast; den är sidans ram, inte ett avsnitt. */
-const SEKT_DEF=['daystrip','controls','rooms','car','cam','devs'];
-const SEKT_NAMN={daystrip:'Sol upp och ner',controls:'Styrknappar',rooms:'Rum',
+/* 'daystrip' (sol upp och ner) är borttagen i v1.57.0. Soltiderna finns kvar i
+   väderrutan. sektLadda() filtrerar bort okända namn ur sparad ordning, så en
+   gammal ordning med daystrip rensar sig själv utan migrering. */
+const SEKT_DEF=['controls','rooms','car','cam','devs'];
+const SEKT_NAMN={controls:'Styrknappar',rooms:'Rum',
   car:'Bil',cam:'Kamera',devs:'Enheter'};
-const SEKT_IC={daystrip:'sun-horizon',controls:'toggle-right',rooms:'house-line',
+const SEKT_IC={controls:'toggle-right',rooms:'house-line',
   car:'car',cam:'camera',devs:'plug'};
 const SEKT_KEY='gbgsekt_v1';
 function sektLadda(){
@@ -4036,6 +4019,17 @@ function knTaBort(i){
   if(!KNAPPAR[i])return;
   KNAPPAR.splice(i,1);knSpara();knOm();toast('Knappen borttagen');
 }
+/* Ta bort inifrån redigeraren. Efter borttagningen finns index i inte längre,
+   så vyn får inte ritas om för det — gå till listan i stället. Utan det här
+   skulle knRedOm(i) rita en tom redigerare för en knapp som är borta. */
+function knTaBortRed(i){
+  if(!KNAPPAR[i])return;
+  const namn=KNAPPAR[i].l||'Knappen';
+  KNAPPAR.splice(i,1);knSpara();renderControls&&renderControls();
+  _knIdx=-1;
+  openKnappar();
+  toast(namn+' borttagen');
+}
 function knAterstall(){
   KNAPPAR=KNAPPAR_DEF.map(b=>Object.assign({},b));knSpara();knOm();toast('\u00c5terst\u00e4llt');
 }
@@ -4077,6 +4071,12 @@ function knRedOm(i){
     +KN_IKONER.map(n=>'<button class="kn-ikon'+(n===_knIkon?' on':'')+'" onclick="knValjIkon(\''+n+'\')" title="'+n+'"><span class="ic-slot" data-ic="'+n+'"></span></button>').join('')
     +'</div>';
   h+='<button class="dbtn wide pri" onclick="knSparaRed('+i+')">Spara</button>';
+  /* Lägg till och ta bort HÄR, inte bara i listan. Håller man inne en knapp på
+     startsidan hamnar man direkt i den här vyn, och då ska man kunna göra allt
+     därifrån — samma väg som i Gottskär. */
+  h+='<div class="dbtn-row" style="margin-top:8px">'
+    +'<button class="dbtn" onclick="knNy()">L\u00e4gg till ny</button>'
+    +'<button class="dbtn fara" onclick="knTaBortRed('+i+')">Ta bort</button></div>';
   h+='<button class="dbtn wide" onclick="openKnappar()">Tillbaka</button>';
   DLG_OM.knapp=null;
   openDlg('\u00c4ndra knapp','wrench',h,'knapp');
@@ -4196,12 +4196,12 @@ function start(){
   document.addEventListener('pointerup',slxUpp,true);
   document.addEventListener('pointercancel',slxUpp,true);
   document.addEventListener('keydown',slxTangent);
-  klockan();renderDaystrip();
+  klockan();
   /* Demoläget kopplar bort både Homey och SMHI. Ingen inloggning krävs, så
      sidan går att öppna på vilken enhet som helst för att prova utseendet. */
   if(DEMO){
     demoStart();
-    setInterval(()=>{klockan();renderDaystrip();applyTheme();},1000);
+    setInterval(()=>{klockan();applyTheme();},1000);
     knLangtryck($('controls'));
     demoBind();
     return;
@@ -4214,7 +4214,7 @@ function start(){
   _refreshTimer=setInterval(()=>{load();},CONFIG.REFRESH_SECONDS*1000);
   /* Loggarna ändras långsamt — två minuter räcker gott. */
   setInterval(()=>{appHamta();},120000);
-  setInterval(()=>{klockan();renderDaystrip();tickRel();applyTheme();},1000);
+  setInterval(()=>{klockan();tickRel();applyTheme();},1000);
   setInterval(()=>{fetchSmhi();},5*60000);
   /* Tillbaka i förgrunden: hämta direkt i stället för att vänta ut intervallet. */
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();fetchSmhi();}});
