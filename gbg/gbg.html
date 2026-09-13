@@ -390,6 +390,12 @@ body.mobile .statusbar.stuck{
    klassen pr-visa, och den klassen satts pa exakt ett stalle, direkt efter att
    innehallet skrivits. Vem som an ror hidden spelar da ingen roll. */
 .printer:not(.pr-visa){display:none!important}
+/* Klar-rutan inne i Bambu-popupen. Ärver skrivarpanelens varma ram så den
+   känns igen från toppanelen den flyttades från. */
+.pr-klarbox{border:1px solid var(--pr-ram,#e2c4bb);background:var(--pr-bg,rgba(226,196,187,.10));
+  border-radius:14px;padding:11px 12px;margin:0 0 12px}
+.pr-klarbox .pr-h{display:flex;align-items:center;gap:9px}
+.pr-klarbox .lm-knappar{margin-top:10px}
 .printer{padding:14px 16px;display:flex;flex-direction:column;gap:11px;cursor:pointer;
   border-color:rgba(208,135,112,.38);
   background:linear-gradient(180deg,rgba(208,135,112,.13),var(--panel-b))}
@@ -918,7 +924,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.53.0';
+const APP_VERSION = 'v1.54.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1693,6 +1699,8 @@ async function bambuStang(){
   try{
     await satt(u.id,'onoff',false);
     if(u.capabilitiesObj&&u.capabilitiesObj.onoff)u.capabilitiesObj.onoff.value=false;
+    /* render() ritar om en öppen popup via DLG_OM, så klar-rutan försvinner
+       direkt utan ett eget anrop här. Prövat: bara render() räcker. */
     toast('Uttaget avstängt');render();setTimeout(load,1200);
   }catch(e){toast('Kunde inte nå Homey');}
 }
@@ -1715,17 +1723,14 @@ function renderPrinter(){
   const el=$('printer');if(!el)return;
   el.hidden=true;el.innerHTML='';el.classList.remove('pr-visa');
   const d=DATA[DEV.bambu];
+  /* KLAR-LÄGET LIGGER I BAMBU-RUTAN, INTE HÄR (v1.54.0).
+     "Utskriften är klar / uttaget står kvar på" tog en hel panel högst upp på
+     sidan för något man ändå går till skrivarrutan för att göra något åt.
+     Toppanelen visar numera BARA en pågående utskrift — det är det enda som är
+     värt att bryta in överst med. Klar-läget syns i stället i brickan
+     (openBambu), tillsammans med knappen som stänger av uttaget.
+     bambuKlarKvar() finns kvar och används därifrån. */
   if(!bambuSkriver(d)){
-    if(bambuKlarKvar()){
-      const noz=capOf(d,'measure_temperature.nozzle');
-      el.classList.add('pr-klar');
-      el.innerHTML='<div class="pr-h"><span class="pr-ic ic-slot" data-ic="printer"></span>'
-        +'<span class="pr-n">Utskriften är klar<small>uttaget står kvar på'
-        +(noz!=null?(' · munstycket '+num(noz,0)+'°'):'')+'</small></span></div>'
-        +'<div class="lm-knappar"><button class="lm-b pri" onclick="event.stopPropagation();bambuStang()">Stäng av uttaget</button></div>';
-      if(el.innerHTML.trim()){el.hidden=false;el.classList.add('pr-visa');}
-      initIcons(el);return;
-    }
     el.classList.remove('pr-klar');
     return;                      /* redan dold och tom */
   }
@@ -3235,7 +3240,19 @@ async function dammKor(lage){
 function openBambu(){
   const g=()=>{
     const d=DATA[DEV.bambu];if(!d)return 'Ingen skrivare.';
-    let h=dRow('Framsteg',num(capOf(d,'bambu_progress_percentage'),0)+' %')
+    let h='';
+    /* Klar-läget överst i rutan: det är det man ska göra något åt, och
+       knappen står där man ändå är. Flyttat hit från toppanelen i v1.54.0. */
+    if(bambuKlarKvar()){
+      const nozK=capOf(d,'measure_temperature.nozzle');
+      h+='<div class="pr-klarbox">'
+        +'<div class="pr-h"><span class="pr-ic ic-slot" data-ic="printer"></span>'
+        +'<span class="pr-n">Utskriften är klar<small>uttaget står kvar på'
+        +(nozK!=null?(' · munstycket '+num(nozK,0)+'°'):'')+'</small></span></div>'
+        +'<div class="lm-knappar"><button class="lm-b pri" onclick="bambuStang()">Stäng av uttaget</button></div>'
+        +'</div>';
+    }
+    h+=dRow('Framsteg',num(capOf(d,'bambu_progress_percentage'),0)+' %')
       +dRow('Lager',esc(String(capOf(d,'bambu_print_layers')||'–')))
       +dRow('Kvar',esc(String(capOf(d,'bambu_progress_time_remaining')||'–')))
       +dSec('Temperaturer')
