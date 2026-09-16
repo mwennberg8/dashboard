@@ -948,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.63.0';
+const APP_VERSION = 'v1.64.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1814,7 +1814,7 @@ const KNAPPAR_DEF=[
   {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'},
   /* Tryck tänder/släcker hela urvalet; håll inne öppnar dimmern. */
   {l:'Taklampor', ic:'lightbulb',    typ:'lamp', vilka:'tak'},
-  {l:'Övriga lampor',ic:'lamp',      typ:'lamp', vilka:'ovriga'}
+  {l:'Myslampor',  ic:'lamp',        typ:'lamp', vilka:'ovriga'}
 ];
 const KN_KEY='gbgknappar_v1';
 /* Bekräftelse med två tryck, som på Gottskär, men PER KNAPP: kryssrutan sitter
@@ -1853,8 +1853,25 @@ function bekraftVantar(nyckel){return !!_bekrVantar[nyckel];}
 const KN_NYA_KEY='gbgknappar_nya_v1';
 const KN_NYA=[
   {mark:'lamp-tak',    knapp:{l:'Taklampor',     ic:'lightbulb', typ:'lamp', vilka:'tak'}},
-  {mark:'lamp-ovriga', knapp:{l:'Övriga lampor', ic:'lamp',      typ:'lamp', vilka:'ovriga'}}
+  {mark:'lamp-ovriga', knapp:{l:'Myslampor',     ic:'lamp',      typ:'lamp', vilka:'ovriga'}}
 ];
+/* NAMNBYTEN PÅ STANDARDKNAPPAR. "Övriga lampor" heter Myslampor sedan
+   v1.64.0. En sparad uppsättning innehåller det gamla namnet, så det byts —
+   men BARA om knappen fortfarande heter det gamla standardnamnet. Har du döpt
+   om den själv lämnas den i fred. */
+const KN_NAMNBYTEN=[
+  {typ:'lamp', vilka:'ovriga', fran:'Övriga lampor', till:'Myslampor'}
+];
+function knByteNamn(lista){
+  let andrat=false;
+  lista.forEach(b=>{
+    KN_NAMNBYTEN.forEach(x=>{
+      if(b&&b.typ===x.typ&&b.vilka===x.vilka&&b.l===x.fran){b.l=x.till;andrat=true;}
+    });
+  });
+  if(andrat){try{localStorage.setItem(KN_KEY,JSON.stringify(lista));}catch(e){}}
+  return lista;
+}
 function knFyllPa(lista){
   let gjorda={};
   try{gjorda=JSON.parse(localStorage.getItem(KN_NYA_KEY)||'{}')||{};}catch(e){}
@@ -1874,7 +1891,7 @@ function knFyllPa(lista){
 }
 function knLadda(){
   try{const a=JSON.parse(localStorage.getItem(KN_KEY)||'null');
-    if(Array.isArray(a)&&a.length)return knFyllPa(a.filter(b=>b&&b.typ));}catch(e){}
+    if(Array.isArray(a)&&a.length)return knByteNamn(knFyllPa(a.filter(b=>b&&b.typ)));}catch(e){}
   /* Ingen sparad uppsättning: standarden innehåller dem redan, men märket ska
      sättas ändå så de inte fylls på en gång till efteråt. */
   const d=KNAPPAR_DEF.map(b=>Object.assign({},b));
@@ -1944,12 +1961,20 @@ function lampUrval(vilka){
   const tak=takIds(), ambi=ambiIds();
   return devs().filter(d=>{
     if(!arLampa(d)||!har(d,'onoff'))return false;
+    /* GRUPPEN, INTE MEDLEMMARNA. Ett rums taklampa är EN sak att styra — de
+       fyra glödlamporna i vardagsrumstaket ska inte stå var för sig. Därför
+       tas gruppenheten med och medlemmarna bort. Samma sak för Köksbänk, som
+       också är en grupp.
+       Det vänder på v1.61.0: där togs medlemmarna med och grupperna bort, för
+       att en gruppskrivning kan väcka släckta medlemmar. Här styr man medvetet
+       hela gruppen, och tändning är precis vad man vill. Dimningen rör
+       fortfarande bara grupper som ÄR tända. */
+    if(iGrupp(d))return false;
     /* HÄR LÅG BUGGEN: iGrupp(d) betyder att d är MEDLEM i en grupp, inte att d
        ÄR en grupp. Raden uteslöt alltså precis de lampor som ska styras, och
        tillsammans med raden under blev urvalet tomt — knappen sa "0 av 0 tända"
        fast taket lyste. Det är GRUPPENHETERNA som ska bort (de dubblerar sina
        medlemmar), inte medlemmarna. arGrupp() är den som svarar på det. */
-    if(arGrupp(d))return false;
     if(d.id===AMBI_GRUPP)return false;
     if(vilka==='tak')return !!tak[d.id];
     /* övriga: inte tak, inte badrum, inte Ambilight */
@@ -2007,12 +2032,12 @@ function lampPopHTML(vilka){
   const niva=lampNivda(vilka);
   const nagonPa=pa.length>0;
 
-  /* HUVUDRADEN för hela urvalet — samma form som rumsvyns "Alla lampor", så
-     den känns igen. Reglaget är slxHTML, precis som i rummen. */
+  /* HUVUDRADEN för hela urvalet — samma form som rumsvyns "Alla lampor", med
+     slxHTML-reglaget. */
   let h='<div class="rum-master'+(nagonPa?' on':'')+'">'
     +'<div class="dv-row">'
     +'<span class="dv-ic">'+icon(nagonPa?'lightbulb':'lightbulb-off')+'</span>'
-    +'<span class="dv-n">'+(vilka==='tak'?'Alla taklampor':'Alla övriga lampor')
+    +'<span class="dv-n">'+esc(lampTitel(vilka))
       +'<small>'+pa.length+' av '+alla.length+' tända</small></span>'
     +'<button class="dv-sw'+(nagonPa?' on':'')+'" onclick="lampTog(\''+vilka+'\')" aria-label="alla på eller av"><i></i></button>'
     +'</div>';
@@ -2026,36 +2051,33 @@ function lampPopHTML(vilka){
       +'bara tända lampor \u2014 en släckt skulle tändas av ett dim-värde.</div>';
   }
 
-  /* ETT AVSNITT PER RUM, med rummets egen huvudrad, eget reglage och sina
-     lampor som vanliga devRad-rader. Samma komponenter som rumsvyn. */
+  /* LISTAN: en rad per rum. Varje rad är rummets lampa eller lampgrupp, med
+     egen strömbrytare och eget reglage (devRad). Ingen egen huvudrad per rum —
+     det finns bara en sak att styra i rummet, och en "Hela rummet"-rad ovanför
+     en enda rad hade bara varit samma knapp två gånger. Rum med flera enheter
+     får sina rader under samma rubrik. */
+  h+=dSec('Per rum');
   lampZoner(vilka).forEach(z=>{
-    const zpa=z.lampor.filter(d=>capOf(d,'onoff')===true);
-    const zdim=zpa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
-    const zniva=lampZonNiva(vilka,z.zon);
-    const zon=zpa.length>0;
-    h+=dSec(z.namn+' ('+zpa.length+' av '+z.lampor.length+' tända)');
-    h+='<div class="rum-master'+(zon?' on':'')+'">'
-      +'<div class="dv-row">'
-      +'<span class="dv-ic">'+icon(zon?'lightbulb':'lightbulb-off')+'</span>'
-      +'<span class="dv-n">Hela rummet<small>'+zpa.length+' av '+z.lampor.length+' tända</small></span>'
-      +'<button class="dv-sw'+(zon?' on':'')+'" onclick="lampZonAlla(\''+vilka+'\',\''+z.zon+'\','+(zon?'false':'true')+')" aria-label="rummet på eller av"><i></i></button>'
-      +'</div>';
-    if(zdim.length){
-      h+='<div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka<b>'+(zniva==null?'–':zniva+' %')+'</b></div>'
-        +slxHTML(vilka+'|'+z.zon,zniva==null?50:zniva,'lampZonDimSlx');
-    }
-    h+='</div>';
-    /* Varje lampa som en vanlig enhetsrad: egen strömbrytare och eget reglage,
-       precis som i rumsvyn. */
     h+=z.lampor.map(devRad).join('');
   });
   return h;
 }
+/* Rubriken i rutan och på knappen. */
+function lampTitel(vilka){return (vilka==='tak')?'Alla taklampor':'Alla myslampor';}
+
 /* ===== GRUPPERING PER RUM =====
    Rutorna visar samma sak som rumsvyerna: ett rum i taget, med rummets egen
    huvudrad, sitt eget reglage och sina lampor som vanliga devRad-rader. Då
    fungerar allt likadant överallt, och man kan styra en enskild lampa eller ett
    helt rum utan att lämna rutan. */
+/* RUMMENS ORDNING. Bokstavsordning gav Badrum, Hall, Klädkammare, Kök...
+   Den här ordningen är den man faktiskt rör sig i. Rum som inte står här
+   hamnar sist, i bokstavsordning, så en ny zon inte försvinner. */
+const ZON_ORDNING=['Vardagsrum','Sovrum','Kök','Klädkammare','Hall','Badrum'];
+function zonPlats(namn){
+  const i=ZON_ORDNING.indexOf(String(namn||''));
+  return i<0?999:i;
+}
 function lampZoner(vilka){
   const lj=lampUrval(vilka), ordning=[], per={};
   lj.forEach(d=>{
@@ -2063,8 +2085,12 @@ function lampZoner(vilka){
     if(!per[z]){per[z]=[];ordning.push(z);}
     per[z].push(d);
   });
-  /* Bokstavsordning, så samma rum hamnar på samma plats varje gång. */
-  ordning.sort((a,b)=>String(zonNamn(a)||'').localeCompare(String(zonNamn(b)||''),'sv'));
+  ordning.sort((a,b)=>{
+    const na=zonNamn(a)||'', nb=zonNamn(b)||'';
+    const pa=zonPlats(na), pb=zonPlats(nb);
+    if(pa!==pb)return pa-pb;
+    return na.localeCompare(nb,'sv');     /* okända rum: bokstavsordning sist */
+  });
   return ordning.map(z=>({zon:z,namn:zonNamn(z)||'Utan rum',lampor:ljusOrdna(per[z])}));
 }
 /* Tänd/släck alla lampor i ETT rum, men bara inom urvalet. zonAlla() skulle ta
@@ -2110,7 +2136,7 @@ function lampZonDimSlx(id,v){
 }
 function lampDimVisa(v){const e=$('lm-dimv');if(e)e.textContent=v+' %';}
 function openLampor(vilka){
-  const titel=(vilka==='tak')?'Taklampor':'Övriga lampor';
+  const titel=(vilka==='tak')?'Taklampor':'Myslampor';
   DLG_OM['lamp'+vilka]=()=>{const b=$('dlg-body');if(b)b.innerHTML=lampPopHTML(vilka);};
   openDlg(titel,(vilka==='tak')?'lightbulb':'lamp',lampPopHTML(vilka),'lamp'+vilka);
 }
@@ -4261,7 +4287,7 @@ function knFlowOpts(sel){
 function knTypNamn(b){
   if(b.typ==='flow')return 'flow';
   if(b.typ==='allt')return 'alla lampor av';
-  if(b.typ==='lamp')return (b.vilka==='tak')?'taklampor':'övriga lampor (utom badrum och Ambilight)';
+  if(b.typ==='lamp')return (b.vilka==='tak')?'taklampor':'myslampor (utom badrum och Ambilight)';
   const d=DATA[b.id];return d?(d.name||'enhet'):'enhet saknas';
 }
 function knapparHTML(){
