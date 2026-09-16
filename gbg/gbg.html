@@ -948,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.60.0';
+const APP_VERSION = 'v1.61.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1944,8 +1944,12 @@ function lampUrval(vilka){
   const tak=takIds(), ambi=ambiIds();
   return devs().filter(d=>{
     if(!arLampa(d)||!har(d,'onoff'))return false;
-    if(iGrupp(d))return false;                 /* medlem styrs, inte gruppen */
-    if(TAK_GRUPPER.indexOf(d.id)>=0)return false;
+    /* HÄR LÅG BUGGEN: iGrupp(d) betyder att d är MEDLEM i en grupp, inte att d
+       ÄR en grupp. Raden uteslöt alltså precis de lampor som ska styras, och
+       tillsammans med raden under blev urvalet tomt — knappen sa "0 av 0 tända"
+       fast taket lyste. Det är GRUPPENHETERNA som ska bort (de dubblerar sina
+       medlemmar), inte medlemmarna. arGrupp() är den som svarar på det. */
+    if(arGrupp(d))return false;
     if(d.id===AMBI_GRUPP)return false;
     if(vilka==='tak')return !!tak[d.id];
     /* övriga: inte tak, inte badrum, inte Ambilight */
