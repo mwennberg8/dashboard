@@ -948,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.61.0';
+const APP_VERSION = 'v1.63.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2005,25 +2005,108 @@ async function lampDim(vilka,v){
 function lampPopHTML(vilka){
   const alla=lampUrval(vilka), pa=lampTanda(vilka), dimbara=lampDimbara(vilka);
   const niva=lampNivda(vilka);
-  let h='<div class="lm-rad"><b>'+pa.length+'</b> av '+alla.length+' tända'
-    +(dimbara.length?(' · '+dimbara.length+' dimbara'):'')+'</div>';
+  const nagonPa=pa.length>0;
+
+  /* HUVUDRADEN för hela urvalet — samma form som rumsvyns "Alla lampor", så
+     den känns igen. Reglaget är slxHTML, precis som i rummen. */
+  let h='<div class="rum-master'+(nagonPa?' on':'')+'">'
+    +'<div class="dv-row">'
+    +'<span class="dv-ic">'+icon(nagonPa?'lightbulb':'lightbulb-off')+'</span>'
+    +'<span class="dv-n">'+(vilka==='tak'?'Alla taklampor':'Alla övriga lampor')
+      +'<small>'+pa.length+' av '+alla.length+' tända</small></span>'
+    +'<button class="dv-sw'+(nagonPa?' on':'')+'" onclick="lampTog(\''+vilka+'\')" aria-label="alla på eller av"><i></i></button>'
+    +'</div>';
   if(dimbara.length){
-    h+='<div class="lm-dim"><input type="range" min="1" max="100" value="'+(niva==null?50:niva)
-      +'" oninput="lampDimVisa(this.value)" onchange="lampDim(\''+vilka+'\',this.value)">'
-      +'<span class="lm-dimv" id="lm-dimv">'+(niva==null?'–':niva+' %')+'</span></div>'
-      +'<div class="lm-note">Dimningen rör bara de tända lamporna. Släckta lämnas '
-      +'orörda — ett dim-värde skulle tända dem.</div>';
-  }else{
-    h+='<div class="lm-note">Inga tända lampor att dimma just nu.</div>';
+    h+='<div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka<b>'+(niva==null?'–':niva+' %')+'</b></div>'
+      +slxHTML(vilka,niva==null?50:niva,'lampDimSlx');
   }
-  h+='<div class="lm-knappar"><button class="lm-b pri" onclick="lampTog(\''+vilka+'\')">'
-    +(pa.length?'Släck alla':'Tänd alla')+'</button></div>';
-  h+='<div class="lm-lista">'+alla.map(d=>{
-    const on=capOf(d,'onoff')===true, dv=har(d,'dim')?capOf(d,'dim'):null;
-    return '<div class="lm-l'+(on?' on':'')+'">'+esc(namn(d))
-      +'<span>'+(on?(dv!=null?Math.round(dv*100)+' %':'på'):'av')+'</span></div>';
-  }).join('')+'</div>';
+  h+='</div>';
+  if(!dimbara.length){
+    h+='<div class="lm-note">Inga tända lampor att dimma just nu. Dimningen rör '
+      +'bara tända lampor \u2014 en släckt skulle tändas av ett dim-värde.</div>';
+  }
+
+  /* ETT AVSNITT PER RUM, med rummets egen huvudrad, eget reglage och sina
+     lampor som vanliga devRad-rader. Samma komponenter som rumsvyn. */
+  lampZoner(vilka).forEach(z=>{
+    const zpa=z.lampor.filter(d=>capOf(d,'onoff')===true);
+    const zdim=zpa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
+    const zniva=lampZonNiva(vilka,z.zon);
+    const zon=zpa.length>0;
+    h+=dSec(z.namn+' ('+zpa.length+' av '+z.lampor.length+' tända)');
+    h+='<div class="rum-master'+(zon?' on':'')+'">'
+      +'<div class="dv-row">'
+      +'<span class="dv-ic">'+icon(zon?'lightbulb':'lightbulb-off')+'</span>'
+      +'<span class="dv-n">Hela rummet<small>'+zpa.length+' av '+z.lampor.length+' tända</small></span>'
+      +'<button class="dv-sw'+(zon?' on':'')+'" onclick="lampZonAlla(\''+vilka+'\',\''+z.zon+'\','+(zon?'false':'true')+')" aria-label="rummet på eller av"><i></i></button>'
+      +'</div>';
+    if(zdim.length){
+      h+='<div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka<b>'+(zniva==null?'–':zniva+' %')+'</b></div>'
+        +slxHTML(vilka+'|'+z.zon,zniva==null?50:zniva,'lampZonDimSlx');
+    }
+    h+='</div>';
+    /* Varje lampa som en vanlig enhetsrad: egen strömbrytare och eget reglage,
+       precis som i rumsvyn. */
+    h+=z.lampor.map(devRad).join('');
+  });
   return h;
+}
+/* ===== GRUPPERING PER RUM =====
+   Rutorna visar samma sak som rumsvyerna: ett rum i taget, med rummets egen
+   huvudrad, sitt eget reglage och sina lampor som vanliga devRad-rader. Då
+   fungerar allt likadant överallt, och man kan styra en enskild lampa eller ett
+   helt rum utan att lämna rutan. */
+function lampZoner(vilka){
+  const lj=lampUrval(vilka), ordning=[], per={};
+  lj.forEach(d=>{
+    const z=d.zone||'';
+    if(!per[z]){per[z]=[];ordning.push(z);}
+    per[z].push(d);
+  });
+  /* Bokstavsordning, så samma rum hamnar på samma plats varje gång. */
+  ordning.sort((a,b)=>String(zonNamn(a)||'').localeCompare(String(zonNamn(b)||''),'sv'));
+  return ordning.map(z=>({zon:z,namn:zonNamn(z)||'Utan rum',lampor:ljusOrdna(per[z])}));
+}
+/* Tänd/släck alla lampor i ETT rum, men bara inom urvalet. zonAlla() skulle ta
+   med badrummet och Ambilight igen — den känner inte till urvalet. */
+async function lampZonAlla(vilka,zid,pa){
+  const lj=lampUrval(vilka).filter(d=>d.zone===zid);
+  if(!lj.length)return;
+  try{
+    await Promise.all(lj.map(d=>satt(d.id,'onoff',pa).catch(()=>{})));
+    lj.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=pa;});
+    render();setTimeout(load,900);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
+/* Dimma ett rum inom urvalet. Som lampDim: BARA tända lampor rörs — en släckt
+   lampa som får ett dim-värde tänds. Det skiljer sig medvetet från rumsvyns
+   zonDim, som tänder; här är regeln att dimning aldrig tänder något. */
+async function lampZonDim(vilka,zid,v){
+  const lj=lampUrval(vilka).filter(d=>d.zone===zid&&har(d,'dim')&&capOf(d,'onoff')===true);
+  if(!lj.length){toast('Inga tända lampor i rummet');return;}
+  const f=Math.max(0.01,Math.min(1,Number(v)/100));
+  try{
+    await Promise.all(lj.map(async d=>{
+      if(capOf(d,'onoff')!==true)return;
+      await satt(d.id,'dim',f).catch(()=>{});
+      if(d.capabilitiesObj&&d.capabilitiesObj.dim)d.capabilitiesObj.dim.value=f;
+    }));
+    render();setTimeout(load,1200);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
+function lampZonNiva(vilka,zid){
+  const d=lampUrval(vilka).filter(x=>x.zone===zid&&har(x,'dim')&&capOf(x,'onoff')===true&&capOf(x,'dim')!=null);
+  if(!d.length)return null;
+  return Math.round(d.reduce((sum,x)=>sum+capOf(x,'dim'),0)/d.length*100);
+}
+
+/* BROAR TILL REGLAGET. slxHTML anropar window[data-act](data-slx, värde), så
+   allt som behövs måste rymmas i id-strängen. Huvudreglaget skickar bara
+   urvalet; rumsreglaget skickar 'urval|zon'. */
+function lampDimSlx(id,v){return lampDim(id,v);}
+function lampZonDimSlx(id,v){
+  const bit=String(id).split('|');
+  return lampZonDim(bit[0],bit[1],v);
 }
 function lampDimVisa(v){const e=$('lm-dimv');if(e)e.textContent=v+' %';}
 function openLampor(vilka){
@@ -3734,6 +3817,42 @@ async function homeySkapaVar(namn,varde){
   }
   return false;
 }
+/* ===== SLÄPP MANUELLA LÅSNINGAR =====
+   Dimmar man en lampa för hand slutar den följa det adaptiva schemat resten av
+   dygnet. Den knappen släpper alla sådana låsningar direkt, i stället för att
+   man ska vänta till nästa dygn.
+
+   Signalen är ett millisekundvärde i Logic-variabeln adaptiv_nollstall.
+   Skriptet jämför med det senaste det redan behandlat och nollställer när talet
+   är nytt — det skriver aldrig tillbaka. Därför spelar det ingen roll om
+   dashboarden skriver flera gånger: samma tal kan inte utlösa två
+   nollställningar, och ett nytt tal gör alltid rätt. */
+const NOLLSTALL_VAR='adaptiv_nollstall';
+let _nollstallVarId=null;
+async function nollstallLas(){
+  const varde=String(Date.now());
+  try{
+    if(!_nollstallVarId){
+      const v=await homeyGet('/api/manager/logic/variable/');
+      const arr=Array.isArray(v)?v:Object.keys(v||{}).map(function(k){return v[k];});
+      const x=arr.find(function(a){return a&&a.name===NOLLSTALL_VAR;});
+      if(x)_nollstallVarId=x.id;
+    }
+    if(_nollstallVarId){
+      await homeySkriv('/api/manager/logic/variable/'+_nollstallVarId+'/',{value:varde});
+    }else{
+      /* Typen är string: Homeys Number-typ hade dugt, men skriptet gör Number()
+         ändå och string funkar i alla Homey-versioner. */
+      const ok=await homeySkapaVar(NOLLSTALL_VAR,varde);
+      if(!ok){toast('Kunde inte skapa '+NOLLSTALL_VAR);return;}
+      const v2=await homeyGet('/api/manager/logic/variable/');
+      const a2=Array.isArray(v2)?v2:Object.keys(v2||{}).map(function(k){return v2[k];});
+      const x2=a2.find(function(a){return a&&a.name===NOLLSTALL_VAR;});
+      if(x2)_nollstallVarId=x2.id;
+    }
+    toast('Alla lampor följer schemat igen');
+  }catch(e){toast('Kunde inte n\u00e5 Homey');}
+}
 function kurvaAter(){KURVA=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
 
 /* --- ritningen --- */
@@ -3800,6 +3919,11 @@ function kurvaHTML(){
     +'<button class="dbtn pri" onclick="kurvaSpara()">'+(_kurvaAndrad?'Spara \u00e4ndringar':'Sparad')+'</button>'
     +'<button class="dbtn" onclick="kurvaAter()">\u00c5terst\u00e4ll</button></div>';
   if(!_kurvaVarId){
+    h+='<div class="dbtn-row" style="margin-top:12px">'
+      +'<button class="dbtn" onclick="nollstallLas()">Sl\u00e4pp manuella l\u00e5sningar</button></div>'
+      +'<div class="setup-t">Dimmar du en lampa f\u00f6r hand slutar den f\u00f6lja schemat '
+      +'resten av dygnet. Knappen sl\u00e4pper alla s\u00e5dana l\u00e5sningar direkt \u2014 '
+      +'annars sker det av sig sj\u00e4lvt vid n\u00e4sta dygnsskifte.</div>';
     h+='<div class="setup-t" style="margin-top:10px;color:var(--warm)">Variabeln <b>adaptiv_kurva</b> '
       +'finns inte \u00e4n. Den skapas n\u00e4r du sparar. Skriptet anv\u00e4nder den f\u00f6rst efter att du '
       +'lagt in de fyra raderna som st\u00e5r i chatten.</div>';
