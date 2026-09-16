@@ -948,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.59.0';
+const APP_VERSION = 'v1.60.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2055,6 +2055,13 @@ function renderControls(){
          annars en släckt. Samma grepp som Gottskärs moodtoggle. */
       +'<span class="ctl-ic ic-slot" data-ic="'+(b.typ==='allt'?(pa?'lightbulb':'lightbulb-off'):b.ic)+'"></span>'
       +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':(b.typ==='allt'?(alltNasta()?'Tänd':'Släck'):b.l))+'</span>'
+      /* DIMMERYTAN. Ett tryck på knappen tänder/släcker och långtryck öppnar
+         redigeraren, så dimmern behöver en egen liten yta i hörnet.
+         stopPropagation så den inte också räknas som ett knapptryck.
+         Ikonen är 'sun-dim' — den finns i ICONS; 'sliders-horizontal' som jag
+         först valde gör det inte, och en okänd ikon ritas som ingenting alls. */
+      +(b.typ==='lamp'?('<span class="ctl-dim" onclick="event.stopPropagation();openLampor(\''+b.vilka+'\')" title="Dimmer">'
+        +icon('sun-dim')+'</span>'):'')
       +'<span class="ctl-s">'+(b.typ==='flow'?'starta'
         :(b.typ==='lamp'?(lampTanda(b.vilka).length+' av '+lampUrval(b.vilka).length+' tända'
             +((function(n){return n==null?'':' · '+n+' %';})(lampNivda(b.vilka))))
