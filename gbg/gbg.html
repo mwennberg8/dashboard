@@ -474,9 +474,28 @@ body.mobile .statusbar.stuck{
    skruva på utan att leta i flera regler. På mobil är den 3x --pg-gap. */
 .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));
   column-gap:var(--kn-luft);row-gap:var(--kn-luft);padding:var(--kn-luft)}
-.ctl{appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);
+/* position:relative krävs för dimmerytan i hörnet, som ligger absolut. */
+.ctl{position:relative;appearance:none;border:1px solid var(--line);border-radius:18px;background:var(--inset);color:var(--ink);
   font-family:var(--sans);font-weight:650;font-size:13px;padding:12px 10px;cursor:pointer;display:flex;
   flex-direction:column;align-items:center;gap:6px;transition:.18s;min-height:78px;justify-content:center}
+/* Dimmerytan i knappens övre högra hörn. Egen träffyta så ett vanligt tryck
+   fortfarande tänder eller släcker — långtryck är upptaget av redigeraren. */
+.ctl-dim{position:absolute;top:6px;right:6px;width:28px;height:28px;display:flex;
+  align-items:center;justify-content:center;border-radius:9px;color:var(--dim);
+  background:var(--panel-b);border:1px solid var(--line-soft);cursor:pointer;z-index:2}
+.ctl-dim .ic{width:14px;height:14px}
+.ctl.on .ctl-dim{color:var(--ink)}
+/* Reglaget och listan i lampruta. */
+.lm-rad{font-size:13px;font-weight:700;color:var(--ink);margin:0 0 10px}
+.lm-dim{display:flex;align-items:center;gap:11px;margin:0 0 8px}
+.lm-dim input[type=range]{flex:1 1 auto;min-width:0}
+.lm-dimv{flex:0 0 auto;font-size:13px;font-weight:800;color:var(--ink);min-width:48px;text-align:right}
+.lm-note{font-size:11.5px;color:var(--dim);line-height:1.45;margin:0 0 12px}
+.lm-lista{margin-top:14px;display:flex;flex-direction:column;gap:2px}
+.lm-l{display:flex;justify-content:space-between;gap:10px;font-size:12px;
+  color:var(--dim);padding:5px 2px;border-bottom:1px solid var(--line-soft)}
+.lm-l.on{color:var(--ink);font-weight:650}
+.lm-l span{flex:0 0 auto;opacity:.75}
 .ctl:hover{border-color:var(--svg-stroke)}
 /* Armerad knapp: samma färger och samma etikett som Gottskär. */
 .ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}
@@ -929,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.57.0';
+const APP_VERSION = 'v1.58.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1792,7 +1811,10 @@ const KNAPPAR_DEF=[
   {l:'Släck allt',ic:'lightbulb-off',typ:'allt'},
   {l:'Fläkt',     ic:'fan',          typ:'dev',  id:DEV.flakt,    cap:'onoff'},
   {l:'Luftrenare',ic:'wind',         typ:'dev',  id:DEV.luftren,  cap:'onoff'},
-  {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'}
+  {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'},
+  /* Tryck tänder/släcker hela urvalet; håll inne öppnar dimmern. */
+  {l:'Taklampor', ic:'lightbulb',    typ:'lamp', vilka:'tak'},
+  {l:'Övriga lampor',ic:'lamp',      typ:'lamp', vilka:'ovriga'}
 ];
 const KN_KEY='gbgknappar_v1';
 /* Bekräftelse med två tryck, som på Gottskär, men PER KNAPP: kryssrutan sitter
@@ -1837,6 +1859,137 @@ function knLista(){return KNAPPAR;}
    Lamporna knappen råder över: alla lampor utom gruppmedlemmar (gruppen står
    för dem) men MED de uttag som egentligen är lampor. Förr räknades bara
    klass 'light', vilket missade lavalampan och badrumsskåpet. */
+/* ===== TAKLAMPOR OCH ÖVRIGA LAMPOR =====
+   Två knappar: en för taklamporna, en för resten utom badrum och Ambilight.
+   Båda tänder/släcker med ett tryck och dimmar via en egen ruta.
+
+   URVALET BYGGER PÅ GRUPPERNA, INTE PÅ NAMN. Namnregeln arTak() använder
+   /\btak/ och missar sju av dina taklampor — Stak1–3, Htak1–2 och Btak1–2 har
+   inget ordmellanrum före "tak". (Substrängen "tak" hade träffat alla 22 utan
+   en enda falsk träff, men grupperna är ändå säkrare: de är uttryckliga och
+   överlever en omdöpning.) GRUPP_FAST kartlägger redan varje takgrupp till
+   sina medlemmar, så den listan används.
+
+   Badrum utesluts på ZON, inte på namn, så en ny lampa där hamnar rätt av sig
+   själv. Ambilight utesluts via sin grupp i GRUPP_FAST. */
+const TAK_GRUPPER = [
+  '87209c2e-3b84-4744-ba2a-dd6089722b3a',   /* Hall tak */
+  '4a39dbce-5038-4394-a12c-02d91ca2d4ae',   /* Sovrum tak */
+  '176647d4-0d7d-4203-b7a0-c556d8f49ec1',   /* Badrum tak */
+  '0f3dbcea-f59b-4eea-8735-b5c0abb0d6c7',   /* Klädkammare tak */
+  'ff4f5f57-af47-427b-9868-494bab9bd8f4',   /* Kök tak */
+  '27b6439a-73fd-417d-bab9-2749258b09c1'    /* Vardagsrum tak */
+];
+const AMBI_GRUPP = '326efe6d-bbdd-47be-a3b0-0d2d8d96fca0';
+const BADRUM_ZON = 'f4b11d9a-7b89-45f9-9261-b16dba82df4a';
+
+/* Alla id som hör till en grupp: gruppen själv plus dess medlemmar. */
+function grpAlla(gid){
+  const ut=[gid];
+  const m=GRUPP_FAST[gid];
+  if(Array.isArray(m))m.forEach(x=>ut.push(x));
+  return ut;
+}
+function takIds(){
+  const s={};
+  TAK_GRUPPER.forEach(g=>grpAlla(g).forEach(id=>{s[id]=true;}));
+  return s;
+}
+function ambiIds(){
+  const s={};
+  grpAlla(AMBI_GRUPP).forEach(id=>{s[id]=true;});
+  return s;
+}
+/* De lampor en knapp ska styra. Gruppenheterna själva utelämnas: att skriva på
+   både gruppen och medlemmarna ger dubbla kommandon, och medlemmarna är det
+   som faktiskt lyser. Samma skäl som adaptiva ljuset utesluter grupper. */
+function lampUrval(vilka){
+  const tak=takIds(), ambi=ambiIds();
+  return devs().filter(d=>{
+    if(!arLampa(d)||!har(d,'onoff'))return false;
+    if(iGrupp(d))return false;                 /* medlem styrs, inte gruppen */
+    if(TAK_GRUPPER.indexOf(d.id)>=0)return false;
+    if(d.id===AMBI_GRUPP)return false;
+    if(vilka==='tak')return !!tak[d.id];
+    /* övriga: inte tak, inte badrum, inte Ambilight */
+    if(tak[d.id])return false;
+    if(ambi[d.id])return false;
+    if(d.zone===BADRUM_ZON)return false;
+    return true;
+  });
+}
+function lampTanda(vilka){return lampUrval(vilka).filter(d=>capOf(d,'onoff')===true);}
+/* Dimbara OCH TÄNDA — det är dem dimmern rör. */
+function lampDimbara(vilka){
+  return lampTanda(vilka).filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
+}
+function lampNivda(vilka){
+  const d=lampDimbara(vilka);
+  if(!d.length)return null;
+  return Math.round(d.reduce((sum,x)=>sum+capOf(x,'dim'),0)/d.length*100);
+}
+function lampPa(vilka){return lampTanda(vilka).length>0;}
+
+/* Tänd eller släck hela urvalet. Lyser någon släcker vi, annars tänder vi. */
+async function lampTog(vilka){
+  const lj=lampUrval(vilka);
+  if(!lj.length){toast('Inga lampor i urvalet');return;}
+  const ny=!lampPa(vilka);
+  try{
+    await Promise.all(lj.map(d=>satt(d.id,'onoff',ny).catch(()=>{})));
+    lj.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=ny;});
+    render();setTimeout(load,900);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
+
+/* DIMNING RÖR BARA DE TÄNDA. En släckt lampa som får ett dim-värde TÄNDS i de
+   flesta drivrutiner — samma fälla som slog till i Göteborgs adaptiva ljus
+   kl 20:00. Därför skrivs dim aldrig till något som är släckt, och onoff
+   skrivs inte alls här. */
+async function lampDim(vilka,v){
+  const lj=lampDimbara(vilka);
+  if(!lj.length){toast('Inga tända lampor att dimma');return;}
+  const f=Math.max(0.01,Math.min(1,Number(v)/100));
+  try{
+    await Promise.all(lj.map(async d=>{
+      if(capOf(d,'onoff')!==true)return;        /* hann släckas — rör den inte */
+      await satt(d.id,'dim',f).catch(()=>{});
+      if(d.capabilitiesObj&&d.capabilitiesObj.dim)d.capabilitiesObj.dim.value=f;
+    }));
+    render();setTimeout(load,1200);
+  }catch(e){toast('Kunde inte nå Homey');}
+}
+
+/* Rutan med skjutreglaget. Öppnas från knappens lilla dimmer-ikon. */
+function lampPopHTML(vilka){
+  const alla=lampUrval(vilka), pa=lampTanda(vilka), dimbara=lampDimbara(vilka);
+  const niva=lampNivda(vilka);
+  let h='<div class="lm-rad"><b>'+pa.length+'</b> av '+alla.length+' tända'
+    +(dimbara.length?(' · '+dimbara.length+' dimbara'):'')+'</div>';
+  if(dimbara.length){
+    h+='<div class="lm-dim"><input type="range" min="1" max="100" value="'+(niva==null?50:niva)
+      +'" oninput="lampDimVisa(this.value)" onchange="lampDim(\''+vilka+'\',this.value)">'
+      +'<span class="lm-dimv" id="lm-dimv">'+(niva==null?'–':niva+' %')+'</span></div>'
+      +'<div class="lm-note">Dimningen rör bara de tända lamporna. Släckta lämnas '
+      +'orörda — ett dim-värde skulle tända dem.</div>';
+  }else{
+    h+='<div class="lm-note">Inga tända lampor att dimma just nu.</div>';
+  }
+  h+='<div class="lm-knappar"><button class="lm-b pri" onclick="lampTog(\''+vilka+'\')">'
+    +(pa.length?'Släck alla':'Tänd alla')+'</button></div>';
+  h+='<div class="lm-lista">'+alla.map(d=>{
+    const on=capOf(d,'onoff')===true, dv=har(d,'dim')?capOf(d,'dim'):null;
+    return '<div class="lm-l'+(on?' on':'')+'">'+esc(namn(d))
+      +'<span>'+(on?(dv!=null?Math.round(dv*100)+' %':'på'):'av')+'</span></div>';
+  }).join('')+'</div>';
+  return h;
+}
+function lampDimVisa(v){const e=$('lm-dimv');if(e)e.textContent=v+' %';}
+function openLampor(vilka){
+  const titel=(vilka==='tak')?'Taklampor':'Övriga lampor';
+  DLG_OM['lamp'+vilka]=()=>{const b=$('dlg-body');if(b)b.innerHTML=lampPopHTML(vilka);};
+  openDlg(titel,(vilka==='tak')?'lightbulb':'lamp',lampPopHTML(vilka),'lamp'+vilka);
+}
 function alltLampor(){
   return devs().filter(d=>arLampa(d)&&har(d,'onoff')&&!iGrupp(d));
 }
@@ -1852,6 +2005,7 @@ function alltNasta(){return alltTakPa()?false:true;}
 function knappPa(b){
   if(b.typ==='dev')return cap(b.id,b.cap)===true;
   if(b.typ==='allt')return alltTakPa();
+  if(b.typ==='lamp')return lampPa(b.vilka);
   return false;}
 function renderControls(){
   const el=$('controls');if(!el)return;
@@ -1865,8 +2019,10 @@ function renderControls(){
       +'<span class="ctl-ic ic-slot" data-ic="'+(b.typ==='allt'?(pa?'lightbulb':'lightbulb-off'):b.ic)+'"></span>'
       +'<span class="ctl-l">'+esc(armerad?'Bekräfta?':(b.typ==='allt'?(alltNasta()?'Tänd':'Släck'):b.l))+'</span>'
       +'<span class="ctl-s">'+(b.typ==='flow'?'starta'
+        :(b.typ==='lamp'?(lampTanda(b.vilka).length+' av '+lampUrval(b.vilka).length+' tända'
+            +((function(n){return n==null?'':' · '+n+' %';})(lampNivda(b.vilka))))
         :(b.typ==='allt'?(alltTanda().length+' av '+alltLampor().length+' tända')
-        :(pa?'på':'av')))+'</span>'
+        :(pa?'på':'av'))))+'</span>'
       +'</button>';}).join('');
   initIcons(el);
   knLangtryck(el);
@@ -1910,6 +2066,14 @@ async function knappTryck(i){
       const v=!(cap(b.id,b.cap)===true);
       await satt(b.id,b.cap,v);
       if(DATA[b.id]&&DATA[b.id].capabilitiesObj[b.cap])DATA[b.id].capabilitiesObj[b.cap].value=v;
+    }else if(b.typ==='lamp'){
+      /* Samma skrivning tillbaka i DATA som 'dev' och 'allt' gör — utan den
+         ritas knappen om med gamla värden och står kvar i fel läge. */
+      const lj=lampUrval(b.vilka);
+      const v=!lampPa(b.vilka);
+      const mal=lj.filter(d=>(capOf(d,'onoff')===true)!==v);
+      await Promise.all(mal.map(d=>satt(d.id,'onoff',v).catch(()=>{})));
+      mal.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=v;});
     }else if(b.typ==='allt'){
       const v=alltNasta();
       const mal=alltLampor().filter(d=>(capOf(d,'onoff')===true)!==v);
@@ -3925,6 +4089,7 @@ function knFlowOpts(sel){
 function knTypNamn(b){
   if(b.typ==='flow')return 'flow';
   if(b.typ==='allt')return 'alla lampor av';
+  if(b.typ==='lamp')return (b.vilka==='tak')?'taklampor':'övriga lampor (utom badrum och Ambilight)';
   const d=DATA[b.id];return d?(d.name||'enhet'):'enhet saknas';
 }
 function knapparHTML(){
@@ -4054,7 +4219,8 @@ function knRedOm(i){
   h+=dSec('Typ')+'<div class="dbtn-row">'
     +'<button class="dbtn'+(b.typ==='dev'?' pri':'')+'" onclick="knTyp('+i+',\'dev\')">Enhet</button>'
     +'<button class="dbtn'+(b.typ==='flow'?' pri':'')+'" onclick="knTyp('+i+',\'flow\')">Flow</button>'
-    +'<button class="dbtn'+(b.typ==='allt'?' pri':'')+'" onclick="knTyp('+i+',\'allt\')">Sl\u00e4ck allt</button></div>';
+    +'<button class="dbtn'+(b.typ==='allt'?' pri':'')+'" onclick="knTyp('+i+',\'allt\')">Sl\u00e4ck allt</button>'
+    +'<button class="dbtn'+(b.typ==='lamp'?' pri':'')+'" onclick="knTyp('+i+',\'lamp\')">Lampgrupp</button></div>';
   h+=dSec('Namn')+'<input class="setup-i" id="kn-namn" maxlength="22" value="'+esc(b.l||'')+'">';
   if(b.typ==='dev'){
     h+=dSec('Enhet')+'<select class="setup-i" id="kn-dev"><option value="">V\u00e4lj enhet\u2026</option>'+knDevOpts(b.id||'')+'</select>'
