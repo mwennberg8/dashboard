@@ -948,7 +948,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.58.0';
+const APP_VERSION = 'v1.59.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1842,10 +1842,47 @@ function bekraftVantar(nyckel){return !!_bekrVantar[nyckel];}
 /* Egna knappar ligger i webbläsaren. Saknas de, eller är listan trasig, faller
    vi tillbaka på originaluppställningen — en tom kontrollpanel är värre än en
    uppställning man inte valt själv. */
+/* PÅFYLLNING AV NYA STANDARDKNAPPAR.
+   KNAPPAR_DEF gäller bara den som aldrig rört knapparna. Har man sparat en egen
+   uppsättning läses den, och nya standardknappar dyker aldrig upp — därför syntes
+   inte lampknapparna i v1.58.0 för någon som redan ändrat sina knappar.
+
+   Nya knappar fylls därför på EN gång, och det antecknas i KN_NYA_KEY. Raderar
+   du dem sedan kommer de inte tillbaka: nyckeln säger att påfyllningen redan är
+   gjord. Listan växer med tiden; varje post har ett eget märke. */
+const KN_NYA_KEY='gbgknappar_nya_v1';
+const KN_NYA=[
+  {mark:'lamp-tak',    knapp:{l:'Taklampor',     ic:'lightbulb', typ:'lamp', vilka:'tak'}},
+  {mark:'lamp-ovriga', knapp:{l:'Övriga lampor', ic:'lamp',      typ:'lamp', vilka:'ovriga'}}
+];
+function knFyllPa(lista){
+  let gjorda={};
+  try{gjorda=JSON.parse(localStorage.getItem(KN_NYA_KEY)||'{}')||{};}catch(e){}
+  let nytt=false;
+  KN_NYA.forEach(x=>{
+    if(gjorda[x.mark])return;                 /* redan påfylld en gång */
+    gjorda[x.mark]=true;nytt=true;
+    /* Finns en likadan redan (t.ex. tillagd för hand) läggs ingen dubblett. */
+    const finns=lista.some(b=>b&&b.typ==='lamp'&&b.vilka===x.knapp.vilka);
+    if(!finns)lista.push(Object.assign({},x.knapp));
+  });
+  if(nytt){
+    try{localStorage.setItem(KN_NYA_KEY,JSON.stringify(gjorda));}catch(e){}
+    try{localStorage.setItem(KN_KEY,JSON.stringify(lista));}catch(e){}
+  }
+  return lista;
+}
 function knLadda(){
   try{const a=JSON.parse(localStorage.getItem(KN_KEY)||'null');
-    if(Array.isArray(a)&&a.length)return a.filter(b=>b&&b.typ);}catch(e){}
-  return KNAPPAR_DEF.map(b=>Object.assign({},b));
+    if(Array.isArray(a)&&a.length)return knFyllPa(a.filter(b=>b&&b.typ));}catch(e){}
+  /* Ingen sparad uppsättning: standarden innehåller dem redan, men märket ska
+     sättas ändå så de inte fylls på en gång till efteråt. */
+  const d=KNAPPAR_DEF.map(b=>Object.assign({},b));
+  try{
+    const g={};KN_NYA.forEach(x=>{g[x.mark]=true;});
+    localStorage.setItem(KN_NYA_KEY,JSON.stringify(g));
+  }catch(e){}
+  return d;
 }
 function knSpara(){
   try{localStorage.setItem(KN_KEY,JSON.stringify(KNAPPAR));}catch(e){}
