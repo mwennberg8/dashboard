@@ -625,6 +625,23 @@ body.mobile .statusbar.stuck{
 .kv{height:170px}
 path.kv-dim{stroke:var(--gold)} circle.kv-dim{fill:var(--gold)}
 path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
+/* Redigerbar värdelista. Fyra kolumner: tid, ljus, värme, ta bort. */
+.kv-lista{margin-top:6px}
+.kv-rad{display:grid;grid-template-columns:1fr 1fr 1fr 34px;gap:7px;align-items:center;
+  padding:4px 0;border-bottom:1px solid var(--line-soft)}
+.kv-rad.kv-rub{border-bottom:0;padding-bottom:2px}
+.kv-rad.kv-rub span{font-size:10.5px;font-weight:700;color:var(--dim);
+  letter-spacing:.04em;text-transform:uppercase}
+.kv-in{width:100%;box-sizing:border-box;padding:7px 8px;border:1px solid var(--line);
+  border-radius:9px;background:var(--panel-b);color:var(--ink);font-family:inherit;
+  font-size:13.5px;font-weight:650;text-align:center}
+.kv-in.kv-dim{color:var(--gold)}
+.kv-in.kv-tmp{color:var(--blue)}
+.kv-bort{width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--dim);
+  border-radius:9px;cursor:pointer;padding:0}
+.kv-bort[disabled]{opacity:.3}
+.kv-bort .ic{width:13px;height:13px}
 .kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
 .kv-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 .kv-leg i.kv-dim{background:var(--gold)} .kv-leg i.kv-temp{background:var(--blue)}
@@ -953,7 +970,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.69.0';
+const APP_VERSION = 'v1.70.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3858,7 +3875,26 @@ const KURVA_STD=[
   {tid:'20:00',dim:0.80,temp:0.80},
   {tid:'00:00',dim:0.10,temp:1.00}
 ];
+/* EN KURVA PER GRUPP. Taklamporna och myslamporna vill sällan ha samma
+   ljusbild — taket ska ner tidigt på kvällen medan myslamporna får lysa.
+   Variablerna är separata; adaptiv_kurva (den gamla, gemensamma) läses
+   fortfarande som UTGÅNGSVÄRDE första gången, så inget går förlorat.
+   KURVA pekar alltid på den valda gruppens array, så all dragkod nedan
+   fungerar oförändrad. */
+const KURVA_VARS={tak:'adaptiv_kurva_tak', mys:'adaptiv_kurva_mys'};
+const KURVA_NAMN={tak:'Taklampor', mys:'Myslampor'};
+var KURVOR={tak:null,mys:null};
+var _kurvaVal='tak';                 /* vilken som redigeras just nu */
+var _kurvaVarIdar={tak:null,mys:null};
 var KURVA=null,_kurvaVarId=null,_kurvaAndrad=false;
+
+function kurvaValj(v){
+  if(v!=='tak'&&v!=='mys')return;
+  _kurvaVal=v;
+  KURVA=KURVOR[v]||(KURVOR[v]=kurvaKopia(KURVA_STD));
+  _kurvaVarId=_kurvaVarIdar[v];
+  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+}
 
 function kurvaKopia(k){return k.map(function(p){return {tid:p.tid,dim:p.dim,temp:p.temp};});}
 function kurvaGiltig(k){
@@ -3870,33 +3906,43 @@ function kurvaGiltig(k){
   });
 }
 async function kurvaHamta(){
+  let gammal=null;
   try{
     const v=await homeyGet('/api/manager/logic/variable/');
-    if(!v)return;
-    const arr=Array.isArray(v)?v:Object.keys(v).map(function(k){return v[k];});
-    const x=arr.find(function(a){return a&&a.name===KURVA_VAR;});
-    if(!x){_kurvaVarId=null;KURVA=KURVA=KURVA||kurvaKopia(KURVA_STD);return;}
-    _kurvaVarId=x.id;
-    const j=JSON.parse(String(x.value||''));
-    if(kurvaGiltig(j))KURVA=j;
+    const arr=Array.isArray(v)?v:Object.keys(v||{}).map(function(k){return v[k];});
+    /* Den gamla gemensamma kurvan: används som utgångsvärde för båda grupperna
+       om de inte har egna variabler än. Då ser man samma kurva som förut
+       första gången rutan öppnas, i stället för standardkurvan. */
+    const g=arr.find(function(a){return a&&a.name===KURVA_VAR;});
+    if(g){try{const j=JSON.parse(String(g.value||''));if(kurvaGiltig(j))gammal=j;}catch(e){}}
+    ['tak','mys'].forEach(function(k){
+      const x=arr.find(function(a){return a&&a.name===KURVA_VARS[k];});
+      _kurvaVarIdar[k]=x?x.id:null;
+      if(x){try{const j=JSON.parse(String(x.value||''));if(kurvaGiltig(j))KURVOR[k]=j;}catch(e){}}
+    });
   }catch(e){/* saknas eller otolkbar - standardkurvan galler */}
-  if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
+  ['tak','mys'].forEach(function(k){
+    if(!KURVOR[k])KURVOR[k]=kurvaKopia(gammal||KURVA_STD);
+  });
+  KURVA=KURVOR[_kurvaVal];
+  _kurvaVarId=_kurvaVarIdar[_kurvaVal];
 }
 async function kurvaSpara(){
   if(!kurvaGiltig(KURVA)){toast('Kurvan ser fel ut \u2013 sparar inte');return;}
   const varde=JSON.stringify(KURVA);
   try{
-    if(_kurvaVarId){
-      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarId+'/',{value:varde});
+    const varNamn=KURVA_VARS[_kurvaVal];
+    if(_kurvaVarIdar[_kurvaVal]){
+      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarIdar[_kurvaVal]+'/',{value:varde});
     }else{
       /* Finns den inte skapas den. Typen ar string - Homey har ingen JSON-typ,
          och skriptet gor JSON.parse anda. */
-      const ok=await homeySkapaVar(KURVA_VAR,varde);
-      if(!ok){toast('Kunde inte skapa variabeln');return;}
+      const ok=await homeySkapaVar(varNamn,varde);
+      if(!ok){toast('Kunde inte skapa '+varNamn);return;}
       await kurvaHamta();
     }
     _kurvaAndrad=false;
-    toast('Kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
+    toast(KURVA_NAMN[_kurvaVal]+': kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
     if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
@@ -3950,7 +3996,77 @@ async function nollstallLas(){
     toast('Alla lampor följer schemat igen');
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
-function kurvaAter(){KURVA=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
+/* Klockslag ur listan. Tolerant vid inmatning — "7", "7:5", "0730" och
+   "07.30" blir alla 07:30-formen — men ett obegripligt värde lämnar punkten
+   orörd i stället för att gissa. */
+function kurvaTidTolka(v){
+  const t=String(v==null?'':v).trim();
+  if(!t)return null;
+  let h=null,m=null;
+  let x=/^(\d{1,2})[:.,\s](\d{1,2})$/.exec(t);
+  if(x){h=+x[1];m=+x[2];}
+  else if(/^\d{3,4}$/.test(t)){h=+t.slice(0,t.length-2);m=+t.slice(-2);}
+  else if(/^\d{1,2}$/.test(t)){h=+t;m=0;}
+  else return null;
+  if(!(h>=0&&h<=23&&m>=0&&m<=59))return null;
+  return ('0'+h).slice(-2)+':'+('0'+m).slice(-2);
+}
+function kurvaSattTid(i,v){
+  if(!KURVA||!KURVA[i])return;
+  const t=kurvaTidTolka(v);
+  if(t===null){toast('Skriv tiden som 07:30');dlgSatt(kurvaHTML());return;}
+  /* Två punkter på samma klockslag gör kurvan tvetydig. */
+  if(KURVA.some(function(p,j){return j!==i&&p.tid===t;})){
+    toast('Det finns redan en punkt '+t);dlgSatt(kurvaHTML());return;}
+  KURVA[i].tid=t;_kurvaAndrad=true;dlgSatt(kurvaHTML());
+}
+function kurvaSattVarde(i,falt,v){
+  if(!KURVA||!KURVA[i])return;
+  const n=Number(String(v).replace(',','.'));
+  if(!isFinite(n)){toast('Skriv ett tal 0\u2013100');dlgSatt(kurvaHTML());return;}
+  KURVA[i][falt]=Math.max(0,Math.min(1,n/100));
+  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+}
+function kurvaTaBort(i){
+  if(!KURVA||KURVA.length<=2){toast('Kurvan beh\u00f6ver minst tv\u00e5 punkter');return;}
+  KURVA.splice(i,1);_kurvaAndrad=true;dlgSatt(kurvaHTML());
+}
+/* Ny punkt mitt i den största luckan — då hamnar den någonstans man faktiskt
+   vill ha den, i stället för alltid sist. */
+function kurvaLaggTill(){
+  if(!KURVA)return;
+  const min=function(t){const b=String(t).split(':');return (+b[0])*60+(+b[1]);};
+  const sort=KURVA.slice().sort(function(a,b){return min(a.tid)-min(b.tid);});
+  let bast=0,lucka=-1;
+  for(let j=0;j<sort.length;j++){
+    const a=min(sort[j].tid), b=min(sort[(j+1)%sort.length].tid);
+    const d=(b-a+1440)%1440||1440;
+    if(d>lucka){lucka=d;bast=(a+Math.floor(d/2))%1440;}
+  }
+  const tid=('0'+Math.floor(bast/60)).slice(-2)+':'+('0'+(bast%60)).slice(-2);
+  if(KURVA.some(function(p){return p.tid===tid;})){toast('Det finns redan en punkt '+tid);return;}
+  /* Värdena tas från kurvan där punkten hamnar, så den inte gör ett hopp. */
+  const m=kurvaVardeVid(bast);
+  KURVA.push({tid:tid,dim:m.dim,temp:m.temp});
+  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+}
+/* Kurvans värde vid en minut — samma interpolation som skriptet gör. */
+function kurvaVardeVid(minut){
+  const min=function(t){const b=String(t).split(':');return (+b[0])*60+(+b[1]);};
+  const a=KURVA.map(function(p){return {m:min(p.tid),dim:p.dim,temp:p.temp};})
+    .sort(function(x,y){return x.m-y.m;});
+  if(!a.length)return {dim:0.5,temp:0.5};
+  if(a.length===1)return {dim:a[0].dim,temp:a[0].temp};
+  let i=-1;for(let k=0;k<a.length;k++)if(a[k].m<=minut)i=k;
+  let p1,p2,langd,pos;
+  if(i===-1||i===a.length-1){
+    p1=a[a.length-1];p2=a[0];langd=1440-p1.m+p2.m;
+    pos=(i===-1)?(1440-p1.m+minut):(minut-p1.m);
+  }else{p1=a[i];p2=a[i+1];langd=p2.m-p1.m;pos=minut-p1.m;}
+  const f=langd===0?0:pos/langd;
+  return {dim:p1.dim+(p2.dim-p1.dim)*f, temp:p1.temp+(p2.temp-p1.temp)*f};
+}
+function kurvaAter(){KURVA=KURVOR[_kurvaVal]=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
 
 /* --- ritningen --- */
 const KV_W=320,KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
@@ -4001,17 +4117,40 @@ function kurvaSVG(){
 function kurvaHTML(){
   if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
   const pts=kvSort();
-  let h='<div class="setup-t">Dra punkterna i h\u00f6jdled. Guld \u00e4r ljusstyrka, bl\u00e5tt \u00e4r '
-    +'v\u00e4rme i f\u00e4rgtonen \u2013 h\u00f6gt v\u00e4rde ger varmt ljus. Klockslagen \u00e4r fasta.</div>'
+  /* Vilken grupp som redigeras. Samma segmentknappar som prisrutan. */
+  let h='<div class="seg-row" style="margin:0 0 10px">'
+    +['tak','mys'].map(function(k){
+      return '<button class="seg-btn'+(_kurvaVal===k?' on':'')+'" onclick="kurvaValj(\''+k+'\')">'
+        +esc(KURVA_NAMN[k])+'</button>';}).join('')
+    +'</div>';
+  h+='<div class="setup-t">Dra punkterna i h\u00f6jdled, eller skriv v\u00e4rdena i listan '
+    +'nedanf\u00f6r. Guld \u00e4r ljusstyrka, bl\u00e5tt \u00e4r v\u00e4rme i f\u00e4rgtonen \u2013 '
+    +'h\u00f6gt v\u00e4rde ger varmt ljus.</div>'
     +'<div class="kv-box" id="kv-box" onpointerdown="kvNer(event)" onpointermove="kvRor(event)" '
     +'onpointerup="kvUpp(event)" onpointercancel="kvUpp(event)">'+kurvaSVG()+'</div>'
     +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span></div>';
+  /* REDIGERBAR LISTA. Varje rad är tre fält: klockslag, ljusstyrka och värme.
+     Indexet som skickas är platsen i KURVA (p.i), inte i den sorterade listan —
+     annars skulle en ändrad tid skriva på fel punkt. */
   h+=dSec('V\u00e4rden');
+  h+='<div class="kv-lista"><div class="kv-rad kv-rub"><span>Tid</span>'
+    +'<span>Ljus %</span><span>V\u00e4rme</span><span></span></div>';
   pts.forEach(function(p){
-    h+=dRow(p.tid||(KURVA[p.i]&&KURVA[p.i].tid)||'',
-      '<span style="color:var(--gold)">'+Math.round(p.dim*100)+' %</span> \u00b7 '
-      +'<span style="color:var(--blue)">'+Math.round(p.temp*100)+'</span>');
+    const i=p.i;
+    h+='<div class="kv-rad">'
+      +'<input class="kv-in kv-tid" value="'+esc(p.tid||'')+'" inputmode="numeric" '
+        +'onchange="kurvaSattTid('+i+',this.value)" aria-label="klockslag">'
+      +'<input class="kv-in kv-dim" type="number" min="0" max="100" step="1" '
+        +'value="'+Math.round(p.dim*100)+'" onchange="kurvaSattVarde('+i+',\'dim\',this.value)" aria-label="ljusstyrka">'
+      +'<input class="kv-in kv-tmp" type="number" min="0" max="100" step="1" '
+        +'value="'+Math.round(p.temp*100)+'" onchange="kurvaSattVarde('+i+',\'temp\',this.value)" aria-label="v\u00e4rme">'
+      +'<button class="kv-bort" onclick="kurvaTaBort('+i+')" aria-label="ta bort" '
+        +(KURVA.length<=2?'disabled':'')+'>'+icon('minus')+'</button>'
+      +'</div>';
   });
+  h+='</div>';
+  h+='<div class="dbtn-row" style="margin-top:8px">'
+    +'<button class="dbtn" onclick="kurvaLaggTill()">L\u00e4gg till punkt</button></div>';
   h+='<div class="dbtn-row" style="margin-top:10px">'
     +'<button class="dbtn pri" onclick="kurvaSpara()">'+(_kurvaAndrad?'Spara \u00e4ndringar':'Sparad')+'</button>'
     +'<button class="dbtn" onclick="kurvaAter()">\u00c5terst\u00e4ll</button></div>';
