@@ -953,7 +953,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.66.0';
+const APP_VERSION = 'v1.67.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1190,6 +1190,10 @@ const GRUPP_FAST={
     'fc4c47b7-10a3-4db0-aee7-1b77df4d8fe7'      /* Vardagsrum tak 4 */
   ],
   '858d143d-cfc6-4c94-9656-4273f0615638':[      /* Koksbank */
+    /* 1571f4ad har SAMMA namn som gruppen och stod inte har, sa den raknades
+       som en fristaende lampa vid sidan av gruppen — "Köksbänk" dok upp tva
+       ganger i Myslampor. */
+    '1571f4ad-3e3d-44b7-842c-4477ea7fab62',     /* Koksbank (lampa) */
     '5a2ee946-1007-4ef1-8cfb-2c709d56eff0'      /* Koksbank 2 */
   ]
 };
@@ -2074,7 +2078,13 @@ function lampPopHTML(vilka){
      får sina rader under samma rubrik. */
   h+=dSec('Per rum');
   lampZoner(vilka).forEach(z=>{
-    h+=z.lampor.map(devRad).join('');
+    /* Taklamporna: EN rad per rum, så rummets namn säger allt — "Vardagsrum"
+       läser sig bättre än "Vardagsrum tak" när rubriken redan är Taklampor.
+       Myslamporna kan vara flera per rum och behåller sina egna namn. */
+    h+=z.lampor.map(d=>devRad(d,{
+      namn:(vilka==='tak'&&z.lampor.length===1)?z.namn:namn(d),
+      dolj:true
+    })).join('');
   });
   return h;
 }
@@ -3198,12 +3208,19 @@ function adaptText(id){
   if(a.s==='u')return 'utanf\u00f6r schemat';
   return '';
 }
-function devRad(d){
+/* val (valfritt):
+     namn   — visa det här i stället för enhetens namn (lamprutorna visar
+              rummets namn: "Vardagsrum", inte "Vardagsrum tak")
+     dolj   — hoppa över "grupp · N lampor". I lamprutorna är varje rad redan
+              ett rum eller en lampgrupp, så den upplysningen säger inget nytt
+              och tar en rad. */
+function devRad(d,val){
+  val=val||{};
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
   let h='<div class="dv-row'+(pa?' on':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
     +'<span class="dv-ic">'+icon(lampIkon(d))+'</span>'
-    +'<span class="dv-n">'+esc(namn(d))
-      +(arGrupp(d)&&grpMedlemmar(d).length?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
+    +'<span class="dv-n">'+esc(val.namn||namn(d))
+      +((!val.dolj&&arGrupp(d)&&grpMedlemmar(d).length)?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
       +(dim!=null?('<small>'+Math.round(dim*100)+' %'
         +(adaptText(d.id)?(' · '+esc(adaptText(d.id))):'')+'</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
