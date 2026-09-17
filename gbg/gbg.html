@@ -953,7 +953,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.68.0';
+const APP_VERSION = 'v1.69.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2076,11 +2076,14 @@ function lampPopHTML(vilka){
      det finns bara en sak att styra i rummet, och en "Hela rummet"-rad ovanför
      en enda rad hade bara varit samma knapp två gånger. Rum med flera enheter
      får sina rader under samma rubrik. */
-  h+=dSec('Per rum');
+  /* TAKLAMPORNA: en rad per rum, så rummets namn står i raden och en rubrik
+     per rum hade sagt samma sak två gånger — en enda rubrik räcker.
+     MYSLAMPORNA: flera per rum, så där behövs en rubrik per rum för att man
+     ska se vad som hör ihop. */
+  const perRum=(vilka!=='tak');
+  if(!perRum)h+=dSec('Per rum');
   lampZoner(vilka).forEach(z=>{
-    /* Taklamporna: EN rad per rum, så rummets namn säger allt — "Vardagsrum"
-       läser sig bättre än "Vardagsrum tak" när rubriken redan är Taklampor.
-       Myslamporna kan vara flera per rum och behåller sina egna namn. */
+    if(perRum)h+=dSec(z.namn);
     h+=z.lampor.map(d=>devRad(d,{
       namn:(vilka==='tak'&&z.lampor.length===1)?z.namn:namn(d),
       dolj:true
@@ -2117,7 +2120,17 @@ function lampZoner(vilka){
     if(pa!==pb)return pa-pb;
     return na.localeCompare(nb,'sv');     /* okända rum: bokstavsordning sist */
   });
-  return ordning.map(z=>({zon:z,namn:zonNamn(z)||'Utan rum',lampor:ljusOrdna(per[z])}));
+  /* UTTAG SIST I SITT RUM. Lavalampan är ett uttag som råkar vara en lampa —
+     den hör hemma i listan men inte överst bland de riktiga lamporna.
+     Regeln är generell (alla LAMP_UTTAG), inte en namnkontroll på just
+     Lavalampan, så nästa uttagslampa hamnar rätt av sig själv. */
+  const uttagSist=(lj)=>{
+    const arUttag=d=>!!(d&&LAMP_UTTAG[d.id]);
+    const vanliga=lj.filter(d=>!arUttag(d));
+    const uttag=lj.filter(arUttag);
+    return vanliga.concat(uttag);
+  };
+  return ordning.map(z=>({zon:z,namn:zonNamn(z)||'Utan rum',lampor:uttagSist(ljusOrdna(per[z]))}));
 }
 /* Tänd/släck alla lampor i ETT rum, men bara inom urvalet. zonAlla() skulle ta
    med badrummet och Ambilight igen — den känner inte till urvalet. */
