@@ -656,11 +656,16 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .kv-g-p{width:8px;height:8px;border-radius:50%;background:var(--line);flex:0 0 auto}
 .kv-g.on .kv-g-p{background:var(--blue)}
 /* Förklaringen: den streckade visar den andra gruppen. */
-.kv-leg-b{opacity:.6}
-.kv-leg-b i{width:14px;height:0;border-top:2px dashed var(--dim);background:none;border-radius:0}
 .kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
 .kv-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 .kv-leg i.kv-dim{background:var(--gold)} .kv-leg i.kv-temp{background:var(--blue)}
+/* Den andra gruppens streckade kurva. MÅSTE stå EFTER .kv-leg i ovan — låg den
+   före vann basregelns border-radius:50% och strecket blev en märklig böjd
+   form i stället för en linje. */
+.kv-leg-b{opacity:.6}
+.kv-leg-b i{width:15px;height:2px;border-radius:0;background:none;
+  background-image:linear-gradient(90deg,var(--dim) 0 4px,transparent 4px 7px);
+  background-size:7px 2px;background-repeat:repeat-x;align-self:center}
 .dv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
 .dv-sw{width:40px;height:23px;border-radius:999px;background:var(--inset);border:1px solid var(--line);
   flex:0 0 auto;position:relative;cursor:pointer;transition:.2s;padding:0;appearance:none}
@@ -986,7 +991,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.71.0';
+const APP_VERSION = 'v1.72.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4098,15 +4103,23 @@ function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*
    så bakgrundskurvan kan ritas utan att KURVA byts tillfälligt. */
 function kvSortAv(kurva){
   return kurva.map(function(p,i){
-    const b=String(p.tid).split(':');
-    return {i:i,m:(+b[0])*60+(+b[1]),tid:p.tid,dim:p.dim,temp:p.temp};
+    return {i:i,m:kvMinPos(p.tid),tid:p.tid,dim:p.dim,temp:p.temp};
   }).sort(function(a,b){return a.m-b.m;});
 }
+/* 00:00 = DYGNETS SLUT, oavsett var punkten står i arrayen.
+   HÄR LÅG BUGGEN: regeln var 'm===0 && i===KURVA.length-1', alltså beroende av
+   PLATSEN i arrayen. Sedan värdelistan blev redigerbar kan man lägga till
+   punkter, och kurvaLaggTill() gör push() — då var 00:00-punkten inte längre
+   sist, m flippade från 1440 till 0, och punkten hoppade från högerkanten till
+   vänsterkanten vid nästa omritning. Det syntes som att en punkt i andra änden
+   flög iväg när man drog i en helt annan.
+   En kurva wrappar över midnatt, så en 00:00-punkt ÄR dygnets slut lika mycket
+   som dess början. Att alltid rita den till höger är entydigt och kan inte
+   ändras av i vilken ordning punkterna råkar ligga. */
+function kvMinPos(tid){const m=kvMin(tid);return m===0?1440:m;}
 function kvSort(){
   return KURVA.map(function(p,i){
-    let m=kvMin(p.tid);
-    if(m===0&&i===KURVA.length-1)m=1440;
-    return {i:i,m:m,tid:p.tid,dim:p.dim,temp:p.temp};
+    return {i:i,m:kvMinPos(p.tid),tid:p.tid,dim:p.dim,temp:p.temp};
   }).sort(function(a,b){return a.m-b.m;});
 }
 function kvX(m){return KV_L+(m/1440)*(KV_W-KV_L-KV_R);}
