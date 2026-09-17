@@ -642,6 +642,22 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
   border-radius:9px;cursor:pointer;padding:0}
 .kv-bort[disabled]{opacity:.3}
 .kv-bort .ic{width:13px;height:13px}
+/* Bakgrundskurvan: samma färg, men tunn och dämpad så den inte konkurrerar
+   med den man redigerar. */
+.kv-bak{opacity:.22;stroke-width:1.6;stroke-dasharray:3 3}
+/* Gruppväljaren under grafen. Två lika breda knappar, centrerade. */
+.kv-grupp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:11px auto 0;max-width:300px}
+.kv-g{display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 10px;border:1px solid var(--line);background:var(--inset);
+  color:var(--dim);border-radius:11px;cursor:pointer;font-family:inherit;
+  font-size:12.5px;font-weight:700;transition:.15s}
+.kv-g:hover{border-color:var(--svg-stroke)}
+.kv-g.on{background:var(--panel-b);border-color:var(--blue);color:var(--ink)}
+.kv-g-p{width:8px;height:8px;border-radius:50%;background:var(--line);flex:0 0 auto}
+.kv-g.on .kv-g-p{background:var(--blue)}
+/* Förklaringen: den streckade visar den andra gruppen. */
+.kv-leg-b{opacity:.6}
+.kv-leg-b i{width:14px;height:0;border-top:2px dashed var(--dim);background:none;border-radius:0}
 .kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
 .kv-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
 .kv-leg i.kv-dim{background:var(--gold)} .kv-leg i.kv-temp{background:var(--blue)}
@@ -970,7 +986,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.70.0';
+const APP_VERSION = 'v1.71.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4078,6 +4094,14 @@ function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*
    bara i, m, dim och temp. Provet "p.tid===undefined" var alltsa alltid sant
    och etiketten blev tom, varje gang. Nu kommer bade ordningen och klockslaget
    ur samma stalle, sa de kan inte glida isar. */
+/* kvSort() sorterar KURVA. Den här gör samma sak för vilken kurva som helst,
+   så bakgrundskurvan kan ritas utan att KURVA byts tillfälligt. */
+function kvSortAv(kurva){
+  return kurva.map(function(p,i){
+    const b=String(p.tid).split(':');
+    return {i:i,m:(+b[0])*60+(+b[1]),tid:p.tid,dim:p.dim,temp:p.temp};
+  }).sort(function(a,b){return a.m-b.m;});
+}
 function kvSort(){
   return KURVA.map(function(p,i){
     let m=kvMin(p.tid);
@@ -4101,6 +4125,16 @@ function kurvaSVG(){
     s+='<line class="kv-rut" x1="'+KV_L+'" y1="'+kvY(v)+'" x2="'+(KV_W-KV_R)+'" y2="'+kvY(v)+'"/>'
       +'<text class="kv-tx" x="'+(KV_L-5)+'" y="'+(kvY(v)+3)+'" text-anchor="end">'+Math.round(v*100)+'</text>';
   });
+  /* DEN ANDRA GRUPPENS KURVA I BAKGRUNDEN. Utan den ser ett byte av grupp ut
+     som att ingenting händer — båda kurvorna börjar som identiska kopior, så
+     bara knappmarkeringen skiljer. Nu syns skillnaden direkt, och man ser hur
+     taket och myslamporna förhåller sig till varandra medan man drar. */
+  const annan=(_kurvaVal==='tak')?'mys':'tak';
+  if(KURVOR&&KURVOR[annan]&&KURVOR[annan]!==KURVA){
+    const ap=kvSortAv(KURVOR[annan]);
+    s+='<path class="kv-l kv-dim kv-bak" d="'+kvBana(ap,'dim')+'"/>';
+    s+='<path class="kv-l kv-temp kv-bak" d="'+kvBana(ap,'temp')+'"/>';
+  }
   s+='<path class="kv-l kv-dim" id="kv-b-dim" d="'+kvBana(pts,'dim')+'"/>';
   s+='<path class="kv-l kv-temp" id="kv-b-temp" d="'+kvBana(pts,'temp')+'"/>';
   /* Varje punkt far en osynlig traffyta pa 18 - ett finger ar bredare an sex
@@ -4117,18 +4151,20 @@ function kurvaSVG(){
 function kurvaHTML(){
   if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
   const pts=kvSort();
-  /* Vilken grupp som redigeras. Samma segmentknappar som prisrutan. */
-  let h='<div class="seg-row" style="margin:0 0 10px">'
-    +['tak','mys'].map(function(k){
-      return '<button class="seg-btn'+(_kurvaVal===k?' on':'')+'" onclick="kurvaValj(\''+k+'\')">'
-        +esc(KURVA_NAMN[k])+'</button>';}).join('')
-    +'</div>';
-  h+='<div class="setup-t">Dra punkterna i h\u00f6jdled, eller skriv v\u00e4rdena i listan '
+  let h='<div class="setup-t">Dra punkterna i h\u00f6jdled, eller skriv v\u00e4rdena i listan '
     +'nedanf\u00f6r. Guld \u00e4r ljusstyrka, bl\u00e5tt \u00e4r v\u00e4rme i f\u00e4rgtonen \u2013 '
     +'h\u00f6gt v\u00e4rde ger varmt ljus.</div>'
     +'<div class="kv-box" id="kv-box" onpointerdown="kvNer(event)" onpointermove="kvRor(event)" '
     +'onpointerup="kvUpp(event)" onpointercancel="kvUpp(event)">'+kurvaSVG()+'</div>'
-    +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span></div>';
+    /* Gruppväljaren UNDER grafen, centrerad: man tittar på kurvan först och
+       byter grupp därefter, och där hamnar den inte i vägen för dragningen. */
+    +'<div class="kv-grupp">'
+    +['tak','mys'].map(function(k){
+      return '<button class="kv-g'+(_kurvaVal===k?' on':'')+'" onclick="kurvaValj(\''+k+'\')">'
+        +'<span class="kv-g-p"></span>'+esc(KURVA_NAMN[k])+'</button>';}).join('')
+    +'</div>'
+    +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span>'
+    +'<span class="kv-leg-b"><i></i>'+esc(KURVA_NAMN[(_kurvaVal==='tak')?'mys':'tak'])+'</span></div>';
   /* REDIGERBAR LISTA. Varje rad är tre fält: klockslag, ljusstyrka och värme.
      Indexet som skickas är platsen i KURVA (p.i), inte i den sorterade listan —
      annars skulle en ändrad tid skriva på fel punkt. */
