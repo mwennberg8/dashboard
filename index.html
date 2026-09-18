@@ -10286,7 +10286,11 @@ async function hist7Hamta(force){
     }
     if(Object.keys(ut).length){HIST7=ut;_hist7At=Date.now();}
   }catch(e){_hist7Fel=(e&&e.message)||'fel vid hämtning';}
-  finally{_hist7Laddar=false;try{if(_popupRebuild===buildHistPopup){var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();}}catch(e2){}}
+  finally{_hist7Laddar=false;
+    try{if(_popupRebuild===buildHistPopup){var b=$('dlg-body');if(b)b.innerHTML=buildHistPopup();}}catch(e2){}
+    /* Står solrutan öppen ritas prognosavsnittet om, annars syns gårdagens
+       kurva först nästa gång rutan öppnas. */
+    try{var ps=$('prog-sec');if(ps)ps.innerHTML=progAvsnitt();}catch(e3){}}
 }
 /* Dygnsgränser i svensk tid. Webbläsaren har visserligen rätt lokaltid, men
    uttryckt explicit är det uppenbart vad som menas — och rätt även om plattan
@@ -10574,6 +10578,12 @@ function openDetail(which){
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
   const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temprange:'cloud-sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
+    /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
+       historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
+       HIST7['solar'] tom och kurvan uteblev — dagens fungerade, för den läser
+       HIST['solar'] som alltid finns. Hämtningen har egen cache på tio
+       minuter, så det här kostar inget när den redan är gjord. */
+    hist7Hamta(false);
     /* PROGNOSEN ÖVERST. Det är den man öppnar rutan för — hur dagen ser ut
        framåt. Mätarställningarna är uppslagsverk och hör hemma under. */
     body='<div id="prog-sec">'+progAvsnitt()+'</div>'
@@ -12339,6 +12349,10 @@ function prisKalibrering(pts){
   return _prisKal;                        /* gårdagens passning duger för imorgon */
 }
 function prisKalibrera(pts,offset){
+  /* Saknas serien finns inget att kalibrera. Utan den här raden kastade
+     funktionen på null, vilket prisMinMax kunde råka ut för när morgondagens
+     priser inte publicerats än. */
+  if(!pts)return null;
   var k=(offset===0)?prisKalibrering(pts):(_prisKal||prisKalibrering(pts));
   if(!k)return pts;
   return pts.map(function(p){return [p[0],k.a*p[1]+k.b];});
@@ -13849,7 +13863,13 @@ function elprisHi(){return (PRICEVARS.hi!=null)?PRICEVARS.hi:cap(DEV.tibber,'mea
    i stället för ett påhittat värde. */
 function prisMinMax(offset){
   if(!offset)return {lo:elprisLo(),hi:elprisHi()};
-  var rad=prisDygn(offset);
+  /* HÄR LÅG BUGGEN: prisDygn ger Tibbers RÅA tal. Grafen ritar dem inte som de
+     är — prisKalibrera() skalar om dem mot elprislägst/elprishögst, så kurvan
+     och raderna ska visa samma skala. Utan omräkningen läste raden råvärden
+     och visade 38 öre där grafen toppade på 1,10 kr.
+     Samma funktion och samma offset som grafen använder, så de kan inte glida
+     isär igen. */
+  var rad=prisKalibrera(prisDygn(offset),offset);
   if(!rad||!rad.length)return {lo:null,hi:null};
   var lo=Infinity,hi=-Infinity;
   for(var i=0;i<rad.length;i++){
@@ -17038,7 +17058,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v630';
+const APP_VERSION='v632';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
