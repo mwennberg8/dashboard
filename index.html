@@ -3955,10 +3955,11 @@ function battLaddHTML(){
   return h;
 }
 function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
-function openBattLadd(){
-  DLG_OM['battladd']=battLaddOm;
-  openDlg('battladd','Ladda max','battery-charging',battLaddHTML());
-}
+/* HÄR LÅG FELET: jag använde DLG_OM och openDlg, som hör till Göteborgs
+   dashboard. Gottskär öppnar sina rutor med openDetail(), och ett anrop till
+   något som inte finns kastade — btnTap fångade det och skrev "fel" på
+   knappen i stället för att öppna rutan. */
+function openBattLadd(){openDetail('battladd');}
 async function battStartaNu(){
   battStartSatt(null);
   try{
@@ -4203,7 +4204,14 @@ async function btnTap(i){
       if(bl2===null){flashCtl(i,'ingen kontakt',true);return;}
       /* AV går direkt — att stoppa något ska inte kräva ett extra val.
          PÅ öppnar rutan med tidsvalen. */
-      if(!bl2){openBattLadd();return;}
+      if(!bl2){
+        openBattLadd();
+        /* flashCtl har redan skrivit "skickar…" på knappen och återställer inte
+           sig själv — etiketten städas först vid nästa omritning. Här skickas
+           ingenting, så den ritas om direkt. */
+        renderControls();
+        return;
+      }
       await homeyTriggerFlow('standard',BATT_FLOW_AV);
       battStartSatt(null);                 /* en avstängning avbokar också */
       flashCtl(i,'normal drift ✓');
@@ -10815,6 +10823,11 @@ function openDetail(which){
     _grafByggare['temps']={titel:'Temperaturer',full:function(cid){return multiTempSVG(cid||'temps');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggTemps();};
     body=byggTemps();
+  }else if(which==='battladd'){title='Ladda max';
+    /* Rutan ritas om när priserna landar, så prisvalen dyker upp av sig själva. */
+    _popupRebuild=battLaddHTML;
+    if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
+    body=battLaddHTML();
   }else if(which==='breveden'){title='Breveden · AC';
     body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
@@ -17238,7 +17251,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v633';
+const APP_VERSION='v634';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
