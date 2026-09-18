@@ -1739,6 +1739,19 @@ body.tabprev.cmp-open{overflow:auto}
 .te-use{background:var(--blue);color:#fff;border:none;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
 .te-input{width:100%;background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:10px 11px;color:var(--ink);font:inherit;font-size:13px;box-sizing:border-box}
 .te-chk{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);margin:10px 2px 2px;cursor:pointer}
+/* Valen i ladda max-rutan. Två kolumner, samma form som andra snabbval. */
+.bl-val{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:2px 0 4px}
+.bl-b{display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 8px;
+  border:1px solid var(--line);background:var(--inset);color:var(--ink);
+  border-radius:13px;cursor:pointer;font-family:inherit;text-align:center}
+.bl-b b{font-size:14px;font-weight:800}
+.bl-b small{font-size:10.5px;color:var(--dim);font-weight:600;line-height:1.3}
+.bl-b.pri{border-color:var(--ok);color:var(--ok)}
+.bl-b.pri b{color:var(--ok)}
+.bl-egen{display:flex;gap:8px;align-items:center;margin:2px 0 4px}
+.bl-egen input{flex:1 1 auto;min-width:0;padding:9px 10px;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel-b);color:var(--ink);font-family:inherit;
+  font-size:14px;font-weight:700}
 .te-alt{display:inline-flex;align-items:center;gap:6px;background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink);font:inherit;font-weight:650;font-size:12.5px;cursor:pointer}
 .te-alt .ic{width:15px;height:15px}
 .te-move{display:flex;gap:8px}
@@ -3817,6 +3830,7 @@ function battAvstangKl(){
 var _battAvBusy=false, _battAvGjort='';
 function battAutoKoll(){
   try{
+    battStartKoll();                      /* schemalagd start i samma varv */
     if(battLaddLage()!==true){_battAvGjort='';return;}
     var u=battPrisUppgang();
     if(!u)return;
@@ -3832,6 +3846,162 @@ function battAutoKoll(){
       try{renderControls();}catch(e){}
     },function(){_battAvBusy=false;});        /* misslyckas: försök igen nästa varv */
   }catch(e){_battAvBusy=false;}
+}
+
+/* ===== SCHEMALAGD START AV LADDA MAX =====
+   Ett tryck på knappen startar inte längre direkt — det öppnar en ruta där man
+   väljer nu eller en tid. Billig laddning ligger nästan alltid senare på
+   kvällen, och att trycka igång när priset är högt är sällan avsikten.
+   Tiden sparas som en TIDSSTÄMPEL, inte ett klockslag: då kan ett dygnsskifte
+   inte göra att den aldrig löser ut. battAutoKoll(), som ändå körs var 30:e
+   sekund, triggar flödet när tiden passerats. */
+var BATT_START_KEY='battStart_v1';
+function battStartLas(){
+  try{var v=Number(localStorage.getItem(BATT_START_KEY));
+    return (isFinite(v)&&v>0)?v:null;}catch(e){return null;}
+}
+function battStartSatt(ms){
+  try{if(ms==null)localStorage.removeItem(BATT_START_KEY);
+    else localStorage.setItem(BATT_START_KEY,String(ms));}catch(e){}
+}
+/* En bokning som passerat med mer än en timme är inte längre aktuell —
+   dashboarden kan ha varit stängd. Hellre glömma den än starta laddning mitt i
+   natten för en tid som gällde igår. */
+var BATT_START_GLOM=60*60*1000;
+function battStartAktiv(){
+  var t=battStartLas();
+  if(t==null)return null;
+  if(Date.now()-t>BATT_START_GLOM){battStartSatt(null);return null;}
+  return t;
+}
+/* NÄR HAR PRISET GÅTT NER TILL SIN LÄGSTA NIVÅ INFÖR KVÄLLEN?
+   Samma spannlogik som avstängningen: andel av dygnets prisspann. Under
+   BATT_BILLIG_FRAC är grafens gröna del. Söks framåt i dagens serie och sedan i
+   morgondagens, så svaret inte uteblir för att klockan passerat midnatt. */
+var BATT_BILLIG_FRAC=0.25;
+function battBilligSok(off){
+  var pts=prisDygn(off);
+  if(!pts||pts.length<2)return null;
+  var ys=pts.map(function(p){return p[1];});
+  var ylo=Math.min.apply(null,ys), yhi=Math.max.apply(null,ys), yr=yhi-ylo;
+  if(!(yr>0.05))return null;                 /* platt dygn: ingen billig del */
+  var gr=ylo+BATT_BILLIG_FRAC*yr;
+  var nu=battNu(), nuH=nu.getHours()+nu.getMinutes()/60;
+  for(var j=0;j<pts.length;j++){
+    var h=pts[j][0], pr=pts[j][1];
+    if(h>=24)break;                          /* utdragen slutpunkt, ingen timme */
+    if(off===0&&h<=nuH)continue;
+    if(pr<=gr)return {off:off,h:h,pris:pr,gr:gr};
+  }
+  return null;
+}
+function battBilligKl(){return battBilligSok(0)||battBilligSok(1);}
+/* Billigaste timmen framåt, oavsett spann. Reserv när inget når ner i den
+   billiga delen. */
+function battBilligastKl(){
+  var bast=null;
+  [0,1].forEach(function(off){
+    var pts=prisDygn(off);
+    if(!pts)return;
+    var nu=battNu(), nuH=nu.getHours()+nu.getMinutes()/60;
+    pts.forEach(function(p){
+      if(p[0]>=24)return;
+      if(off===0&&p[0]<=nuH)return;
+      if(!bast||p[1]<bast.pris)bast={off:off,h:p[0],pris:p[1]};
+    });
+  });
+  return bast;
+}
+function battTidTill(off,h){return dayStart()+off*86400000+Math.round(h*60)*60000;}
+function battKlAv(ms){
+  var d=new Date(ms);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+}
+function battLaddHTML(){
+  var vald=battStartAktiv();
+  var h='';
+  if(vald){
+    h+='<div class="dsec">Inbokad start</div>'
+      +dRow('Startar',battKlAv(vald)+((new Date(vald)).getDate()!==battNu().getDate()?' imorgon':''))
+      +'<div class="cfg-btns" style="margin:10px 0 4px">'
+      +'<button class="te-alt" onclick="battAvbokaStart()">Avboka</button></div>';
+  }
+  h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
+  h+='<button class="bl-b pri" onclick="battStartaNu()"><b>Nu</b><small>direkt</small></button>';
+  var b=battBilligKl();
+  if(b){
+    h+='<button class="bl-b" onclick="battBokaStart('+battTidTill(b.off,b.h)+')">'
+      +'<b>'+battKl(b.h*60)+(b.off?' imorgon':'')+'</b>'
+      +'<small>när priset gått ner · '+oren(b.pris)+'</small></button>';
+  }
+  var bl=battBilligastKl();
+  if(bl&&(!b||bl.off!==b.off||Math.abs(bl.h-b.h)>0.01)){
+    h+='<button class="bl-b" onclick="battBokaStart('+battTidTill(bl.off,bl.h)+')">'
+      +'<b>'+battKl(bl.h*60)+(bl.off?' imorgon':'')+'</b>'
+      +'<small>billigaste timmen · '+oren(bl.pris)+'</small></button>';
+  }
+  /* Fasta val som fungerar även utan prisdata. */
+  [[1,'Om 1 timme'],[3,'Om 3 timmar']].forEach(function(x){
+    var t3=Date.now()+x[0]*3600000;
+    h+='<button class="bl-b" onclick="battBokaStart('+t3+')"><b>'+battKlAv(t3)+'</b>'
+      +'<small>'+x[1]+'</small></button>';
+  });
+  h+='</div>';
+  h+='<div class="dsec">Egen tid</div>'
+    +'<div class="bl-egen"><input id="bl-tid" type="time" value="'+battKlAv(Date.now()+3600000)+'">'
+    +'<button class="te-use" onclick="battEgenTid()">Boka</button></div>'
+    +'<div class="setup-t">Har klockslaget passerat i dag bokas det imorgon.</div>';
+  if(!b&&!bl)h+='<div class="setup-t" style="color:var(--warm)">Inga spotpriser hämtade, så prisvalen saknas.</div>';
+  return h;
+}
+function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
+function openBattLadd(){
+  DLG_OM['battladd']=battLaddOm;
+  openDlg('battladd','Ladda max','battery-charging',battLaddHTML());
+}
+async function battStartaNu(){
+  battStartSatt(null);
+  try{
+    await homeyTriggerFlow('standard',BATT_FLOW_PA);
+    toast('Laddar max');
+    setTimeout(function(){load();},1500);
+    setTimeout(renderControls,3000);
+    stangDlg();
+  }catch(e){toast('Kunde inte nå Homey');}
+}
+function battBokaStart(ms){
+  if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
+  battStartSatt(ms);
+  toast('Laddning bokad '+battKlAv(ms));
+  renderControls();battLaddOm();
+}
+function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
+function battEgenTid(){
+  var el=$('bl-tid'), v=el&&el.value;
+  if(!v||!/^\d{1,2}:\d{2}$/.test(v)){toast('Välj en tid');return;}
+  var b=v.split(':'), hh=+b[0], mm=+b[1];
+  if(!(hh>=0&&hh<=23&&mm>=0&&mm<=59)){toast('Välj en tid');return;}
+  var t=dayStart()+hh*3600000+mm*60000;
+  if(t<=Date.now())t+=86400000;             /* passerat idag → imorgon */
+  battBokaStart(t);
+}
+/* Bevakningen: starta när tiden passerats. En gång per bokning — bokningen tas
+   bort så den inte kan lösa ut igen. */
+var _battStartBusy=false;
+function battStartKoll(){
+  try{
+    var t=battStartAktiv();
+    if(t==null)return;
+    if(Date.now()<t)return;
+    if(_battStartBusy)return;
+    if(battLaddLage()===true){battStartSatt(null);return;}   /* redan på */
+    _battStartBusy=true;
+    homeyTriggerFlow('standard',BATT_FLOW_PA).then(function(){
+      battStartSatt(null);_battStartBusy=false;
+      try{toast('Laddar max – inbokad start');}catch(e){}
+      try{renderControls();}catch(e){}
+    },function(){_battStartBusy=false;});
+  }catch(e){_battStartBusy=false;}
 }
 function btnState(b){ // returnerar true om "på/aktiv"
   if(b.type==='toggle'){const v=cap(b.device,b.cap);return b.cap==='onoff'?v===true:v===b.on;}
@@ -3938,7 +4108,11 @@ function renderControls(){
            kommande uppgång står bara "Laddar max". */
         var avk=battAvstangKl();
         lbl=avk?('Laddar max · till '+avk):'Laddar max';
-      }else{lbl='Ladda max';}
+      }else{
+        /* Inbokad start syns på knappen, annars vet man inte att den ligger. */
+        var bs=battStartAktiv();
+        lbl=bs?('Ladda max \u00b7 '+battKlAv(bs)):'Ladda max';
+      }
     }
     else if(b.type==='flowtoggle'){
       /* Vippan visar VILKET LÄGE knappen står i, och etiketten vad ett tryck
@@ -3981,10 +4155,12 @@ async function btnTap(i){
   const b=CONFIG.BUTTONS[i];if(!b)return;
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   if(!live){flashCtl(i,'kräver Homey',true);return;}
-  /* Batteriladdningen kraver ALLTID tva tryck, oavsett installning. Ett tryck
-     av misstag startar laddning fran natet i 5 kW - samma skal som for Breveden
-     och diskmaskinen, fast dyrare. */
-  if((b.confirm||b.type==='battladd')&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
+  /* Batteriladdningen krävde tidigare ALLTID två tryck: ett tryck av misstag
+     startade 5 kW från nätet. Sedan v633 öppnar ett tryck i stället rutan med
+     tidsvalen, och den är bekräftelsen — dubbeltryckningen blev bara friktion.
+     Att stänga av är harmlöst och behövde aldrig bekräftas.
+     Ett eget confirm-val på knappen gäller fortfarande. */
+  if(b.confirm&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
   armed={i:-1,t:0};
   try{
     flashCtl(i,'skickar…');
@@ -4025,8 +4201,12 @@ async function btnTap(i){
     }else if(b.type==='battladd'){
       var bl2=battLaddLage();
       if(bl2===null){flashCtl(i,'ingen kontakt',true);return;}
-      await homeyTriggerFlow('standard',bl2?BATT_FLOW_AV:BATT_FLOW_PA);
-      flashCtl(i,bl2?'normal drift ✓':'laddar max ✓');
+      /* AV går direkt — att stoppa något ska inte kräva ett extra val.
+         PÅ öppnar rutan med tidsvalen. */
+      if(!bl2){openBattLadd();return;}
+      await homeyTriggerFlow('standard',BATT_FLOW_AV);
+      battStartSatt(null);                 /* en avstängning avbokar också */
+      flashCtl(i,'normal drift ✓');
       /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
          svarar, och Homey hinner lasa forst vid nasta varv. Darfor lite langre
          vantan an de andra knapparna innan rutan ritas om. */
@@ -17058,7 +17238,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v632';
+const APP_VERSION='v633';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
