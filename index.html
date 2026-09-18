@@ -1759,11 +1759,19 @@ body.tabprev.cmp-open{overflow:auto}
 .bl-b.bl-pris .bl-ic{width:13px;height:13px;transform:rotate(180deg)}
 .bl-b[disabled]{opacity:.45;cursor:default}
 /* Egen tid: klockan överst, bokaknappen centrerad under den. */
-.bl-egen{display:flex;flex-direction:column;align-items:center;gap:9px;margin:4px 0 6px}
-.bl-egen input{width:100%;max-width:190px;box-sizing:border-box;text-align:center;
-  padding:11px 10px;border:1px solid var(--line);border-radius:12px;
-  background:var(--panel-b);color:var(--ink);font-family:inherit;
-  font-size:19px;font-weight:800;letter-spacing:.02em}
+.bl-egen{display:flex;flex-direction:column;align-items:center;gap:11px;margin:6px 0 6px}
+/* Egen klockväljare — ingen <input type="time">, den öppnar Androids ruta
+   ovanpå popupen. */
+.bl-ur{display:flex;align-items:center;justify-content:center;gap:5px}
+.bl-kol{display:flex;flex-direction:column;align-items:center;gap:3px}
+.bl-num{display:block;min-width:64px;text-align:center;font-size:30px;font-weight:800;
+  color:var(--ink);line-height:1.15;font-variant-numeric:tabular-nums}
+.bl-kolon{font-size:26px;font-weight:800;color:var(--dim);padding:0 1px;line-height:1}
+.bl-pil{width:58px;height:31px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--dim);
+  border-radius:9px;cursor:pointer;padding:0}
+.bl-pil:active{border-color:var(--ok);color:var(--ok)}
+.bl-pil .ic{width:14px;height:14px}
 .bl-boka{min-width:140px;padding:10px 18px;border:1px solid var(--ok);
   background:var(--inset);color:var(--ok);border-radius:11px;cursor:pointer;
   font-family:inherit;font-size:13.5px;font-weight:800}
@@ -3970,14 +3978,46 @@ function battLaddHTML(){
       +'<small>'+x[1]+'</small></button>';
   });
   h+='</div>';
-  /* EGEN TID direkt i rutan: klockan först, bokaknappen centrerad under. */
+  /* EGEN TID MED EGEN VÄLJARE. <input type="time"> öppnar Androids egen
+     klockruta OVANPÅ popupen — man ser inte längre snabbvalen man just tittade
+     på, och det blir ett extra steg fram och tillbaka. Timmar och minuter
+     ställs i stället direkt här. */
   h+='<div class="dsec">Egen tid</div>'
     +'<div class="bl-egen">'
-    +'<input id="bl-tid" type="time" value="'+battKlAv(Date.now()+3600000)+'">'
-    +'<button class="bl-boka" onclick="battEgenTid()">Boka</button>'
+    +'<div class="bl-ur">'+blStapel('t',2)+'<span class="bl-kolon">:</span>'+blStapel('m',2)+'</div>'
+    +'<button class="bl-boka" onclick="battEgenTid()">Boka '+battKl(blTid())+'</button>'
     +'</div>'
     +'<div class="setup-t">Har klockslaget passerat i dag bokas det imorgon.</div>';
   return h;
+}
+/* Vald tid i väljaren, som minuter efter midnatt. Börjar på en jämn kvart en
+   timme fram — samma utgångspunkt som förslaget hade förut. */
+var _blTid=null;
+function blTid(){
+  if(_blTid==null){
+    var d=new Date(Date.now()+3600000);
+    _blTid=(d.getHours()*60+Math.round(d.getMinutes()/15)*15)%1440;
+  }
+  return _blTid;
+}
+function blStapel(vad,siffror){
+  var v=blTid(), tal=(vad==='t')?Math.floor(v/60):(v%60);
+  var txt=String(tal);while(txt.length<siffror)txt='0'+txt;
+  return '<div class="bl-kol">'
+    +'<button class="bl-pil" onclick="blJust(\''+vad+'\',1)" aria-label="upp">'+icon('caret-up')+'</button>'
+    +'<span class="bl-num">'+txt+'</span>'
+    +'<button class="bl-pil" onclick="blJust(\''+vad+'\',-1)" aria-label="ner">'+icon('caret-down')+'</button>'
+    +'</div>';
+}
+/* Timmar i timsteg, minuter i kvartssteg. Båda wrappar var för sig — att
+   minuterna drar med sig timmen när de slår runt är förvirrande när man bara
+   vill peta på kvarten. */
+function blJust(vad,rikt){
+  var v=blTid(), t=Math.floor(v/60), m=v%60;
+  if(vad==='t')t=((t+rikt)%24+24)%24;
+  else m=((m+rikt*15)%60+60)%60;
+  _blTid=t*60+m;
+  battLaddOm();
 }
 function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
 /* HÄR LÅG FELET: jag använde DLG_OM och openDlg, som hör till Göteborgs
@@ -4003,11 +4043,7 @@ function battBokaStart(ms){
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
 function battEgenTid(){
-  var el=$('bl-tid'), v=el&&el.value;
-  if(!v||!/^\d{1,2}:\d{2}$/.test(v)){toast('Välj en tid');return;}
-  var b=v.split(':'), hh=+b[0], mm=+b[1];
-  if(!(hh>=0&&hh<=23&&mm>=0&&mm<=59)){toast('Välj en tid');return;}
-  var t=dayStart()+hh*3600000+mm*60000;
+  var t=dayStart()+blTid()*60000;
   if(t<=Date.now())t+=86400000;             /* passerat idag → imorgon */
   battBokaStart(t);
 }
@@ -17276,7 +17312,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v635';
+const APP_VERSION='v636';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
