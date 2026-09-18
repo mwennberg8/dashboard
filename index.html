@@ -10556,7 +10556,12 @@ function buildCostPopup(){
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
-      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))+dRow('Lägsta idag',oren(elprisLo()))+dRow('Högsta idag',oren(elprisHi()))+dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
+      +dRow('Kostnad hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Spotpris nu',oren(elprisNow()))
+      /* Lägsta/högsta följer det dygn man tittar på. Rubriken byter med, så
+         det aldrig står "idag" ovanför morgondagens siffror. */
+      +(function(){var mm=prisMinMax(pdOff),nam=pdOff?'imorgon':'idag';
+        return dRow('L\u00e4gsta '+nam,oren(mm.lo))+dRow('H\u00f6gsta '+nam,oren(mm.hi));})()
+      +dRow('Nivå',esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))))
       +dayBarsHTML('cost','kr per dag','warm');
   return body;
 }
@@ -13836,6 +13841,25 @@ function syncNote(t){try{
 function elprisNow(){return (PRICEVARS.ok&&PRICEVARS.now!=null)?PRICEVARS.now:cap(DEV.tibber,'measure_price_total');}
 function elprisLo(){return (PRICEVARS.lo!=null)?PRICEVARS.lo:cap(DEV.tibber,'measure_price_lowest');}
 function elprisHi(){return (PRICEVARS.hi!=null)?PRICEVARS.hi:cap(DEV.tibber,'measure_price_highest');}
+/* LÄGSTA OCH HÖGSTA FÖR ETT VALT DYGN.
+   För idag är Logic-variablerna elprislägst/elprishögst auktoritativa — de
+   kommer från Tibber själv och ska inte ersättas av en lokal uträkning.
+   För imorgon finns inga sådana variabler, så värdena räknas ur prisserien
+   som grafen redan ritar. Saknas serien ges null, och raden visar ett streck
+   i stället för ett påhittat värde. */
+function prisMinMax(offset){
+  if(!offset)return {lo:elprisLo(),hi:elprisHi()};
+  var rad=prisDygn(offset);
+  if(!rad||!rad.length)return {lo:null,hi:null};
+  var lo=Infinity,hi=-Infinity;
+  for(var i=0;i<rad.length;i++){
+    var v=rad[i][1];
+    if(v==null||!isFinite(v))continue;
+    if(v<lo)lo=v;
+    if(v>hi)hi=v;
+  }
+  return isFinite(lo)?{lo:lo,hi:hi}:{lo:null,hi:null};
+}
 
 function isAbort(e){return !!(e&&(e.name==='AbortError'||/abort/i.test(e.message||'')));}
 /* En hel sparning är upp till 40 skrivningar i rad. På en telefon över wifi hinner
@@ -17014,7 +17038,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v629';
+const APP_VERSION='v630';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
