@@ -1743,20 +1743,30 @@ body.tabprev.cmp-open{overflow:auto}
 /* FLEX, INTE GRID. Två lika breda per rad blir samma sak i en modern webbläsare,
    men flex går också att mäta i renderaren jag verifierar med — grid stöds inte
    där, och då kan jag inte se om layouten faktiskt stämmer. */
-.bl-val{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
-.bl-val .bl-b{flex:1 1 calc(50% - 4px);min-width:0}
-.bl-b{display:flex;flex-direction:column;align-items:center;gap:2px;padding:11px 8px;
+/* MARGINALER, INTE flex-gap. gap ritas inte av renderaren jag mäter pixlar
+   med, så luften mellan knapparna gick inte att verifiera — och det är just
+   sådant som ska stämma. Marginaler ger samma resultat i båda. */
+.bl-val{display:flex;flex-wrap:wrap;margin:2px -4px 4px}
+.bl-val .bl-b{flex:1 1 calc(50% - 8px);min-width:0;margin:4px}
+/* Alla fyra lika höga: gemensam min-height och centrerat innehåll, så en
+   knapp med kortare text inte blir lägre än grannen. */
+.bl-b{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;padding:12px 8px;min-height:64px;
   border:1px solid var(--line);background:var(--inset);color:var(--ink);
   border-radius:13px;cursor:pointer;font-family:inherit;text-align:center;
   box-sizing:border-box}
-.bl-b b{font-size:14px;font-weight:800}
-.bl-b small{font-size:10.5px;color:var(--dim);font-weight:600;line-height:1.3}
+.bl-b b{font-size:14.5px;font-weight:800;line-height:1.15;white-space:nowrap}
+.bl-b small{font-size:11px;color:var(--dim);font-weight:650;line-height:1.25;
+  white-space:nowrap}
 .bl-b.pri{border-color:var(--ok);color:var(--ok)}
 .bl-b.pri b{color:var(--ok)}
 /* Prisvalet skiljer sig från de fasta klockslagen — pil och egen färg. */
+/* Prisknappen: blå ram och blå rubrik, och den lilla raden i full läsbarhet
+   i stället för dämpad — det är där klockslaget och priset står. */
 .bl-b.bl-pris{border-color:var(--blue)}
-.bl-b.bl-pris b{color:var(--blue);display:inline-flex;align-items:center;gap:5px;justify-content:center}
-.bl-b.bl-pris .bl-ic{width:13px;height:13px;transform:rotate(180deg)}
+.bl-b.bl-pris b{color:var(--blue);display:flex;align-items:center;gap:5px;justify-content:center}
+.bl-b.bl-pris small{color:var(--ink)}
+.bl-b.bl-pris .bl-ic{width:13px;height:13px;transform:rotate(180deg);flex:0 0 auto}
 .bl-b[disabled]{opacity:.45;cursor:default}
 /* Egen tid: klockan överst, bokaknappen centrerad under den. */
 .bl-egen{display:flex;flex-direction:column;align-items:center;gap:11px;margin:6px 0 6px}
@@ -3958,24 +3968,31 @@ function battLaddHTML(){
       +'<div class="cfg-btns" style="margin:10px 0 4px">'
       +'<button class="te-alt" onclick="battAvbokaStart()">Avboka</button></div>';
   }
+  /* SAMMA FORM PÅ ALLA FYRA: stor rad = vad man väljer, liten rad = vad det
+     blir. Förut stod klockslaget stort på de fasta valen och valets namn litet,
+     tvärtemot prisknappen — och prisknappens långa text radbröts till tre rader
+     så knappen blev högre än de andra. Nu är texterna korta nog att rymmas på
+     en rad, och en gemensam minsta höjd håller rutnätet jämnt. */
   h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
-  h+='<button class="bl-b pri" onclick="battStartaNu()"><b>Nu</b><small>direkt</small></button>';
+  h+='<button class="bl-b pri" onclick="battStartaNu()">'
+    +'<b>Nu</b><small>direkt</small></button>';
   /* PRISVALET är det enda som ändrar sig av sig själv — pilen och den egna
      färgen säger att knappen följer elpriset och inte är ett fast klockslag. */
   var b=battBilligKl();
   if(b){
     h+='<button class="bl-b bl-pris" onclick="battBokaStart('+battTidTill(b.off,b.h)+')">'
-      +'<b>'+icon('trend-up','bl-ic')+battKl(b.h*60)+(b.off?' imorgon':'')+'</b>'
-      +'<small>när priset gått ner \u00b7 '+oren(b.pris)+'</small></button>';
+      +'<b>'+icon('trend-up','bl-ic')+'L\u00e4gsta pris</b>'
+      +'<small>'+battKl(b.h*60)+(b.off?' imorgon':'')+' \u00b7 '+oren(b.pris)+'</small></button>';
   }else{
-    h+='<button class="bl-b bl-pris" disabled><b>'+icon('trend-up','bl-ic')+'\u2013</b>'
-      +'<small>ingen billig timme framåt</small></button>';
+    h+='<button class="bl-b bl-pris" disabled>'
+      +'<b>'+icon('trend-up','bl-ic')+'L\u00e4gsta pris</b>'
+      +'<small>ingen billig timme fram\u00e5t</small></button>';
   }
   /* Fasta val som fungerar även utan prisdata. */
   [[1,'Om 1 timme'],[3,'Om 3 timmar']].forEach(function(x){
     var t3=Date.now()+x[0]*3600000;
-    h+='<button class="bl-b" onclick="battBokaStart('+t3+')"><b>'+battKlAv(t3)+'</b>'
-      +'<small>'+x[1]+'</small></button>';
+    h+='<button class="bl-b" onclick="battBokaStart('+t3+')">'
+      +'<b>'+x[1]+'</b><small>'+battKlAv(t3)+'</small></button>';
   });
   h+='</div>';
   /* EGEN TID MED EGEN VÄLJARE. <input type="time"> öppnar Androids egen
@@ -17312,7 +17329,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v636';
+const APP_VERSION='v637';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
