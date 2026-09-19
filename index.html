@@ -4039,16 +4039,14 @@ function blJust(vad,rikt){
   _blTid=t*60+m;
   battLaddOm();
 }
-/* KVITTERA OCH STÄNG. Ett val ska synas på knappen man tryckte och sedan ta
-   en väg ut ur rutan — förut stod rutan kvar och man fick leta efter vad som
-   hänt. Den korta pausen finns bara för att kvittensen ska hinna ritas. */
+/* KVITTERA OCH STÄNG DIREKT. Kvittensen sätts på knappen och åtgärden körs i
+   samma tryck — ingen fördröjning. En paus på ett par tiondelar kändes som att
+   rutan hängde sig, och kvittensen hinner ändå ritas innan stängningen. */
 function blValt(el,vad,ms){
   try{if(el&&el.classList)el.classList.add('bl-vald');}catch(e){}
-  setTimeout(function(){
-    if(vad==='nu')battStartaNu();
-    else if(vad==='egen')battEgenTid();
-    else battBokaStart(ms);
-  },170);
+  if(vad==='nu')battStartaNu();
+  else if(vad==='egen')battEgenTid();
+  else battBokaStart(ms);
 }
 function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
 /* HÄR LÅG FELET: jag använde DLG_OM och openDlg, som hör till Göteborgs
@@ -4058,13 +4056,37 @@ function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
 function openBattLadd(){openDetail('battladd');}
 async function battStartaNu(){
   battStartSatt(null);
+  /* STÄNG OCH VISA LÄGET FÖRST, skicka sedan. battLaddLage() läser två
+     modbus-capabilities, och de uppdateras inte förrän nästa hämtning — utan
+     en lokal skrivning stod knappen kvar på "Ladda max" i ett par sekunder
+     efter att man tryckt. Samma grepp som dev-knapparna använder.
+     Går flödet fel rättas bilden av hämtningen strax efter, och toasten
+     säger ifrån. */
+  closeDetail();
+  battLaddSattLokalt(true);
+  renderControls();
   try{
     await homeyTriggerFlow('standard',BATT_FLOW_PA);
     toast('Laddar max');
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
-    closeDetail();
-  }catch(e){toast('Kunde inte nå Homey');}
+  }catch(e){
+    battLaddSattLokalt(false);
+    renderControls();
+    toast('Kunde inte nå Homey');
+  }
+}
+/* Skriver läget i den lokala enhetsbilden så knappen kan visa det innan Homey
+   svarat. Rör bara fält som redan finns — saknas de gör den ingenting, och
+   nästa hämtning sätter det riktiga värdet ändå. */
+function battLaddSattLokalt(pa){
+  try{
+    var d=DATA[BATT_MODBUS];
+    if(!d||!d.capabilitiesObj)return;
+    var c=d.capabilitiesObj;
+    if(c.storagecontrolmode)c.storagecontrolmode.value=pa?'4':'1';
+    if(c.storagedefaultmode)c.storagedefaultmode.value=pa?'3':'1';
+  }catch(e){}
 }
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
@@ -4314,8 +4336,11 @@ async function btnTap(i){
         return;
       }
       /* Något är igång och trycket är bekräftat: avbryt det. */
-      if(bl2)await homeyTriggerFlow('standard',BATT_FLOW_AV);
       battStartSatt(null);
+      if(bl2){
+        battLaddSattLokalt(false);       /* samma skäl som vid start */
+        await homeyTriggerFlow('standard',BATT_FLOW_AV);
+      }
       flashCtl(i,bl2?'normal drift ✓':'avbokad ✓');
       /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
          svarar, och Homey hinner lasa forst vid nasta varv. Darfor lite langre
@@ -17382,7 +17407,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v640';
+const APP_VERSION='v641';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
