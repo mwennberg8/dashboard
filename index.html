@@ -4062,20 +4062,37 @@ function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
    något som inte finns kastade — btnTap fångade det och skrev "fel" på
    knappen i stället för att öppna rutan. */
 function openBattLadd(){openDetail('battladd');}
+/* Var i knapplisten ligger ladda max-knappen? Behövs för att kunna skriva
+   direkt i den, som avstängningen gör via flashCtl. */
+function battKnappIx(){
+  try{
+    var B=(CONFIG&&CONFIG.BUTTONS)||[];
+    for(var i=0;i<B.length;i++)if(B[i]&&B[i].type==='battladd')return i;
+  }catch(e){}
+  return -1;
+}
 async function battStartaNu(){
   battStartSatt(null);
-  /* STÄNG OCH VISA LÄGET FÖRST, skicka sedan. battLaddLage() läser två
-     modbus-capabilities, och de uppdateras inte förrän nästa hämtning — utan
-     en lokal skrivning stod knappen kvar på "Ladda max" i ett par sekunder
-     efter att man tryckt. Samma grepp som dev-knapparna använder.
-     Går flödet fel rättas bilden av hämtningen strax efter, och toasten
-     säger ifrån. */
+  /* STÄNG, VISA VÄNTLÄGET, SKICKA SEDAN.
+     battLaddLage() läser två modbus-capabilities som inte uppdateras förrän
+     nästa hämtning, så knappen måste visa väntan själv.
+     BÅDE omritning OCH flashCtl: avstängningen går via flashCtl och den syns
+     säkert, medan enbart renderControls visade sig otillräckligt här — knappen
+     blev grå igen direkt när rutan stängdes. Jag har inte kunnat återskapa det
+     i provmiljön, så den här vägen gör samma sak som den som bevisligen
+     fungerar, i stället för att jag gissar vidare på orsaken. */
   closeDetail();
   battVantaSatt(true);
   renderControls();
+  var ix=battKnappIx();
+  if(ix>=0)flashCtl(ix,'Startar\u2026');
   try{
     await homeyTriggerFlow('standard',BATT_FLOW_PA);
     toast('Startar laddning\u2026');
+    /* Rita om direkt efter svaret också — annars kan en omritning som hann
+       emellan ha lämnat knappen utan väntklassen. */
+    renderControls();
+    if(ix>=0)flashCtl(ix,'Startar\u2026');
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
   }catch(e){
@@ -17432,7 +17449,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v643';
+const APP_VERSION='v644';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
