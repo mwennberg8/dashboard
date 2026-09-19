@@ -2762,13 +2762,16 @@ body.graf-full-open .graf-full-back{display:block}
 /* 146 px som elrutorna — samma höjd på alla tidsseriegrafer i popuparna. */
 .tg-svg{width:100%;height:146px;display:block}
 .tg-leg{display:flex;flex-wrap:wrap;margin:12px -4px 0}
-.tg-chip{display:flex;flex-direction:column;align-items:flex-start;padding:11px 10px 10px;border-radius:14px;cursor:pointer;box-sizing:border-box;
-  width:calc(33.333% - 8px);margin:4px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);text-align:left;opacity:.42;transition:opacity .15s}
+/* FYRA PER RAD. Åtta zoner blir två jämna rader; med tre per rad hade sista
+   raden stått halvtom. Padding och textstorlek är nedjusterade så ett namn som
+   "Snickarboa" fortfarande ryms. */
+.tg-chip{display:flex;flex-direction:column;align-items:flex-start;padding:9px 7px 8px;border-radius:13px;cursor:pointer;box-sizing:border-box;
+  width:calc(25% - 8px);margin:4px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);text-align:left;opacity:.42;transition:opacity .15s}
 .tg-chip.on{opacity:1}
 .tg-top{display:flex;align-items:center;width:100%;min-width:0;margin-bottom:6px}
 .tg-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-right:5px}
-.tg-l{font-size:10.5px;font-weight:750;letter-spacing:.02em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tg-chip .tg-v{font-size:20px;font-weight:850;line-height:1;color:var(--ink);letter-spacing:-.01em}
+.tg-l{font-size:10px;font-weight:750;letter-spacing:.02em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tg-chip .tg-v{font-size:18px;font-weight:850;line-height:1;color:var(--ink);letter-spacing:-.01em}
 .tg-u{font-size:12px;font-weight:800;margin-left:1px}
 .tg-chip.nodata .tg-v{color:var(--dim)}
 .tg-wait{font-size:9px;font-weight:700;color:var(--dim);opacity:.8;line-height:1}
@@ -3469,7 +3472,11 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
   ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
-  ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')]];
+  ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')],
+  /* Batteriets celltemperatur från modbus. Utetemperaturen samlades redan in
+     som t_ute för väderrutan — samma serie används nu även i temperaturrutan
+     i stället för att en andra serie börjar fyllas på från noll. */
+  ['t_batt',()=>capLive(BATT_MODBUS,'measure_temperature.battery')]];
 /* ===== Historik ur v2-appen =====
    Appen hämtar samma serier ur Insights i bakgrunden och täcker därmed även
    timmar då ingen haft sidan öppen. Dashboardens EGEN inspelning fortsätter
@@ -10968,9 +10975,21 @@ var TEMPS=[
   {k:'poolrum',   lab:'Poolrum',    c:'cyan',   ser:function(){return HIST['t_poolrum']||[];},    val:function(){return cap(DEV.poolrum,'measure_temperature');}},
   {k:'kallare',   lab:'Källare',    c:'blue',   ser:function(){return HIST['t_kallare']||[];},    val:function(){return cap(DEV.kallare,'measure_temperature');}},
   {k:'snickarboa',lab:'Snickarboa', c:'green',  ser:function(){return HIST['t_snickarboa']||[];}, val:function(){return cap(DEV.snickarboa,'measure_temperature');}},
-  {k:'breveden',  lab:'Breveden',   c:'violet', ser:function(){return HIST['t_breveden']||[];},   val:function(){return cap(DEV.attefall,'measure_temperature');}}
+  {k:'breveden',  lab:'Breveden',   c:'violet', ser:function(){return HIST['t_breveden']||[];},   val:function(){return cap(DEV.attefall,'measure_temperature');}},
+  /* Ute och batteri. Ute ligger sist bland de mätta rummen eftersom den
+     nästan alltid är kallast och drar ner skalan — den som vill jämföra rum
+     mot rum stänger av den med ett tryck. */
+  {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(){return HIST['t_ute']||[];},      val:function(){return cap(DEV.outdoor,'measure_temperature');}},
+  {k:'batteri',   lab:'Batteri',    c:'hot',     ser:function(){return HIST['t_batt']||[];},     val:function(){return cap(BATT_MODBUS,'measure_temperature.battery');}}
 ];
-function tempCol(t){var P=PAL[curTheme]||PAL.dark;return P[t.c]||P.blue;}
+/* Färgen får anges som palettnamn ELLER som literal hex. Paletten har bara sex
+   färger som går att skilja åt, och zonerna är åtta. Utan literalen tog två av
+   dem samma färg som befintliga rader: 'ok' finns inte i paletten och föll
+   tillbaka på blå (= Källare), och 'gold' är samma hex som 'sun' (= Uterum). */
+function tempCol(t){
+  if(t&&typeof t.c==='string'&&t.c.charAt(0)==='#')return t.c;
+  var P=PAL[curTheme]||PAL.dark;return P[t.c]||P.blue;
+}
 function tempHasData(t){var cut=Date.now()-24*3600000,raw=t.ser()||[],n=0;
   for(var i=0;i<raw.length;i++){var p=raw[i];if(p&&p.v!=null&&isFinite(p.v)&&p.t>=cut)n++;if(n>=2)return true;}
   return false;}
@@ -17621,7 +17640,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v652';
+const APP_VERSION='v653';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
