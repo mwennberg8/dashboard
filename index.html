@@ -2781,6 +2781,16 @@ body.graf-full-open .graf-full-back{display:block}
 .tg-u{font-size:12px;font-weight:800;margin-left:1px}
 .tg-chip.nodata .tg-v{color:var(--dim)}
 .tg-wait{font-size:9px;font-weight:700;color:var(--dim);opacity:.8;line-height:1}
+/* Vädersidans brickor: tre jämna kolumner, alla lika stora. tg-chip är annars
+   en fjärdedel bred (temperaturrutan) och flödar i rader — här ska det bli ett
+   rutnät 3×3 där ingen bricka är högre eller bredare än någon annan. */
+/* FLEX MED MARGINALER, inte grid. Renderaren jag mäter pixlar med ritar varken
+   CSS Grid eller flex-gap, och då går det inte att se om rutnätet blev 3x3 —
+   samma skäl som i ladda max-rutan. Flex med breddberäkning ger identiskt
+   resultat i webbläsaren och går att verifiera. */
+.wxb-grid{display:flex;flex-wrap:wrap;margin:0 -4px 12px}
+.wxb-grid .tg-chip{flex:0 0 calc(33.333% - 8px);width:calc(33.333% - 8px);
+  margin:4px;min-height:62px;justify-content:center;box-sizing:border-box}
 .tg-hint{margin-top:7px;font-size:11px;color:var(--dim)}
 /* ===== Notch/säkra marginaler – ENDAST telefon (aldrig platt-/kioskläget) ===== */
 /* Kanten: 2px, men aldrig innanför en hörnskärm eller ett hack – env() vinner
@@ -8896,8 +8906,11 @@ function renderVader(){
         +'tidpunkt. Serierna har <b>egen skala var</b> — lufttryck ligger runt '
         +'1000 och regn under 10, så en gemensam skala hade tryckt ihop allt '
         +'utom trycket. Kurvorna visar alltså formen, inte höjden mot varandra.'))
+    /* Brickorna ÖVER grafen: man väljer vad som ska visas först och ser
+       resultatet under. Med dem under läste man grafen innan man visste vilka
+       serier som var tända. */
+    +'<div class="wxb-grid">'+wxBrickorHTML()+'</div>'
     +wxMultiSVG('wx')+grafTidsval('wx')
-    +wxBrickorHTML()
     +'</section>';
   /* 5. Jämförelser för vald serie */
   h+='<section class="panel"><div class="vdr-sec">Jämförelser · '+esc(wxSer().lab.toLowerCase())+'</div>'+wxCompareHTML()+'</section>';
@@ -10682,6 +10695,12 @@ function grafSattTim(id,h){
      så det ska synas på båda direkt. */
   try{if(typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
   try{if(_grafFull)grafFullRita();}catch(e){}
+  /* OCH VÄDERSIDAN. Den är ingen popup, så _grafOmRita rör den inte —
+     knapparna där ändrade valet utan att något ritades om, och de verkade
+     döda. Nästa omritning av annan orsak visade plötsligt det senast tryckta
+     värdet, vilket såg ut som att fönstret bytte av sig självt vid vyväxling.
+     Samma villkor som övriga anrop till renderVader använder. */
+  try{if(document.getElementById('vdr-body'))renderVader();}catch(e){}
 }
 /* Knapprad för tidsval + en helskärmsknapp till höger. cid är grafens id (samma
    som avlLager använder), byggFn() returnerar grafens HTML för helskärmen. */
@@ -17757,7 +17776,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v657';
+const APP_VERSION='v658';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
