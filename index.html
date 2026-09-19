@@ -185,6 +185,12 @@ body.kiosk{--pg-gap:7px}
 /* Gul utan puls: skärmen visar sparad data medan Homey svarar. */
 .dot.cache{background:var(--warm)}
 .rel{color:var(--faint);font-size:11.5px}.rel.stale{color:var(--warm)}
+/* Knapp som väntar på att läget ska slå igenom: ikonen snurrar, ramen är
+   varm men knappen är INTE tänd — den blir grön först när läget bekräftats. */
+@keyframes ctlsnurr{to{transform:rotate(360deg)}}
+.ctl.vantar{border-color:var(--warm);color:var(--warm-t)}
+.ctl.vantar .ctl-ic{animation:ctlsnurr 1.1s linear infinite;transform-origin:50% 50%}
+.ctl.vantar .ctl-l{color:var(--warm-t)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(166,227,161,.45)}70%{box-shadow:0 0 0 7px rgba(166,227,161,0)}100%{box-shadow:0 0 0 0 rgba(166,227,161,0)}}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
@@ -4063,30 +4069,39 @@ async function battStartaNu(){
      Går flödet fel rättas bilden av hämtningen strax efter, och toasten
      säger ifrån. */
   closeDetail();
-  battLaddSattLokalt(true);
+  battVantaSatt(true);
   renderControls();
   try{
     await homeyTriggerFlow('standard',BATT_FLOW_PA);
-    toast('Laddar max');
+    toast('Startar laddning\u2026');
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
   }catch(e){
-    battLaddSattLokalt(false);
+    battVantaKlar();
     renderControls();
     toast('Kunde inte nå Homey');
   }
 }
-/* Skriver läget i den lokala enhetsbilden så knappen kan visa det innan Homey
-   svarat. Rör bara fält som redan finns — saknas de gör den ingenting, och
-   nästa hämtning sätter det riktiga värdet ändå. */
-function battLaddSattLokalt(pa){
-  try{
-    var d=DATA[BATT_MODBUS];
-    if(!d||!d.capabilitiesObj)return;
-    var c=d.capabilitiesObj;
-    if(c.storagecontrolmode)c.storagecontrolmode.value=pa?'4':'1';
-    if(c.storagedefaultmode)c.storagedefaultmode.value=pa?'3':'1';
-  }catch(e){}
+/* ===== VÄNTELÄGE =====
+   Mellan trycket och att batteriet faktiskt gått över tar det några sekunder:
+   flödet ska köras i Homey, modbus ska skriva och nästa hämtning ska läsa
+   tillbaka det. Förut ljög knappen om läget under tiden genom att skriva
+   capability-värdena lokalt — den blev grön direkt, och om flödet inte gick
+   igenom hoppade den tillbaka utan förklaring.
+   Nu visar knappen i stället ATT den väntar, och tänds grön först när det
+   riktiga läget bekräftar det. Väntan släpper av sig själv: när läget stämmer,
+   eller efter BATT_VANTA_MS om ingenting händer. */
+var _battVantar=null;
+var BATT_VANTA_MS=45000;
+function battVantaSatt(pa){_battVantar={pa:!!pa,t:Date.now()};}
+function battVantaKlar(){_battVantar=null;}
+/* null = väntar inte. Annars {pa:true/false} — vilket läge vi väntar på. */
+function battVantar(){
+  if(!_battVantar)return null;
+  var nu=battLaddLage();
+  if(nu===_battVantar.pa){_battVantar=null;return null;}   /* bekräftat */
+  if(Date.now()-_battVantar.t>BATT_VANTA_MS){_battVantar=null;return null;}
+  return _battVantar;
 }
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
@@ -4117,6 +4132,7 @@ function battStartKoll(){
     if(_battStartBusy)return;
     if(battLaddLage()===true){battStartSatt(null);return;}   /* redan på */
     _battStartBusy=true;
+    battVantaSatt(true);
     homeyTriggerFlow('standard',BATT_FLOW_PA).then(function(){
       battStartSatt(null);_battStartBusy=false;
       try{toast('Laddar max – inbokad start');}catch(e){}
@@ -4169,7 +4185,7 @@ function renderControls(){
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   const knapp=(b,i)=>{
     const on=btnState(b),isArm=armed.i===i;
-    var ic=b.icon,lbl=b.label,extra='';
+    var ic=b.icon,lbl=b.label,extra='',vantar=false;
     /* HAR ANVÄNDAREN VALT EN EGEN IKON?
        Tre knapptyper byter ikon efter läge — vippan, moodet och Breveden. De
        skrev tidigare över den valda ikonen villkorslöst, så ikonväljaren såg ut
@@ -4222,8 +4238,15 @@ function renderControls(){
          att ett tryck stanger av.
          Undertexten ar borttagen - den sa samma sak en gang till. */
       var bl=battLaddLage();
-      if(beAuto())ic=(bl===true)?'battery-charging':'battery-high';
-      if(bl===null){lbl='Ingen kontakt';}
+      var vnt=battVantar();
+      if(beAuto())ic=vnt?'arrows-clockwise':((bl===true)?'battery-charging':'battery-high');
+      if(vnt){
+        /* Väntar: varken tänd eller släckt. Ikonen snurrar och texten säger
+           vad som är på gång. */
+        lbl=vnt.pa?'Startar\u2026':'St\u00e4nger av\u2026';
+        vantar=true;
+      }
+      else if(bl===null){lbl='Ingen kontakt';}
       else if(bl){
         /* På: säg NÄR den stänger av av sig själv pga stigande pris. Utan en
            kommande uppgång står bara "Laddar max". */
@@ -4261,7 +4284,7 @@ function renderControls(){
       if(gam)lbl+=' ?';
     }
     else if(b.type==='toggle'&&(ic==='lightbulb'||ic==='lightbulb-off'))ic=on?'lightbulb':'lightbulb-off';
-    return '<button class="ctl'+(on?' on':'')+(isArm?' arm':'')+'" data-bi="'+i+'" onclick="btnTap('+i+')"'+(live?'':' data-demo="1"')+'>'
+    return '<button class="ctl'+(on?' on':'')+(isArm?' arm':'')+(vantar?' vantar':'')+'" data-bi="'+i+'" onclick="btnTap('+i+')"'+(live?'':' data-demo="1"')+'>'
       +'<span class="ctl-ic">'+icon(ic)+'</span><span class="ctl-l">'+esc(isArm?'Bekräfta?':lbl)+'</span>'
       +extra
       +'</button>';};
@@ -4338,10 +4361,10 @@ async function btnTap(i){
       /* Något är igång och trycket är bekräftat: avbryt det. */
       battStartSatt(null);
       if(bl2){
-        battLaddSattLokalt(false);       /* samma skäl som vid start */
+        battVantaSatt(false);            /* samma skäl som vid start */
         await homeyTriggerFlow('standard',BATT_FLOW_AV);
       }
-      flashCtl(i,bl2?'normal drift ✓':'avbokad ✓');
+      flashCtl(i,bl2?'stänger av\u2026':'avbokad ✓');
       /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
          svarar, och Homey hinner lasa forst vid nasta varv. Darfor lite langre
          vantan an de andra knapparna innan rutan ritas om. */
@@ -17407,7 +17430,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v641';
+const APP_VERSION='v642';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
