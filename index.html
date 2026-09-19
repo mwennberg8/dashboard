@@ -1758,6 +1758,9 @@ body.tabprev.cmp-open{overflow:auto}
 .bl-b b{font-size:14.5px;font-weight:800;line-height:1.15;white-space:nowrap}
 .bl-b small{font-size:11px;color:var(--dim);font-weight:650;line-height:1.25;
   white-space:nowrap}
+/* Kvittensen på det man tryckte — syns de tiondelar rutan är kvar. */
+.bl-b.bl-vald,.bl-boka.bl-vald{border-color:var(--ok);background:var(--ok-bg,rgba(120,170,110,.16))}
+.bl-b.bl-vald b,.bl-b.bl-vald small{color:var(--ok)}
 .bl-b.pri{border-color:var(--ok);color:var(--ok)}
 .bl-b.pri b{color:var(--ok)}
 /* Prisvalet skiljer sig från de fasta klockslagen — pil och egen färg. */
@@ -3974,13 +3977,13 @@ function battLaddHTML(){
      så knappen blev högre än de andra. Nu är texterna korta nog att rymmas på
      en rad, och en gemensam minsta höjd håller rutnätet jämnt. */
   h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
-  h+='<button class="bl-b pri" onclick="battStartaNu()">'
+  h+='<button class="bl-b pri" onclick="blValt(this,\'nu\')">'
     +'<b>Nu</b><small>direkt</small></button>';
   /* PRISVALET är det enda som ändrar sig av sig själv — pilen och den egna
      färgen säger att knappen följer elpriset och inte är ett fast klockslag. */
   var b=battBilligKl();
   if(b){
-    h+='<button class="bl-b bl-pris" onclick="battBokaStart('+battTidTill(b.off,b.h)+')">'
+    h+='<button class="bl-b bl-pris" onclick="blValt(this,\'boka\','+battTidTill(b.off,b.h)+')">'
       +'<b>'+icon('trend-up','bl-ic')+'L\u00e4gsta pris</b>'
       +'<small>'+battKl(b.h*60)+(b.off?' imorgon':'')+' \u00b7 '+oren(b.pris)+'</small></button>';
   }else{
@@ -3991,7 +3994,7 @@ function battLaddHTML(){
   /* Fasta val som fungerar även utan prisdata. */
   [[1,'Om 1 timme'],[3,'Om 3 timmar']].forEach(function(x){
     var t3=Date.now()+x[0]*3600000;
-    h+='<button class="bl-b" onclick="battBokaStart('+t3+')">'
+    h+='<button class="bl-b" onclick="blValt(this,\'boka\','+t3+')">'
       +'<b>'+x[1]+'</b><small>'+battKlAv(t3)+'</small></button>';
   });
   h+='</div>';
@@ -4002,7 +4005,7 @@ function battLaddHTML(){
   h+='<div class="dsec">Egen tid</div>'
     +'<div class="bl-egen">'
     +'<div class="bl-ur">'+blStapel('t',2)+'<span class="bl-kolon">:</span>'+blStapel('m',2)+'</div>'
-    +'<button class="bl-boka" onclick="battEgenTid()">Boka '+battKl(blTid())+'</button>'
+    +'<button class="bl-boka" onclick="blValt(this,\'egen\')">Boka '+battKl(blTid())+'</button>'
     +'</div>'
     +'<div class="setup-t">Har klockslaget passerat i dag bokas det imorgon.</div>';
   return h;
@@ -4036,6 +4039,17 @@ function blJust(vad,rikt){
   _blTid=t*60+m;
   battLaddOm();
 }
+/* KVITTERA OCH STÄNG. Ett val ska synas på knappen man tryckte och sedan ta
+   en väg ut ur rutan — förut stod rutan kvar och man fick leta efter vad som
+   hänt. Den korta pausen finns bara för att kvittensen ska hinna ritas. */
+function blValt(el,vad,ms){
+  try{if(el&&el.classList)el.classList.add('bl-vald');}catch(e){}
+  setTimeout(function(){
+    if(vad==='nu')battStartaNu();
+    else if(vad==='egen')battEgenTid();
+    else battBokaStart(ms);
+  },170);
+}
 function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
 /* HÄR LÅG FELET: jag använde DLG_OM och openDlg, som hör till Göteborgs
    dashboard. Gottskär öppnar sina rutor med openDetail(), och ett anrop till
@@ -4049,14 +4063,20 @@ async function battStartaNu(){
     toast('Laddar max');
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
-    stangDlg();
+    closeDetail();
   }catch(e){toast('Kunde inte nå Homey');}
 }
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
   battStartSatt(ms);
   toast('Laddning bokad '+battKlAv(ms));
-  renderControls();battLaddOm();
+  /* Rita om startsidans knapp FÖRST, så den visar det valda läget redan när
+     rutan försvinner, och stäng sedan. */
+  renderControls();
+  /* closeDetail, inte stangDlg — den senare finns inte i den här dashboarden.
+     Anropet låg i en try/catch som svalde felet, så rutan blev bara stående
+     utan att något sa ifrån. Samma sorts miss som DLG_OM i v633. */
+  closeDetail();
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
 function battEgenTid(){
@@ -4190,7 +4210,9 @@ function renderControls(){
       }else{
         /* Inbokad start syns på knappen, annars vet man inte att den ligger. */
         var bs=battStartAktiv();
-        lbl=bs?('Ladda max \u00b7 '+battKlAv(bs)):'Ladda max';
+        /* Säg vilket läge som valts, inte bara att något är inbokat. Trycker
+           man "Lägsta pris" vill man se att det var DET som bokades. */
+        lbl=bs?('Bokad \u00b7 '+battKlAv(bs)):'Ladda max';
       }
     }
     else if(b.type==='flowtoggle'){
@@ -4234,12 +4256,14 @@ async function btnTap(i){
   const b=CONFIG.BUTTONS[i];if(!b)return;
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   if(!live){flashCtl(i,'kräver Homey',true);return;}
-  /* Batteriladdningen krävde tidigare ALLTID två tryck: ett tryck av misstag
-     startade 5 kW från nätet. Sedan v633 öppnar ett tryck i stället rutan med
-     tidsvalen, och den är bekräftelsen — dubbeltryckningen blev bara friktion.
-     Att stänga av är harmlöst och behövde aldrig bekräftas.
+  /* BATTERILADDNINGEN: ett tryck när inget är igång öppnar bara rutan med
+     tidsvalen, och den är bekräftelsen nog. Men när ett läge ÄR igång —
+     laddning pågår eller en start är inbokad — betyder trycket att det ska
+     avbrytas, och då krävs två tryck. Att råka avbryta en inbokad billig
+     laddning märks först timmar senare.
      Ett eget confirm-val på knappen gäller fortfarande. */
-  if(b.confirm&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
+  var battAktiv=(b.type==='battladd')&&(battLaddLage()===true||battStartAktiv()!=null);
+  if((b.confirm||battAktiv)&&!(armed.i===i&&Date.now()-armed.t<4000)){armed={i:i,t:Date.now()};renderControls();setTimeout(()=>{if(armed.i===i){armed={i:-1,t:0};renderControls();}},4000);return;}
   armed={i:-1,t:0};
   try{
     flashCtl(i,'skickar…');
@@ -4280,19 +4304,19 @@ async function btnTap(i){
     }else if(b.type==='battladd'){
       var bl2=battLaddLage();
       if(bl2===null){flashCtl(i,'ingen kontakt',true);return;}
-      /* AV går direkt — att stoppa något ska inte kräva ett extra val.
-         PÅ öppnar rutan med tidsvalen. */
-      if(!bl2){
+      var bokad=battStartAktiv();
+      if(!bl2&&bokad==null){
+        /* Inget igång: öppna rutan. flashCtl har redan skrivit "skickar…" och
+           återställer inte sig själv — här skickas ingenting, så knappen ritas
+           om direkt. */
         openBattLadd();
-        /* flashCtl har redan skrivit "skickar…" på knappen och återställer inte
-           sig själv — etiketten städas först vid nästa omritning. Här skickas
-           ingenting, så den ritas om direkt. */
         renderControls();
         return;
       }
-      await homeyTriggerFlow('standard',BATT_FLOW_AV);
-      battStartSatt(null);                 /* en avstängning avbokar också */
-      flashCtl(i,'normal drift ✓');
+      /* Något är igång och trycket är bekräftat: avbryt det. */
+      if(bl2)await homeyTriggerFlow('standard',BATT_FLOW_AV);
+      battStartSatt(null);
+      flashCtl(i,bl2?'normal drift ✓':'avbokad ✓');
       /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
          svarar, och Homey hinner lasa forst vid nasta varv. Darfor lite langre
          vantan an de andra knapparna innan rutan ritas om. */
@@ -4494,7 +4518,11 @@ function t0Sol(dT0){
   }catch(e){}
   return bas;}
 
-function progKurvaSVG(off){
+/* cid finns för att _grafByggare skickar ett id-prefix till alla grafer.
+   Solgrafen använder det inte: den innehåller inga id och inga dragpunkter, så
+   två kopior på sidan kan inte krocka. Parametern tas emot ändå, så den dagen
+   grafen får interaktiva element finns kroken på plats. */
+function progKurvaSVG(off,cid){
   off=(off==null)?_progDag:off;
   var e=progDagE(off);if(!e)return '';
   /* Imorgon finns inget uppmätt; igår finns det i sjudygnsserien. */
@@ -4694,6 +4722,12 @@ function progUppdatera(){try{
   if(e&&_dlgWhich==='sun')e.innerHTML=progAvsnitt();
 }catch(x){}}
 function progAvsnitt(){
+  /* Helskärmsbyggaren registreras HÄR, inte i någon annan rutas gren. Först låg
+     den bredvid poolens, som bara körs när poolrutan öppnas — då fanns ingen
+     byggare för solgrafen och helskärmen hade ritat tomt. Solavsnittet ritas
+     varje gång rutan öppnas, så här är den alltid satt när knappen finns. */
+  _grafByggare['prog']={titel:'Solprognos',
+    full:function(cid){return progKurvaSVG(_progDag,cid||'prog-full');}};
   if(!_prog){
     /* Tyst utelämnande gör det omöjligt att se om funktionen är trasig, avstängd
        eller aldrig hämtad. En rad kostar ingenting och sparar en felsökning. */
@@ -4739,7 +4773,9 @@ function progAvsnitt(){
       return '<button class="seg-btn'+(_progDag===x[0]?' on':'')+'"'+(finns?'':' disabled style="opacity:.4"')
         +' onclick="progDagSet('+x[0]+')">'+x[1]+'</button>';}).join('')
     +'</div>';
-  h+=(progDagE(_progDag)?progKurvaSVG():'<div class="viz-empty">'+(_progDag>0?'Morgondagens prognos räknas när molnprognosen publicerats (runt 13).':(_progDag<0?'Ingen sparad prognos för igår.':'Ingen prognos ännu.'))+'</div>');
+  /* Helskärm, som i batteri- och förbrukningsgraferna. Tidsvalet hör inte hit —
+     dygnet väljs med Igår/Idag/Imorgon ovanför — så bara knappen. */
+  h+=(progDagE(_progDag)?(progKurvaSVG()+grafTidsval('prog',false,true)):'<div class="viz-empty">'+(_progDag>0?'Morgondagens prognos räknas när molnprognosen publicerats (runt 13).':(_progDag<0?'Ingen sparad prognos för igår.':'Ingen prognos ännu.'))+'</div>');
   /* Raderna följer valt dygn. Igår: prognos mot utfall med avvikelse. Idag:
      prognos mot hittills. Imorgon: bara prognosen — inget finns att jämföra. */
   var ed=progDagE(_progDag)||(_progDag===0?e:null);
@@ -10289,15 +10325,20 @@ function grafSattTim(id,h){
 var _grafByggare={};
 /* utanFull=true i helskärmen: där finns redan krysset, och en till
    helskärmsknapp inne i helskärmen är bara förvirrande. */
-function grafTidsval(id,utanFull){
+/* utanTim: grafer vars fönster inte är valbart — solprognosen väljer dygn med
+   egna knappar ovanför — får bara helskärmsknappen. */
+function grafTidsval(id,utanFull,utanTim){
   var bas=grafBasId(id);
-  var h='<div class="graf-verktyg"><div class="graf-tim">';
-  for(var i=0;i<GRAF_TIM.length;i++){
-    var t=GRAF_TIM[i], pa=(t===grafTim(bas));
-    h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+t+')">'
-      +(t<24?t+'h':'24h')+'</button>';
-  }
-  h+='</div>';
+  var h='<div class="graf-verktyg">';
+  if(!utanTim){
+    h+='<div class="graf-tim">';
+    for(var i=0;i<GRAF_TIM.length;i++){
+      var t=GRAF_TIM[i], pa=(t===grafTim(bas));
+      h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+t+')">'
+        +(t<24?t+'h':'24h')+'</button>';
+    }
+    h+='</div>';
+  }else{h+='<div class="graf-tim"></div>';}
   if(!utanFull)h+='<button class="graf-full" onclick="grafHelskarm(\''+bas+'\')" aria-label="Helskärm">'
     +icon('corners-out')+'</button>';
   return h+'</div>';
@@ -10786,7 +10827,7 @@ function byggPool(){
   return grafRubrik('pool','Pooltemperatur',infoBlock('poolgraf',
       'Poolens temperatur över tid. Dra i grafen för att läsa av vid en viss '
       +'tidpunkt.'))
-    +histSVG('k:pool',{unit:'°C',icon:'swimming-pool'},'pool')
+    +histSVG(poolHistKey(),{unit:'°C',icon:'swimming-pool'},'pool')
     +grafTidsval('pool');
 }
 function byggSeatemp(){
@@ -10915,7 +10956,7 @@ function openDetail(which){
     if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
     body=buildCostPopup();
   }else if(which==='pool'){title='Pool';const rt=poolRate(),ph=cap(DEV.poolheat,'onoff'),pv=cap(DEV.pooltemp,'measure_temperature');
-    _grafByggare['pool']={titel:'Pooltemperatur',full:function(cid){return histSVG('k:pool',{unit:'°C',icon:'swimming-pool'},cid||'pool');}};
+    _grafByggare['pool']={titel:'Pooltemperatur',full:function(cid){return histSVG(poolHistKey(),{unit:'°C',icon:'swimming-pool'},cid||'pool');}};
     /* Raderna räknas inline nedan med lokala variabler, så omritningen byter
        bara grafdelen (#pool-graf) och lämnar raderna som de är. */
     _grafOmRita=function(){var g=$('pool-graf');if(g)g.innerHTML=byggPool();};
@@ -16440,6 +16481,11 @@ function learnTick(){
   const pr=elprisNow();if(pr!=null)learnSample('price',pr);
   const bp=cap(DEV.battery,'measure_power');if(bp!=null&&Math.abs(bp)>LEARN_KEYS.battflow.floor)learnSample('battflow',Math.abs(bp));
   const gp=cap(DEV.pulse,'measure_power');if(gp!=null&&Math.abs(gp)>LEARN_KEYS.gridflow.floor)learnSample('gridflow',Math.abs(gp));
+  /* Pooltemperaturen samlas UTTRYCKLIGT. Raden under tar bara brickor som
+     ligger på flöde/energi/väder — har man tagit bort poolbrickan därifrån
+     slutade serien fyllas på, och grafen i poolrutan blev tom utan att något
+     sa ifrån. */
+  const pt=cap(DEV.pooltemp,'measure_temperature');if(pt!=null&&isFinite(pt))learnSample(poolHistKey(),pt);
   try{['flode','energy','weather'].forEach(g=>{gridTiles(g).forEach(cfg=>{const v=metricNumber(cfg);if(v!=null&&isFinite(v))learnSample(histKeyFor(cfg),v);});});}catch(e){}
   learnFlush();}
 
@@ -16485,6 +16531,13 @@ function metricNumber(cfg){
     car1:[DEV.car,'measure_battery'],car2:[DEV.car2,'measure_battery'],charger:[DEV.laddbox,'measure_power'],
     sold:[DEV.pulse,'meter_power.exported'],bought:[DEV.pulse,'meter_power.imported']};
   const m=M[k];if(!m)return null;let v=cap(m[0],m[1]);if((k==='gridbal'||k==='gridnow'||k==='battnow'||k==='battpow')&&v!=null)v=Math.abs(v);return v;}
+/* POOLENS SERIENYCKEL. Poolrutan ritade 'k:pool', men pooltemperaturen är en
+   SENSOR — insamlaren lägger den under 'c:<enhet>:<capability>'. Nyckeln som
+   ritades hade därför aldrig någon data, och grafen stod kvar på "Samlar in
+   data…" hur länge man än väntade. Härleds nu på exakt samma sätt som
+   insamlaren, så de inte kan gå isär igen. */
+var POOL_CFG={type:'sensor',device:DEV.pooltemp,cap:'measure_temperature'};
+function poolHistKey(){return histKeyFor(POOL_CFG);}
 function histKeyFor(cfg){if(cfg.type==='sensor')return metricRefKey(cfg);const k=cfg.key;
   if(k==='solnow'||k==='solday'||k==='solyear')return 'solar';
   if(k==='gridnow'||k==='gridbal')return 'gridflow';
@@ -17329,7 +17382,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v637';
+const APP_VERSION='v640';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
