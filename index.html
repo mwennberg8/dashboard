@@ -4096,8 +4096,11 @@ async function battStartaNu(){
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
   }catch(e){
+    /* Gick anropet inte fram ska det stå på knappen. Blev den bara grå gick
+       det inte att skilja från att väntläget tappats bort. */
     battVantaKlar();
     renderControls();
+    if(ix>=0)flashCtl(ix,'n\u00e5dde inte Homey',true);
     toast('Kunde inte nå Homey');
   }
 }
@@ -4110,17 +4113,44 @@ async function battStartaNu(){
    Nu visar knappen i stället ATT den väntar, och tänds grön först när det
    riktiga läget bekräftar det. Väntan släpper av sig själv: när läget stämmer,
    eller efter BATT_VANTA_MS om ingenting händer. */
-var _battVantar=null;
+/* VÄNTLÄGET LIGGER I localStorage, INTE I EN VARIABEL.
+   Symtomet var att knappen blinkade till med väntläget och blev grå igen
+   direkt — alltså en omritning strax efter där väntan var borta. Jag har inte
+   kunnat återskapa det i provmiljön, så i stället för att gissa vidare på
+   VEM som nollställde variabeln är tillståndet nu beständigt: det överlever
+   varje omritning, och skulle skriptblocket köras om igen finns det kvar.
+   Dessutom ritas knappen om en gång i sekunden så länge väntan gäller, så en
+   omritning som råkat tappa klassen rättas inom en sekund i stället för att
+   bli stående. */
+var BATT_VANTA_KEY='battVanta_v1';
 var BATT_VANTA_MS=45000;
-function battVantaSatt(pa){_battVantar={pa:!!pa,t:Date.now()};}
-function battVantaKlar(){_battVantar=null;}
+var _battVantaPuls=null;
+function battVantaSatt(pa){
+  try{localStorage.setItem(BATT_VANTA_KEY,JSON.stringify({pa:!!pa,t:Date.now()}));}catch(e){}
+  battVantaPuls();
+}
+function battVantaKlar(){
+  try{localStorage.removeItem(BATT_VANTA_KEY);}catch(e){}
+  if(_battVantaPuls){clearInterval(_battVantaPuls);_battVantaPuls=null;}
+}
 /* null = väntar inte. Annars {pa:true/false} — vilket läge vi väntar på. */
 function battVantar(){
-  if(!_battVantar)return null;
+  var o=null;
+  try{o=JSON.parse(localStorage.getItem(BATT_VANTA_KEY)||'null');}catch(e){}
+  if(!o||typeof o.t!=='number')return null;
   var nu=battLaddLage();
-  if(nu===_battVantar.pa){_battVantar=null;return null;}   /* bekräftat */
-  if(Date.now()-_battVantar.t>BATT_VANTA_MS){_battVantar=null;return null;}
-  return _battVantar;
+  if(nu===o.pa){battVantaKlar();return null;}              /* bekräftat */
+  if(Date.now()-o.t>BATT_VANTA_MS){battVantaKlar();return null;}
+  return o;
+}
+/* Håller knappen rätt medan vi väntar. Stannar av sig själv. */
+function battVantaPuls(){
+  if(_battVantaPuls)return;
+  _battVantaPuls=setInterval(function(){
+    var v=battVantar();
+    try{renderControls();}catch(e){}
+    if(!v&&_battVantaPuls){clearInterval(_battVantaPuls);_battVantaPuls=null;}
+  },1000);
 }
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
@@ -17449,7 +17479,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v644';
+const APP_VERSION='v645';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
