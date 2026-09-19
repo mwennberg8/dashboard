@@ -5595,8 +5595,12 @@ function buildWeatherHTML(){
   h+='<div class="wx2-strip" data-wxedit="strip">';
   h+=wcell('temps','Inne',(tIn==null?'–':num(tIn,1)+'°'),'',null,'',false);
   h+=wcell('temps','Uterum',(tUte==null?'–':num(tUte,1)+'°'),'',null,'',false);
-  h+=wcell('temprange','Lägst',(ex.min==null?'–':num(ex.min,1)+'°'),'down','arrow-fat-up','var(--blue)',true);
-  h+=wcell('temprange','Högst',(ex.max==null?'–':num(ex.max,1)+'°'),'up','arrow-fat-up','var(--hot)',false);
+  /* Alla fyra temperaturcellerna öppnar samma ruta. Lägst och Högst gick förut
+     till en egen "Utomhustemperatur"-ruta med en enda kurva och tre rader — allt
+     det finns i temperaturrutan sedan Ute blev en egen zon där, och två rutor
+     för samma sak gav bara en gissning om vilken man skulle trycka på. */
+  h+=wcell('temps','Lägst',(ex.min==null?'–':num(ex.min,1)+'°'),'down','arrow-fat-up','var(--blue)',true);
+  h+=wcell('temps','Högst',(ex.max==null?'–':num(ex.max,1)+'°'),'up','arrow-fat-up','var(--hot)',false);
   h+=wcell('wind','Max vind',(wx.w==null?'–':num(wx.w,1)),'','wind','var(--cyan)',false);
   h+=wcell('wind','Max by',(wx.g==null?'–':num(wx.g,0)),'',null,'',false);
   h+='</div>';
@@ -11141,7 +11145,7 @@ function openDetail(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temprange:'cloud-sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -11323,13 +11327,9 @@ function openDetail(which){
       +dRow('Temperatur',u==null?'–':num(u,1)+' °C')
       +(uh!=null?dRow('Luftfuktighet',Math.round(uh)+' %'):'')
       +(uc!=null?dRow('CO₂',Math.round(uc)+' ppm'):'');
-  }else if(which==='temprange'){title='Utomhustemperatur';
-    const now=cap(DEV.outdoor,'measure_temperature'),ex2=tempExtremes(now);
-    body=ptsLineSVG((HIST['t_ute']||[]),'temp')
-      +dRow('Just nu',now==null?'–':num(now,1)+' °C')
-      +dRow('Dygnets högsta',ex2.max==null?'–':num(ex2.max,1)+' °C')
-      +dRow('Dygnets lägsta',ex2.min==null?'–':num(ex2.min,1)+' °C')
-      +dRow('Källa','Utomhus-sensorn');
+  /* 'temprange' (Utomhustemperatur) borttagen i v654 — den visade samma serie
+     som Ute-zonen i temperaturrutan, plus dygnets högsta och lägsta som nu
+     står i raderna där. */
   }else if(which==='energyfull'){const dlgw=$('dlg');if(dlgw&&dlgw.classList){dlgw.classList.add('wide');dlgw.classList.add('nohead');}
     _energyAlt=false;_energyOpen=true;_popupRebuild=energyPopupRender;
     /* Tidsvalet på förbrukning nu-grafen (g2-day) ritar om via _grafOmRita. */
@@ -17640,7 +17640,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v653';
+const APP_VERSION='v654';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
