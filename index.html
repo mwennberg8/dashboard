@@ -185,12 +185,6 @@ body.kiosk{--pg-gap:7px}
 /* Gul utan puls: skärmen visar sparad data medan Homey svarar. */
 .dot.cache{background:var(--warm)}
 .rel{color:var(--faint);font-size:11.5px}.rel.stale{color:var(--warm)}
-/* Knapp som väntar på att läget ska slå igenom: ikonen snurrar, ramen är
-   varm men knappen är INTE tänd — den blir grön först när läget bekräftats. */
-@keyframes ctlsnurr{to{transform:rotate(360deg)}}
-.ctl.vantar{border-color:var(--warm);color:var(--warm-t)}
-.ctl.vantar .ctl-ic{animation:ctlsnurr 1.1s linear infinite;transform-origin:50% 50%}
-.ctl.vantar .ctl-l{color:var(--warm-t)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(166,227,161,.45)}70%{box-shadow:0 0 0 7px rgba(166,227,161,0)}100%{box-shadow:0 0 0 0 rgba(166,227,161,0)}}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
@@ -816,6 +810,14 @@ body.mobile:not(.kiosk) .ctl-row{display:flex;flex-direction:row;
    hela deklarationen faller — samma sorts tysta bortfall som grid-regeln hade. */
 body.mobile:not(.kiosk) .ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
 .ctl.on{background:rgba(166,227,161,.14);border-color:rgba(166,227,161,.4)}
+/* VÄNTELÄGE. MÅSTE stå EFTER .ctl-reglerna: .ctl sätter `border` som KORTFORM,
+   och en border-color som deklarerats tidigare i filen skrivs då över. Låg det
+   här blocket först blev knappen grå direkt efter trycket — bara ikonens
+   animation syntes, eftersom den regeln har högre specificitet. */
+@keyframes ctlsnurr{to{transform:rotate(360deg)}}
+.ctl.vantar{border-color:var(--warm);color:var(--warm-t)}
+.ctl.vantar .ctl-ic{animation:ctlsnurr 1.1s linear infinite;transform-origin:50% 50%}
+.ctl.vantar .ctl-l{color:var(--warm-t)}
 .ctl.on .ctl-ic{color:var(--ok)}.ctl.on .ctl-s{color:var(--ok-t)}
 .ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}.ctl.arm .ctl-l{color:var(--warm-t)}.ctl.arm .ctl-ic{color:var(--warm)}
 .ctl.err{border-color:var(--hot)}.ctl.err .ctl-l{color:var(--hot-t)}
@@ -17430,7 +17432,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v642';
+const APP_VERSION='v643';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
