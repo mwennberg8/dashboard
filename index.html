@@ -4253,10 +4253,13 @@ function battBokaStart(ms){
      rita om sedan. Förut låg closeDetail sist, efter renderControls och
      flashCtl — kastade någon av dem blev rutan stående. Nu kan de inte hindra
      stängningen, och de är dessutom inlindade var för sig. */
+  /* EXAKT SAMMA ORDNING SOM battStartaNu, som visar sig direkt: stäng, rita
+     om, skriv i knappen — och toasten SIST. Toasten låg före omritningen och
+     är det enda som skilde vägarna åt. */
   closeDetail();
-  toast('Laddning bokad '+battKlAv(ms));
   try{renderControls();}catch(e){}
   try{var bix=battKnappIx();if(bix>=0)flashCtl(bix,'Bokad \u00b7 '+battKlAv(ms));}catch(e){}
+  toast('Laddning bokad '+battKlAv(ms));
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
 function battEgenTid(){
@@ -4527,10 +4530,21 @@ async function btnTap(i){
       battStartSatt(null);
       if(bl2){
         battVantaSatt(false);            /* samma skäl som vid start */
-        /* Samma sak här: en tidsgräns betyder att vi inte vet, inte att det
-           gick fel. Väntläget får stå kvar och enhetens läge avgöra. */
+        /* Rita om DIREKT. Utan den här raden satte först pulsen klassen, en
+           sekund senare — knappen stod kvar som tänd och grön under tiden. */
+        try{renderControls();}catch(e3){}
+        /* SVARET ÄR INGET KVITTO — samma sak som vid start. Mätt i drift ger
+           anropet fel (HTTP-status eller avbrott) medan flödet kör klart.
+           Förut kastades allt som inte var ett avbrott vidare till btnTaps
+           yttre catch, som målade knappen RÖD ett ögonblick innan väntläget
+           tog över. Nu sväljs alla fel här; enhetens läge avgör, och orsaken
+           hamnar i toasten. */
         try{await homeyTriggerFlow('standard',BATT_FLOW_AV);}
-        catch(e2){if(!isAbort(e2))throw e2;}
+        catch(e2){
+          var m2=(e2&&e2.message)?e2.message:'ok\u00e4nt';
+          toast(isAbort(e2)?'St\u00e4nger av\u2026 (Homey svarade inte i tid)'
+                           :('St\u00e4nger av\u2026 (Homey svarade: '+m2+')'));
+        }
       }
       flashCtl(i,bl2?'stänger av\u2026':'avbokad ✓');
       /* Registret uppdateras inte direkt - flodet skriver, vaxelriktaren
@@ -17598,7 +17612,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v650';
+const APP_VERSION='v651';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
