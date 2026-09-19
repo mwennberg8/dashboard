@@ -4197,7 +4197,16 @@ async function battStartaNu(){
    omritning som råkat tappa klassen rättas inom en sekund i stället för att
    bli stående. */
 var BATT_VANTA_KEY='battVanta_v1';
-var BATT_VANTA_MS=45000;
+/* HUR LÄNGE VÄNTLÄGET FÅR STÅ.
+   Var 45 s, och det räckte inte: knappen hann gå ur väntläget till GRÅTT en
+   liten stund innan modbus bekräftade, och tändes först därefter. Ordningen
+   "Startar… → grått → på" är signaturen för en för kort gräns — hade flödet
+   misslyckats hade det aldrig blivit grönt efteråt.
+   Gränsen finns bara för att knappen inte ska fastna i väntläge om ingenting
+   händer. Den får därför vara rundlig: väntan släpper ändå i samma ögonblick
+   som läget bekräftas. Tre minuter är långt bortom vad en modbus-skrivning
+   tar, och kort nog att en verkligt misslyckad start inte blir stående. */
+var BATT_VANTA_MS=180000;
 var _battVantaPuls=null;
 function battVantaSatt(pa){
   try{localStorage.setItem(BATT_VANTA_KEY,JSON.stringify({pa:!!pa,t:Date.now()}));}catch(e){}
@@ -17612,7 +17621,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v651';
+const APP_VERSION='v652';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
