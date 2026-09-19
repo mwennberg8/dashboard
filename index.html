@@ -4238,7 +4238,8 @@ function battVantaPuls(){
       var btn=el.querySelectorAll('.ctl')[ix];if(!btn)return;
       /* Rör bara det som kan ha gått förlorat — inte innehållet. */
       if(!btn.classList.contains('vantar'))btn.classList.add('vantar');
-      if(btn.classList.contains('on'))btn.classList.remove('on');
+      /* 'on' sätts inte längre av renderControls medan vi väntar, så det finns
+         inget att ta bort här. Att göra det ändå var halva blinkandet. */
       var l=btn.querySelector('.ctl-l');
       var txt=v.pa?'Startar\u2026':'St\u00e4nger av\u2026';
       if(l&&l.textContent!==txt)l.textContent=txt;
@@ -4248,17 +4249,14 @@ function battVantaPuls(){
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
   battStartSatt(ms);
-  toast('Laddning bokad '+battKlAv(ms));
-  /* Rita om startsidans knapp FÖRST, så den visar det valda läget redan när
-     rutan försvinner, och stäng sedan. flashCtl skriver dessutom texten direkt
-     i knappen — samma väg som starten, som bevisligen syns. */
-  renderControls();
-  var bix=battKnappIx();
-  if(bix>=0)flashCtl(bix,'Bokad \u00b7 '+battKlAv(ms));
-  /* closeDetail, inte stangDlg — den senare finns inte i den här dashboarden.
-     Anropet låg i en try/catch som svalde felet, så rutan blev bara stående
-     utan att något sa ifrån. Samma sorts miss som DLG_OM i v633. */
+  /* SAMMA ORDNING SOM "LADDA NU", som bevisligen fungerar: stäng rutan FÖRST,
+     rita om sedan. Förut låg closeDetail sist, efter renderControls och
+     flashCtl — kastade någon av dem blev rutan stående. Nu kan de inte hindra
+     stängningen, och de är dessutom inlindade var för sig. */
   closeDetail();
+  toast('Laddning bokad '+battKlAv(ms));
+  try{renderControls();}catch(e){}
+  try{var bix=battKnappIx();if(bix>=0)flashCtl(bix,'Bokad \u00b7 '+battKlAv(ms));}catch(e){}
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
 function battEgenTid(){
@@ -4333,7 +4331,12 @@ function renderControls(){
   el.style.gridTemplateColumns='';
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   const knapp=(b,i)=>{
-    const on=btnState(b),isArm=armed.i===i;
+    /* on är inte const: väntläget måste kunna slå ut det. Står knappen kvar
+       som tänd medan den väntar på avstängning får den både 'on' och 'vantar',
+       och eftersom pulsen tog bort 'on' medan nästa omritning satte tillbaka
+       den blinkade knappen grönt i otakt. */
+    var on=btnState(b);
+    const isArm=armed.i===i;
     var ic=b.icon,lbl=b.label,extra='',vantar=false,icStil='',bokad=false;
     /* HAR ANVÄNDAREN VALT EN EGEN IKON?
        Tre knapptyper byter ikon efter läge — vippan, moodet och Breveden. De
@@ -4394,6 +4397,7 @@ function renderControls(){
            vad som är på gång. */
         lbl=vnt.pa?'Startar\u2026':'St\u00e4nger av\u2026';
         vantar=true;
+        on=false;                 /* väntan är ett eget läge, inte tänt */
         /* SNURREN FORTSÄTTER FRÅN RÄTT VINKEL.
            Sidan ritar om knappraden med jämna mellanrum, och då byts ikonens
            element ut — animationen började om från noll varje gång, vilket såg
@@ -17594,7 +17598,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v649';
+const APP_VERSION='v650';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
