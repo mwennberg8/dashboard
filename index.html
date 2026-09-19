@@ -1784,7 +1784,6 @@ body.tabprev.cmp-open{overflow:auto}
 .bl-b.bl-pris{border-color:var(--blue)}
 .bl-b.bl-pris b{color:var(--blue);display:flex;align-items:center;gap:5px;justify-content:center}
 .bl-b.bl-pris small{color:var(--ink)}
-.bl-b.bl-pris .bl-ic{width:13px;height:13px;transform:rotate(180deg);flex:0 0 auto}
 .bl-b[disabled]{opacity:.45;cursor:default}
 /* Egen tid: klockan överst, bokaknappen centrerad under den. */
 /* Klocka och timer sida vid sida, samma form. Den valda ramas in. */
@@ -2765,12 +2764,19 @@ body.graf-full-open .graf-full-back{display:block}
 /* FYRA PER RAD. Åtta zoner blir två jämna rader; med tre per rad hade sista
    raden stått halvtom. Padding och textstorlek är nedjusterade så ett namn som
    "Snickarboa" fortfarande ryms. */
-.tg-chip{display:flex;flex-direction:column;align-items:flex-start;padding:9px 7px 8px;border-radius:13px;cursor:pointer;box-sizing:border-box;
+/* overflow:hidden på själva brickan. Utan den rann ett långt namn som
+   "Luftfuktighet" ut över kanten i stället för att klippas — text-overflow på
+   etiketten räcker inte när föräldern låter innehållet spilla. */
+.tg-chip{display:flex;flex-direction:column;align-items:flex-start;padding:9px 7px 8px;border-radius:13px;cursor:pointer;box-sizing:border-box;overflow:hidden;
   width:calc(25% - 8px);margin:4px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);text-align:left;opacity:.42;transition:opacity .15s}
 .tg-chip.on{opacity:1}
 .tg-top{display:flex;align-items:center;width:100%;min-width:0;margin-bottom:6px}
 .tg-dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;margin-right:5px}
-.tg-l{font-size:10px;font-weight:750;letter-spacing:.02em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tg-l{flex:1 1 auto;font-size:10px;font-weight:750;letter-spacing:.02em;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* Värden utan historik: samma form, men ingen tändknapp — de går inte att
+   rita, så de ska inte se ut att gå att välja. */
+.tg-chip.stat{cursor:default;opacity:.72}
+.tg-dot.dim{background:var(--line)}
 .tg-chip .tg-v{font-size:18px;font-weight:850;line-height:1;color:var(--ink);letter-spacing:-.01em}
 .tg-u{font-size:12px;font-weight:800;margin-left:1px}
 .tg-chip.nodata .tg-v{color:var(--dim)}
@@ -4014,16 +4020,18 @@ function battLaddHTML(){
   h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
   h+='<button class="bl-b pri" onclick="blValt(this,\'nu\')">'
     +'<b>Ladda nu</b><small>direkt</small></button>';
-  /* PRISVALET är det enda som ändrar sig av sig själv — pilen och den egna
-     färgen säger att knappen följer elpriset och inte är ett fast klockslag. */
+  /* PRISVALET är det enda som ändrar sig av sig själv. Pilen är borttagen i
+     v655 — den blå ramen och den blå rubriken räcker för att skilja knappen
+     från de fasta klockslagen, och ikonen konkurrerade med texten på en knapp
+     som är halva rutans bredd. */
   var b=battBilligKl();
   if(b){
     h+='<button class="bl-b bl-pris" onclick="blValt(this,\'boka\','+battTidTill(b.off,b.h)+')">'
-      +'<b>'+icon('trend-up','bl-ic')+'L\u00e4gsta pris</b>'
+      +'<b>L\u00e4gsta pris</b>'
       +'<small>'+battKl(b.h*60)+(b.off?' imorgon':'')+' \u00b7 '+oren(b.pris)+'</small></button>';
   }else{
     h+='<button class="bl-b bl-pris" disabled>'
-      +'<b>'+icon('trend-up','bl-ic')+'L\u00e4gsta pris</b>'
+      +'<b>L\u00e4gsta pris</b>'
       +'<small>ingen billig timme fram\u00e5t</small></button>';
   }
   /* Fasta val som fungerar även utan prisdata. */
@@ -8531,6 +8539,109 @@ var WXSER=[
 var _wxSer='t_ute';
 function wxSer(){for(var i=0;i<WXSER.length;i++)if(WXSER[i].k===_wxSer)return WXSER[i];return WXSER[0];}
 function wxSetSer(k){_wxSer=k;renderVader();}
+/* ===== VÄDERSIDANS SAMMANSLAGNA RUTA =====
+   \"Just nu\" och \"Dygnet\" visade samma mätvärden två gånger: först som kort,
+   sedan som valbara brickor ovanför en graf. Nu är det en ruta — en bricka per
+   värde, och grafen under visar dem man tänder.
+
+   OLIKA ENHETER PÅ SAMMA GRAF. Lufttryck ligger runt 1000, regn under 10 och
+   vind runt 5. Ritas de mot en gemensam skala blir allt utom lufttrycket en
+   rak linje längs nederkanten. Varje serie skalas därför mot SITT EGET spann i
+   fönstret: kurvorna visar formen, och avläsningen vid drag ger de riktiga
+   talen med enhet. Det står i i-rutan, så ingen tror att linjerna går att
+   jämföra i höjdled. */
+function wxOn(k){
+  try{
+    var c=CFG.wxLines;
+    if(!c||typeof c!=='object')return k==='t_ute';   /* temperatur som start */
+    return !!c[k];
+  }catch(e){return k==='t_ute';}
+}
+function wxToggle(k){
+  if(!CFG.wxLines||typeof CFG.wxLines!=='object')CFG.wxLines={t_ute:true};
+  CFG.wxLines[k]=!wxOn(k);
+  /* Minst en serie måste vara tänd — en tom graf säger ingenting om varför. */
+  var nagon=WXSER.some(function(S){return wxOn(S.k);});
+  if(!nagon)CFG.wxLines[k]=true;
+  saveCfg();renderVader();
+}
+function wxSerCol(S){var P=PAL[curTheme]||PAL.dark;return P[S.c]||P.blue;}
+/* Har serien något att rita i det valda fönstret? */
+function wxHarData(S,cut){
+  var a=wxPts(S.k)||[],n=0;
+  for(var i=0;i<a.length;i++){var p=a[i];if(p&&p.v!=null&&isFinite(p.v)&&p.t>=cut)n++;if(n>=2)return true;}
+  return false;
+}
+function wxMultiSVG(cid){
+  cid=cid||'wx';
+  /* Registreras här, inte i någon annan vys gren — samma miss som solgrafens
+     byggare i v638, där den låg i poolrutans kod och helskärmen ritade tomt. */
+  _grafByggare['wx']={titel:'Mätvärden',full:function(c){return wxMultiSVG(c||'wx-full');}};
+  var fen=grafFonster(cid);
+  var W=300,H=136,padL=4,padR=4,padT=10,padB=16;
+  var out=[],t0=Infinity,t1=-Infinity,cut=fen.t0;
+  for(var i=0;i<WXSER.length;i++){var S=WXSER[i];if(!wxOn(S.k))continue;
+    var raw=wxPts(S.k)||[],seg=[];
+    for(var j=0;j<raw.length;j++){var pt=raw[j];if(pt&&pt.v!=null&&isFinite(pt.v)&&pt.t>=cut)seg.push(pt);}
+    if(seg.length<2)continue;
+    t0=Math.min(t0,seg[0].t);t1=Math.max(t1,seg[seg.length-1].t);
+    var lo=Infinity,hi=-Infinity;
+    for(var m=0;m<seg.length;m++){if(seg[m].v<lo)lo=seg[m].v;if(seg[m].v>hi)hi=seg[m].v;}
+    out.push({S:S,s:seg,lo:lo,hi:hi});}
+  if(!out.length)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
+  var tr=(t1-t0)||1;
+  var X=function(v){return padL+(v-t0)/tr*(W-padL-padR);};
+  /* Egen skala per serie. En platt serie läggs på mitten i stället för att
+     divideras med noll. */
+  var Ymk=function(o){
+    var yr=(o.hi-o.lo);
+    if(!(yr>0))return function(){return padT+(H-padT-padB)*0.5;};
+    var mp=yr*0.12,lo=o.lo-mp,r=(o.hi+mp)-lo;
+    return function(v){return padT+(1-(v-lo)/r)*(H-padT-padB);};
+  };
+  var g='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  for(var q=0;q<out.length;q++){var o=out[q];o.Y=Ymk(o);
+    var d=smoothPath(o.s.map(function(pt){return [X(pt.t),o.Y(pt.v)];}));
+    g+='<path d="'+d+'" fill="none" stroke="'+wxSerCol(o.S)+'"'+GRAF_LINJE+'/>';}
+  g+='</svg>';
+  g=avlLager(cid,g,{W:W,H:H,X:X,t0:t0,t1:t1,
+    ser:out.map(function(o){return {namn:o.S.lab,farg:wxSerCol(o.S),pts:o.s,Y:o.Y,
+      fmt:(function(S){return function(v){return num(v,S.dec)+' '+S.u;};})(o.S)};})});
+  var span=Math.round(tr/3600000);
+  g+='<div class="viz-cap">senaste ~'+(span>=1?span+' h':'stunden')+' · '
+    +out.length+' serie'+(out.length>1?'r':'')+', egen skala per serie</div>';
+  return g;
+}
+/* Brickorna: en per värde. De som saknar historik går inte att tända — de
+   visar bara sitt tal, som i den gamla \"Just nu\"-rutan. */
+function wxBrickorHTML(){
+  var fen=grafFonster('wx'),cut=fen.t0,h='';
+  for(var i=0;i<WXSER.length;i++){var S=WXSER[i],v=S.val(),on=wxOn(S.k),hd=wxHarData(S,cut);
+    h+='<button class="tg-chip'+(on?' on':'')+(hd?'':' nodata')+'" onclick="wxToggle(\''+S.k+'\')"'
+      +(hd?'':' title="Väntar på mätpunkter"')+'>'
+      +'<span class="tg-top"><span class="tg-dot" style="background:'+wxSerCol(S)+'"></span>'
+      +'<span class="tg-l">'+esc(shortLab(S.lab))+'</span></span>'
+      +'<b class="tg-v">'+(v==null?'–':num(v,S.dec)+'<span class="tg-u">'+S.u+'</span>')+'</b>'
+      +(hd?'':'<span class="tg-wait">väntar på data</span>')+'</button>';}
+  /* Värden utan egen serie — molnighet, sikt, åska. De kommer från SMHI och
+     samlas inte in över tid, så de kan inte ritas. */
+  var g=function(k){return cap(DEV.smhi,k);};
+  [['Molnighet',g('mean_value_of_total_cloud_cover_cp'),'%',0],
+   ['Sikt',g('horizontal_visibility_cp'),'km',1],
+   ['Åska',g('measure_thunder_probability_cp'),'%',0]].forEach(function(x){
+    if(x[1]==null)return;
+    /* SAMMA ELEMENT som de tändbara — en avstängd knapp, inte en div. Med en
+       div fick de en annan layout: etikett och tal hamnade på samma rad och
+       etiketten trunkerades bort. Samma taggnamn ger samma layout oavsett vad
+       webbläsaren gör av flex-reglerna. */
+    h+='<button class="tg-chip stat" disabled>'
+      +'<span class="tg-top"><span class="tg-dot dim"></span>'
+      +'<span class="tg-l">'+esc(shortLab(x[0]))+'</span></span>'
+      +'<b class="tg-v">'+num(x[1],x[3])+'<span class="tg-u">'+x[2]+'</span></b></button>';
+  });
+  return '<div class="tg-leg">'+h+'</div>';
+}
+
 
 /* ---- Dygnsgraf i samma stil som appens övriga grafer ----
    Viktigt: ingen text ritas inne i SVG:n. Grafen skalas i bredd (preserveAspectRatio
@@ -8776,16 +8887,18 @@ function renderVader(){
          +'Väderdata från <b>RainViewer</b>.'))
     +'</div>';
   h+='</section>';
-  /* 2. Nyckeltal */
-  h+='<section class="panel"><div class="vdr-sec">Just nu</div>'+wxKeyHTML()+'</section>';
-  /* 4. Dygnet: välj serie och se grafen */
-  h+='<section class="panel"><div class="vdr-sec">Dygnet</div><div class="wxs">';
-  for(var i=0;i<WXSER.length;i++){var S=WXSER[i],v=S.val(),on=(S.k===_wxSer);
-    h+='<button class="wxs-t'+(on?' on':'')+'" onclick="wxSetSer(\''+S.k+'\')">'
-      +'<span class="wxs-top"><span class="wxs-dot" style="background:'+((P[S.c])||P.blue)+'"></span>'
-      +'<span class="wxs-l">'+esc(shortLab(S.lab))+'</span></span>'
-      +'<b class="wxs-v">'+(v==null?'–':num(v,S.dec))+'<span class="wxs-u">'+S.u+'</span></b></button>';}
-  h+='</div>'+wxGraphSVG()+'</section>';
+  /* 2. Mätvärden och graf i EN ruta. "Just nu" och "Dygnet" visade samma tal
+        två gånger — först som kort, sedan som brickor ovanför grafen. */
+  h+='<section class="panel">'
+    +grafRubrik('wx','Mätvärden',infoBlock('wxgraf',
+        'En bricka per mätvärde. Tryck för att visa eller dölja dess linje i '
+        +'grafen. Dra i grafen för att läsa av alla tända serier vid en viss '
+        +'tidpunkt. Serierna har <b>egen skala var</b> — lufttryck ligger runt '
+        +'1000 och regn under 10, så en gemensam skala hade tryckt ihop allt '
+        +'utom trycket. Kurvorna visar alltså formen, inte höjden mot varandra.'))
+    +wxMultiSVG('wx')+grafTidsval('wx')
+    +wxBrickorHTML()
+    +'</section>';
   /* 5. Jämförelser för vald serie */
   h+='<section class="panel"><div class="vdr-sec">Jämförelser · '+esc(wxSer().lab.toLowerCase())+'</div>'+wxCompareHTML()+'</section>';
   /* 6. Insikter */
@@ -11003,9 +11116,7 @@ function tempToggle(k){if(!CFG.tempLines)CFG.tempLines={};
   var any=false;for(var i=0;i<TEMPS.length;i++)if(tempOn(TEMPS[i].k))any=true;
   if(!any)CFG.tempLines[k]=true;                 /* minst en linje måste vara kvar */
   saveCfg();openDetail('temps');}
-function tempAll(){if(!CFG.tempLines)CFG.tempLines={};
-  for(var i=0;i<TEMPS.length;i++)CFG.tempLines[TEMPS[i].k]=true;saveCfg();openDetail('temps');}
-/* Kombinerad graf: alla valda zoner i samma diagram, egen färg per zon. */
+/* tempAll ("Visa alla") borttagen i v655 tillsammans med sin knapp. */
 function multiTempSVG(cid){
   cid=cid||'temps';
   var fen=grafFonster(cid);
@@ -11079,9 +11190,15 @@ function byggTemps(){
       +'<b class="tg-v">'+(ov==null?'–':num(ov,1)+'<span class="tg-u">°</span>')+'</b>'
       +(hd?'':'<span class="tg-wait">väntar på data</span>')+'</button>';}
   tb+='</div>';
-  tb+='<div class="tg-hint">Tryck på en zon för att visa eller dölja dess linje.'
-    +(waiting?' '+waiting+' zon'+(waiting>1?'er':'')+' saknar ännu mätpunkter – linjen ritas när historiken hunnit fyllas på.':'')+'</div>';
-  tb+='<div class="cfg-btns" style="margin:10px 0 4px"><button class="te-alt" onclick="tempAll()">Visa alla</button><button class="te-use" onclick="openDetail(\'breveden\')">Breveden · AC</button></div>';
+  /* Instruktionsraden och knapparna "Visa alla" / "Breveden · AC" borttagna i
+     v655. Att chipsen går att trycka på syns på att de är knappar, och en genväg
+     till en annan ruta hör inte hemma under en graf.
+     Raden om zoner utan mätpunkter står kvar — den förklarar varför en linje
+     saknas, och det går inte att läsa sig till på annat sätt. */
+  if(waiting){
+    tb+='<div class="tg-hint">'+waiting+' zon'+(waiting>1?'er':'')
+      +' saknar ännu mätpunkter – linjen ritas när historiken hunnit fyllas på.</div>';
+  }
   return tb;
 }
 function byggPool(){
@@ -17640,7 +17757,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v654';
+const APP_VERSION='v657';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
