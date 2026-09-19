@@ -4096,26 +4096,24 @@ async function battStartaNu(){
     setTimeout(function(){load();},1500);
     setTimeout(renderControls,3000);
   }catch(e){
-    /* EN TIDSGRÄNS ÄR INTE ETT MISSLYCKANDE.
-       homeyTriggerFlow ger upp efter 8 s, men POST till /trigger returnerar
-       först när flödet är FÄRDIGT — och batteriflödet skriver modbus-register
-       och hinner inte dit. Anropet avbröts alltså medan Homey körde klart, och
-       laddningen startade som den skulle. Att nollställa väntläget här var
-       därför fel: knappen blev grå fast allt gick bra, och tändes först när
-       nästa hämtning läste det riktiga läget.
-       Nu avgör ENHETENS LÄGE, inte anropets svar. Vid en tidsgräns fortsätter
-       vi vänta — bekräftelsen kommer när modbus svarat, annars släpper
-       45-sekundersgränsen. Ett riktigt fel (HTTP-status, fel adress) är något
-       annat och visas som förut. */
-    if(isAbort(e)){
-      renderControls();
-      if(ix>=0)flashCtl(ix,'Startar\u2026');
-    }else{
-      battVantaKlar();
-      renderControls();
-      if(ix>=0)flashCtl(ix,'n\u00e5dde inte Homey',true);
-      toast('Kunde inte nå Homey');
-    }
+    /* SVARET FRÅN /trigger ÄR INGET KVITTO FÖR DET HÄR FLÖDET.
+       Mätt i drift: anropet ger fel — ibland direkt med en HTTP-status, ibland
+       som avbrott efter tidsgränsen — samtidigt som flödet kör klart och
+       batteriet börjar ladda. POST /trigger returnerar först när flödet är
+       FÄRDIGT, och det här flödet skriver modbus-register; Homey hinner svara
+       med fel innan skrivningen landat.
+       Två gånger har jag lagat symptomet i stället för orsaken: först
+       nollställde jag väntläget vid alla fel, sedan bara vid fel som inte var
+       avbrott. Båda byggde på antagandet att ett felsvar betyder att
+       ingenting hände. Det antagandet håller inte.
+       ENHETENS LÄGE ÄR FACIT. Väntläget står kvar oavsett vad anropet säger,
+       och släpper när modbus bekräftar eller efter 45 s. Orsaken hamnar i
+       toasten, så den går att läsa av utan att knappen ljuger. */
+    renderControls();
+    if(ix>=0)flashCtl(ix,'Startar\u2026');
+    var msg=(e&&e.message)?e.message:'ok\u00e4nt';
+    toast(isAbort(e)?'Startar\u2026 (Homey svarade inte i tid)'
+                    :('Startar\u2026 (Homey svarade: '+msg+')'));
   }
 }
 /* ===== VÄNTELÄGE =====
@@ -17496,7 +17494,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v646';
+const APP_VERSION='v647';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
