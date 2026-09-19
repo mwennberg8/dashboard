@@ -816,8 +816,15 @@ body.mobile:not(.kiosk) .ctl-row>.ctl{flex:1 1 0%;min-width:0;max-width:100%}
    animation syntes, eftersom den regeln har högre specificitet. */
 @keyframes ctlsnurr{to{transform:rotate(360deg)}}
 .ctl.vantar{border-color:var(--warm);color:var(--warm-t)}
-.ctl.vantar .ctl-ic{animation:ctlsnurr 1.1s linear infinite;transform-origin:50% 50%}
+.ctl.vantar .ctl-ic{animation:ctlsnurr 1.1s linear infinite;transform-origin:50% 50%;
+  display:inline-flex;align-items:center;justify-content:center}
 .ctl.vantar .ctl-l{color:var(--warm-t)}
+/* Bokat läge: gult. Eget läge mellan av och på — knappen är inte tänd, men
+   något är inställt. Ligger EFTER .ctl av samma skäl som väntläget: .ctl
+   sätter border som kortform. */
+.ctl.bokad{border-color:var(--gold);color:var(--gold)}
+.ctl.bokad .ctl-l{color:var(--gold)}
+.ctl.bokad .ctl-ic{color:var(--gold)}
 .ctl.on .ctl-ic{color:var(--ok)}.ctl.on .ctl-s{color:var(--ok-t)}
 .ctl.arm{background:rgba(250,179,135,.18);border-color:var(--warm)}.ctl.arm .ctl-l{color:var(--warm-t)}.ctl.arm .ctl-ic{color:var(--warm)}
 .ctl.err{border-color:var(--hot)}.ctl.err .ctl-l{color:var(--hot-t)}
@@ -1780,15 +1787,24 @@ body.tabprev.cmp-open{overflow:auto}
 .bl-b.bl-pris .bl-ic{width:13px;height:13px;transform:rotate(180deg);flex:0 0 auto}
 .bl-b[disabled]{opacity:.45;cursor:default}
 /* Egen tid: klockan överst, bokaknappen centrerad under den. */
+/* Klocka och timer sida vid sida, samma form. Den valda ramas in. */
+.bl-par{display:flex;gap:10px;width:100%;justify-content:center}
+.bl-blk{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:9px 6px;border:1px solid var(--line);border-radius:14px;
+  background:var(--inset);cursor:pointer;transition:.15s}
+.bl-blk.vald{border-color:var(--ok);background:var(--panel-b)}
+.bl-blk-h{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--dim)}
+.bl-blk.vald .bl-blk-h{color:var(--ok)}
 .bl-egen{display:flex;flex-direction:column;align-items:center;gap:11px;margin:6px 0 6px}
 /* Egen klockväljare — ingen <input type="time">, den öppnar Androids ruta
    ovanpå popupen. */
 .bl-ur{display:flex;align-items:center;justify-content:center;gap:5px}
 .bl-kol{display:flex;flex-direction:column;align-items:center;gap:3px}
-.bl-num{display:block;min-width:64px;text-align:center;font-size:30px;font-weight:800;
+.bl-num{display:block;min-width:46px;text-align:center;font-size:26px;font-weight:800;
   color:var(--ink);line-height:1.15;font-variant-numeric:tabular-nums}
 .bl-kolon{font-size:26px;font-weight:800;color:var(--dim);padding:0 1px;line-height:1}
-.bl-pil{width:58px;height:31px;display:flex;align-items:center;justify-content:center;
+.bl-pil{width:46px;height:28px;display:flex;align-items:center;justify-content:center;
   border:1px solid var(--line);background:var(--inset);color:var(--dim);
   border-radius:9px;cursor:pointer;padding:0}
 .bl-pil:active{border-color:var(--ok);color:var(--ok)}
@@ -3136,6 +3152,10 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 
 <script>
 const ICONS={
+  /* Snurrikon för väntläget. Namnet fanns bara i en sträng längre ner i
+     filen, inte i den här tabellen — icon('arrows-clockwise') gav därför tom
+     text och knappen stod utan ikon medan den väntade. */
+  'arrows-clockwise':'<path d="M240,56v48a8,8,0,0,1-8,8H184a8,8,0,0,1,0-16H211.4L184.8,71.4a80,80,0,0,0-113.2.6,8,8,0,0,1-11.4-11.2,96,96,0,0,1,135.8-.6L224,84.7V56a8,8,0,0,1,16,0ZM195.8,184a80,80,0,0,1-113.2.6L56,157.7H72a8,8,0,0,0,0-16H24a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V171.3l26.6,26.5a96,96,0,0,0,135.8-.6,8,8,0,0,0-11.4-11.2Z"/>',
   /* Fjarrkontrollens egna symboler. Unicode-tecknen dog: telefonen ritade dem
      som emoji, sa pausknappen blev en orange fyrkant medan resten var tunna
      streck. Egna banor ger samma streckvikt som ovriga ikoner. */
@@ -3986,7 +4006,7 @@ function battLaddHTML(){
      en rad, och en gemensam minsta höjd håller rutnätet jämnt. */
   h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
   h+='<button class="bl-b pri" onclick="blValt(this,\'nu\')">'
-    +'<b>Nu</b><small>direkt</small></button>';
+    +'<b>Ladda nu</b><small>direkt</small></button>';
   /* PRISVALET är det enda som ändrar sig av sig själv — pilen och den egna
      färgen säger att knappen följer elpriset och inte är ett fast klockslag. */
   var b=battBilligKl();
@@ -4006,16 +4026,27 @@ function battLaddHTML(){
       +'<b>'+x[1]+'</b><small>'+battKlAv(t3)+'</small></button>';
   });
   h+='</div>';
-  /* EGEN TID MED EGEN VÄLJARE. <input type="time"> öppnar Androids egen
-     klockruta OVANPÅ popupen — man ser inte längre snabbvalen man just tittade
-     på, och det blir ett extra steg fram och tillbaka. Timmar och minuter
-     ställs i stället direkt här. */
+  /* EGEN TID: KLOCKSLAG ELLER TIMER, sida vid sida i samma stil.
+     Klockslag när man vet NÄR, timer när man vet OM HUR LÄNGE — båda är
+     naturliga och det ena går inte att räkna om i huvudet till det andra i
+     farten. Den man senast rörde är den som bokas, och bokaknappen skriver ut
+     vilket det blir, så valet aldrig är otydligt.
+     <input type="time"> är fortfarande uteslutet: den öppnar Androids egen
+     klockruta ovanpå popupen. */
   h+='<div class="dsec">Egen tid</div>'
     +'<div class="bl-egen">'
-    +'<div class="bl-ur">'+blStapel('t',2)+'<span class="bl-kolon">:</span>'+blStapel('m',2)+'</div>'
-    +'<button class="bl-boka" onclick="blValt(this,\'egen\')">Boka '+battKl(blTid())+'</button>'
+    +'<div class="bl-par">'
+    +'<div class="bl-blk'+(_blLage==='klocka'?' vald':'')+'" onclick="blLageSatt(\'klocka\')">'
+      +'<div class="bl-blk-h">Klockslag</div>'
+      +'<div class="bl-ur">'+blStapel('t',2)+'<span class="bl-kolon">:</span>'+blStapel('m',2)+'</div>'
     +'</div>'
-    +'<div class="setup-t">Har klockslaget passerat i dag bokas det imorgon.</div>';
+    +'<div class="bl-blk'+(_blLage==='timer'?' vald':'')+'" onclick="blLageSatt(\'timer\')">'
+      +'<div class="bl-blk-h">Timer</div>'
+      +'<div class="bl-ur">'+blStapel('th',1)+'<span class="bl-kolon">:</span>'+blStapel('tm',2)+'</div>'
+    +'</div>'
+    +'</div>'
+    +'<button class="bl-boka" onclick="blValt(this,\'egen\')">'+esc(blBokaText())+'</button>'
+    +'</div>';
   return h;
 }
 /* Vald tid i väljaren, som minuter efter midnatt. Börjar på en jämn kvart en
@@ -4028,8 +4059,27 @@ function blTid(){
   }
   return _blTid;
 }
+/* Timerns fördröjning i minuter. Trettiominuterssteg — finare än så blir det
+   pillrigt på en pekskärm, och grövre gör den oanvändbar för "om en halvtimme". */
+var _blTimer=null;
+var BL_TIMER_STEG=30, BL_TIMER_MAX=12*60;
+function blTimer(){if(_blTimer==null)_blTimer=60;return _blTimer;}
+/* Vilket av de två som bokas. Sätts av den man senast rörde. */
+var _blLage='klocka';
+function blLageSatt(v){if(v!=='klocka'&&v!=='timer')return;_blLage=v;battLaddOm();}
+function blBokaText(){
+  if(_blLage==='timer'){
+    var m=blTimer();
+    return 'Boka om '+(m>=60?(Math.floor(m/60)+' h'+(m%60?' '+(m%60)+' min':'')):(m+' min'));
+  }
+  return 'Boka '+battKl(blTid());
+}
 function blStapel(vad,siffror){
-  var v=blTid(), tal=(vad==='t')?Math.floor(v/60):(v%60);
+  var tal;
+  if(vad==='t')tal=Math.floor(blTid()/60);
+  else if(vad==='m')tal=blTid()%60;
+  else if(vad==='th')tal=Math.floor(blTimer()/60);
+  else tal=blTimer()%60;
   var txt=String(tal);while(txt.length<siffror)txt='0'+txt;
   return '<div class="bl-kol">'
     +'<button class="bl-pil" onclick="blJust(\''+vad+'\',1)" aria-label="upp">'+icon('caret-up')+'</button>'
@@ -4041,10 +4091,22 @@ function blStapel(vad,siffror){
    minuterna drar med sig timmen när de slår runt är förvirrande när man bara
    vill peta på kvarten. */
 function blJust(vad,rikt){
+  if(vad==='th'||vad==='tm'){
+    /* Timern: timsteg respektive halvtimmessteg, klämd mellan en halvtimme och
+       tolv timmar. Ingen wrap — att en fördröjning slår runt till noll är inte
+       vad någon menar med "en timme till". */
+    var tv=blTimer();
+    tv+=(vad==='th')?rikt*60:rikt*BL_TIMER_STEG;
+    _blTimer=Math.max(BL_TIMER_STEG,Math.min(BL_TIMER_MAX,tv));
+    _blLage='timer';
+    battLaddOm();
+    return;
+  }
   var v=blTid(), t=Math.floor(v/60), m=v%60;
   if(vad==='t')t=((t+rikt)%24+24)%24;
   else m=((m+rikt*15)%60+60)%60;
   _blTid=t*60+m;
+  _blLage='klocka';
   battLaddOm();
 }
 /* KVITTERA OCH STÄNG DIREKT. Kvittensen sätts på knappen och åtgärden körs i
@@ -4155,13 +4217,32 @@ function battVantar(){
   if(Date.now()-o.t>BATT_VANTA_MS){battVantaKlar();return null;}
   return o;
 }
-/* Håller knappen rätt medan vi väntar. Stannar av sig själv. */
+/* Håller knappen rätt medan vi väntar. Stannar av sig själv.
+   RITAR INTE OM VARJE SEKUND. En full omritning byter ut knappens innehåll,
+   och då börjar ikonens snurr om från noll — den hoppade till en gång i
+   sekunden. Pulsen säkrar i stället bara att klassen och texten sitter kvar,
+   utan att röra elementen, och ritar om EN gång när väntan släpper. */
 function battVantaPuls(){
   if(_battVantaPuls)return;
   _battVantaPuls=setInterval(function(){
     var v=battVantar();
-    try{renderControls();}catch(e){}
-    if(!v&&_battVantaPuls){clearInterval(_battVantaPuls);_battVantaPuls=null;}
+    if(!v){
+      if(_battVantaPuls){clearInterval(_battVantaPuls);_battVantaPuls=null;}
+      try{renderControls();}catch(e){}
+      return;
+    }
+    try{
+      var ix=battKnappIx();
+      if(ix<0)return;
+      var el=$('controls');if(!el||!el.querySelectorAll)return;
+      var btn=el.querySelectorAll('.ctl')[ix];if(!btn)return;
+      /* Rör bara det som kan ha gått förlorat — inte innehållet. */
+      if(!btn.classList.contains('vantar'))btn.classList.add('vantar');
+      if(btn.classList.contains('on'))btn.classList.remove('on');
+      var l=btn.querySelector('.ctl-l');
+      var txt=v.pa?'Startar\u2026':'St\u00e4nger av\u2026';
+      if(l&&l.textContent!==txt)l.textContent=txt;
+    }catch(e){}
   },1000);
 }
 function battBokaStart(ms){
@@ -4169,8 +4250,11 @@ function battBokaStart(ms){
   battStartSatt(ms);
   toast('Laddning bokad '+battKlAv(ms));
   /* Rita om startsidans knapp FÖRST, så den visar det valda läget redan när
-     rutan försvinner, och stäng sedan. */
+     rutan försvinner, och stäng sedan. flashCtl skriver dessutom texten direkt
+     i knappen — samma väg som starten, som bevisligen syns. */
   renderControls();
+  var bix=battKnappIx();
+  if(bix>=0)flashCtl(bix,'Bokad \u00b7 '+battKlAv(ms));
   /* closeDetail, inte stangDlg — den senare finns inte i den här dashboarden.
      Anropet låg i en try/catch som svalde felet, så rutan blev bara stående
      utan att något sa ifrån. Samma sorts miss som DLG_OM i v633. */
@@ -4178,6 +4262,10 @@ function battBokaStart(ms){
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
 function battEgenTid(){
+  if(_blLage==='timer'){
+    battBokaStart(Date.now()+blTimer()*60000);
+    return;
+  }
   var t=dayStart()+blTid()*60000;
   if(t<=Date.now())t+=86400000;             /* passerat idag → imorgon */
   battBokaStart(t);
@@ -4246,7 +4334,7 @@ function renderControls(){
   const live=SOURCE.indexOf('Homey')===0||SOURCE.indexOf('lokal')===0;
   const knapp=(b,i)=>{
     const on=btnState(b),isArm=armed.i===i;
-    var ic=b.icon,lbl=b.label,extra='',vantar=false;
+    var ic=b.icon,lbl=b.label,extra='',vantar=false,icStil='',bokad=false;
     /* HAR ANVÄNDAREN VALT EN EGEN IKON?
        Tre knapptyper byter ikon efter läge — vippan, moodet och Breveden. De
        skrev tidigare över den valda ikonen villkorslöst, så ikonväljaren såg ut
@@ -4306,6 +4394,15 @@ function renderControls(){
            vad som är på gång. */
         lbl=vnt.pa?'Startar\u2026':'St\u00e4nger av\u2026';
         vantar=true;
+        /* SNURREN FORTSÄTTER FRÅN RÄTT VINKEL.
+           Sidan ritar om knappraden med jämna mellanrum, och då byts ikonens
+           element ut — animationen började om från noll varje gång, vilket såg
+           ut som att ikonen hoppade fram och tillbaka. Går inte att undvika
+           genom att rita om mer sällan; omritningen behövs.
+           I stället får animationen en NEGATIV fördröjning som motsvarar hur
+           länge väntan pågått. Den nya ikonen startar då i samma vinkel som
+           den gamla slutade, och snurren ser obruten ut. */
+        icStil=' style="animation-delay:-'+((Date.now()-vnt.t)%1100)+'ms"';
       }
       else if(bl===null){lbl='Ingen kontakt';}
       else if(bl){
@@ -4319,6 +4416,9 @@ function renderControls(){
         /* Säg vilket läge som valts, inte bara att något är inbokat. Trycker
            man "Lägsta pris" vill man se att det var DET som bokades. */
         lbl=bs?('Bokad \u00b7 '+battKlAv(bs)):'Ladda max';
+        /* Bokat är ett eget läge — varken av eller på. Gult skiljer det från
+           grönt (laddar) och orange (väntar på att slå igenom). */
+        bokad=!!bs;
       }
     }
     else if(b.type==='flowtoggle'){
@@ -4345,8 +4445,8 @@ function renderControls(){
       if(gam)lbl+=' ?';
     }
     else if(b.type==='toggle'&&(ic==='lightbulb'||ic==='lightbulb-off'))ic=on?'lightbulb':'lightbulb-off';
-    return '<button class="ctl'+(on?' on':'')+(isArm?' arm':'')+(vantar?' vantar':'')+'" data-bi="'+i+'" onclick="btnTap('+i+')"'+(live?'':' data-demo="1"')+'>'
-      +'<span class="ctl-ic">'+icon(ic)+'</span><span class="ctl-l">'+esc(isArm?'Bekräfta?':lbl)+'</span>'
+    return '<button class="ctl'+(on?' on':'')+(isArm?' arm':'')+(vantar?' vantar':'')+(bokad?' bokad':'')+'" data-bi="'+i+'" onclick="btnTap('+i+')"'+(live?'':' data-demo="1"')+'>'
+      +'<span class="ctl-ic"'+icStil+'>'+icon(ic)+'</span><span class="ctl-l">'+esc(isArm?'Bekräfta?':lbl)+'</span>'
       +extra
       +'</button>';};
   let h='',i=0;
@@ -17494,7 +17594,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v647';
+const APP_VERSION='v649';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
