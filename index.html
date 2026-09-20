@@ -3655,6 +3655,88 @@ function addRow(p,ic,acc,k,sub,v){p.insertAdjacentHTML('beforeend','<div class="
 
 /* ---- styrning (skriver till Homey) ---- */
 let armed={i:-1,t:0};
+/* Bilrutans innehåll. Bruten ut ur openDetail så växlarna kan rita om den. */
+function buildCarsPopup(){
+  const fmtCar=id=>{const b=cap(id,'measure_battery'),r=cap(id,'range_battery'),loc=cap(id,'location_human'),nm=(DATA[id]&&DATA[id].name)||'Bil';
+    return dRow(nm,(b==null?'–':Math.round(b)+' %')+(r?' · '+Math.round(r)+' km':''))+dRow(nm+' plats',esc(loc||'–'))+dRow(nm+' status',carStatusSv(id))+(carCharging(id)&&chargerW()!=null?dRow(nm+' laddeffekt',W(chargerW())):'');};
+  const _bw=chargerW(),_bon=(cap(DEV.laddbox,'evcharger_charging')===true)||(_bw!=null&&_bw>50);
+  const _known=carCharging(DEV.car2)||carCharging(DEV.car)||carPlugged(DEV.car2)||carPlugged(DEV.car);
+  return (DATA[DEV.car2]?fmtCar(DEV.car2):'')+(DATA[DEV.car]?fmtCar(DEV.car):'')
+    +(_bon&&!_known?dRow('Gäst','laddar'+(_bw!=null?' · '+W(_bw):'')):'')
+    +(_bw!=null?dRow('Laddbox',W(_bw)+(_bon?' · laddar':'')):'')
+    +'<div class="dsec">Styr</div>'+bilStyrHTML();
+}
+
+/* ===== STYRNING I BILRUTAN =====
+   Två växlare: laddboxens laddning och EX40:s klimatisering.
+
+   Laddningen har ett RIKTIGT läge att läsa av — capabilityn evcharger_charging
+   på laddboxen — så den växlaren speglar vad som faktiskt gäller.
+
+   Klimatiseringen har det INTE. Volvo-enheten rapporterar ingen klimatstatus,
+   bara lås, räckvidd och laddläge. Kommandot går via ett flödeskort
+   (executeCommand CLIMATIZATION_START/STOP) och bilen svarar inte tillbaka.
+   Växlaren minns därför sitt eget läge lokalt, och glömmer det efter en halv
+   timme — ungefär så länge en förkonditionering håller på. Att låta den se ut
+   som ett avläst tillstånd vore en lögn; den visar vad som senast skickats. */
+var EX40_KLIMAT_PA='e18cefeb-6de8-48e3-809b-40dc88f18432';
+var EX40_KLIMAT_AV='9827d43d-7669-45e7-95c7-159d610ac185';
+var KLIMAT_KEY='ex40Klimat_v1';
+var KLIMAT_GLOM=30*60*1000;
+function klimatLas(){
+  try{var v=Number(localStorage.getItem(KLIMAT_KEY));
+    if(!(isFinite(v)&&v>0))return false;
+    if(Date.now()-v>KLIMAT_GLOM){localStorage.removeItem(KLIMAT_KEY);return false;}
+    return true;}catch(e){return false;}
+}
+function klimatSatt(pa){
+  try{if(pa)localStorage.setItem(KLIMAT_KEY,String(Date.now()));
+    else localStorage.removeItem(KLIMAT_KEY);}catch(e){}
+}
+function bilStyrRad(lab,sub,pa,fn){
+  return '<div class="dv-rad"><div class="dv-n">'+esc(lab)
+    +(sub?'<small>'+esc(sub)+'</small>':'')+'</div>'
+    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="'+fn+'" aria-label="'+esc(lab)+'"><i></i></button></div>';
+}
+function bilStyrHTML(){
+  var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
+  var status=cap(DEV.laddbox,'ocpp_status');
+  var kl=klimatLas();
+  return bilStyrRad('Laddning',status?String(status):'laddbox OCPP',laddar,'bilLaddToggle()')
+    +bilStyrRad('Klimat EX40',kl?'skickat – bilen rapporterar inte tillbaka':'förkonditionering',
+                kl,'bilKlimatToggle()');
+}
+/* Ritar om bilrutan om den står öppen. */
+function bilStyrOm(){try{var b=$('dlg-body');if(b)b.innerHTML=buildCarsPopup();}catch(e){}}
+async function bilLaddToggle(){
+  var nu=(cap(DEV.laddbox,'evcharger_charging')===true);
+  /* Skriv lokalt först så växlaren svarar direkt; nästa hämtning har sista
+     ordet, precis som för ladda max-knappen. */
+  try{var d=DATA[DEV.laddbox];
+    if(d&&d.capabilitiesObj&&d.capabilitiesObj.evcharger_charging)
+      d.capabilitiesObj.evcharger_charging.value=!nu;}catch(e){}
+  bilStyrOm();
+  try{
+    await homeyPut(DEV.laddbox,'evcharger_charging',!nu);
+    toast(!nu?'Laddning startad':'Laddning stoppad');
+    setTimeout(function(){load();},1500);
+  }catch(e){
+    /* Samma lärdom som batteriflödet: svaret är inget kvitto. Enhetens läge
+       avgör, och nästa hämtning rättar bilden. */
+    toast('Skickat – Homey svarade: '+((e&&e.message)||'okänt'));
+  }
+}
+async function bilKlimatToggle(){
+  var pa=!klimatLas();
+  klimatSatt(pa);
+  bilStyrOm();
+  try{
+    await homeyTriggerFlow('standard',pa?EX40_KLIMAT_PA:EX40_KLIMAT_AV);
+    toast(pa?'Klimat startat':'Klimat stoppat');
+  }catch(e){
+    toast((pa?'Klimat startat':'Klimat stoppat')+' – Homey svarade: '+((e&&e.message)||'okänt'));
+  }
+}
 async function homeyPut(id,cap,value){
   const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(8000);
   const r=await fetch(BASE.replace(/\/$/,'')+'/api/manager/devices/device/'+id+'/capability/'+cap+'/',
@@ -11398,13 +11480,9 @@ function openDetail(which){
     const bar=(on&&pr!=null)?('<div class="pbar"><i style="width:'+pr+'%"></i></div>'):'';
     body=dRow('Status',on?'kör':'avstängd')+(pr!=null&&on?dRow('Klart',pr+' %'):'')+(on&&rem!=null&&rem>0?dRow('Tid kvar','~'+(rem>=60?Math.floor(rem/60)+' h '+(rem%60)+' min':rem+' min'))+dRow('Klar ca',finishTime(rem)):'')+bar;
   }else if(which==='cars'){title='Bilar';
-    const fmtCar=id=>{const b=cap(id,'measure_battery'),r=cap(id,'range_battery'),loc=cap(id,'location_human'),nm=(DATA[id]&&DATA[id].name)||'Bil';
-      return dRow(nm,(b==null?'–':Math.round(b)+' %')+(r?' · '+Math.round(r)+' km':''))+dRow(nm+' plats',esc(loc||'–'))+dRow(nm+' status',carStatusSv(id))+(carCharging(id)&&chargerW()!=null?dRow(nm+' laddeffekt',W(chargerW())):'');};
-    const _bw=chargerW(),_bon=(cap(DEV.laddbox,'evcharger_charging')===true)||(_bw!=null&&_bw>50);
-    const _known=carCharging(DEV.car2)||carCharging(DEV.car)||carPlugged(DEV.car2)||carPlugged(DEV.car);
-    body=(DATA[DEV.car2]?fmtCar(DEV.car2):'')+(DATA[DEV.car]?fmtCar(DEV.car):'')
-      +(_bon&&!_known?dRow('Gäst','laddar'+(_bw!=null?' · '+W(_bw):'')):'')
-      +(_bw!=null?dRow('Laddbox',W(_bw)+(_bon?' · laddar':'')):'');
+    /* Egen byggare, så växlarna kan rita om rutan utan att bygga om allt. */
+    _popupRebuild=buildCarsPopup;
+    body=buildCarsPopup();
   }else if(which==='air'){title='Luft i köket';
     body=dRow('CO₂',num(cap(DEV.vader,'measure_co2'),0)+' ppm')+dRow('Temperatur',num(cap(DEV.vader,'measure_temperature'),1)+' °C')+dRow('Luftfukt',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Ljudnivå',num(cap(DEV.vader,'measure_noise'),0)+' dB');
   }else if(which==='sold'){title='Elnät · totalt';
@@ -17789,7 +17867,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v659';
+const APP_VERSION='v660';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
