@@ -453,6 +453,16 @@ body.mobile .statusbar.stuck{
 /* Lampkorten ligger i en egen rad ovanför rummen och spänner över hela
    rumsrutnätet. Två lika breda kolumner, så de tillsammans blir lika breda som
    rumsraden oavsett hur många kolumner rummen får. */
+/* Adaptivknappen i lampkortet. Samma form som dashboardens andra småknappar:
+   ikon + text, tänd ram när läget är på. */
+.lk-ad{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;
+  margin-top:7px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;
+  background:var(--inset);color:var(--dim);font:inherit;font-size:11px;
+  font-weight:750;line-height:1.1;cursor:pointer}
+.lk-ad .ic{width:13px;height:13px}
+.lk-ad.on{border-color:var(--ok);color:var(--ok)}
+.lk-ad[disabled]{cursor:default;opacity:.85}
+.lk-ad:not([disabled]):active{transform:scale(.97)}
 .lampkort{grid-column:1 / -1;display:grid;grid-template-columns:1fr 1fr;
   column-gap:var(--kn-luft);row-gap:var(--kn-luft)}
 .room{padding:13px 14px;display:flex;flex-direction:column;gap:9px;cursor:pointer;transition:.16s;
@@ -991,7 +1001,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.72.0';
+const APP_VERSION = 'v1.73.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2401,6 +2411,26 @@ function renderRooms(){
 /* De två lampkorten. Egen rad i ett tvåkolumnsgrid: de ska fylla bredden
    tillsammans, inte flyta med bland rummen där antalet kolumner varierar med
    skärmbredden. */
+/* ÄR GRUPPENS TÄNDA LAMPOR ADAPTIVA?
+   Räknas ur lägesrapporten, per lampa. Bara TÄNDA lampor räknas — en släckt
+   lampa är varken adaptiv eller manuell, och att ta med den hade gjort att
+   knappen sett låst ut så fort någon enstaka lampa var manuellt dimmad och
+   resten släckta.
+   Returnerar {man, adapt, kant}: kant är hur många av de tända skriptet
+   överhuvudtaget känner till. Är kant 0 vet vi ingenting, och då ska knappen
+   inte påstå något. */
+function lampAdaptLage(vilka){
+  const tanda=lampTanda(vilka);
+  let man=0,adapt=0,kant=0;
+  tanda.forEach(function(d){
+    const sum=(typeof adaptSum==='function')?adaptSum(d.id):null;
+    if(!sum||sum.s==null)return;
+    kant++;
+    if(sum.man>0||sum.s==='m')man++;
+    else if(sum.s==='a')adapt++;
+  });
+  return {man:man,adapt:adapt,kant:kant};
+}
 function lampKortHTML(){
   return '<div class="lampkort">'+[['tak','Taklampor','lightbulb'],
     ['ovriga','Myslampor','lamp']].map(function(x){
@@ -2415,7 +2445,33 @@ function lampKortHTML(){
       +'<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();lampTog(\''+vilka+'\')" aria-label="tänd/släck"><i></i></button></div>'
       +'<div class="room-m">'+meta.join('')+'</div>'
       +'<div class="room-bar"><i style="width:'+(niva==null?0:niva)+'%"></i></div>'
+      +lampAdaptKnapp(vilka)
       +'</div>';}).join('')+'</div>';
+}
+/* KNAPPEN: visar om gruppen följer schemat, och släpper låsningarna vid tryck.
+   Tänd (grön) = allt som lyser följer kurvan. Då är knappen avstängd — det
+   finns inget att nollställa, och en knapp som ser tryckbar ut men inte gör
+   något är värre än en grå.
+   Vet vi inget om någon tänd lampa visas knappen ändå, men utan påstående om
+   läget: skriptet kan ha lampor vi inte sett än. */
+function lampAdaptKnapp(vilka){
+  const L=lampAdaptLage(vilka);
+  const grupp=(vilka==='tak')?'tak':'mys';
+  let txt,pa=false,av=false;
+  if(!L.kant){txt='Adaptivt';}
+  else if(L.man>0){txt=L.man+' manuell'+(L.man>1?'a':'');}
+  else{txt='F\u00f6ljer schemat';pa=true;av=true;}
+  return '<button class="lk-ad'+(pa?' on':'')+'"'+(av?' disabled':'')
+    +' onclick="event.stopPropagation();lampAdaptAter(\''+grupp+'\')">'
+    +'<span class="ic-slot" data-ic="'+(pa?'shield-check':'clock-counter-clockwise')+'"></span>'
+    +'<span>'+esc(txt)+'</span></button>';
+}
+async function lampAdaptAter(grupp){
+  await nollstallLas(grupp);
+  /* Lägesrapporten speglas en gång i minuten, så den hinner inte ha ändrats
+     än. Hämta om efter en stund i stället för att gissa ett nytt läge. */
+  _adaptAt=0;
+  setTimeout(function(){try{adaptHamta().then(function(){renderRooms();});}catch(e){}},2000);
 }
 async function zonTanda(zid){
   const lj=ljusIZon(zid);if(!lj.length)return;
@@ -3993,8 +4049,11 @@ async function homeySkapaVar(namn,varde){
    nollställningar, och ett nytt tal gör alltid rätt. */
 const NOLLSTALL_VAR='adaptiv_nollstall';
 let _nollstallVarId=null;
-async function nollstallLas(){
-  const varde=String(Date.now());
+/* Skriptet (1.7.0) förstår ett gruppprefix: "tak:<ms>" eller "mys:<ms>" rör
+   bara den gruppen, ett naket tal rör alla. Dashboardens knapp per lampkort
+   skickar prefixet; knappen i inställningarna skickar som förut. */
+async function nollstallLas(grupp){
+  const varde=(grupp?(grupp==='tak'?'tak:':'mys:'):'')+String(Date.now());
   try{
     if(!_nollstallVarId){
       const v=await homeyGet('/api/manager/logic/variable/');
@@ -4014,7 +4073,8 @@ async function nollstallLas(){
       const x2=a2.find(function(a){return a&&a.name===NOLLSTALL_VAR;});
       if(x2)_nollstallVarId=x2.id;
     }
-    toast('Alla lampor följer schemat igen');
+    toast(grupp?((grupp==='tak'?'Taklamporna':'Myslamporna')+' följer schemat igen')
+               :'Alla lampor följer schemat igen');
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
 /* Klockslag ur listan. Tolerant vid inmatning — "7", "7:5", "0730" och
