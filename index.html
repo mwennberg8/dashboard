@@ -3312,7 +3312,12 @@ const DEV={tibber:'291ba3e3-c5e2-4542-bad8-a67a5ecc8611',solar:'b47e45d7-9485-4e
   outdoor:'b99ccbd5-fdb8-41ff-b10d-04a30a1eb2ff',vader:'2412f387-2c86-4264-8354-7c2393860576',poolheat:'e97d77e7-c4e5-407d-8d7c-b03edb95a63e',/* Ny enhet 2026-09: "Laddbox OCPP" ersatte den gamla laddboxen, som inte
      finns kvar i Homey. Dashboarden läser bara evcharger_charging,
      evcharger_charging_state och measure_power — alla finns på den nya. */
-  laddbox:'931df4bc-1290-47fd-b2b6-c82040d3104e',
+  /* Laddboxen bytte id OCH namn 2026-09-20: "Laddbox OCPP" 931df4bc… blev
+     "OCPP Laddbox" 760b8980…. Andra bytet på kort tid — enheten återskapas
+     tydligen vid ombyggnad i OCPP-appen. Dashboarden läser bara
+     evcharger_charging, evcharger_charging_state, ocpp_status och
+     measure_power, och alla fyra finns kvar på den nya. */
+  laddbox:'760b8980-64e5-4321-a03c-8f15cf7864bc',
   vard:'1a3527b2-8e53-4551-9d36-f92793f2256a',uterum:'824908de-f6ef-408c-9228-8107511938f6',
   poolrum:'261bb3cf-1d26-4aba-8f36-f5858b40cc20',kallare:'cca5669a-e0d0-4d34-ad92-dbccb16abad2',
   snickarboa:'ec4c2247-6ce7-4c32-a7d2-959a246faabf',attefall:'26fb1e7c-ffaf-4892-b5c5-dc53cf7eaa0e'};
@@ -17876,7 +17881,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v661';
+const APP_VERSION='v662';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19077,7 +19082,7 @@ const DEMO={
 "d6e3c81b-e500-4124-a068-16d8bda43a9e":{name:"Pooltemp",class:"sensor",zone:"3efd5258-2221-49c2-aa98-e22e8ac8425d",capabilitiesObj:{"measure_temperature":{value:28}}},
 "e202369e-2016-4a28-b012-b75215450ff4":{name:"Regnm\u00e4tare",class:"sensor",zone:"a72f1f69-29a1-4ea7-9bc2-0ba940dc5274",capabilitiesObj:{"measure_rain":{value:0},"measure_rain.1h":{value:0},"measure_rain.24h":{value:0},"measure_battery":{value:70}}},
 "e6c96e95-05ec-48ca-a92a-e29b22cd0014":{name:"Tv i Vardagsrum",class:"tv",zone:"9eb2975d-49ea-4033-8db0-105a3e982117",capabilitiesObj:{"onoff":{value:false},"volume_set":{value:0.2},"volume_mute":{value:false}}},
-"931df4bc-1290-47fd-b2b6-c82040d3104e":{name:"Laddbox OCPP",class:"evcharger",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:0},"meter_power":{value:1233.79},"evcharger_charging":{value:false},"evcharger_charging_state":{value:"plugged_in"},"ocpp_status":{value:"Finishing"},"measure_temperature":{value:41}}},
+"760b8980-64e5-4321-a03c-8f15cf7864bc":{name:"OCPP Laddbox",class:"evcharger",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:0},"meter_power":{value:1233.79},"evcharger_charging":{value:false},"evcharger_charging_state":{value:"plugged_in"},"ocpp_status":{value:"Finishing"},"measure_temperature":{value:41}}},
 "e8a72bb3-bb7b-4022-b6f3-6981fff72bfe":{name:"Utebelysning",class:"light",zone:"04a44634-aa34-41ed-87c0-d1ab5ce4bedd",capabilitiesObj:{"onoff":{value:false},"dim":{value:0}}},
 "ec4c2247-6ce7-4c32-a7d2-959a246faabf":{name:"Snickarboden",class:"sensor",zone:"3f7e329d-97d7-4be5-83e3-94cc439b2f78",capabilitiesObj:{"measure_battery":{value:49},"measure_temperature":{value:18},"measure_humidity":{value:60.97}}},
 "f01cb4ed-5f43-4e19-84b1-6bcec40e1049":{name:"F\u00f6rbrukning",class:"sensor",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:960},"measure_power.grid":{value:10},"measure_power.solar":{value:2670}}},
