@@ -1882,6 +1882,10 @@ body.mobile{--ds-sun:14px}
 .brv-pop .cfg-btns+.cfg-sec{margin-top:18px}
 /* Snabbvalen: ikon över text, tre i bredd. Etiketterna är olika långa och
    flex-wrap gav ojämna rader — ett rutnät ger lika stora ytor att träffa. */
+/* Bilrutans två styrknappar. Marginaler i stället för gap, så layouten går att
+   mäta i renderaren — samma skäl som i ladda max-rutan och vädersidan. */
+.bil-styr{display:flex;flex-wrap:wrap;margin:2px -4px 4px}
+.bil-styr .brv-q{flex:0 0 calc(50% - 8px);width:calc(50% - 8px);margin:4px;box-sizing:border-box}
 .brv-snabb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .brv-q{display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:5px;min-height:62px;padding:9px 5px;background:var(--inset);
@@ -3693,18 +3697,23 @@ function klimatSatt(pa){
   try{if(pa)localStorage.setItem(KLIMAT_KEY,String(Date.now()));
     else localStorage.removeItem(KLIMAT_KEY);}catch(e){}
 }
-function bilStyrRad(lab,sub,pa,fn){
-  return '<div class="dv-rad"><div class="dv-n">'+esc(lab)
-    +(sub?'<small>'+esc(sub)+'</small>':'')+'</div>'
-    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="'+fn+'" aria-label="'+esc(lab)+'"><i></i></button></div>';
+/* SAMMA KNAPPSTIL SOM STARTSIDAN OCH BREVEDEN — .brv-q: ikon över etikett,
+   tänd ram när läget är på. En vippa (.dv-sw) hörde inte hemma här; den ser ut
+   som en inställning, inte som en knapp man trycker på.
+   Etiketten säger LÄGET, inte vad ett tryck gör, precis som ladda max-knappen:
+   "Laddar" när den laddar, "Ladda" när den står still. */
+function bilStyrKnapp(lab,ic,pa,fn){
+  return '<button class="brv-q'+(pa?' on':'')+'" onclick="'+fn+'">'
+    +icon(ic)+'<span>'+esc(lab)+'</span></button>';
 }
 function bilStyrHTML(){
   var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
-  var status=cap(DEV.laddbox,'ocpp_status');
   var kl=klimatLas();
-  return bilStyrRad('Laddning',status?String(status):'laddbox OCPP',laddar,'bilLaddToggle()')
-    +bilStyrRad('Klimat EX40',kl?'skickat – bilen rapporterar inte tillbaka':'förkonditionering',
-                kl,'bilKlimatToggle()');
+  /* Två knappar bredvid varandra, lika breda. */
+  return '<div class="bil-styr">'
+    +bilStyrKnapp(laddar?'Laddar':'Ladda','battery-charging',laddar,'bilLaddToggle()')
+    +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()')
+    +'</div>';
 }
 /* Ritar om bilrutan om den står öppen. */
 function bilStyrOm(){try{var b=$('dlg-body');if(b)b.innerHTML=buildCarsPopup();}catch(e){}}
@@ -17867,7 +17876,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v660';
+const APP_VERSION='v661';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
