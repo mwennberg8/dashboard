@@ -4047,14 +4047,51 @@ function battStartLas(){
   try{var v=Number(localStorage.getItem(BATT_START_KEY));
     return (isFinite(v)&&v>0)?v:null;}catch(e){return null;}
 }
+/* BOKNINGEN BOR I HOMEY, inte här. Logic-variabeln battladd_start vaktas av
+   flödet "Batteri · inbokad start (kod)", som kör varje minut oavsett om någon
+   skärm är på. localStorage används bara som lokal eko så knappen svarar
+   direkt — nästa hämtning har sista ordet.
+   Skälet: bevakningen låg förut i en setInterval i webbläsaren, och den fryser
+   när plattan somnar. En start bokad till 21:45 gick aldrig av. */
+var BATT_BOKA_VAR='battladd_start';
 function battStartSatt(ms){
   try{if(ms==null)localStorage.removeItem(BATT_START_KEY);
     else localStorage.setItem(BATT_START_KEY,String(ms));}catch(e){}
+  /* Skicka vidare till Homey. Svaret inväntas inte — knappen ska inte hänga på
+     nätet, och hämtningen rättar bilden om skrivningen inte gick fram. */
+  try{
+    logicList().then(function(list){
+      return logicWrite(list,BATT_BOKA_VAR,ms==null?0:Number(ms));
+    }).catch(function(){});
+  }catch(e){}
+}
+/* Läser bokningen från Homey och speglar den lokalt. Homey är auktoritativ:
+   har flödet redan startat laddningen står variabeln på 0, och då ska knappen
+   sluta visa "Bokad". */
+async function battBokaHamta(){
+  try{
+    var list=await logicList();
+    var v=null;
+    logicArr(list).forEach(function(x){if(x&&x.name===BATT_BOKA_VAR)v=x;});
+    if(!v)return;                       /* flödet skapar den vid nästa körning */
+    var ms=Number(v.value);
+    try{
+      if(isFinite(ms)&&ms>0)localStorage.setItem(BATT_START_KEY,String(ms));
+      else localStorage.removeItem(BATT_START_KEY);
+    }catch(e){}
+    try{renderControls();}catch(e){}
+  }catch(e){}
 }
 /* En bokning som passerat med mer än en timme är inte längre aktuell —
    dashboarden kan ha varit stängd. Hellre glömma den än starta laddning mitt i
    natten för en tid som gällde igår. */
-var BATT_START_GLOM=60*60*1000;
+/* HUR LÄNGE EN PASSERAD BOKNING FÅR LÖSA UT.
+   Var en timme, och det var för snålt: bevakningen körs bara medan sidan är
+   öppen och plattan vaken. Sov den över den bokade tiden kastades bokningen
+   tyst, och ingenting hände — det var precis vad som drabbade 21:45-bokningen.
+   Sex timmar gör att en start bokad till natten fortfarande löser ut när
+   plattan vaknar på morgonen. Längre än så är det inte längre vad man bad om. */
+var BATT_START_GLOM=6*60*60*1000;
 function battStartAktiv(){
   var t=battStartLas();
   if(t==null)return null;
@@ -4404,7 +4441,15 @@ function battEgenTid(){
 /* Bevakningen: starta när tiden passerats. En gång per bokning — bokningen tas
    bort så den inte kan lösa ut igen. */
 var _battStartBusy=false;
+/* BEVAKNINGEN LIGGER I HOMEY sedan v666 — flödet "Batteri · inbokad start"
+   kör varje minut och startar laddningen. Den här funktionen triggar därför
+   inget längre; den hämtar bara hem Homeys bild av bokningen så knappen
+   stämmer. Att låta webbläsaren också trigga hade gett två startare på samma
+   bokning. */
 function battStartKoll(){
+  try{battBokaHamta();}catch(e){}
+}
+function battStartKollGammal(){
   try{
     var t=battStartAktiv();
     if(t==null)return;
@@ -4413,11 +4458,22 @@ function battStartKoll(){
     if(battLaddLage()===true){battStartSatt(null);return;}   /* redan på */
     _battStartBusy=true;
     battVantaSatt(true);
-    homeyTriggerFlow('standard',BATT_FLOW_PA).then(function(){
+    /* SVARET FRÅN /trigger ÄR INGET KVITTO — samma lärdom som i battStartaNu,
+       som aldrig tillämpades här. Flödet svarar med fel medan det körs, och
+       eftersom felgrenen lät bokningen ligga kvar triggades den OM var 30:e
+       sekund, i all oändlighet. Nu tas bokningen bort så fort kommandot är
+       skickat; väntläget står kvar och enhetens läge avgör. */
+    var klar=function(){
       battStartSatt(null);_battStartBusy=false;
-      try{toast('Laddar max – inbokad start');}catch(e){}
       try{renderControls();}catch(e){}
-    },function(){_battStartBusy=false;});
+    };
+    homeyTriggerFlow('standard',BATT_FLOW_PA).then(function(){
+      klar();
+      try{toast('Laddar max – inbokad start');}catch(e){}
+    },function(e){
+      klar();
+      try{toast('Inbokad start skickad (Homey svarade: '+((e&&e.message)||'okänt')+')');}catch(e2){}
+    });
   }catch(e){_battStartBusy=false;}
 }
 function btnState(b){ // returnerar true om "på/aktiv"
@@ -13295,7 +13351,12 @@ function pgAvlast(){
    slutar där den når gränsen eller vid 24:00. Ingen hänsyn till pris eller
    sol — det är en rak framskrivning, precis som brickans siffra, och ska läsas
    så. Bara för idag (offset 0): imorgon finns inget "nu" att utgå från. */
-function battKurva(){
+/* offset: 0 = idag, 1 = imorgon. Prognosen KAPADES förut vid midnatt, så en
+   laddning eller urladdning som pågick över dygnsskiftet såg ut att ta slut
+   kl 24. Den räknas nu ut i absoluta timmar från dagens midnatt och klipps mot
+   det dygn som ritas — då fortsätter linjen in i imorgon-grafen.
+   Uppmätta punkter finns bara för idag; imorgon är enbart prognos. */
+function battKurva(offset){
   var kwh=(CFG&&CFG.battkwh)||10;
   var pw=cap(DEV.battery,'measure_power'), pct=cap(DEV.battery,'measure_battery'),
       bs=cap(DEV.battery,'battery_charging_state');
@@ -13314,14 +13375,34 @@ function battKurva(){
     var rikt=(bs==='charging')?1:-1;
     var slutPct=(rikt>0)?100:0;
     var tim=Math.abs(slutPct-nuPct)/pctPerH;
-    var slutH=Math.min(24,nuH+tim);
+    /* Tak vid 48 h: längre fram än så säger den här enkla modellen ingenting,
+       och två dygn är allt grafen visar. */
+    var slutH=Math.min(48,nuH+tim);
     var slutV=nuPct+rikt*pctPerH*(slutH-nuH);
     /* Avrunda: 70 − 8,4·8,333 ger 2,8e-14, inte 0. Gränsen ska vara en ren 0
        eller 100 när den nås. */
     slutV=Math.round(slutV*1000)/1000;
     prog=[{h:nuH,v:nuPct},{h:slutH,v:Math.max(0,Math.min(100,slutV))}];
   }
-  return {fakt:fakt,prog:prog,nuH:nuH,nuPct:nuPct};
+  /* Klipp mot det dygn som ritas och räkna om till 0–24 i den grafen. */
+  var off=offset||0, a=off*24, b=a+24;
+  var kl=function(pts){
+    if(pts.length<2)return (off===0)?pts.slice():[];
+    var ut=[];
+    for(var i=0;i<pts.length-1;i++){
+      var p1=pts[i],p2=pts[i+1];
+      if(p2.h<a||p1.h>b)continue;
+      var q1=p1,q2=p2;
+      /* Interpolera vid dygnsgränsen så linjen börjar och slutar exakt där. */
+      if(p1.h<a)q1={h:a,v:p1.v+(p2.v-p1.v)*((a-p1.h)/((p2.h-p1.h)||1))};
+      if(p2.h>b)q2={h:b,v:p1.v+(p2.v-p1.v)*((b-p1.h)/((p2.h-p1.h)||1))};
+      if(!ut.length)ut.push({h:q1.h-a,v:q1.v});
+      ut.push({h:q2.h-a,v:q2.v});
+    }
+    return ut;
+  };
+  return {fakt:(off===0?fakt:[]),prog:kl(prog),
+          nuH:(off===0?nuH:null),nuPct:(off===0?nuPct:null)};
 }
 /* Laddnivå vid en timme: faktiskt bakåt (närmaste punkt), prognos framåt
    (linjärt), null utanför bådadera. */
@@ -13539,7 +13620,9 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   /* BATTERIPROCENTEN, bara idag. Egen skala: 0 % vid grafens botten, 100 %
      vid taket — priset och procenten har inget gemensamt mått. Heldragen där
      det är uppmätt, streckad där det är framskrivet. Cyan som i batterirutan. */
-  var bk=(_pgVisaBatt&&offset===0)?battKurva():null;
+  /* Batteriet ritas nu även i imorgon-grafen, så en laddning som pågår över
+     midnatt går att följa. Igår har ingen prognos att visa. */
+  var bk=(_pgVisaBatt&&offset>=0&&offset<=1)?battKurva(offset):null;
   var YP=function(v){return padT+(1-Math.max(0,Math.min(100,v))/100)*(H-padT-padB);};
   /* SOLEN. Egen skala normerad mot dygnets högsta, så kurvans form syns även
      en mulen dag. Faktiskt heldraget, prognos streckat — samma språk som
@@ -13575,10 +13658,10 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     +' onpointerup="pgUpp(event)" onpointercancel="pgUpp(event)">'+s+taggar+'</div>';
   s=pgHuvud()+s;
   s+='<div class="pgraph-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>';
-  /* Av/på för extrakurvorna. Batteriet finns bara för idag (det bygger på
-     "nu"), solen för alla tre dygnen. */
+  /* Av/på för extrakurvorna. Batteriet finns för idag och imorgon — prognosen
+     utgår från "nu" och kan sträcka sig förbi midnatt. Solen för alla tre. */
   var lag='<div class="pg-lager">';
-  if(offset===0)lag+='<span class="'+(_pgVisaBatt?'':'av')+'" onclick="pgLagerTog(\'batt\')">'
+  if(offset>=0&&offset<=1)lag+='<span class="'+(_pgVisaBatt?'':'av')+'" onclick="pgLagerTog(\'batt\')">'
     +'<i style="background:'+(P.cyan||'#57b6c2')+'"></i>Batteri %</span>';
   lag+='<span class="'+(_pgVisaSol?'':'av')+'" onclick="pgLagerTog(\'sol\')">'
     +'<i style="background:'+(P.sun||'#f2b705')+'"></i>Solproduktion</span>';
@@ -13801,19 +13884,39 @@ function progLoggBody(){
       ? (trad+' timmar från de senaste dygnen — prognos mot uppmätt effekt, timme '
          +'för timme. Säger inte bara hur mycket prognosen bommar utan när på '
          +'dagen. Bäst underlag att kalibrera mot.')
-      : 'Timdata hämtas från Homey Insights… öppna rutan igen om en stund. '
-        +'Finns bara för de senaste ~7 dygnen.')
+      : (_progTimBegard
+         ? ('Ingen timvis solserie kom från Insights. Den byggs av Insights-loggen '
+            +'för solpanelerna och finns bara för de senaste ~7 dygnen — saknas '
+            +'den går dygnsexporten ovan att kalibrera mot i stället.')
+         : 'Timdata hämtas från Homey Insights… rutan fylls på av sig själv.'))
     +'</div>'
     +(tcsv
       ? ('<textarea class="prog-exp prog-exp-tim" readonly onclick="this.select()">'+esc(tcsv)+'</textarea>'
          +'<div class="dbtn-row"><button class="dbtn" onclick="progTimKopiera()">Kopiera timmar</button></div>')
       : '');
-  /* Utan HIST7 finns ingen timvis faktiskt — starta hämtningen och rita om. */
-  if(!tcsv){try{hist7Hamta&&hist7Hamta().then(function(){if(_dlgWhich==='proglogg'){var b=$('dlg-body');if(b)b.innerHTML=progLoggBody();}});}catch(e){}}
+  /* Utan HIST7 finns ingen timvis faktiskt — hämta EN gång och rita om.
+     HÄR HÄNGDE RUTAN: omritningen anropar progLoggBody på nytt, som startade
+     ännu en hämtning, som ritade om igen. Saknas soldata blir tcsv tom varje
+     varv, och eftersom hämtningen har tiominuterscache returnerar den direkt —
+     loopen snurrade så fort webbläsaren orkade och rutan frös.
+     Flaggan gör försöket engångs. Den nollställs när rutan öppnas, så ett nytt
+     försök görs nästa gång man går in. */
+  if(!tcsv&&!_progTimBegard){
+    _progTimBegard=true;
+    try{
+      /* force=true: en cachad men TOM serie är just det fall vi står i, och
+         då hjälper det inte att få tillbaka den oförändrad. */
+      Promise.resolve(hist7Hamta?hist7Hamta(true):null).then(function(){
+        if(_dlgWhich==='proglogg'){var b=$('dlg-body');if(b)b.innerHTML=progLoggBody();}
+      },function(){});
+    }catch(e){}
+  }
   return h;
 }
+var _progTimBegard=false;
 function openProgLogg(){
   _dlgWhich='proglogg';
+  _progTimBegard=false;          /* nytt försök varje gång rutan öppnas */
   var h=progLoggBody();
   const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
   _popupRebuild=null;
@@ -17904,7 +18007,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v663';
+const APP_VERSION='v667';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19868,6 +19971,9 @@ try{
       /* Tillbaka i förgrunden: kolla direkt, men inte oftare än en gång i
          minuten om man växlar app fram och tillbaka. */
       if(!_kron||Date.now()-_kronAt>60000)try{kronKoll(true);}catch(e){}
+      /* En inbokad start som passerat medan plattan sov ska lösa ut NU, inte
+         efter upp till 30 sekunder. Timers fryser när sidan är i bakgrunden. */
+      try{battStartKoll();}catch(e){}
     }
   });
 }catch(e){}
