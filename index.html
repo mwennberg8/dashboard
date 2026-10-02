@@ -2683,6 +2683,20 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
   letter-spacing:-.2px;cursor:pointer;flex:1 1 auto;min-width:0;max-width:52px;
   white-space:nowrap;overflow:hidden;text-overflow:clip}
 .graf-tim-b+.graf-tim-b{margin-left:2px}
+/* TVÅ LÄGEN (v670). Först skala — Timmar eller Dygn — sedan högst fem
+   fönster. Nio knappar på en rad gav 19 px breda mål; här blir de minst
+   ~52 px breda och 36 px höga. Marginaler i stället för gap av samma skäl
+   som ovan: det går att mäta i wkhtmltoimage. */
+.graf-tva{flex-direction:column;align-items:stretch}
+.graf-rad1{display:flex;align-items:center;margin:0 0 6px}
+.graf-lage{display:flex;flex:1 1 auto;min-width:0}
+.graf-lage-b{flex:1 1 0;min-width:0;height:30px;border:1px solid var(--line);background:none;color:var(--faint);
+  font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0 4px;white-space:nowrap}
+.graf-lage-b:first-child{border-radius:9px 0 0 9px}
+.graf-lage-b+.graf-lage-b{border-left:0;border-radius:0 9px 9px 0}
+.graf-lage-b.on{background:var(--inset);color:var(--ink)}
+.graf-tva .graf-tim-b{max-width:none;min-height:36px;font-size:12px;letter-spacing:0;padding:6px 1px;flex:1 1 0}
+.graf-tva .graf-tim-b+.graf-tim-b{margin-left:5px}
 .graf-tim-b.on{border-color:var(--blue);color:var(--ink);box-shadow:inset 0 0 0 1px var(--blue)}
 .graf-tim-b:active{transform:scale(.95)}
 .graf-full{flex:0 0 auto;width:30px;height:30px;margin-left:4px;display:flex;align-items:center;
@@ -10884,7 +10898,13 @@ function energiSerier(kalla,cid){
    båda i svensk tid. Långa perioder läses ur Homeys Insights — dashboarden
    sparar själv bara ett dygn — se LÅNG HISTORIK nedan. */
 var GRAF_TIM=[1,3,6,12,24,'7d','30d','v','m'];
-var GRAF_TIM_LAB={1:'1h',3:'3h',6:'6h',12:'12h',24:'24h','7d':'7d','30d':'30d',v:'Vecka',m:'Mån'};
+var GRAF_TIM_LAB={1:'1h',3:'3h',6:'6h',12:'12h',24:'24h','7d':'7 dygn','30d':'30 dygn',v:'Veckan',m:'Månaden'};
+/* Vilken skala knappraden visar, per graf. Saknas ett val följer den perioden
+   som gäller: ett timtal visar timmarna, en lång period dygnen. */
+var _grafLage={};
+function grafLage(id){var b=grafBasId(id),l=_grafLage[b];
+  if(l==='tim'||l==='dyg')return l;
+  return (typeof grafTim(b)==='string')?'dyg':'tim';}
 var GRAF_TIM_TXT={1:'senaste 1 h',3:'senaste 3 h',6:'senaste 6 h',12:'senaste 12 h',24:'senaste dygnet',
   '7d':'senaste 7 dygnen','30d':'senaste 30 dygnen',v:'denna vecka',m:'denna månad'};
 var _grafTim={};
@@ -10926,9 +10946,18 @@ function grafFonster(id){
   if(t==='v')return {t0:svMidnatt(q.y,q.m,q.d-q.vd),t1:t1};
   return {t0:svMidnatt(q.y,q.m,1),t1:t1};
 }
+function grafSattLage(id,l){
+  _grafLage[grafBasId(id)]=l;
+  grafValRita();
+}
 function grafSattTim(id,h){
   _grafTim[grafBasId(id)]=h;
+  _grafLage[grafBasId(id)]=(typeof h==='string')?'dyg':'tim';
   if(typeof h==='string')langBehov(null);
+  grafValRita();
+}
+/* Ritar om allt som kan visa ett tidsval: popupen, helskärmen och vädersidan. */
+function grafValRita(){
   /* Rita om båda vyerna som kan visa fönstret: popupkroppen (via _grafOmRita,
      som popupen satt till sin byggare) OCH en öppen helskärm. Valet är delat,
      så det ska synas på båda direkt. */
@@ -11065,20 +11094,22 @@ var _grafByggare={};
    egna knappar ovanför — får bara helskärmsknappen. */
 function grafTidsval(id,utanFull,utanTim){
   var bas=grafBasId(id);
-  var h='<div class="graf-verktyg">';
-  if(!utanTim){
-    h+='<div class="graf-tim">';
-    for(var i=0;i<GRAF_TIM.length;i++){
-      var t=GRAF_TIM[i], pa=(t===grafTim(bas));
-      var arg=(typeof t==='string')?('\''+t+'\''):String(t);
-      h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+arg+')">'
-        +GRAF_TIM_LAB[t]+'</button>';
-    }
-    h+='</div>';
-  }else{h+='<div class="graf-tim"></div>';}
-  if(!utanFull)h+='<button class="graf-full" onclick="grafHelskarm(\''+bas+'\')" aria-label="Helskärm">'
-    +icon('corners-out')+'</button>';
-  return h+'</div>';
+  var full=utanFull?'':('<button class="graf-full" onclick="grafHelskarm(\''+bas+'\')" aria-label="Helskärm">'
+    +icon('corners-out')+'</button>');
+  if(utanTim)return '<div class="graf-verktyg"><div class="graf-tim"></div>'+full+'</div>';
+  var lage=grafLage(bas),vald=grafTim(bas);
+  var h='<div class="graf-verktyg graf-tva"><div class="graf-rad1"><div class="graf-lage" role="group" aria-label="Skala">'
+    +'<button class="graf-lage-b'+(lage==='tim'?' on':'')+'" aria-pressed="'+(lage==='tim')+'" onclick="grafSattLage(\''+bas+'\',\'tim\')">Timmar</button>'
+    +'<button class="graf-lage-b'+(lage==='dyg'?' on':'')+'" aria-pressed="'+(lage==='dyg')+'" onclick="grafSattLage(\''+bas+'\',\'dyg\')">Dygn</button>'
+    +'</div>'+full+'</div><div class="graf-tim">';
+  for(var i=0;i<GRAF_TIM.length;i++){
+    var t=GRAF_TIM[i];
+    if((typeof t==='string')!==(lage==='dyg'))continue;
+    var arg=(typeof t==='string')?('\''+t+'\''):String(t);
+    h+='<button class="graf-tim-b'+(t===vald?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+arg+')">'
+      +GRAF_TIM_LAB[t]+'</button>';
+  }
+  return h+'</div></div>';
 }
 
 /* ===== HELSKÄRM ===== */
@@ -18232,7 +18263,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v669';
+const APP_VERSION='v670';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
