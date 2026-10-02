@@ -2672,14 +2672,20 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    i multiGraf och solprognosen, och ingen alls i de mindre rutorna. Nu äger
    avläsningsmodulen axeln — den känner ändå t0, t1 och X. */
 /* ===== TIDSVAL + HELSKÄRMSKNAPP ===== */
-.graf-verktyg{display:flex;align-items:center;gap:8px;margin:8px 0 4px}
-.graf-tim{display:flex;gap:4px;flex:1 1 auto;justify-content:center}
+.graf-verktyg{display:flex;align-items:center;margin:8px 0 4px}
+/* NIO KNAPPAR PÅ EN RAD. Knapparna delar på bredden (flex 1 1 auto) och får
+   krympa ned till sin text; nowrap hindrar radbrytning. Mellanrum med
+   marginaler, inte gap — samma resultat i webbläsaren, men det går att mäta i
+   wkhtmltoimage, som inte ritar flex-gap. */
+.graf-tim{display:flex;flex:1 1 auto;min-width:0;justify-content:center;flex-wrap:nowrap}
 .graf-tim-b{background:var(--inset);border:1px solid var(--line);border-radius:9px;
-  padding:5px 9px;color:var(--dim);font:inherit;font-size:11px;font-weight:700;
-  cursor:pointer;min-width:34px}
+  padding:5px 1px;color:var(--dim);font:inherit;font-size:10.5px;font-weight:700;
+  letter-spacing:-.2px;cursor:pointer;flex:1 1 auto;min-width:0;max-width:52px;
+  white-space:nowrap;overflow:hidden;text-overflow:clip}
+.graf-tim-b+.graf-tim-b{margin-left:2px}
 .graf-tim-b.on{border-color:var(--blue);color:var(--ink);box-shadow:inset 0 0 0 1px var(--blue)}
 .graf-tim-b:active{transform:scale(.95)}
-.graf-full{flex:0 0 auto;width:34px;height:32px;display:flex;align-items:center;
+.graf-full{flex:0 0 auto;width:30px;height:30px;margin-left:4px;display:flex;align-items:center;
   justify-content:center;background:var(--inset);border:1px solid var(--line);
   border-radius:9px;color:var(--dim);cursor:pointer;padding:0}
 .graf-full .ic{width:16px;height:16px}
@@ -3524,7 +3530,12 @@ var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar
   t_uterum:[()=>DEV.uterum,'measure_temperature'],t_poolrum:[()=>DEV.poolrum,'measure_temperature'],
   t_kallare:[()=>DEV.kallare,'measure_temperature'],
   t_snickarboa:[()=>DEV.snickarboa,'measure_temperature'],
-  t_breveden:[()=>DEV.attefall,'measure_temperature']};
+  t_breveden:[()=>DEV.attefall,'measure_temperature'],
+  /* BATTERITEMPERATUREN SAKNADES HÄR. Den spelades bara in medan sidan var
+     öppen (TRACK), så kurvan hade hål överallt där ingen tittat — därför
+     syntes den delvis i vissa fönster och inte alls i andra. Med här fyller
+     appen luckorna ur Insights som för alla andra serier. */
+  t_batt:[()=>BATT_MODBUS,'measure_temperature.battery']};
 var _serCfgSkickad=false;
 async function appSerierSynka(){
   if(_serCfgSkickad)return false;
@@ -3611,7 +3622,8 @@ async function seedHistory(){if(seeded)return;seeded=true;const logs=await homey
     wind:[DEV.windMs,['measure_wind_strength']],gust:[DEV.windMs,['measure_gust_strength']],winddir:[DEV.windNet,['measure_wind_angle']],rain:[DEV.rain,['measure_rain.24h']],
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
-    t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']]};
+    t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
+    t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
   for(const k in want){const lg=findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
     const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=today');
     let pts=parseEntries(e);
@@ -5321,10 +5333,14 @@ async function windInsFetch(force){
 /* Dygnets matpunkter: Insights sa langt den racker, egna matningar darefter.
    Ingen dubblering – HIST anvands bara for tiden EFTER sista Insights-punkten. */
 /* t0 kan skickas in (tidsvalet); annars dygnets start som förut. */
-function windPoints(k,t0In){
+function windPoints(k,t0In,cid){
   var t0=(t0In!=null)?t0In:dayStart(), ins=(_windSeries&&_windSeries[k])||[], ut=[];
+  /* Lång period: Insights timvärden först, dygnets tätare punkter efter dem. */
+  if(cid&&grafLang(cid)){langBehov(k);var l=LANG[k]||[];
+    for(var a=0;a<l.length;a++){var q0=l[a];if(q0&&q0.t>=t0&&q0.v!=null&&isFinite(q0.v))ut.push(q0);}}
+  var forst=ut.length?ut[ut.length-1].t:-Infinity;
   for(var i=0;i<ins.length;i++){var p=ins[i];
-    if(p&&p.t>=t0&&p.v!=null&&isFinite(p.v))ut.push(p);}
+    if(p&&p.t>=t0&&p.t>forst&&p.v!=null&&isFinite(p.v))ut.push(p);}
   var senast=ut.length?ut[ut.length-1].t:0;
   var h=HIST[k]||[];
   for(var j=0;j<h.length;j++){var q=h[j];
@@ -5382,7 +5398,7 @@ function windChartHTML(cid){
   var ser=[];
   for(var i=0;i<WIND_SER.length;i++){var S=WIND_SER[i];
     if(pa.indexOf(S[0])<0)continue;
-    var p=windPoints(S[0],t0);
+    var p=windPoints(S[0],t0,cid);
     if(p.length>1)ser.push({k:S[0],namn:S[1],farg:S[2],axel:S[3],p:p});}
   /* Vind, byvind och riktning väljs numera i samma sorts förklaring som
      dygnsgrafens sol/förbrukning/batteri: samma klass, samma färgstreck, samma
@@ -5529,7 +5545,7 @@ function windText(){
 }
 function indoorAvgTemp(){const a=cap(DEV.vard,'measure_temperature'),b=cap(DEV.vader,'measure_temperature');const xs=[a,b].filter(v=>v!=null&&isFinite(v));if(!xs.length)return null;return xs.reduce((s,v)=>s+v,0)/xs.length;}
 function gustDesc(g){if(g==null)return '';if(g<8)return 'svaga byar';if(g<11)return 'måttliga byar';if(g<14)return 'friska byar';if(g<17)return 'kraftiga byar';if(g<21)return 'hårda byar';if(g<25)return 'mycket hårda byar';return 'stormbyar';}
-function indoorAvgSeries(){const a=HIST['t_vard']||[],b=HIST['t_kok']||[];const out=[];let j=0;
+function indoorAvgSeries(cid){const a=histV('t_vard',cid),b=histV('t_kok',cid);const out=[];let j=0;
   for(let i=0;i<a.length;i++){const t=a[i].t;while(j<b.length-1&&Math.abs(b[j+1].t-t)<=Math.abs(b[j].t-t))j++;
     if(b.length&&Math.abs(b[j].t-t)<=120000)out.push({t:t,v:(a[i].v+b[j].v)/2});else out.push({t:t,v:a[i].v});}
   return out;}
@@ -5611,8 +5627,7 @@ function gridPowerSVG(pts,cid){
   /* Fönstret väljs numera (1–24 h) via _grafTim; grafen är 300 enheter bred, så
      ett kortare fönster ger mer plats åt varje timme. Faller tillbaka på de 48
      senaste punkterna om intervallet är för glest. */
-  const TIM=grafTim(cid);
-  const cut=now-TIM*3600000;let seg=pts.filter(p=>p.t>=cut);if(seg.length<3)seg=pts.slice(-48);
+  const cut=grafFonster(cid).t0;let seg=pts.filter(p=>p.t>=cut);if(seg.length<3)seg=pts.slice(-48);
   const P=PAL[curTheme]||PAL.dark, BLA=P.blue||'#81a1c1', GRO=P.green||'#a3be8c';
   const W2=300,H2=74,pad=5;
   const t0=seg[0].t,t1=seg[seg.length-1].t||now,tr=(t1-t0)||1;
@@ -5698,17 +5713,19 @@ function ptsLineSVG(pts,colKey,unit,id,h,titel){const now=Date.now();
   const cut=fen?fen.t0:(now-24*3600000);let seg=pts.filter(p=>p.t>=cut);if(seg.length<3)seg=pts.slice(-48);
   const P=PAL[curTheme]||PAL.dark,col=P[colKey]||P.blue,W2=300,H2=(h||74),pad=5;
   const t0=seg[0].t,t1=seg[seg.length-1].t||now,tr=(t1-t0)||1;
-  const ys=seg.map(p=>p.v),ylo=Math.min.apply(null,ys),yhi=Math.max.apply(null,ys),yr=(yhi-ylo)||1;
+  const ys=seg.map(p=>p.v);
+  const _sp=yspann(Math.min.apply(null,ys),Math.max.apply(null,ys));
+  const ylo=_sp.lo,yhi=_sp.hi,yr=(yhi-ylo)||1;
   const X=t=>pad+(t-t0)/tr*(W2-2*pad),Y=v=>H2-pad-(v-ylo)/yr*(H2-2*pad);
   const P2=seg.map(p=>[X(p.t),Y(p.v)]);
   const line=smoothPath(P2);
   const area=line+' L'+P2[P2.length-1][0].toFixed(1)+' '+(H2-pad)+' L'+P2[0][0].toFixed(1)+' '+(H2-pad)+' Z';
   const g=areaGrad(col,0.28);
-  const spanH=Math.round(tr/3600000),u=unit||'°C';
+  const u=unit||'°C';
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs><path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager(id||('pts-'+colKey+'-'+u),svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,1)+' '+u;}}]});
-  return '<div class="viz">'+svgm+'<div class="viz-cap">senaste ~'+(spanH>=1?spanH+' h':'stunden')+' · '+num(ylo,1)+'–'+num(yhi,1)+' '+u+'</div></div>';}
+  return '<div class="viz">'+svgm+'<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo,1)+'–'+num(yhi,1)+' '+u+'</div></div>';}
 function buildWeatherHTML(){
   const sit=cap(DEV.smhi,'measure_weather_situation_cp');
   const tOut=cap(DEV.outdoor,'measure_temperature'),feels=cap(DEV.smhi,'air_temperature_feels_like_cp');
@@ -6285,6 +6302,14 @@ function avlPunkt(pts,t){
    en explicit tidszon gör avläsningen oberoende av vad plattan råkar vara
    inställd på, precis som dayKey() redan gör. */
 var _avlKlFmt;
+/* LÅNGA FÖNSTER (mer än två dygn) behöver datum, inte klockslag: tio
+   etiketter som alla säger 00:00 säger ingenting. Axeln får "28/9",
+   avläsningen "tis 30/9 14:00". */
+var AVL_LANG_MS=48*3600000;
+function avlLangt(g){return g&&(g.t1-g.t0)>AVL_LANG_MS&&g.t1>1e11;}
+function avlDag(t){var q=svDatum(t);return q.d+'/'+q.m;}
+function avlDagKl(t){var vd=['mån','tis','ons','tor','fre','lör','sön'][svDatum(t).vd];
+  return vd+' '+avlDag(t)+' '+avlKl(t);}
 function avlKl(t){
   try{
     if(!_avlKlFmt)_avlKlFmt=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
@@ -6386,7 +6411,7 @@ function avlDelar(id){
   /* Nära kanten förankras etiketten i sidan i stället för i mitten, annars
      klipps den — samma regel som pgTagg(). */
   var stil=(xp<16)?'left:2px':((xp>84)?'right:2px':'left:'+xp.toFixed(2)+'%;transform:translateX(-50%)');
-  var kl=(typeof g.kl==='function')?g.kl(t):avlKl(t);
+  var kl=(typeof g.kl==='function')?g.kl(t):(avlLangt(g)?avlDagKl(t):avlKl(t));
   return {rad:'<span class="avl-tag" style="'+stil+'"><i>'+esc(kl)+'</i>'+rutor+'</span>',graf:h};
 }
 /* Tidsaxeln under grafen. Etiketterna i kanterna förankras i sidan i stället
@@ -6395,7 +6420,7 @@ function avlTidsaxel(g){
   var h='',i,n,t,xp;
   var lagg=function(t){
     var xp=avlXp(g,t);
-    var kl=(typeof g.kl==='function')?g.kl(t):avlKl(t);
+    var kl=(typeof g.kl==='function')?g.kl(t):(avlLangt(g)?avlDag(t):avlKl(t));
     var kla=(xp<3)?' class="v"':((xp>97)?' class="h"':'');
     h+='<span'+kla+' style="'+((xp<3)?'':((xp>97)?'':'left:'+xp.toFixed(2)+'%'))+'">'+esc(kl)+'</span>';
   };
@@ -6595,6 +6620,16 @@ function dayChart(series,fonster){
 }
 function hourTicks(t0,t1){
   var spanH=(t1-t0)/3600000,step=Math.max(1,Math.ceil(spanH/6)),out=[];
+  /* Mer än två dygn: etiketter vid svenska midnätter, högst sex stycken. */
+  if(spanH>48){
+    var dagar=Math.ceil(spanH/24),ds=Math.max(1,Math.ceil(dagar/6)),q=svDatum(t0);
+    var dag=svMidnatt(q.y,q.m,q.d);if(dag<t0)dag=svMidnatt(q.y,q.m,q.d+1);
+    var d0=svDatum(dag);
+    for(var k=0;k<40&&out.length<8;k++){
+      var tt=svMidnatt(d0.y,d0.m,d0.d+k*ds);if(tt>t1)break;
+      out.push({frac:(tt-t0)/((t1-t0)||1),label:avlDag(tt)});}
+    if(out.length)return out;
+  }
   var d0=new Date(t0);var start=new Date(d0);start.setMinutes(0,0,0);if(start.getTime()<t0)start=new Date(start.getTime()+3600000);
   var fmt=function(t){try{return new Intl.DateTimeFormat('sv-SE',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Stockholm',hour12:false}).format(new Date(t));}catch(e){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':00';}};
   var startH=start.getHours();var firstH=startH-(startH%step);var cur=new Date(start);cur.setHours(firstH);if(cur.getTime()<t0)cur=new Date(cur.getTime()+step*3600000);
@@ -7605,7 +7640,12 @@ function radarFetch(){
         /* Ny bildruta = ny rörelse att mäta. framMat() har egen nyckelvakt och
            gör ingenting om den redan mätt just den här rutan. */
         try{framMat();}catch(e){}
-        try{if(document.getElementById('vdr-body')&&wxShow()!=='tryck')renderVader();}catch(e){}
+        /* BARA OM DET FINNS EN BILD. Utan bild är _radarPath null, och då
+           hämtar renderVader → radarFetch genast igen (spärren ovan släpper
+           igenom när _radarPath saknas) → renderVader … i en oändlig slinga.
+           Det hände inte så länge RainViewer svarade med bilder, men ett svar
+           utan radar.past räckte för att låsa sidan. */
+        try{if(_radarPath&&document.getElementById('vdr-body')&&wxShow()!=='tryck')renderVader();}catch(e){}
       },function(){_radarBusy=false;_radarFail=true;_radarT=Date.now();});
   }catch(e){_radarBusy=false;_radarFail=true;}
 }
@@ -8685,7 +8725,7 @@ function wxMapSVG(){
   return s;
 }
 /* ---- Historik-hjälpare (alla värden kommer ur den loggade historiken) ---- */
-function wxPts(k){var a=HIST[k]||[],o=[];for(var i=0;i<a.length;i++){var p=a[i];if(p&&p.v!=null&&isFinite(p.v))o.push(p);}return o;}
+function wxPts(k,cid){var a=histV(k,cid),o=[];for(var i=0;i<a.length;i++){var p=a[i];if(p&&p.v!=null&&isFinite(p.v))o.push(p);}return o;}
 function wxAgo(k,hours){var a=wxPts(k);if(!a.length)return null;var t=Date.now()-hours*3600000,best=null,bd=Infinity;
   for(var i=0;i<a.length;i++){var d=Math.abs(a[i].t-t);if(d<bd){bd=d;best=a[i];}}
   return (bd<=hours*3600000*0.5+1800000)?best.v:null;}
@@ -8736,8 +8776,8 @@ function wxToggle(k){
 }
 function wxSerCol(S){var P=PAL[curTheme]||PAL.dark;return P[S.c]||P.blue;}
 /* Har serien något att rita i det valda fönstret? */
-function wxHarData(S,cut){
-  var a=wxPts(S.k)||[],n=0;
+function wxHarData(S,cut,cid){
+  var a=wxPts(S.k,cid)||[],n=0;
   for(var i=0;i<a.length;i++){var p=a[i];if(p&&p.v!=null&&isFinite(p.v)&&p.t>=cut)n++;if(n>=2)return true;}
   return false;
 }
@@ -8750,7 +8790,7 @@ function wxMultiSVG(cid){
   var W=300,H=136,padL=4,padR=4,padT=10,padB=16;
   var out=[],t0=Infinity,t1=-Infinity,cut=fen.t0;
   for(var i=0;i<WXSER.length;i++){var S=WXSER[i];if(!wxOn(S.k))continue;
-    var raw=wxPts(S.k)||[],seg=[];
+    var raw=wxPts(S.k,cid)||[],seg=[];
     for(var j=0;j<raw.length;j++){var pt=raw[j];if(pt&&pt.v!=null&&isFinite(pt.v)&&pt.t>=cut)seg.push(pt);}
     if(seg.length<2)continue;
     t0=Math.min(t0,seg[0].t);t1=Math.max(t1,seg[seg.length-1].t);
@@ -8776,8 +8816,7 @@ function wxMultiSVG(cid){
   g=avlLager(cid,g,{W:W,H:H,X:X,t0:t0,t1:t1,
     ser:out.map(function(o){return {namn:o.S.lab,farg:wxSerCol(o.S),pts:o.s,Y:o.Y,
       fmt:(function(S){return function(v){return num(v,S.dec)+' '+S.u;};})(o.S)};})});
-  var span=Math.round(tr/3600000);
-  g+='<div class="viz-cap">senaste ~'+(span>=1?span+' h':'stunden')+' · '
+  g+='<div class="viz-cap">senaste '+spannTxt(tr)+' · '
     +out.length+' serie'+(out.length>1?'r':'')+', egen skala per serie</div>';
   return g;
 }
@@ -8785,7 +8824,7 @@ function wxMultiSVG(cid){
    visar bara sitt tal, som i den gamla \"Just nu\"-rutan. */
 function wxBrickorHTML(){
   var fen=grafFonster('wx'),cut=fen.t0,h='';
-  for(var i=0;i<WXSER.length;i++){var S=WXSER[i],v=S.val(),on=wxOn(S.k),hd=wxHarData(S,cut);
+  for(var i=0;i<WXSER.length;i++){var S=WXSER[i],v=S.val(),on=wxOn(S.k),hd=wxHarData(S,cut,'wx');
     h+='<button class="tg-chip'+(on?' on':'')+(hd?'':' nodata')+'" onclick="wxToggle(\''+S.k+'\')"'
       +(hd?'':' title="Väntar på mätpunkter"')+'>'
       +'<span class="tg-top"><span class="tg-dot" style="background:'+wxSerCol(S)+'"></span>'
@@ -10794,11 +10833,14 @@ function toggleEnergyVariant(){_energyAlt=!_energyAlt;var bd=$('dlg-body');if(bd
    kalla='live' tar dashboardens egen dygnshistorik, 'hist' tar Insights.
    Skillnaden i tecken hör till källan, inte till grafen: measure_power räknar
    tvärtom, energy_power rätt. */
-function energiSerier(kalla){
+function energiSerier(kalla,cid){
   var P=(PAL&&PAL[curTheme])||{};
   /* För idag och igår finns tätare serier hämtade var för sig. */
   var H=(kalla==='hist')?((HIST7D['d'+_histDag]&&HIST7D['d'+_histDag].solar)?HIST7D['d'+_histDag]:HIST7):HIST;
-  var bp=(kalla==='hist')?(H['battpow']||[]):battPowSerie();
+  /* Lång period: samma serier, men ur Insights (histV). */
+  if(kalla!=='hist'&&cid&&grafLang(cid)){
+    H={solar:histV('solar',cid),house:histV('house',cid),grid:histV('grid',cid),batt:histV('batt',cid)};}
+  var bp=(kalla==='hist')?(H['battpow']||[]):histV('battpow',cid,battPowSerie());
   return {
     linjer:[
       {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
@@ -10837,7 +10879,14 @@ function energiSerier(kalla){
    render() och ett läge som bara fanns i markupen skulle nollställas — samma
    skäl som dragpunktens _avlVald. Fönstret är alltid [nu − N h, nu], så det
    följer med när tiden går utan att man rör inställningen. */
-var GRAF_TIM=[1,3,6,12,24];
+/* Utökat med långa perioder: 7d och 30d bakåt räknat från nu, samt innevarande
+   kalendervecka (från måndag 00:00) och kalendermånad (från den 1:a 00:00),
+   båda i svensk tid. Långa perioder läses ur Homeys Insights — dashboarden
+   sparar själv bara ett dygn — se LÅNG HISTORIK nedan. */
+var GRAF_TIM=[1,3,6,12,24,'7d','30d','v','m'];
+var GRAF_TIM_LAB={1:'1h',3:'3h',6:'6h',12:'12h',24:'24h','7d':'7d','30d':'30d',v:'Vecka',m:'Mån'};
+var GRAF_TIM_TXT={1:'senaste 1 h',3:'senaste 3 h',6:'senaste 6 h',12:'senaste 12 h',24:'senaste dygnet',
+  '7d':'senaste 7 dygnen','30d':'senaste 30 dygnen',v:'denna vecka',m:'denna månad'};
 var _grafTim={};
 /* HELSKÄRMEN RITAR MED ETT EGET ID. Popupen ligger kvar bakom, och ritade
    båda med samma id (avl-g2-batt) hittade getElementById ALLTID popupens
@@ -10846,9 +10895,40 @@ var _grafTim={};
    tidsfönstret läses från bas-id:t så 1h/3h/… förblir delat. */
 function grafBasId(id){return String(id||'').replace(/-full$/,'');}
 function grafTim(id){var v=_grafTim[grafBasId(id)];return (GRAF_TIM.indexOf(v)>=0)?v:12;}
-function grafFonster(id){var t1=Date.now();return {t0:t1-grafTim(id)*3600000,t1:t1};}
+/* Lång period = allt som inte är ett timtal. */
+function grafLang(id){return typeof grafTim(id)==='string';}
+/* Svenskt datum för en tidsstämpel, plus veckodag (0 = måndag). Veckodagen
+   räknas på datumet självt via Date.UTC, så den beror inte på enhetens zon. */
+function svDatum(ms){
+  var q={};new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'})
+    .formatToParts(new Date(ms)).forEach(function(p){q[p.type]=p.value;});
+  var y=+q.year,m=+q.month,d=+q.day;
+  return {y:y,m:m,d:d,vd:(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7};
+}
+/* Midnatt i Stockholm för datumet (y, m, d). d får ligga utanför månaden —
+   Date.UTC normaliserar. Offseten mäts vid själva midnatten, så dygn med
+   sommartidsomställning blir rätt. */
+function svMidnatt(y,m,d){
+  var vagg=Date.UTC(y,m-1,d,0,0,0);
+  var off=function(ms){var q={};new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',
+      month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})
+    .formatToParts(new Date(ms)).forEach(function(p){q[p.type]=p.value;});
+    return Date.UTC(+q.year,+q.month-1,+q.day,+q.hour,+q.minute,+q.second)-Math.floor(ms/1000)*1000;};
+  var ms=vagg-off(vagg);
+  return vagg-off(ms);
+}
+function grafFonster(id){
+  var t1=Date.now(),t=grafTim(id);
+  if(typeof t==='number')return {t0:t1-t*3600000,t1:t1};
+  if(t==='7d')return {t0:t1-7*86400000,t1:t1};
+  if(t==='30d')return {t0:t1-30*86400000,t1:t1};
+  var q=svDatum(t1);
+  if(t==='v')return {t0:svMidnatt(q.y,q.m,q.d-q.vd),t1:t1};
+  return {t0:svMidnatt(q.y,q.m,1),t1:t1};
+}
 function grafSattTim(id,h){
   _grafTim[grafBasId(id)]=h;
+  if(typeof h==='string')langBehov(null);
   /* Rita om båda vyerna som kan visa fönstret: popupkroppen (via _grafOmRita,
      som popupen satt till sin byggare) OCH en öppen helskärm. Valet är delat,
      så det ska synas på båda direkt. */
@@ -10860,6 +10940,121 @@ function grafSattTim(id,h){
      värdet, vilket såg ut som att fönstret bytte av sig självt vid vyväxling.
      Samma villkor som övriga anrop till renderVader använder. */
   try{if(document.getElementById('vdr-body'))renderVader();}catch(e){}
+}
+/* ===== LÅNG HISTORIK (7d, 30d, vecka, månad) =====
+   Dashboarden sparar själv ett dygn (HISTORY_HOURS), och appens serier täcker
+   samma dygn. För längre perioder hämtas Insights med upplösningen last31Days,
+   som ger timvärden — EN hämtning per serie räcker för alla fyra långa
+   perioderna, fönstret skärs till här. last7Days används inte: den är hårt
+   sammanfattad och har långa stråk av null (se HIST7).
+
+   Hämtningen är lat: en serie hämtas först när en graf i en lång period
+   frågar efter den (langBehov), och hålls i LANG_TTL. Det som mätts lokalt
+   efter Insights senaste timme läggs på, så kurvan går ända fram till nu.
+
+   Effektloggarna läses ur energy_power i första hand — measure_power-loggarna
+   för sol, förbrukning och Pulse är tomma (uppmätt 2026-08-21, se HIST7_VILL).
+   Pulse energy_power har tecken: positivt köp, negativt sälj (kontrollerat
+   2026-10-02), samma som HIST['grid']. */
+var LANG={},LANG_AT={},_langVill={},_langLaddar=false,_langLogs=null,_langLogsAt=0,_langFelAt=0;
+var LANG_TTL=15*60000;
+var LANG_EFFEKT=['energy_power','measure_power'];
+var LANG_KALLA={
+  solar:  function(){return [DEV.solar,LANG_EFFEKT];},
+  house:  function(){return [DEV.consume,LANG_EFFEKT];},
+  grid:   function(){return [DEV.pulse,LANG_EFFEKT];},
+  battpow:function(){return [DEV.battery,['energy_power']];},
+  batt:   function(){return [DEV.battery,['measure_battery']];},
+  price:  function(){return [DEV.tibber,['measure_price_total']];},
+  t_ute:  function(){return [DEV.outdoor,['measure_temperature']];},
+  t_kok:  function(){return [DEV.vader,['measure_temperature']];},
+  t_vard: function(){return ['1a3527b2-8e53-4551-9d36-f92793f2256a',['measure_temperature']];},
+  co2:    function(){return [DEV.vader,['measure_co2']];},
+  pool:   function(){return [DEV.pooltemp,['measure_temperature']];},
+  hum:    function(){return [DEV.outdoor,['measure_humidity']];},
+  press:  function(){return [DEV.vader,['measure_pressure']];},
+  /* Vindloggen ligger i km/h i Homey; allt i dashboarden är m/s. */
+  wind:   function(){return [DEV.windMs,['measure_wind_strength'],function(v){return v/3.6;}];},
+  gust:   function(){return [DEV.windMs,['measure_gust_strength'],function(v){return v/3.6;}];},
+  winddir:function(){return [DEV.windNet,['measure_wind_angle']];},
+  rain:   function(){return [DEV.rain,['measure_rain.24h']];},
+  t_uterum:   function(){return [DEV.uterum,['measure_temperature']];},
+  t_poolrum:  function(){return [DEV.poolrum,['measure_temperature']];},
+  t_kallare:  function(){return [DEV.kallare,['measure_temperature']];},
+  t_snickarboa:function(){return [DEV.snickarboa,['measure_temperature']];},
+  t_breveden: function(){return [DEV.attefall,['measure_temperature']];},
+  t_batt:     function(){return [BATT_MODBUS,['measure_temperature.battery']];},
+  /* Brickornas inlärda serier (histSVG). Flödena är belopp, som när de lärs. */
+  gridflow:function(){return [DEV.pulse,LANG_EFFEKT,Math.abs];},
+  battflow:function(){return [DEV.battery,['energy_power'],Math.abs];}
+};
+/* Källa för en nyckel: fast tabell, eller en sensorbricka "c:<enhet>:<cap>". */
+function langKalla(k){
+  if(LANG_KALLA[k]){try{var a=LANG_KALLA[k]();return a&&a[0]?{dev:a[0],caps:a[1],f:a[2]}:null;}catch(e){return null;}}
+  var m=/^c:([^:]+):(.+)$/.exec(k||'');
+  return m?{dev:m[1],caps:[m[2]]}:null;
+}
+/* EXAKT kapacitet. findLog matchar på delsträng, och då kunde measure_power
+   träffa measure_power.batt_charge beroende på loggarnas ordning. */
+function exaktLogg(logs,devId,caps){
+  var arr=Array.isArray(logs)?logs:Object.values(logs||{}),owner='homey:device:'+devId;
+  for(var c=0;c<caps.length;c++){
+    for(var i=0;i<arr.length;i++){var lg=arr[i]||{},lid=lg.id||'',lo=lg.uri||lg.ownerUri||'';
+      if(lo!==owner&&lid.indexOf(owner+':')!==0)continue;
+      if(lid===caps[c]||lid===owner+':'+caps[c])return {uri:owner,id:lid};}
+  }
+  return null;
+}
+/* Registrerar att en graf vill ha nyckeln k och startar hämtning om den
+   saknas eller är gammal. Anropas från ritningen — därför bara en timer här,
+   aldrig själva hämtningen, och aldrig två samtidigt. */
+function langBehov(k){
+  if(k)_langVill[k]=1;
+  var nu=Date.now(),beh=false;
+  if(nu-_langFelAt<60000)return;            /* Homey svarade inte nyss: vänta en minut */
+  for(var x in _langVill){if(!(x in LANG_AT)||nu-LANG_AT[x]>LANG_TTL){beh=true;break;}}
+  if(beh&&!_langLaddar&&typeof setTimeout==='function')setTimeout(langHamta,0);
+}
+async function langHamta(){
+  if(_langLaddar)return;
+  _langLaddar=true;var nagot=false;
+  try{
+    if(!_langLogs||Date.now()-_langLogsAt>3600000){
+      var lr=await insGet('/api/manager/insights/log/',15000);
+      if(!lr.data){_langFelAt=Date.now();return;}
+      _langLogs=lr.data;_langLogsAt=Date.now();
+    }
+    var nu=Date.now();
+    var keys=Object.keys(_langVill).filter(function(k){return !(k in LANG_AT)||nu-LANG_AT[k]>LANG_TTL;});
+    for(var i=0;i<keys.length;i++){var k=keys[i];
+      LANG_AT[k]=Date.now();                    /* även vid fel: inget nytt försök förrän TTL */
+      var src=langKalla(k);if(!src)continue;
+      var lg=exaktLogg(_langLogs,src.dev,src.caps);if(!lg)continue;
+      var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);
+      var pts=e.data?parseEntries(e.data):[];
+      if(src.f)pts=pts.map(function(p){return {t:p.t,v:src.f(p.v)};});
+      if(pts.length){LANG[k]=pts;nagot=true;}
+    }
+  }catch(e){}
+  finally{_langLaddar=false;}
+  if(nagot){
+    try{grafOmRitaAlla();}catch(e){}
+    try{if(document.getElementById('vdr-body'))renderVader();}catch(e){}
+    try{render();}catch(e){}
+  }
+  /* Nycklar som tillkom under hämtningen. */
+  langBehov(null);
+}
+/* Serien för en graf: lokal historik i korta perioder; i långa Insights
+   timvärden + det som mätts lokalt efter dem. */
+function histV(k,cid,lokal){
+  var loc=lokal||HIST[k]||[];
+  if(!cid||!grafLang(cid))return loc;
+  langBehov(k);
+  var l=LANG[k];if(!l||!l.length)return loc;
+  var sist=l[l.length-1].t,ut=l.slice();
+  for(var i=0;i<loc.length;i++){var p=loc[i];if(p&&p.t>sist)ut.push(p);}
+  return ut;
 }
 /* Knapprad för tidsval + en helskärmsknapp till höger. cid är grafens id (samma
    som avlLager använder), byggFn() returnerar grafens HTML för helskärmen. */
@@ -10875,8 +11070,9 @@ function grafTidsval(id,utanFull,utanTim){
     h+='<div class="graf-tim">';
     for(var i=0;i<GRAF_TIM.length;i++){
       var t=GRAF_TIM[i], pa=(t===grafTim(bas));
-      h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+t+')">'
-        +(t<24?t+'h':'24h')+'</button>';
+      var arg=(typeof t==='string')?('\''+t+'\''):String(t);
+      h+='<button class="graf-tim-b'+(pa?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+arg+')">'
+        +GRAF_TIM_LAB[t]+'</button>';
     }
     h+='</div>';
   }else{h+='<div class="graf-tim"></div>';}
@@ -10969,9 +11165,9 @@ function battGrafHTML(cid){
      förbrukning nu (fonster.pct). Nollinjen släckt: effekten korsar noll men
      procenten gör det inte, så en gemensam nollinje sa emot den ena kurvan. */
   return dayChart(
-    [{key:'battpow',pts:battPowSerie(),col:(P.green||'#7bc47f'),label:'Effekt'}],
+    [{key:'battpow',pts:histV('battpow',cid,battPowSerie()),col:(P.green||'#7bc47f'),label:'Effekt'}],
     {t0:t0,t1:t1,cid:cid,dromNoll:true,
-     pct:{key:'battpct',pts:(HIST['batt']||[]),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
+     pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
 }
 /* All infotext ligger bakom en knapp — och det är husets EGEN infoknapp, samma
    lilla "i" i en ring som resten av dashboarden använder (.di-q + .drow-info,
@@ -11234,7 +11430,7 @@ function buildEnergyPopup(){
   h+='</div>';
   /* Insiktsraden är borttagen i v603. Grafen står direkt under mätvärdena nu.
      _isAI och energyInsight() används fortfarande på andra håll. */
-  var se=energiSerier('live');
+  var se=energiSerier('live','g2-day');
   /* Samma tidsval (1–24 h) och helskärm som elnät och batteri, via cid g2-day.
      grafRubrik skriver ut valt fönster i rubriken; grafFonster ger t0/t1. */
   var _ef=grafFonster('g2-day');
@@ -11247,7 +11443,7 @@ function buildEnergyPopup(){
   /* Byggare + omritning så tidsval och helskärm kan rita om just den här vyn. */
   _grafByggare['g2-day']={titel:'Sol, förbrukning & batteri',full:function(cid){
     cid=cid||'g2-day';
-    var s2=energiSerier('live'),f2=grafFonster(cid);
+    var s2=energiSerier('live',cid),f2=grafFonster(cid);
     return dayChart(s2.linjer,{pct:s2.procent,cid:cid,t0:f2.t0,t1:f2.t1});}};
   /* Historikknappen UNDER grafen: den leder vidare från det man just tittat
      på, och ovanför grafen sköt den ned det man öppnade rutan för. */
@@ -11265,17 +11461,17 @@ function dlgTop(){var b=$('dlg-body');if(b)b.scrollTop=0;dlgIdleReset();}
    "Inne" är samma sammanvägning som startsidan visar (vardagsrum + kök),
    så vi listar inte de två rummen var för sig. Varje zon får en egen färg. */
 var TEMPS=[
-  {k:'inne',      lab:'Inne',       c:'warm',   ser:function(){return indoorAvgSeries();},        val:function(){return indoorAvgTemp();}},
-  {k:'uterum',    lab:'Uterum',     c:'sun',    ser:function(){return HIST['t_uterum']||[];},     val:function(){return cap(DEV.uterum,'measure_temperature');}},
-  {k:'poolrum',   lab:'Poolrum',    c:'cyan',   ser:function(){return HIST['t_poolrum']||[];},    val:function(){return cap(DEV.poolrum,'measure_temperature');}},
-  {k:'kallare',   lab:'Källare',    c:'blue',   ser:function(){return HIST['t_kallare']||[];},    val:function(){return cap(DEV.kallare,'measure_temperature');}},
-  {k:'snickarboa',lab:'Snickarboa', c:'green',  ser:function(){return HIST['t_snickarboa']||[];}, val:function(){return cap(DEV.snickarboa,'measure_temperature');}},
-  {k:'breveden',  lab:'Breveden',   c:'violet', ser:function(){return HIST['t_breveden']||[];},   val:function(){return cap(DEV.attefall,'measure_temperature');}},
+  {k:'inne',      lab:'Inne',       c:'warm',   ser:function(c){return indoorAvgSeries(c);},        val:function(){return indoorAvgTemp();}},
+  {k:'uterum',    lab:'Uterum',     c:'sun',    ser:function(c){return histV('t_uterum',c);},     val:function(){return cap(DEV.uterum,'measure_temperature');}},
+  {k:'poolrum',   lab:'Poolrum',    c:'cyan',   ser:function(c){return histV('t_poolrum',c);},    val:function(){return cap(DEV.poolrum,'measure_temperature');}},
+  {k:'kallare',   lab:'Källare',    c:'blue',   ser:function(c){return histV('t_kallare',c);},    val:function(){return cap(DEV.kallare,'measure_temperature');}},
+  {k:'snickarboa',lab:'Snickarboa', c:'green',  ser:function(c){return histV('t_snickarboa',c);}, val:function(){return cap(DEV.snickarboa,'measure_temperature');}},
+  {k:'breveden',  lab:'Breveden',   c:'violet', ser:function(c){return histV('t_breveden',c);},   val:function(){return cap(DEV.attefall,'measure_temperature');}},
   /* Ute och batteri. Ute ligger sist bland de mätta rummen eftersom den
      nästan alltid är kallast och drar ner skalan — den som vill jämföra rum
      mot rum stänger av den med ett tryck. */
-  {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(){return HIST['t_ute']||[];},      val:function(){return cap(DEV.outdoor,'measure_temperature');}},
-  {k:'batteri',   lab:'Batteri',    c:'hot',     ser:function(){return HIST['t_batt']||[];},     val:function(){return cap(BATT_MODBUS,'measure_temperature.battery');}}
+  {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(c){return histV('t_ute',c);},      val:function(){return cap(DEV.outdoor,'measure_temperature');}},
+  {k:'batteri',   lab:'Batteri',    c:'hot',     ser:function(c){return histV('t_batt',c);},     val:function(){return cap(BATT_MODBUS,'measure_temperature.battery');}}
 ];
 /* Färgen får anges som palettnamn ELLER som literal hex. Paletten har bara sex
    färger som går att skilja åt, och zonerna är åtta. Utan literalen tog två av
@@ -11301,7 +11497,7 @@ function multiTempSVG(cid){
   var W=300,H=136,padL=4,padR=4,padT=10,padB=16;
   var out=[],t0=Infinity,t1=-Infinity,ylo=Infinity,yhi=-Infinity,cut=fen.t0;
   for(var i=0;i<TEMPS.length;i++){var t=TEMPS[i];if(!tempOn(t.k))continue;
-    var raw=t.ser()||[],seg=[];
+    var raw=t.ser(cid)||[],seg=[];
     for(var j=0;j<raw.length;j++){var pt=raw[j];if(pt&&pt.v!=null&&isFinite(pt.v)&&pt.t>=cut)seg.push(pt);}
     if(seg.length<2)continue;
     t0=Math.min(t0,seg[0].t);t1=Math.max(t1,seg[seg.length-1].t);
@@ -11318,8 +11514,7 @@ function multiTempSVG(cid){
   g=avlLager(cid,g,{W:W,H:H,X:X,t0:t0,t1:t1,
     ser:out.map(function(o){return {namn:o.t.lab,farg:tempCol(o.t),pts:o.s,Y:Y,
       fmt:function(v){return num(v,1)+' °';}};})});
-  var span=Math.round(tr/3600000);
-  g+='<div class="viz-cap">senaste ~'+(span>=1?span+' h':'stunden')+' · '+num(ylo+mp,1)+'–'+num(yhi-mp,1)+' °C</div>';
+  g+='<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo+mp,1)+'–'+num(yhi-mp,1)+' °C</div>';
   return g;}
 /* AC-läge i klartext */
 function acModeSv(m,on){if(on===false)return 'Av';
@@ -11331,16 +11526,21 @@ function acModeSv(m,on){if(on===false)return 'Av';
    Rubriken visar valt fönster i klartext. */
 function grafRubrik(id,text,info){
   var t=grafTim(id);
-  return '<div class="dsec">'+text+' · '+(t<24?('senaste '+t+' h'):'senaste dygnet')
+  return '<div class="dsec">'+text+' · '+(GRAF_TIM_TXT[t]||'')
+    +((typeof t==='string'&&_langLaddar)?' · hämtar historik…':'')
     +(info||'')+'</div>';
 }
+/* Spannet under graferna: timmar upp till två dygn, därefter dygn. */
+function spannTxt(ms){var h=Math.round(ms/3600000);
+  if(h>=48)return '~'+Math.round(ms/86400000)+' dygn';
+  return h>=1?('~'+h+' h'):'stunden';}
 function byggGrid(){
   var pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;
   return grafRubrik('grid','Elnät',infoBlock('gridgraf',
       'Blå kurva och yta är effekt du köper från nätet, grön är effekt du '
       +'säljer. Nollinjen skiljer köp från sälj. Dra i grafen för att läsa av '
       +'effekten vid en viss tidpunkt.'))
-    +gridPowerSVG(HIST['grid']||[],'grid')
+    +gridPowerSVG(histV('grid','grid'),'grid')
     +grafTidsval('grid')
     +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
     +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
@@ -11464,7 +11664,7 @@ function openDetail(which){
   }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
        kan rita om just den här vyn. */
-    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(HIST['grid']||[],cid||'grid');}};
+    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
     body=byggGrid();
       +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
@@ -11607,14 +11807,14 @@ function openDetail(which){
       +dRow('Källa','SMHI/Open-Meteo · ytvattentemp');
   }else if(which==='indoor'){title='Inomhus';
     const tv=cap(DEV.vard,'measure_temperature'),tk=cap(DEV.vader,'measure_temperature'),avg=indoorAvgTemp();
-    body=ptsLineSVG(indoorAvgSeries(),'warm','°C','indoor',HIST_H,'Inomhus')+grafTidsval('indoor')
+    body=ptsLineSVG(indoorAvgSeries('indoor'),'warm','°C','indoor',HIST_H,'Inomhus')+grafTidsval('indoor')
       +dRow('Medel',avg==null?'–':num(avg,1)+' °C')
       +dRow('Vardagsrum',tv==null?'–':num(tv,1)+' °C')
       +dRow('Kök',tk==null?'–':num(tk,1)+' °C')
       +dRow('Uterum',(function(){const u=cap(DEV.uterum,'measure_temperature');return u==null?'–':num(u,1)+' °C';})());
   }else if(which==='uterum'){title='Uterum';
     const u=cap(DEV.uterum,'measure_temperature'),uh=cap(DEV.uterum,'measure_humidity'),uc=cap(DEV.uterum,'measure_co2');
-    body=ptsLineSVG(HIST['t_uterum']||[],'cyan','°C','uterum',HIST_H,'Uterum')+grafTidsval('uterum')
+    body=ptsLineSVG(histV('t_uterum','uterum'),'cyan','°C','uterum',HIST_H,'Uterum')+grafTidsval('uterum')
       +dRow('Temperatur',u==null?'–':num(u,1)+' °C')
       +(uh!=null?dRow('Luftfuktighet',Math.round(uh)+' %'):'')
       +(uc!=null?dRow('CO₂',Math.round(uc)+' ppm'):'');
@@ -14025,7 +14225,30 @@ function priceStats(){var e=null;try{e=learnGet()['price'];}catch(x){}
    lägre ger plats åt raderna under utan att kurvan blir svårläst.
    Energi- och vädergraferna har egna höjder och är orörda. */
 const HIST_H=56;
+/* MINSTA Y-SPANN.
+   Graferna skalade y-axeln till seriens exakta min och max. Ligger pooltempen
+   still mellan 27,7 och 27,9 sträcktes två tiondelar över hela höjden, och
+   sensorns upplösning på 0,1° blev branta klippor — kurvan såg dramatisk ut
+   medan rubriken sa "28–28 °C".
+   Spannet golvas därför till en andel av värdets storlek. Andelen i stället
+   för ett fast tal gör att samma regel fungerar för grader, ppm, procent och
+   watt utan att veta vilket det är. En serie som verkligen ligger stilla ritas
+   nu som en nästan rak linje, vilket är sanningen.
+   Returnerar {lo, hi} att skala mot. */
+var Y_MIN_ANDEL=0.04;
+function yspann(lo,hi){
+  var mitt=(hi+lo)/2;
+  var golv=Math.abs(mitt)*Y_MIN_ANDEL;
+  if(!(golv>0))golv=1;                  /* serie kring noll: en enhet räcker */
+  var spann=hi-lo;
+  if(spann>=golv)return {lo:lo,hi:hi};
+  return {lo:mitt-golv/2,hi:mitt+golv/2};
+}
 function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice():[];
+  /* Lång period: Insights timvärden + det som lärts in efter dem. Inlärda
+     serier lagras som [t,v]-par. */
+  if(cid&&grafLang(cid)){const l=histV(key,cid,[]);
+    if(l.length){const sist=l[l.length-1].t;pts=l.map(q=>[q.t,q.v]).concat(pts.filter(q=>q[0]>sist));}}
   const now=Date.now();
   /* Har grafen ett eget id får den också helskärm — annars blir bara vissa av
      brickrutorna fullständiga, vilket var precis skillnaden mellan poolgrafen
@@ -14039,7 +14262,9 @@ function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice()
   if(seg.length<2)return '<div class="viz-empty">För få mätvärden i det valda fönstret.</div>';
   const P=PAL[curTheme]||PAL.dark,col=P[accColor(metricIcon(cfg))]||P.blue,W2=300,H2=HIST_H,pad=5;
   const t0=seg[0][0],t1=seg[seg.length-1][0]||now,tr=(t1-t0)||1;
-  const ys=seg.map(p=>p[1]),ylo=Math.min.apply(null,ys),yhi=Math.max.apply(null,ys),yr=(yhi-ylo)||Math.max(1,Math.abs(yhi)||1);
+  const ys=seg.map(p=>p[1]);
+  const _sp=yspann(Math.min.apply(null,ys),Math.max.apply(null,ys));
+  const ylo=_sp.lo,yhi=_sp.hi,yr=(yhi-ylo)||Math.max(1,Math.abs(yhi)||1);
   const X=t=>pad+(t-t0)/tr*(W2-2*pad),Y=v=>H2-pad-(v-ylo)/yr*(H2-2*pad);
   /* Mjuk kurva som i alla andra grafer — brutna linjer här och mjuka där var
      den mest iögonfallande stilskillnaden mellan graferna. */
@@ -14060,7 +14285,7 @@ function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice()
          som säger något. Ett ppm-värde mellan 400 och 1200 behöver den inte. */
       fmt:function(v){return num(v,(yhi-ylo)<20?1:0)+(unit?' '+unit:'');}}]});
   return '<div class="viz">'+svgm
-    +'<div class="viz-cap">senaste ~'+(spanH>=1?spanH+' h':'stunden')+' · '+num(ylo,ylo<10?1:0)+'–'+num(yhi,yhi<10?1:0)+(unit?' '+unit:'')+'</div></div>';}
+    +'<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo,ylo<10?1:0)+'–'+num(yhi,yhi<10?1:0)+(unit?' '+unit:'')+'</div></div>';}
 function metricVizIsBars(cfg){if(!cfg||cfg.type!=='computed')return false;return ['solday','solyear','boughtyear','soldyear','sold','bought'].indexOf(cfg.key)>=0;}
 /* cid: ett stabilt id per mätvärde, så fönstervalet hör ihop med just den
    brickan och inte med någon annan graf. */
@@ -14374,7 +14599,7 @@ function brvPopHTML(){
       acPw=cap(ac,'measure_power'),acKwh=cap(ac,'meter_power'),
       acDag=cap(ac,'meter_power.daily'),acOut=cap(ac,'measure_temperature.outdoor');
   var B=brvState();
-  var h=ptsLineSVG(HIST['t_breveden']||[],'violet','°C','brv-graf',HIST_H,'Breveden');
+  var h=ptsLineSVG(histV('t_breveden','brv-graf'),'violet','°C','brv-graf',HIST_H,'Breveden');
 
   h+='<div class="dsec">Snabbval'
     +infoBlock('brvsnabb','<b>Auto</b> startar enheten i dess eget auto-läge '
@@ -18007,7 +18232,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v667';
+const APP_VERSION='v669';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
