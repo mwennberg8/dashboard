@@ -1968,6 +1968,8 @@ body.mobile{--ds-sun:14px}
 .bil-styr{display:flex;flex-wrap:wrap;margin:2px -4px 4px}
 .bil-styr .brv-q{flex:0 0 calc(50% - 8px);width:calc(50% - 8px);margin:4px;box-sizing:border-box}
 .brv-snabb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+/* Bilknapparna väntar på bekräftelse: guldkant och frågan som text. */
+.brv-q.arm{border-color:var(--gold)!important;color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
 .brv-q{display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:5px;min-height:62px;padding:9px 5px;background:var(--inset);
   border:1px solid var(--line);border-radius:13px;color:var(--ink);
@@ -3861,17 +3863,32 @@ function klimatSatt(pa){
    som en inställning, inte som en knapp man trycker på.
    Etiketten säger LÄGET, inte vad ett tryck gör, precis som ladda max-knappen:
    "Laddar" när den laddar, "Ladda" när den står still. */
-function bilStyrKnapp(lab,ic,pa,fn){
-  return '<button class="brv-q'+(pa?' on':'')+'" onclick="'+fn+'">'
-    +icon(ic)+'<span>'+esc(lab)+'</span></button>';
+/* BEKRÄFTELSE (v682): laddning och klimat kräver två tryck. Första trycket
+   ändrar knappen till frågan ("Starta laddning?") i 4 s, andra trycket gör
+   det. Samma mönster som knapprutans "tryck två gånger". */
+var _bilArm={k:null,t:0};
+function bilStyrKnapp(lab,ic,pa,fn,k,fraga){
+  var arm=(_bilArm.k===k&&Date.now()-_bilArm.t<4000);
+  return '<button class="brv-q'+(pa?' on':'')+(arm?' arm':'')+'" onclick="bilTryck(\''+k+'\')"'
+    +(arm?' aria-label="'+esc(fraga)+' Tryck igen för att bekräfta."':'')+'>'
+    +icon(ic)+'<span>'+esc(arm?fraga:lab)+'</span></button>';
+}
+function bilTryck(k){
+  if(!(_bilArm.k===k&&Date.now()-_bilArm.t<4000)){
+    _bilArm={k:k,t:Date.now()};bilStyrOm();
+    setTimeout(function(){if(_bilArm.k===k&&Date.now()-_bilArm.t>=3990){_bilArm={k:null,t:0};bilStyrOm();}},4000);
+    return;
+  }
+  _bilArm={k:null,t:0};
+  if(k==='ladda')bilLaddToggle();else bilKlimatToggle();
 }
 function bilStyrHTML(){
   var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
   var kl=klimatLas();
   /* Två knappar bredvid varandra, lika breda. */
   return '<div class="bil-styr">'
-    +bilStyrKnapp(laddar?'Laddar':'Ladda','battery-charging',laddar,'bilLaddToggle()')
-    +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()')
+    +bilStyrKnapp(laddar?'Laddar':'Ladda','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Starta laddning?')
+    +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()','klimat',kl?'Stoppa klimat?':'Starta klimat?')
     +'</div>';
 }
 /* Ritar om bilrutan om den står öppen. */
@@ -14822,19 +14839,17 @@ function brvHarLage(id){
      Auto      enhetens eget auto-läge, med den temperatur som redan är inställd.
                Rör därför INTE target_temperature.
      Värm 15   heat 15 — värmer om det behövs, kyler aldrig.
-     Håll 21   auto 21 — håller 21 med både värme och kyla.
-     Kyl 21    cool 21 — kyler om det behövs, värmer aldrig.
+     Stäng av  ström av.
+   v682: Håll 21 och Kyl 21 är borttagna på Markus begäran — tre val på en rad.
 
    Ordningen i sekvensen spelar roll: läget först, sedan temperaturen, och
    strömmen sist — annars hinner enheten gå igång i fel läge. */
 var BRV_SNABB=[
   {k:'auto',lbl:'Auto',    ic:'sparkle',           lage:'auto'},
   {k:'v15', lbl:'Värm 15', ic:'flame',             lage:'heat',temp:15},
-  {k:'h21', lbl:'Håll 21', ic:'thermometer-simple',lage:'auto',temp:21},
-  {k:'k21', lbl:'Kyl 21',  ic:'snowflake',         lage:'cool',temp:21},
   {k:'av',  lbl:'Stäng av',ic:'power',             av:true}
 ];
-/* Auto och Håll 21 delar läge. Utan den här regeln hade båda lyst så fort
+/* (Före v682: Auto och Håll 21 delade läge.) Regeln är kvar för det fall att två val delar läge. Utan den hade båda lyst så fort
    auto-läget var på med 21 inställt, och då säger markeringen ingenting. */
 function brvSnabbPa(q,acOn,acMode,acTgt){
   if(q.av)return acOn===false;
@@ -15019,8 +15034,7 @@ function brvPopHTML(){
     +infoBlock('brvsnabb','<b>Auto</b> startar enheten i dess eget auto-läge '
       +'med den temperatur som redan är inställd.<br>'
       +'<b>Värm 15</b> värmer till 15° och kyler aldrig.<br>'
-      +'<b>Håll 21</b> håller 21° med både värme och kyla.<br>'
-      +'<b>Kyl 21</b> kyler till 21° och värmer aldrig.<br><br>'
+      +'<b>Stäng av</b> stänger av enheten.<br><br>'
       +'Ett handpålagt läge kan skrivas över nästa gång breveden-skriptet kör. '
       +'Skriptet äger automatiken — dashboarden har med flit ingen egen bedömning.')
     +'</div>';
@@ -18683,7 +18697,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v681';
+const APP_VERSION='v682';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
