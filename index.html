@@ -2609,6 +2609,11 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .vdr-arrow{color:var(--blue)}.vdr-arrow .ic,.vdr-arrow path{fill:var(--blue)}
 .seg-row{display:flex;gap:6px}.seg-btn{flex:1 1 0;padding:8px 4px;border-radius:9px;border:1px solid var(--line);background:var(--panel-b);color:var(--dim);font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer}.seg-btn.on{background:var(--blue);color:#fff;border-color:var(--blue)}
 .det-note{margin-top:12px;font-size:11.5px;line-height:1.5;color:var(--dim)}
+/* Laddregeln i batteripopupen */
+.rg-forslag{margin:8px 0 2px;padding:10px 12px;border-radius:12px;background:var(--inset);font-size:13px;line-height:1.45}
+.rg-forslag small{display:block;margin-top:4px;color:var(--dim);font-size:11.5px}
+.rg-btns{display:flex;flex-wrap:wrap;margin:10px 0 2px}
+.rg-btns button{margin:0 8px 6px 0;min-height:40px}
 
 /* AVLÄSNINGEN ÖVER GRAFEN. Talet är stort och färgat efter hur dyrt det är;
    raden under säger vad man tittar på — hur länge timmen har kvar, eller
@@ -11625,6 +11630,116 @@ function byggSeatemp(){
     +histSVG('k:seatemp',{unit:'°C',icon:'waves'},'seatemp')
     +grafTidsval('seatemp');
 }
+/* ===== LADDREGELN I BATTERIPOPUPEN =====
+   Visar vad laddregeln (battnotis) föreslår och vad battboka har bokat, och
+   låter man starta förslaget härifrån om push-notisen missades — samma
+   skrivning som Ja-knappen gör (battsvar): stopp, spara, start i den
+   ordningen. "Normal drift nu" nollar alla tre och startar normal drift.
+
+   Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
+   laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
+   normal drift. */
+var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp'];
+var _regel=null,_regelAt=0,_regelLaddar=false;
+function regelHamta(tvinga){
+  if(_regelLaddar)return;
+  if(!tvinga&&Date.now()-_regelAt<30000)return;
+  _regelLaddar=true;
+  Promise.resolve().then(logicList).then(function(list){
+    var r={};
+    logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
+    var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
+    _regel={forslag:p,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
+      stopp:Number(r.battladd_stopp)||0,lista:list};
+  }).catch(function(){}).then(function(){
+    _regelAt=Date.now();_regelLaddar=false;
+    if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
+  });
+}
+/* Samma regler som battsvar 1.2.0: inget bokas efter fönstret, och är
+   laddfönstret passerat bokas bara sparandet. */
+function regelTider(p,nuMs){
+  if(!p||p.v!==2)return {fel:'inget förslag'};
+  var start=Number(p.startMs)||0,spara=Number(p.sparaMs)||0,stopp=Number(p.stoppMs);
+  if(!start&&!spara)return {fel:'inget förslag'};
+  if(!isFinite(stopp)||stopp<=Math.max(start,spara))return {fel:'ogiltig stopptid'};
+  if(nuMs>=stopp)return {fel:'fönstret har passerat'};
+  if(start&&spara&&nuMs>=spara)start=0;
+  return {start:start,spara:spara,stopp:stopp};
+}
+function regelKl(ms){
+  var d=svDatum(ms),i=svDatum(Date.now());
+  var dag=(d.y===i.y&&d.m===i.m&&d.d===i.d)?'':
+    ((svMidnatt(d.y,d.m,d.d)-svMidnatt(i.y,i.m,i.d)===86400000)?' imorgon':(' '+avlDag(ms)));
+  return avlKl(ms)+dag;
+}
+function regelLage(){
+  var km=cap(BATT_MODBUS,'storagecontrolmode');
+  if(km==null)return {txt:'ingen kontakt med växelriktaren',fjarr:null};
+  if(String(km)!=='4')return {txt:'Normal drift',fjarr:false};
+  var dm=String(cap(BATT_MODBUS,'storagedefaultmode'));
+  if(dm==='3')return {txt:'Laddar från nätet',fjarr:true};
+  if(dm==='1')return {txt:'Sparar – ingen urladdning',fjarr:true};
+  return {txt:'Fjärrstyrd (läge '+esc(dm)+')',fjarr:true};
+}
+function regelHTML(){
+  regelHamta(false);
+  var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
+  h+=dRow('Just nu',esc(L.txt));
+  if(!R)return h+'<div class="det-note">Hämtar laddregelns förslag…</div>';
+  var steg=[];
+  if(R.start>nu)steg.push(['Laddar från',R.start]);
+  if(R.spara>nu)steg.push(['Sparar från',R.spara]);
+  if(R.stopp>nu)steg.push(['Normal drift',R.stopp]);
+  steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
+  var p=R.forslag,knappar='';
+  if(p&&p.v===2&&p.text){
+    var t=regelTider(p,nu),bokat=(R.stopp>nu&&R.stopp===Number(p.stoppMs));
+    h+='<div class="rg-forslag">'+esc(p.text)
+      +'<small>'+(bokat?'Bokat.':(t.fel?('Gäller inte längre: '+esc(t.fel)+'.'):'Inte bokat – svara på notisen eller starta här.'))
+      +(p.satt?' Förslaget från '+regelKl(Number(p.satt))+'.':'')+'</small></div>';
+    if(!bokat&&!t.fel)knappar+='<button class="te-use" onclick="regelStarta()">Starta förslaget</button>';
+  }else if(p&&p.ingen){
+    h+='<div class="rg-forslag">Inget förslag: '+esc(p.skal||'okänt skäl')
+      +(p.satt?'<small>Kontrollerat '+regelKl(Number(p.satt))+'. Laddregeln kör var 30:e minut.</small>':'')+'</div>';
+  }else{
+    h+='<div class="rg-forslag">Laddregeln har inte lämnat något besked än.<small>Den kör var 30:e minut.</small></div>';
+  }
+  if(L.fjarr||steg.length)knappar+='<button class="te-alt" onclick="regelNormal()">Normal drift nu</button>';
+  if(knappar)h+='<div class="rg-btns">'+knappar+'</div>';
+  return h;
+}
+async function regelStarta(){
+  var R=_regel,p=R&&R.forslag,t=regelTider(p,Date.now());
+  if(t.fel){toast('Förslaget gäller inte längre');regelHamta(true);return;}
+  try{
+    var list=await logicList();
+    /* Stoppet först: battboka kör varje minut och ska aldrig se en start
+       utan sitt slut. */
+    await logicWrite(list,'battladd_stopp',t.stopp);
+    await logicWrite(list,'battladd_spara',t.spara);
+    await logicWrite(list,'battladd_start',t.start);
+    _regel.start=t.start;_regel.spara=t.spara;_regel.stopp=t.stopp;
+    try{if(t.start)localStorage.setItem(BATT_START_KEY,String(t.start));else localStorage.removeItem(BATT_START_KEY);}catch(e){}
+    toast('Förslaget bokat');
+  }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));}
+  regelHamta(true);
+  try{if(typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
+}
+async function regelNormal(){
+  try{
+    var list=await logicList();
+    await logicWrite(list,'battladd_start',0);
+    await logicWrite(list,'battladd_spara',0);
+    await logicWrite(list,'battladd_stopp',0);
+    if(_regel){_regel.start=0;_regel.spara=0;_regel.stopp=0;}
+    try{localStorage.removeItem(BATT_START_KEY);}catch(e){}
+  }catch(e){toast('Kunde inte nollställa bokningen: '+((e&&e.message)||'okänt'));return;}
+  try{await homeyTriggerFlow('standard',BATT_FLOW_AV);toast('Normal drift');}
+  catch(e){toast('Normal drift skickat – Homey svarade: '+((e&&e.message)||'okänt'));}
+  setTimeout(function(){try{load();}catch(e){}},1500);
+  regelHamta(true);
+}
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
   return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
@@ -11636,7 +11751,8 @@ function byggBatt(){
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
-    +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh');
+    +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
+    +regelHTML();
 }
 var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
@@ -18263,7 +18379,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v670';
+const APP_VERSION='v671';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20493,6 +20609,11 @@ function rumsZoner(){
 }
 
 /* ---- skrivning ---- */
+/* toast() ANROPADES men fanns inte (bilens laddning, klimatet, Breveden).
+   Efter en lyckad skrivning kastade anropet ReferenceError, catch-grenen
+   anropade toast igen och kastade en gång till — kvittensen syntes aldrig.
+   Samma ruta som rummen använder. */
+function toast(t){rumToast(t);}
 function rumToast(t){
   let e=$('rum-toast');
   if(!e){e=document.createElement('div');e.id='rum-toast';document.body.appendChild(e);}
