@@ -1174,6 +1174,7 @@ body.mobile .en-top .en-nav{display:none!important}
    lite större mål. Klockan och pricken i brickgruppen på samma rad som talet,
    brickorna i plattans storlek (32 px). */
 body:not(.mobile) .flikrad{display:flex;flex:0 0 auto;margin-top:var(--pg-gap,7px);border-radius:20px;
+  position:relative;z-index:6;
   background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);padding:5px 8px}
 body:not(.mobile) .flik{min-height:56px;font-size:12.5px}
 body:not(.mobile) .flik .ic{width:24px;height:24px}
@@ -1182,7 +1183,11 @@ body:not(.mobile) .en-hogra .en-status{width:22px;height:32px}
 body:not(.mobile) .en-hogra .en-status .dot{width:14px;height:14px}
 /* Kiosken: vyerna är flex-kolumner i ramen — Jämför och Insikter skrollar
    inne i sig själva som förut, flikraden ligger kvar under. */
-body.kiosk.cmp-open .flikrad{position:sticky;bottom:0;z-index:5}
+body.kiosk.cmp-open .flikrad{position:sticky;bottom:0;z-index:6}
+/* Plattan i liggande läge (ingen kiosk, sidan skrollar): flikraden fastnar i
+   underkant när man skrollar, i stället för att hamna efter rapporten. */
+body:not(.mobile):not(.kiosk) .flikrad{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:40;
+  box-shadow:0 8px 24px -10px rgba(0,0,0,.35)}
 /* Prickens meny på plattan (hålltryck när husvakten är på). */
 #prick-meny{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(20,24,30,.35)}
 #prick-meny .pm-ruta{background:var(--panel-a);border:1px solid var(--line);border-radius:20px;padding:14px;min-width:240px;
@@ -18678,7 +18683,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v680';
+const APP_VERSION='v681';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19452,7 +19457,14 @@ function fitScreen(){try{
   if(cmpOpen){wr.style.height='auto';if(_kzoom)wr.style.zoom=_kzoom;
     try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}return;}
   const vpH=(window.visualViewport&&window.visualViewport.height)||window.innerHeight||0;
-  const avail=vpH-18,need=wr.scrollHeight||0;
+  /* v681: ÖVERSKOTTET MÄTS I VYN, inte bara i ramen. Sedan flikraden ligger
+     sist i ramen (v680) kan startsidan svämma över in under den utan att
+     ramens scrollHeight växer — upp till flikradens höjd syntes inget, och
+     rapportrutan ritades ovanpå menyn. Behovet = ramens höjd + det vyn inte
+     rymmer. */
+  const vy=document.querySelector('.view:not(.hidden)');
+  const over=vy?Math.max(0,(vy.scrollHeight||0)-(vy.clientHeight||0)):0;
+  const avail=vpH-18,need=Math.max(wr.scrollHeight||0,(wr.clientHeight||0)+over);
   if(avail>100&&need>avail+3){_kzoom=String(Math.max(0.6,Math.floor(avail/need*1000)/1000));wr.style.zoom=_kzoom;}
   else _kzoom='';
 }catch(e){}}
