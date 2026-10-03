@@ -1136,6 +1136,23 @@ body.mobile .flikrad{display:flex;position:fixed;left:0;right:0;bottom:0;z-index
   cursor:pointer;padding:2px 0;-webkit-tap-highlight-color:transparent}
 .flik .ic{width:22px;height:22px;margin-bottom:3px}
 .flik.akt{color:var(--blue)}
+body.mobile .flikrad{transition:transform .22s ease}
+body.mobile .flikrad.dold{transform:translateY(110%)}
+/* Toppraden: bara i historikläget på mobilen. */
+body.mobile.topp-flyttad:not(.histmod) .statusbar{display:none!important}
+/* Spotbandet + klocka och prick i samma rad. */
+.sp-rad{display:flex;align-items:center}
+.sp-rad>#sp-plats{flex:1 1 auto;min-width:0}
+.sp-hoger{display:none}
+body.mobile .sp-hoger{display:flex;align-items:center;flex:0 0 auto;margin-left:10px;padding-top:var(--avd-pad)}
+.sp-hoger .en-notis{margin:0}
+.sp-hoger .en-status{margin-left:8px;flex:0 0 auto;padding:0;border:0;background:none;width:24px;height:34px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sp-hoger .en-status>button,.sp-hoger .en-status>span:not(.dot){display:none!important}
+.sp-hoger .en-status .dot{width:13px;height:13px;border-radius:50%;margin:0;flex:0 0 auto;
+  background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+.sp-hoger .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.sp-hoger .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 body.mobile .en-top .en-nav{display:none!important}
 body.mobile #rum-toast,body.mobile .sync-note{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
@@ -3141,7 +3158,7 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
       <!-- TV-rutan. Ritas bara när en TV är på; renderTV sätter hidden annars. -->
       <section class="panel tvbox" id="tv-sec" data-sec="tv" hidden></section>
       <section class="panel statusbar" data-sec="status">
-        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Startsidan"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><button class="en-cmp en-inst" id="en-inst" onclick="openConfig()" title="Inställningar" aria-label="Inställningar"><span class="en-cmp-ic ic-slot" data-ic="gear"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
+        <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
       </section>
 
       <section class="panel enpanel" data-sec="energy">
@@ -3163,7 +3180,9 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
         <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
              och blir ett kort mindre på startsidan. -->
         <div class="pn-del" id="sp-del"></div>
-        <div id="sp-plats"></div>
+        <!-- Spotbandet och, i mobilläget, notisklockan och liveprickan till
+             höger om det (flyttas hit av mobilTopp). -->
+        <div class="sp-rad"><div id="sp-plats"></div><div class="sp-hoger" id="sp-hoger"></div></div>
       </section>
 
     <section class="panel pband pband-slim clickable" id="pband" data-sec="spot" onclick="pbandTap()">
@@ -12120,7 +12139,33 @@ function flikradBygg(){
     nav.setAttribute('aria-label','Vyer');document.body.appendChild(nav);}
   nav.innerHTML=FLIKAR.map(function(f){return '<button type="button" class="flik" data-flik="'+f[0]+'" onclick="'+f[3]+'">'
     +icon(f[1])+'<span>'+f[2]+'</span></button>';}).join('');
+  hallInne(nav.querySelector('[data-flik="flode"]'),function(){openConfig();});
   flikradAktiv();
+  mobilTopp();
+  flikSkroll();
+}
+/* TOPPRADEN BORT I MOBILLÄGET (v676). Vyerna finns i flikraden; klockan och
+   liveprickan flyttar in till höger om spotpriset i energirutan. Toppraden
+   syns bara i historikläget — där bär den tidstexten. */
+function mobilTopp(){
+  var h=document.getElementById('sp-hoger');if(!h)return;
+  ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
+  document.body.classList.add('topp-flyttad');
+}
+/* FLIKRADEN GÖMS NÄR MAN SKROLLAR NEDÅT och kommer tillbaka uppåt eller nära
+   toppen. Små rörelser (under 8 px) räknas inte, så den inte fladdrar. */
+var _flikY=0;
+function flikSkroll(){
+  if(window._flikSkrollPa)return;window._flikSkrollPa=true;
+  _flikY=window.scrollY||0;
+  window.addEventListener('scroll',function(){
+    var y=window.scrollY||0,nav=document.getElementById('flikrad');if(!nav)return;
+    if(y<40)nav.classList.remove('dold');
+    else if(y>_flikY+8)nav.classList.add('dold');
+    else if(y<_flikY-8)nav.classList.remove('dold');
+    else return;
+    _flikY=y;
+  },{passive:true});
 }
 function flikradAktiv(){
   var nav=document.getElementById('flikrad');if(!nav)return;
@@ -18524,7 +18569,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v675';
+const APP_VERSION='v676';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20393,7 +20438,7 @@ function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;
     /* Livindikatorn har sitt eget halltryck (550 ms) som oppnar vinkallaren.
        Utan undantaget startar aven avsnittets halltryck (600 ms), och nar man
        stanger vinkallaren ligger "Ordna avsnitt" oppen bakom. */
-    if(tgt.closest('[data-slot]')||tgt.closest('.ctl')||tgt.closest('#house-hero')||tgt.closest('#daystrip')||tgt.closest('#en-status')||tgt.closest('[data-wxedit]'))return;
+    if(tgt.closest('[data-slot]')||tgt.closest('.ctl')||tgt.closest('#house-hero')||tgt.closest('#en-notis')||tgt.closest('#daystrip')||tgt.closest('#en-status')||tgt.closest('[data-wxedit]'))return;
     const se=tgt.closest('[data-sec]');if(!se)return;sec=se.getAttribute('data-sec');
     t=setTimeout(()=>{t=null;_suppressClick=true;
       if(typeof setTimeout==='function')setTimeout(()=>{_suppressClick=false;},700);
@@ -20475,9 +20520,29 @@ lpAttach($('weather-flow'));lpAttach($('controls'));
   el.addEventListener('click',function(e){
     if(Date.now()-_extFired<700){e.stopPropagation();e.preventDefault();}},true);
 });})();
-/* v675: HÅLLTRYCKET PÅ HUSET ÄR BORTTAGET. Inställningarna har en egen knapp
-   (kugghjulet uppe till höger, #en-inst). Ett dolt hålltryck gick inte att
-   hitta utan att någon visat det. */
+/* HÅLLTRYCK (v676). Inställningarna: håll inne på huset (plattan) eller på
+   Hem-fliken (mobilen). Husväxlingen: håll inne på liveprickan. Ett hålltryck
+   spärrar klicket som följer (_suppressClick), annars hade Hem-fliken också
+   bytt vy. Rörelse mer än 10 px avbryter — det är ett svep, inte ett tryck. */
+function hallInne(el,fn,villkor){
+  if(!el||!el.addEventListener||el._hallInne)return;el._hallInne=true;
+  var t=null,sx=0,sy=0;
+  var dn=function(e){if(villkor&&!villkor())return;var p=(e.touches&&e.touches[0])||e;sx=p.clientX||0;sy=p.clientY||0;clearTimeout(t);
+    t=setTimeout(function(){t=null;_suppressClick=true;setTimeout(function(){_suppressClick=false;},700);
+      if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}fn();},550);};
+  var mv=function(e){if(!t)return;var p=(e.touches&&e.touches[0])||e;
+    if(Math.abs((p.clientX||0)-sx)>10||Math.abs((p.clientY||0)-sy)>10){clearTimeout(t);t=null;}};
+  var up=function(){if(t){clearTimeout(t);t=null;}};
+  el.addEventListener('pointerdown',dn);el.addEventListener('pointermove',mv);
+  el.addEventListener('pointerup',up);el.addEventListener('pointerleave',up);el.addEventListener('pointercancel',up);
+  /* Klicket efter ett hålltryck ska inte göra något. */
+  el.addEventListener('click',function(e){if(_suppressClick){e.stopImmediatePropagation();e.preventDefault();_suppressClick=false;}},true);
+}
+function husVaxla(){try{if(window.HUSVAKT&&typeof HUSVAKT.vaxla==='function')HUSVAKT.vaxla();}catch(e){}}
+try{hallInne($('house-hero'),function(){openConfig();});}catch(e){}
+/* Bara i mobilläget, där toppraden med växlingsknappen är dold. På plattan
+   öppnar samma hålltryck vinkällaren, och växlingsknappen finns kvar. */
+try{hallInne($('en-status'),husVaxla,function(){return document.body.classList.contains('mobile');});}catch(e){}
 try{if(localStorage.getItem('yearhist_v1')==null){yearHistSave(SEED_YEARS.map(function(x){return Object.assign({},x);}));}}catch(e){}
 /* Cachen ritas FÖRE load(), annars hinner nätet ändå bestämma hur länge
    skärmen står tom. */
@@ -21790,6 +21855,8 @@ function renderTV(){
     else if(hem==='diag'){diag();return;}
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
     if(!pa())return;
+    /* Knappen skapas fortfarande: plattan har kvar toppraden. I mobilläget är
+       toppraden dold och växlingen sker med hålltryck på liveprickan. */
     knapp();
     /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler.
        Låset gäller 45 minuter och bara för huset du valde. */
