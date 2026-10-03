@@ -1140,19 +1140,25 @@ body.mobile .flikrad{transition:transform .22s ease}
 body.mobile .flikrad.dold{transform:translateY(110%)}
 /* Toppraden: bara i historikläget på mobilen. */
 body.mobile.topp-flyttad:not(.histmod) .statusbar{display:none!important}
-/* Spotbandet + klocka och prick i samma rad. */
-.sp-rad{display:flex;align-items:center}
-.sp-rad>#sp-plats{flex:1 1 auto;min-width:0}
-.sp-hoger{display:none}
-body.mobile .sp-hoger{display:flex;align-items:center;flex:0 0 auto;margin-left:10px;padding-top:var(--avd-pad)}
-.sp-hoger .en-notis{margin:0}
-.sp-hoger .en-status{margin-left:8px;flex:0 0 auto;padding:0;border:0;background:none;width:24px;height:34px;
+/* Brickgruppen uppe till höger i energirutan: Självförsörjt, Elpris och — i
+   mobilläget — notisklockan och liveprickan. En grupp, så de bryts aldrig isär. */
+.en-hoger{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0}
+.en-hoger>.en-spot{margin-left:0}
+.en-hogra{display:none}
+body.mobile .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+/* KLOCKAN I SAMMA STIL SOM BRICKORNA: samma höjd, rundning, kantlinje och
+   textstorlek som .en-self och .verdict i mobilläget. Färgen är klockans egen
+   (blå, guld med olästa, blå fylld i historikläget). */
+body.mobile .en-hogra .en-notis{height:30px;box-sizing:border-box;padding:6px 10px;border-radius:999px;
+  font-size:11.5px;line-height:1;gap:5px;margin:0;flex:0 0 auto;min-width:0}
+body.mobile .en-hogra .en-notis .en-cmp-ic{width:14px;height:14px}
+.en-hogra .en-status{flex:0 0 auto;padding:0;border:0;background:none;width:18px;height:30px;margin:0;
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.sp-hoger .en-status>button,.sp-hoger .en-status>span:not(.dot){display:none!important}
-.sp-hoger .en-status .dot{width:13px;height:13px;border-radius:50%;margin:0;flex:0 0 auto;
+.en-hogra .en-status>button,.en-hogra .en-status>span:not(.dot){display:none!important}
+.en-hogra .en-status .dot{width:12px;height:12px;border-radius:50%;margin:0;flex:0 0 auto;
   background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
-.sp-hoger .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
-.sp-hoger .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
+.en-hogra .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.en-hogra .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 body.mobile .en-top .en-nav{display:none!important}
 body.mobile #rum-toast,body.mobile .sync-note{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
@@ -3165,7 +3171,10 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
         <div class="en-body">
           <div class="en-hero">
             <div class="en-hero-main" data-wxedit="energy" onclick="openDetail('energyfull')"><div class="en-kw" id="en-house">–</div><div class="en-sub">förbrukning nu</div></div>
-            <div class="en-spot clickable" onclick="pbandTap()"><div class="en-self" id="en-self-badge">–</div><span class="verdict v-mid" id="verdict"><span class="ic-slot" id="verdict-ic"></span><span id="verdict-text">–</span></span></div>
+            <!-- Brickorna och, i mobilläget, notisklockan och liveprickan till
+                 höger om dem (flyttas hit av mobilTopp). Klockan ligger UTANFÖR
+                 .en-spot — den öppnar elpriset vid tryck. -->
+            <div class="en-hoger"><div class="en-spot clickable" onclick="pbandTap()"><div class="en-self" id="en-self-badge">–</div><span class="verdict v-mid" id="verdict"><span class="ic-slot" id="verdict-ic"></span><span id="verdict-text">–</span></span></div><div class="en-hogra" id="en-hogra"></div></div>
           </div>
           <div class="en-mix" data-wxedit="energy" onclick="openDetail('energyfull')">
             <div class="en-mixbar"><span class="seg sol" id="mix-sol"></span><span class="seg batt" id="mix-batt"></span><span class="seg grid" id="mix-grid"></span></div>
@@ -3180,9 +3189,7 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
         <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
              och blir ett kort mindre på startsidan. -->
         <div class="pn-del" id="sp-del"></div>
-        <!-- Spotbandet och, i mobilläget, notisklockan och liveprickan till
-             höger om det (flyttas hit av mobilTopp). -->
-        <div class="sp-rad"><div id="sp-plats"></div><div class="sp-hoger" id="sp-hoger"></div></div>
+        <div id="sp-plats"></div>
       </section>
 
     <section class="panel pband pband-slim clickable" id="pband" data-sec="spot" onclick="pbandTap()">
@@ -12145,10 +12152,11 @@ function flikradBygg(){
   flikSkroll();
 }
 /* TOPPRADEN BORT I MOBILLÄGET (v676). Vyerna finns i flikraden; klockan och
-   liveprickan flyttar in till höger om spotpriset i energirutan. Toppraden
+   liveprickan flyttar in i energirutan, till höger om brickorna Självförsörjt
+   och Elpris uppe till höger (v677). Toppraden
    syns bara i historikläget — där bär den tidstexten. */
 function mobilTopp(){
-  var h=document.getElementById('sp-hoger');if(!h)return;
+  var h=document.getElementById('en-hogra');if(!h)return;
   ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
   document.body.classList.add('topp-flyttad');
 }
@@ -18569,7 +18577,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v676';
+const APP_VERSION='v677';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
