@@ -11778,6 +11778,8 @@ function regelHamta(tvinga){
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
+    /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
+    else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
   });
 }
 /* Samma regler som battsvar 1.2.0: inget bokas efter fönstret, och är
@@ -13896,21 +13898,11 @@ function battKurva(offset){
   /* Ankare vid nu: enhetens nuvarande nivå, så prognosen börjar där bilden slutar. */
   var nuPct=(pct!=null&&isFinite(pct))?Math.max(0,Math.min(100,pct)):(fakt.length?fakt[fakt.length-1].v:null);
   if(nuPct!=null)fakt.push({h:nuH,v:nuPct});
-  var prog=[];
-  if(nuPct!=null&&pw!=null&&isFinite(pw)&&Math.abs(pw)>=60&&(bs==='charging'||bs==='discharging')){
-    var kWperH=Math.abs(pw)/1000, pctPerH=(kWperH/kwh)*100;
-    var rikt=(bs==='charging')?1:-1;
-    var slutPct=(rikt>0)?100:0;
-    var tim=Math.abs(slutPct-nuPct)/pctPerH;
-    /* Tak vid 48 h: längre fram än så säger den här enkla modellen ingenting,
-       och två dygn är allt grafen visar. */
-    var slutH=Math.min(48,nuH+tim);
-    var slutV=nuPct+rikt*pctPerH*(slutH-nuH);
-    /* Avrunda: 70 − 8,4·8,333 ger 2,8e-14, inte 0. Gränsen ska vara en ren 0
-       eller 100 när den nås. */
-    slutV=Math.round(slutV*1000)/1000;
-    prog=[{h:nuH,v:nuPct},{h:slutH,v:Math.max(0,Math.min(100,slutV))}];
-  }
+  /* PROGNOSEN (v679) simuleras timme för timme i stället för att dra en rak
+     linje från nuvarande effekt. Den raka linjen antog att 1,5 kW laddning
+     höll i sig tills batteriet var fullt — mitt i kvällens dyra period, när
+     batteriet i själva verket laddar ur. Se battSimulera. */
+  var prog=(nuPct!=null)?battSimulera(nuPct,nuH,kwh):[];
   /* Klipp mot det dygn som ritas och räkna om till 0–24 i den grafen. */
   var off=offset||0, a=off*24, b=a+24;
   var kl=function(pts){
@@ -13931,8 +13923,63 @@ function battKurva(offset){
   return {fakt:(off===0?fakt:[]),prog:kl(prog),
           nuH:(off===0?nuH:null),nuPct:(off===0?nuPct:null)};
 }
+/* ===== BATTERIPROGNOSEN (v679) =====
+   Samma sätt att räkna som laddregeln (battnotis): kvart för kvart med
+     sol      — solprognosen per timme (progDagE, Wh → kW)
+     last     — husets förbrukning: uppmätt just nu fram till nästa hel timme,
+                därefter laddregelns timprofil (median ur sju dygn Insights)
+     läge     — växelriktarens läge nu och de bokade tiderna (battladd_*):
+                normal: överskott laddar, underskott laddar ur
+                spara:  överskott laddar, ingen urladdning
+                ladda:  5 kW in, oavsett sol
+   Runtur 79 %, fördelad lika in och ut, max 5 kW åt vardera hållet.
+   GOLV 2 %: den lägsta nivå batteriet faktiskt nått (3/10 kl 09). SolarEdges
+   egen gräns är inte uppmätt. Prognosen är en uppskattning: solprognosen kan
+   slå fel och profilen vet inget om bilen. */
+var BATT_SIM={eta:0.79,ladd:5,ur:5,golv:2,steg:0.25,timmar:24};
+var BATT_LAST_H=[1.5,1.5,1.6,1.5,1.5,1.7,1.7,2.1,2.8,3.1,3.6,4.6,5.3,5.3,4.7,4.4,3.9,2.9,2.4,2.4,2.3,1.9,1.7,1.5];
+/* Läget vid en tidpunkt (absoluta timmar från dagens midnatt) ur nuvarande
+   läge och de bokade tiderna. */
+function battLageVid(hAbs,nuH,lageNu,bok){
+  var lage=lageNu, t=nuH;
+  /* Händelser i tidsordning efter nu: start → ladda, spara → spara, stopp → normal. */
+  for(var i=0;i<bok.length;i++){var b=bok[i];if(b.h>t&&b.h<=hAbs){lage=b.lage;}}
+  return lage;
+}
+function battSimulera(nuPct,nuH,kwh){
+  if(!(kwh>0)||nuPct==null||!isFinite(nuPct))return [];
+  var d0=dayStart(),e0=(typeof progDagE==='function')?progDagE(0):null,e1=(typeof progDagE==='function')?progDagE(1):null;
+  var solKW=function(h){var dag=(h<24)?e0:e1,i=Math.floor(h%24),v=dag&&dag.timmar?dag.timmar[i]:null;
+    return (v!=null&&isFinite(v))?Math.max(0,v)/1000:0;};
+  var husNu=houseNowW(),nastaHel=Math.floor(nuH)+1;
+  var lastKW=function(h){return (h<nastaHel&&husNu!=null&&isFinite(husNu))?Math.max(0,husNu)/1000:BATT_LAST_H[Math.floor(h)%24];};
+  /* Läget nu ur växelriktaren, bokningarna ur laddregelns variabler. */
+  var L=(typeof regelLage==='function')?regelLage():{fjarr:false};
+  var lageNu=!L.fjarr?'normal':(/Laddar/.test(L.txt)?'ladda':(/Sparar/.test(L.txt)?'spara':'normal'));
+  try{if(typeof regelHamta==='function')regelHamta(false);}catch(e){}
+  var R=(typeof _regel!=='undefined')?_regel:null,bok=[],nuMs=Date.now();
+  if(R){[['start','ladda'],['spara','spara'],['stopp','normal']].forEach(function(x){var ms=R[x[0]];
+    if(ms>nuMs)bok.push({h:(ms-d0)/3600000,lage:x[1]});});
+    bok.sort(function(a,b){return a.h-b.h;});}
+  var etaIn=Math.sqrt(BATT_SIM.eta),etaUt=Math.sqrt(BATT_SIM.eta),golv=kwh*BATT_SIM.golv/100;
+  var e=kwh*nuPct/100,ut=[{h:nuH,v:nuPct}],st=BATT_SIM.steg,slut=nuH+BATT_SIM.timmar;
+  /* Stegen följer kvartsrutnätet (14:36 → 14:45 → 15:00 …), så en bokning på
+     en hel timme slår om läget exakt där och inte mitt i ett steg. */
+  for(var h=nuH;h<slut-1e-9;){
+    var nasta=Math.min(slut,(Math.floor(h/st+1e-9)+1)*st),dt=nasta-h,mid=h+dt/2,lage=battLageVid(mid,nuH,lageNu,bok);
+    var over=solKW(mid)-lastKW(mid),p=0;     /* p: kW in (+) eller ut (−) ur batteriet, AC-sidan */
+    if(lage==='ladda')p=BATT_SIM.ladd;
+    else if(over>0)p=Math.min(over,BATT_SIM.ladd);
+    else if(lage==='normal')p=-Math.min(-over,BATT_SIM.ur);
+    if(p>0)e=Math.min(kwh,e+p*etaIn*dt);
+    else if(p<0)e=Math.max(golv,e+p/etaUt*dt);
+    ut.push({h:nasta,v:Math.round(e/kwh*1000)/10});
+    h=nasta;
+  }
+  return ut;
+}
 /* Laddnivå vid en timme: faktiskt bakåt (närmaste punkt), prognos framåt
-   (linjärt), null utanför bådadera. */
+   (interpolerad mellan simuleringens kvartar), null utanför bådadera. */
 /* ===== SOLPRODUKTION I SPOTPRISGRAFEN =====
    Faktiskt (uppmätt effekt, W) och prognos (timvärden ur appen, Wh) på en
    gemensam W-skala — en timmes Wh är samma tal som medeleffekten i W, så de
@@ -13977,10 +14024,12 @@ function solWVid(sk,h){
 }
 function battPctVid(bk,h){
   if(!bk)return null;
-  if(bk.prog.length===2&&h>=bk.prog[0].h){
-    if(h>bk.prog[1].h)return null;
-    var a=bk.prog[0],b=bk.prog[1],f=(b.h===a.h)?0:(h-a.h)/(b.h-a.h);
-    return a.v+(b.v-a.v)*f;
+  var P=bk.prog;
+  if(P.length>=2&&h>=P[0].h){
+    if(h>P[P.length-1].h)return null;
+    for(var k=1;k<P.length;k++){if(h<=P[k].h){var a=P[k-1],b=P[k],f=(b.h===a.h)?0:(h-a.h)/(b.h-a.h);
+      return a.v+(b.v-a.v)*f;}}
+    return P[P.length-1].v;
   }
   var bast=null,bd=Infinity;
   for(var i=0;i<bk.fakt.length;i++){var d=Math.abs(bk.fakt[i].h-h);if(d<bd){bd=d;bast=bk.fakt[i];}}
@@ -13990,7 +14039,7 @@ function pgBattText(){
   var bk=_pgGeo&&_pgGeo.batt;if(!bk)return '';
   var v=battPctVid(bk,_pgVald);
   if(v==null)return '';
-  var prognos=(bk.prog.length===2&&_pgVald>bk.prog[0].h+0.02);
+  var prognos=(bk.prog.length>=2&&_pgVald>bk.prog[0].h+0.02);
   return 'batteri '+Math.round(v)+' %'+(prognos?' (prognos)':'');
 }
 function pgSolText(){
@@ -14170,8 +14219,8 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     var bd='';bk.fakt.forEach(function(q,i){bd+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1)+' ';});
     s+='<path d="'+bd+'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
   }
-  if(bk&&bk.prog.length===2){
-    s+='<path d="M'+X(bk.prog[0].h).toFixed(1)+' '+YP(bk.prog[0].v).toFixed(1)+' L'+X(bk.prog[1].h).toFixed(1)+' '+YP(bk.prog[1].v).toFixed(1)
+  if(bk&&bk.prog.length>=2){
+    s+='<path d="'+bk.prog.map(function(q,i){return (i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1);}).join(' ')
       +'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".75"/>';
   }
   _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk,sol:sk};
@@ -18596,7 +18645,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v678';
+const APP_VERSION='v679';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
