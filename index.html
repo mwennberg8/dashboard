@@ -1147,12 +1147,16 @@ body.topp-flyttad:not(.histmod) .statusbar{display:none!important}
 .en-hogra{display:none}
 body.topp-flyttad .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* Alternativ A: rad 1 talet + klocka/prick, rad 2 de två brickorna lika breda. */
-.en-hero-a{flex-wrap:wrap;align-items:center}
-.en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
-.en-hero-a>.en-spot{flex:1 0 100%;margin-left:0;display:flex;gap:0;min-width:0}
-.en-hero-a>.en-spot>.verdict{margin-left:8px}
-.en-hero-a>.en-spot>.en-self,
-.en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:center;text-align:center;
+/* v684: väljarna har body.mobile/body.kiosk framför sig igen. I v683 tog jag
+   bort body.mobile för att reglerna skulle gälla på väggplattan också — då
+   vann mobilens äldre bricksregler (body:not(.kiosk) .en-self m.fl.) och
+   brickorna blev smala och högerställda med text utanför kanten. */
+body.mobile .en-hero-a,body.kiosk .en-hero-a{flex-wrap:wrap;align-items:center}
+body.mobile .en-hero-a>.en-hogra,body.kiosk .en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
+body.mobile .en-hero-a>.en-spot,body.kiosk .en-hero-a>.en-spot{flex:1 0 100%;margin-left:0;display:flex;gap:0;min-width:0}
+body.mobile .en-hero-a>.en-spot>.verdict,body.kiosk .en-hero-a>.en-spot>.verdict{margin-left:8px}
+body.mobile .en-hero-a>.en-spot>.en-self,body.mobile .en-hero-a>.en-spot>.verdict,
+body.kiosk .en-hero-a>.en-spot>.en-self,body.kiosk .en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:center;text-align:center;
   height:32px;box-sizing:border-box;padding:0 10px;font-size:12px;overflow:hidden;white-space:nowrap}
 /* KLOCKAN I SAMMA STIL SOM BRICKORNA: samma höjd, rundning, kantlinje och
    textstorlek som .en-self och .verdict i mobilläget. Färgen är klockans egen
@@ -18719,7 +18723,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v683';
+const APP_VERSION='v684';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
