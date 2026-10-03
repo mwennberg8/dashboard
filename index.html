@@ -1146,6 +1146,14 @@ body.mobile.topp-flyttad:not(.histmod) .statusbar{display:none!important}
 .en-hoger>.en-spot{margin-left:0}
 .en-hogra{display:none}
 body.mobile .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+/* Alternativ A: rad 1 talet + klocka/prick, rad 2 de två brickorna lika breda. */
+body.mobile .en-hero-a{flex-wrap:wrap;align-items:center}
+body.mobile .en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
+body.mobile .en-hero-a>.en-spot{flex:1 0 100%;margin-left:0;display:flex;gap:0;min-width:0}
+body.mobile .en-hero-a>.en-spot>.verdict{margin-left:8px}
+body.mobile .en-hero-a>.en-spot>.en-self,
+body.mobile .en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:center;text-align:center;
+  height:32px;box-sizing:border-box;padding:0 10px;font-size:12px;overflow:hidden;white-space:nowrap}
 /* KLOCKAN I SAMMA STIL SOM BRICKORNA: samma höjd, rundning, kantlinje och
    textstorlek som .en-self och .verdict i mobilläget. Färgen är klockans egen
    (blå, guld med olästa, blå fylld i historikläget). */
@@ -12158,6 +12166,17 @@ function flikradBygg(){
 function mobilTopp(){
   var h=document.getElementById('en-hogra');if(!h)return;
   ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
+  /* ALTERNATIV A (v678): två fasta rader. Rad 1 = förbrukningen och, till
+     höger, klockan och pricken. Rad 2 = Självförsörjt och elpriset, lika
+     breda kant i kant. Ordningen läggs om i DOM:en i stället för med
+     display:contents, så layouten går att mäta i wkhtmltoimage. */
+  var hero=h.closest('.en-hero'),main=hero&&hero.querySelector('.en-hero-main'),spot=hero&&hero.querySelector('.en-spot');
+  if(hero&&main&&spot){
+    if(main.nextElementSibling!==h)hero.insertBefore(h,main.nextSibling);
+    if(hero.lastElementChild!==spot)hero.appendChild(spot);
+    var tom=hero.querySelector('.en-hoger');if(tom&&!tom.children.length)tom.style.display='none';
+    hero.classList.add('en-hero-a');
+  }
   document.body.classList.add('topp-flyttad');
 }
 /* FLIKRADEN GÖMS NÄR MAN SKROLLAR NEDÅT och kommer tillbaka uppåt eller nära
@@ -18577,7 +18596,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v677';
+const APP_VERSION='v678';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
