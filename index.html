@@ -1139,13 +1139,13 @@ body.mobile .flikrad{display:flex;position:fixed;left:0;right:0;bottom:0;z-index
 body.mobile .flikrad{transition:transform .22s ease}
 body.mobile .flikrad.dold{transform:translateY(110%)}
 /* Toppraden: bara i historikläget på mobilen. */
-body.mobile.topp-flyttad:not(.histmod) .statusbar{display:none!important}
+body.topp-flyttad:not(.histmod) .statusbar{display:none!important}
 /* Brickgruppen uppe till höger i energirutan: Självförsörjt, Elpris och — i
    mobilläget — notisklockan och liveprickan. En grupp, så de bryts aldrig isär. */
 .en-hoger{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 1 auto;min-width:0}
 .en-hoger>.en-spot{margin-left:0}
 .en-hogra{display:none}
-body.mobile .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+body.topp-flyttad .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* Alternativ A: rad 1 talet + klocka/prick, rad 2 de två brickorna lika breda. */
 body.mobile .en-hero-a{flex-wrap:wrap;align-items:center}
 body.mobile .en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
@@ -1157,9 +1157,9 @@ body.mobile .en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:
 /* KLOCKAN I SAMMA STIL SOM BRICKORNA: samma höjd, rundning, kantlinje och
    textstorlek som .en-self och .verdict i mobilläget. Färgen är klockans egen
    (blå, guld med olästa, blå fylld i historikläget). */
-body.mobile .en-hogra .en-notis{height:30px;box-sizing:border-box;padding:6px 10px;border-radius:999px;
+body.topp-flyttad .en-hogra .en-notis{height:30px;box-sizing:border-box;padding:6px 10px;border-radius:999px;
   font-size:11.5px;line-height:1;gap:5px;margin:0;flex:0 0 auto;min-width:0}
-body.mobile .en-hogra .en-notis .en-cmp-ic{width:14px;height:14px}
+body.topp-flyttad .en-hogra .en-notis .en-cmp-ic{width:14px;height:14px}
 .en-hogra .en-status{flex:0 0 auto;padding:0;border:0;background:none;width:18px;height:30px;margin:0;
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .en-hogra .en-status>button,.en-hogra .en-status>span:not(.dot){display:none!important}
@@ -1169,6 +1169,27 @@ body.mobile .en-hogra .en-notis .en-cmp-ic{width:14px;height:14px}
 .en-hogra .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 body.mobile .en-top .en-nav{display:none!important}
+/* ===== PLATTAN (v680): samma startsida som mobilen, anpassad för den större
+   skärmen. Flikraden ligger sist i den låsta ramen (inte fast över innehållet),
+   lite större mål. Klockan och pricken i brickgruppen på samma rad som talet,
+   brickorna i plattans storlek (32 px). */
+body:not(.mobile) .flikrad{display:flex;flex:0 0 auto;margin-top:var(--pg-gap,7px);border-radius:20px;
+  background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);padding:5px 8px}
+body:not(.mobile) .flik{min-height:56px;font-size:12.5px}
+body:not(.mobile) .flik .ic{width:24px;height:24px}
+body:not(.mobile).topp-flyttad .en-hogra .en-notis{height:32px;padding:6px 12px;font-size:12.5px}
+body:not(.mobile) .en-hogra .en-status{width:22px;height:32px}
+body:not(.mobile) .en-hogra .en-status .dot{width:14px;height:14px}
+/* Kiosken: vyerna är flex-kolumner i ramen — Jämför och Insikter skrollar
+   inne i sig själva som förut, flikraden ligger kvar under. */
+body.kiosk.cmp-open .flikrad{position:sticky;bottom:0;z-index:5}
+/* Prickens meny på plattan (hålltryck när husvakten är på). */
+#prick-meny{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:rgba(20,24,30,.35)}
+#prick-meny .pm-ruta{background:var(--panel-a);border:1px solid var(--line);border-radius:20px;padding:14px;min-width:240px;
+  box-shadow:0 12px 40px rgba(0,0,0,.3)}
+#prick-meny .pm-ruta button{display:block;width:100%;min-height:52px;margin:0 0 8px;border-radius:14px;border:1px solid var(--line);
+  background:var(--inset);color:var(--ink);font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+#prick-meny .pm-ruta button:last-child{margin-bottom:0}
 body.mobile #rum-toast,body.mobile .sync-note{bottom:calc(78px + env(safe-area-inset-bottom,0px))}
 .dlg-back{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .dlg-back.open{display:flex}
@@ -4938,6 +4959,8 @@ function applyKiosk(){
   }catch(e){}
   document.body.classList.toggle('tabprev',tabprev);
   try{const r=document.documentElement;if(r&&r.style)r.style.overflow=on?'hidden':'';}catch(e){}
+  /* v680: samma startsida som mobilen — flikrad i stället för toppraden. */
+  try{flikradBygg();}catch(e){}
   if(typeof setTimeout==='function')setTimeout(fitScreen,40);
 }
 
@@ -12146,33 +12169,43 @@ function showView(tab){if(!tab)return;
 var FLIKAR=[['flode','house','Hem','goHome()'],['insikter','sparkle','Insikter','openInsikter()'],
   ['jamfor','chart-line','Jämför','openCompare()'],['vader','cloud-sun','Väder','openVader()']];
 function flikradBygg(){
-  if(!document.body||!document.body.classList.contains('mobile'))return;
+  if(!document.body)return;
+  var mob=document.body.classList.contains('mobile');
   /* Toppradens vyknappar märks så CSS kan gömma dem i mobilläget. */
   document.querySelectorAll('.en-top button').forEach(function(b){
     var oc=b.getAttribute('onclick')||'';
     if(b.classList.contains('en-hem')||/openInsikter|openCompare|openVader/.test(oc))b.classList.add('en-nav');});
   var nav=document.getElementById('flikrad');
   if(!nav){nav=document.createElement('nav');nav.id='flikrad';nav.className='flikrad';
-    nav.setAttribute('aria-label','Vyer');document.body.appendChild(nav);}
+    nav.setAttribute('aria-label','Vyer');}
+  /* Mobilen: fast längst ned på skärmen (body). Plattan: sist i .wrap, som en
+     del av den låsta ramen — då räknar fitScreen in den och ingenting hamnar
+     bakom den. */
+  var hem=mob?document.body:(document.querySelector('.wrap')||document.body);
+  if(nav.parentElement!==hem)hem.appendChild(nav);
   nav.innerHTML=FLIKAR.map(function(f){return '<button type="button" class="flik" data-flik="'+f[0]+'" onclick="'+f[3]+'">'
     +icon(f[1])+'<span>'+f[2]+'</span></button>';}).join('');
   hallInne(nav.querySelector('[data-flik="flode"]'),function(){openConfig();});
   flikradAktiv();
-  mobilTopp();
-  flikSkroll();
+  mobilTopp(mob);
+  if(mob)flikSkroll();
 }
 /* TOPPRADEN BORT I MOBILLÄGET (v676). Vyerna finns i flikraden; klockan och
    liveprickan flyttar in i energirutan, till höger om brickorna Självförsörjt
    och Elpris uppe till höger (v677). Toppraden
    syns bara i historikläget — där bär den tidstexten. */
-function mobilTopp(){
+function mobilTopp(mob){
   var h=document.getElementById('en-hogra');if(!h)return;
   ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
   /* ALTERNATIV A (v678): två fasta rader. Rad 1 = förbrukningen och, till
      höger, klockan och pricken. Rad 2 = Självförsörjt och elpriset, lika
      breda kant i kant. Ordningen läggs om i DOM:en i stället för med
      display:contents, så layouten går att mäta i wkhtmltoimage. */
+  /* På plattan ryms allt på en rad: talet till vänster, brickorna, klockan och
+     pricken till höger (klockan och pricken ligger kvar i brickgruppen). Två
+     rader (alternativ A) bara på mobilen. */
   var hero=h.closest('.en-hero'),main=hero&&hero.querySelector('.en-hero-main'),spot=hero&&hero.querySelector('.en-spot');
+  if(mob===false){document.body.classList.add('topp-flyttad');return;}
   if(hero&&main&&spot){
     if(main.nextElementSibling!==h)hero.insertBefore(h,main.nextSibling);
     if(hero.lastElementChild!==spot)hero.appendChild(spot);
@@ -18645,7 +18678,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v679';
+const APP_VERSION='v680';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19952,6 +19985,25 @@ function extTitel(){
   return EXT_NAMN[k]||(f.charAt(0).toUpperCase()+f.slice(1));}
 function extOppen(){var o=document.getElementById('extfr');
   return !!(o&&o.classList&&o.classList.contains('open'));}
+/* HÅLLTRYCK PÅ PRICKEN, PLATTAN (v680). Toppraden med växlingsknappen är
+   borta. Är husvakten på (två hus) får man välja: vinkällaren eller byt hus.
+   Annars öppnas vinkällaren direkt, som förut. */
+function prickHall(){
+  var hv=(typeof window!=='undefined')?window.HUSVAKT:null,tva=false;
+  try{tva=!!(hv&&typeof hv.pa==='function'&&hv.pa());}catch(e){}
+  if(!tva){extOpen();return;}
+  var m=document.getElementById('prick-meny');if(m)m.remove();
+  m=document.createElement('div');m.id='prick-meny';
+  m.innerHTML='<div class="pm-ruta" role="dialog" aria-label="Välj"><button type="button" data-pm="vin">'
+    +esc(EXT_URL_DEF.split('/').pop().replace(/\.html?$/i,'').replace(/^./,function(c){return c.toUpperCase();}))
+    +'</button><button type="button" data-pm="hus">Byt hus</button></div>';
+  var stang=function(){clearTimeout(m._t);if(m.parentElement)m.remove();};
+  m.addEventListener('click',function(e){var b=e.target.closest('[data-pm]');
+    if(b){stang();if(b.getAttribute('data-pm')==='vin')extOpen();else husVaxla();return;}
+    if(e.target===m)stang();});
+  m._t=setTimeout(stang,30000);
+  document.body.appendChild(m);
+}
 function extOpen(){
   var o=document.getElementById('extfr');
   if(!o){
@@ -20587,7 +20639,7 @@ lpAttach($('weather-flow'));lpAttach($('controls'));
     t=setTimeout(function(){t=null;_extFired=Date.now();
       _suppressClick=true;setTimeout(function(){_suppressClick=false;},700);
       if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
-      extOpen();},550);};
+      prickHall();},550);};
   var mv=function(e){if(t&&(Math.abs((e.clientX||0)-sx)>10||Math.abs((e.clientY||0)-sy)>10)){clearTimeout(t);t=null;}};
   var up=function(){if(t){clearTimeout(t);t=null;}};
   el.addEventListener('pointerdown',dn);el.addEventListener('pointermove',mv);
