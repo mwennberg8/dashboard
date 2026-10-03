@@ -1147,12 +1147,12 @@ body.topp-flyttad:not(.histmod) .statusbar{display:none!important}
 .en-hogra{display:none}
 body.topp-flyttad .en-hogra{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 /* Alternativ A: rad 1 talet + klocka/prick, rad 2 de två brickorna lika breda. */
-body.mobile .en-hero-a{flex-wrap:wrap;align-items:center}
-body.mobile .en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
-body.mobile .en-hero-a>.en-spot{flex:1 0 100%;margin-left:0;display:flex;gap:0;min-width:0}
-body.mobile .en-hero-a>.en-spot>.verdict{margin-left:8px}
-body.mobile .en-hero-a>.en-spot>.en-self,
-body.mobile .en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:center;text-align:center;
+.en-hero-a{flex-wrap:wrap;align-items:center}
+.en-hero-a>.en-hogra{margin-left:auto;align-self:flex-start}
+.en-hero-a>.en-spot{flex:1 0 100%;margin-left:0;display:flex;gap:0;min-width:0}
+.en-hero-a>.en-spot>.verdict{margin-left:8px}
+.en-hero-a>.en-spot>.en-self,
+.en-hero-a>.en-spot>.verdict{flex:1 1 0;min-width:0;justify-content:center;text-align:center;
   height:32px;box-sizing:border-box;padding:0 10px;font-size:12px;overflow:hidden;white-space:nowrap}
 /* KLOCKAN I SAMMA STIL SOM BRICKORNA: samma höjd, rundning, kantlinje och
    textstorlek som .en-self och .verdict i mobilläget. Färgen är klockans egen
@@ -2230,7 +2230,21 @@ body.tabprev{padding:0;overflow:hidden}
    tas upp av något, annars blir det en lucka mot skärmens underkant. Rapporten
    ligger sist och är den enda ruta som tål att bli högre utan att se konstig ut.
    --repgrow låter en styra det: 0 = som förr, ligger kvar i sin storlek. */
-.kiosk .warnwrap{flex:var(--repgrow,1) 0 auto;min-height:0;display:flex;margin:0}
+.kiosk .warnwrap{flex:0 0 auto;min-height:0;display:flex;margin:0}
+/* v683: RAPPORTEN HAR FAST HÖJD för en textrad (växer inte längre — det gör
+   knapparna i stället). Inställningen "rapporten växer" (--repgrow) gäller
+   därför inte på väggplattan. */
+.kiosk .warns.tick .wt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* KNAPPRADEN FYLLER DET SOM BLIR ÖVER: raderna delar på höjden, knapparna
+   sträcks. */
+/* Hög specificitet: .kiosk .controls längre ned sätter flex:0 0 auto. Raderna
+   har grundhöjd auto — med 0 kollapsade de när rutan inte fick extra höjd. */
+body.kiosk #view-flode>[data-sec="buttons"]{flex:1 1 auto;display:flex;flex-direction:column}
+body.kiosk #view-flode>[data-sec="buttons"] .ctl-row{flex:1 1 auto}
+body.kiosk #view-flode>[data-sec="buttons"] .ctl{height:auto}
+/* Större förbrukningstal och förklaring på väggen. */
+.kiosk .en-kw{font-size:34px}
+.kiosk .en-mix-leg{font-size:12px}
 .kiosk .warns.tick{flex:1 1 auto;width:100%;align-items:center}
 .kiosk .warns.tick .wt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3}
 .kiosk #view-flode>.panel,.kiosk #view-flode>.grid{flex:0 0 auto}
@@ -2242,8 +2256,8 @@ body.tabprev{padding:0;overflow:hidden}
 .kiosk .ew-row>.panel{min-height:0;padding:11px 13px}
 .kiosk .enpanel .rc-head,.kiosk .wx-card .rc-head{margin-bottom:8px}
 .kiosk .en-body{gap:10px}
-.kiosk .en-kw{font-size:25px}
-.kiosk .en-chip{padding:9px 6px;border-radius:14px;--ch-ic-b:20px;--ch-v-b:16px}.kiosk .en-mix-leg{font-size:9.5px;gap:10px}
+/* (v683: förbrukningstalet sätts längre ned, 34 px) */
+.kiosk .en-chip{padding:9px 6px;border-radius:14px;--ch-ic-b:20px;--ch-v-b:16px}.kiosk .en-mix-leg{gap:10px}
 .kiosk .wx{gap:9px}
 .kiosk .wx-temp{font-size:25px}
 .kiosk .wx-compass{width:64px;height:64px}.kiosk .wx-arrow{width:38px;height:38px}.kiosk .wx-hl-v{font-size:16px}
@@ -12227,7 +12241,15 @@ function mobilTopp(mob){
      pricken till höger (klockan och pricken ligger kvar i brickgruppen). Två
      rader (alternativ A) bara på mobilen. */
   var hero=h.closest('.en-hero'),main=hero&&hero.querySelector('.en-hero-main'),spot=hero&&hero.querySelector('.en-spot');
-  if(mob===false){document.body.classList.add('topp-flyttad');return;}
+  /* Väggplattan (kiosk) får också två rader: avsnitten är förstorade där, och
+     då ryms inte talet och alla fyra brickorna på en rad (uppmätt). */
+  var tvaRader=(mob!==false)||document.body.classList.contains('kiosk');
+  if(!tvaRader){
+    /* Tillbaka till en rad (t.ex. plattan vriden till liggande). */
+    var grp=hero&&hero.querySelector('.en-hoger');
+    if(grp&&spot&&spot.parentElement!==grp){grp.style.display='';grp.insertBefore(spot,grp.firstChild);grp.appendChild(h);}
+    if(hero)hero.classList.remove('en-hero-a');
+    document.body.classList.add('topp-flyttad');return;}
   if(hero&&main&&spot){
     if(main.nextElementSibling!==h)hero.insertBefore(h,main.nextSibling);
     if(hero.lastElementChild!==spot)hero.appendChild(spot);
@@ -18697,7 +18719,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v682';
+const APP_VERSION='v683';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20335,9 +20357,16 @@ const R_BAS=26;
    storre knappar for att plattan behovde det.
    Hela poangen med facken ar att de tva enheterna ar olika; jag la forst talet
    pa bada och gjorde precis det misstaget. */
-const SEC_ZOOM_BAS={platta:{buttons:1.6},telefon:{}};
+const SEC_ZOOM_BAS={platta:{buttons:1.6},telefon:{},
+  /* VÄGGPLATTAN (kiosk, v683). Uppmätt i Chromium 800×1280 med sju knappar och
+     sex rutor: så här stora blir avsnitten lättlästa på avstånd och ryms ändå
+     (helsidan skalas till ~97 %). Knapparna fyller dessutom höjden som blir
+     över, och rapporten har fast höjd för en rad. Användarens % multipliceras
+     på detta, så 100 % i Ordna avsnitt = de här måtten. */
+  vagg:{energy:1.25,weather:1.3,tiles:1.2,buttons:2.0,report:1.3}};
 function secZoomBas(sec){
-  var f=SEC_ZOOM_BAS[secKlass()];
+  var kl=(document.body&&document.body.classList.contains('kiosk'))?'vagg':secKlass();
+  var f=SEC_ZOOM_BAS[kl];
   return (f&&typeof f[sec]==='number')?f[sec]:1;
 }
 /* ENGANGSOMRAKNING. Den som redan stallt in 160 % pa plattan skulle annars fa
