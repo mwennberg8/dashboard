@@ -101,6 +101,7 @@ window.pwaTryFileManifest();
   --panel-a:#353d4b; --panel-b:#2f3643;
   --panel-shadow:0 22px 48px -30px #1a1e26; --panel-inset:rgba(236,239,244,.04);
   --line:rgba(216,222,233,.12); --line-soft:rgba(216,222,233,.06); --inset:#3b4252;
+  --seg-on:#4c566a;
   --svg-track:rgba(216,222,233,.12); --svg-stroke:rgba(216,222,233,.18);
   --orb-fill:#272c37; --disc-fill:rgba(216,222,233,.05); --marker-ring:#434c5e;
   --ins-grad:linear-gradient(120deg,rgba(180,142,173,.16),rgba(136,192,208,.08)); --ins-border:rgba(180,142,173,.30);
@@ -120,6 +121,7 @@ window.pwaTryFileManifest();
   --panel-a:#ffffff; --panel-b:#f6f8fb;
   --panel-shadow:0 18px 38px -26px rgba(46,52,64,.22); --panel-inset:rgba(255,255,255,.9);
   --line:rgba(46,52,64,.13); --line-soft:rgba(46,52,64,.07); --inset:#e3e9f1;
+  --seg-on:#ffffff;
   --svg-track:rgba(46,52,64,.14); --svg-stroke:rgba(46,52,64,.20);
   --orb-fill:#ffffff; --disc-fill:rgba(46,52,64,.04); --marker-ring:#ffffff;
   --ins-grad:linear-gradient(120deg,rgba(151,123,171,.12),rgba(77,151,162,.08)); --ins-border:rgba(151,123,171,.28);
@@ -2694,12 +2696,16 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    som ovan: det går att mäta i wkhtmltoimage. */
 .graf-tva{flex-direction:column;align-items:stretch}
 .graf-rad1{display:flex;align-items:center;margin:0 0 6px}
-.graf-lage{display:flex;flex:1 1 auto;min-width:0}
-.graf-lage-b{flex:1 1 0;min-width:0;height:30px;border:1px solid var(--line);background:none;color:var(--faint);
+.graf-lage{display:flex;flex:1 1 auto;min-width:0;background:var(--inset);border:1px solid var(--line);
+  border-radius:10px;padding:2px}
+/* DET VALDA ÄR DET LJUSA. Förut fick det valda lagets grå (--inset) och det
+   ovalda ingen bakgrund alls — i ljust tema blev det ovalda alltså vitt och
+   såg valt ut. Nu ligger båda på ett grått spår, och den valda knappen är en
+   upphöjd ljus platta (--seg-on: vit i ljust tema, ljusare grå i mörkt). */
+.graf-lage-b{flex:1 1 0;min-width:0;height:26px;border:0;border-radius:8px;background:none;color:var(--faint);
   font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0 4px;white-space:nowrap}
-.graf-lage-b:first-child{border-radius:9px 0 0 9px}
-.graf-lage-b+.graf-lage-b{border-left:0;border-radius:0 9px 9px 0}
-.graf-lage-b.on{background:var(--inset);color:var(--ink)}
+.graf-lage-b+.graf-lage-b{margin-left:2px}
+.graf-lage-b.on{background:var(--seg-on);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.18)}
 .graf-tva .graf-tim-b{max-width:none;min-height:36px;font-size:12px;letter-spacing:0;padding:6px 1px;flex:1 1 0}
 .graf-tva .graf-tim-b+.graf-tim-b{margin-left:5px}
 .graf-tim-b.on{border-color:var(--blue);color:var(--ink);box-shadow:inset 0 0 0 1px var(--blue)}
@@ -2930,9 +2936,16 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
    Nu ligger etiketten under, och reglagets bredd är konstant oavsett text. */
 .wxm-time{display:flex;align-items:center;margin-top:8px;flex-wrap:wrap}
 .wxm-zs{margin-left:6px}
-.wxm-slider{flex:1 1 auto;min-width:0;margin:0 10px;accent-color:var(--blue);height:26px}
+/* Grundbredd 0: raden får radbrytas (etiketten ligger på egen rad under), och
+   med reglagets egen bredd som grund bröts Nu-knappen ned på smala skärmar i
+   stället för att reglaget krympte. Nu tar reglaget det som blir över. */
+.wxm-slider{flex:1 1 0;min-width:0;margin:0 8px;accent-color:var(--blue);height:26px}
 /* Knapparna får inte krympa när etiketten radbryts. */
 .wxm-time>.wxm-z{flex:0 0 auto}
+/* Nu-knappen: text i stället för tecken, och nedtonad när kartan redan följer
+   klockan — den ska synas, men bara bjuda in när man har spolat iväg. */
+.wxm-nu{width:auto;padding:0 9px;font-size:12px}
+.wxm-nu:disabled{opacity:.35;cursor:default}
 .wxm-rt{font-size:11px;font-weight:750;color:var(--dim);text-align:center;
   font-variant-numeric:tabular-nums;flex:1 0 100%;order:9;margin-top:4px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -7693,9 +7706,19 @@ function radarVy(){
     return {lat:RADAR_VIEW.lat,lon:RADAR_VIEW.lon,W:_wxFullW,H:_wxFullH};
   return RADAR_VIEW;
 }
-/* Zoom 9 ger ~165 m per bildpunkt på vår breddgrad – 560 px blir 92 km brett. */
-var WX_VIEW_Z=9;
-function radarViewZ(){var z=(CFG&&CFG.radarViewZ);return (z>=6&&z<=9)?z:WX_VIEW_Z;}
+/* STANDARDSKALAN ÄR ~370 km (zoom 7, v672). Zoom 9 gav 92 km — för nära för
+   att se vad som är på väg in. Zoom 7 är också radarns egen högsta nivå, så
+   rutorna ritas i full skärpa i stället för uppskalade.
+   Ett zoomval sparat FÖRE v672 hade dolt ändringen, så det nollställs en
+   gång (radarViewZv). Det man väljer efter det sparas som vanligt. */
+var WX_VIEW_Z=7;
+function radarViewZ(){
+  if(CFG&&CFG.radarViewZv!==2){
+    CFG.radarViewZv=2;
+    if(CFG.radarViewZ!=null)delete CFG.radarViewZ;
+    try{saveCfg();}catch(e){}
+  }
+  var z=(CFG&&CFG.radarViewZ);return (z>=6&&z<=9)?z:WX_VIEW_Z;}
 function radarSetViewZ(d){var z=radarViewZ()+d;if(z<6||z>9)return;CFG.radarViewZ=z;saveCfg();renderVader();}
 function radarTileUrl(t,path){return _radarHost+(path||_radarPath)+'/256/'+t.z+'/'+t.x+'/'+t.y+'/2/1_1.png';}
 /* Rutorna för en given bildruta. Geometrin är densamma varje gång, så vid
@@ -8243,8 +8266,19 @@ function wxSetIdx(i){
     lab.classList.toggle('fc',f.typ!=='radar'&&f.t>Date.now());
   }
   var sl=document.getElementById('wx-rslider');if(sl&&+sl.value!==_wxIdx)sl.value=_wxIdx;
+  wxNuKnapp();
 }
 function wxSteg(d){radarStop();var r=wxRutor();wxSetIdx(wxNarmast(r,_wxT==null?Date.now():_wxT)+d);}
+/* TILLBAKA TILL NU. _wxT = null betyder "följ klockan": kartan står kvar på
+   nuet även när nya rutor kommer in, precis som när sidan öppnas. */
+function wxTillNu(){
+  radarStop();
+  var r=wxRutor();if(!r.length)return;
+  wxSetIdx(wxNuIdx(r));
+  _wxT=null;
+  wxNuKnapp();
+}
+function wxNuKnapp(){var b=document.getElementById('wx-rnu');if(b)b.disabled=(_wxT==null);}
 function radarFrame(){return _radarFrames[_radarIdx]||null;}
 function radarClock(i){var f=_radarFrames[i];if(!f||!f.time)return '';
   var d=new Date(f.time*1000);
@@ -9015,6 +9049,8 @@ function wxReglageHTML(){
       +'<input class="wxm-slider" id="wx-rslider" type="range" min="0" max="'+(rutor.length-1)+'" value="'+_wxIdx+'" '
       +'oninput="radarStop();wxSetIdx(+this.value)" aria-label="Tidslinje"/>'
       +'<button class="wxm-z wxm-zs" onclick="wxSteg(1)" aria-label="Ett steg framåt">›</button>'
+      +'<button class="wxm-z wxm-zs wxm-nu" id="wx-rnu" onclick="wxTillNu()"'+(_wxT==null?' disabled':'')
+      +' aria-label="Tillbaka till nu">Nu</button>'
       +'<span class="wxm-rt'+((f.typ!=='radar'&&f.t>Date.now())?' fc':'')+'" id="wx-rtime">'
       +wxKlocka(f.t)+' · '+wxRel(f.t,f.typ)+' · '+wxKalla(f)+'</span>'
       +'</div>';}
@@ -11201,7 +11237,10 @@ function battGrafHTML(cid){
      förbrukning nu (fonster.pct). Nollinjen släckt: effekten korsar noll men
      procenten gör det inte, så en gemensam nollinje sa emot den ena kurvan. */
   return dayChart(
-    [{key:'battpow',pts:histV('battpow',cid,battPowSerie()),col:(P.green||'#7bc47f'),label:'Effekt'}],
+    /* Grön när batteriet laddar (positiv effekt), gul/orange när det laddar
+       ur (negativ). Samma tvåfärgsknep som elnätsgrafen: kurvan klipps vid
+       noll, och avläsningens färg följer tecknet. */
+    [{key:'battpow',pts:histV('battpow',cid,battPowSerie()),col:(P.green||'#7bc47f'),col2:(P.gold||'#ebcb8b'),label:'Effekt'}],
     {t0:t0,t1:t1,cid:cid,dromNoll:true,
      pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
 }
@@ -11743,8 +11782,8 @@ async function regelNormal(){
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
   return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
-      'Skalan är watt. Effekten är positiv när batteriet laddas och negativ när '
-      +'det matar ut. Den streckade kurvan är laddnivån på egen 0–100-skala. Dra '
+      'Skalan är watt. Effekten är positiv och grön när batteriet laddas, negativ '
+      +'och gul när det matar ut. Den streckade kurvan är laddnivån på egen 0–100-skala. Dra '
       +'i grafen för att läsa av båda vid en viss tidpunkt.'))
     +battGrafHTML('g2-batt')
     +grafTidsval('g2-batt')
@@ -18379,7 +18418,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (håll inne huset) ===== */
-const APP_VERSION='v671';
+const APP_VERSION='v673';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
