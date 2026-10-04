@@ -1134,6 +1134,8 @@ body.panu-pa .panu{display:flex;flex-wrap:wrap;margin:0 0 6px;min-height:30px;al
 .panu-c.gul{background:rgba(235,203,139,.18);color:var(--gold);border-color:rgba(235,203,139,.5)}
 .panu-tom{font-size:12px;font-weight:700;color:var(--faint);margin:0 0 6px 2px}
 body.panu-pa #view-flode>[data-sec="buttons"]{display:none!important}
+/* v693: rapportrutan längst ned är borttagen med den nya startsidan. */
+body.panu-pa #view-flode>[data-sec="report"]{display:none!important}
 .tileswrap>.panu{padding:calc(8px*var(--kk,1)) calc(8px*var(--kk,1)) 0}
 /* Skalan sätts på avsnittet, så På nu-raden och korten har samma kantluft. */
 body.panu-pa #view-flode>[data-sec="tiles"]{--kk:1}
@@ -1191,7 +1193,7 @@ body.panu-pa .fl-tiles>.stat .v small{font-size:calc(12px*var(--kk))!important;f
 body.panu-pa .fl-tiles>.stat .stat-sub{grid-column:1/-1;grid-row:3;font-size:calc(11.5px*var(--kk))!important;line-height:1.3;color:var(--dim)!important;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:calc(3px*var(--kk)) 0 0!important;text-align:left!important}
 body.panu-pa .fl-tiles>.stat .meta{display:none!important}
-body.panu-pa .fl-tiles>.stat.is-on{background:rgba(163,190,140,.12)!important;border-color:rgba(163,190,140,.45)!important}
+/* (v693: ingen grön ton för aktiva rutor — glöden är borttagen.) */
 /* Väggplattan: samma kort, större skala. Raderna fyller höjden, innehållet
    centreras i höjdled. */
 /* --kk 1,1: avsnittet har redan väggplattans grundzoom (120 %), så korten blir
@@ -11878,8 +11880,13 @@ function paNuLista(){
     else{var w0=Number(cap(DEV.attefall,'measure_power'));var md0=String(cap(DEV.attefall,'thermostat_mode')||'');
       if(cap(DEV.attefall,'onoff')===true&&w0>150)lagg('Breveden '+(md0==='cool'?'kyler':'värmer'),'breveden');}}catch(e){}
   sett['breveden']=1;   /* knappens namn ska aldrig bli en egen bricka */
-  try{if(cap(DEV.dish,'onoff')===true){var pr0=parsePct(cap(DEV.dish,'bshc_string.progress'));
-    lagg((pr0!=null&&pr0>0)?'Disk pågår':'Disk väntar','dish',true);}}catch(e){}
+  /* DISKEN (v693): bara när den faktiskt diskar eller är bokad med
+     diskknappen — samma regler som diskknappen (diskKor/diskBokad). Att
+     maskinen står påslagen betyder ingenting: diskKor ser på hur framsteg och
+     tid RÖR sig, och ett stillastående tal räknas som att den bara står på. */
+  try{if(typeof diskKor==='function'&&diskKor())lagg('Disk pågår','dish');
+    else if(typeof diskBokad==='function'&&diskBokad())lagg('Disk bokad'+((typeof diskNar==='function'&&diskNar())?' '+diskNar():''),'dish',true);}catch(e){}
+  sett['dish']=1;
   try{var L0=regelLage();if(L0&&L0.fjarr)lagg(/Laddar/.test(L0.txt)?'Laddar max':(/Sparar/.test(L0.txt)?'Batteriet sparar':'Batteriet styrs'),'batt');}catch(e){}
   try{if(cap(DEV.laddbox,'evcharger_charging')===true)lagg('Bilen laddar','cars');}catch(e){}
   try{(CONFIG.BUTTONS||[]).forEach(function(b){
@@ -11891,6 +11898,7 @@ function paNuLista(){
     else if(dst==='dish')lagg('Disk bokad','dish',true);
     else if(dst==='pool')lagg('Poolvärme','pool');
     else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())lagg('Tänt','hem');
+    else if(/^auto$/i.test(l))return;            /* v693: Auto är grundläget — ingen bricka */
     else lagg(l.replace(/\s+\d+([,.]\d+)?°.*$/,''),'hem');});}catch(e){}
   return ut;
 }
@@ -18216,7 +18224,9 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     const st0=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
     const st=(st0&&!visaIk)?{glow:st0.glow,lvl:st0.lvl}:st0;
     const m=computeMetric(cfg);
-    const visaGlow=(cfg.glow!==false&&!fill);
+    /* v693: glöden är borttagen på alla rutor. Läget syns i ikonens färg och i
+       lägesraden; "På nu"-raden säger vad som är igång. */
+    const visaGlow=false;
     const glow=(visaGlow&&st&&st.glow)?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'';
     /* Ikonens färg följer statusen även utan glow — annars blir en aktiv ruta
        gråmarkerad och syns knappt. */
@@ -18922,7 +18932,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v692';
+const APP_VERSION='v693';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
