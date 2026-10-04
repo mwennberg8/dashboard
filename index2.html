@@ -4017,8 +4017,12 @@ function bilStyrHTML(){
   var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
   var kl=klimatLas();
   /* Två knappar bredvid varandra, lika breda. */
-  return '<div class="bil-styr">'
-    +bilStyrKnapp(laddar?'Laddar':'Ladda','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Starta laddning?')
+  /* v694: styrningens läge ovanför knapparna. Ladda/Stoppa här är det
+     MANUELLA valet — automatiken (sol, billiga timmar) sköter resten. */
+  var bs=bilStyrLage();
+  var styr=(bs&&bs.lage&&bs.lage!=='ingen')?('<div class="drow"><span>Styrning</span><b>'+esc(bs.skal||bs.lage)+'</b></div>'):'';
+  return styr+'<div class="bil-styr">'
+    +bilStyrKnapp(laddar?'Laddar':'Ladda nu','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Ladda nu, oavsett pris?')
     +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()','klimat',kl?'Stoppa klimat?':'Starta klimat?')
     +'</div>';
 }
@@ -4034,7 +4038,10 @@ async function bilLaddToggle(){
   bilStyrOm();
   try{
     await homeyPut(DEV.laddbox,'evcharger_charging',!nu);
-    toast(!nu?'Laddning startad':'Laddning stoppad');
+    /* v694: säg till styrningen. Ladda = manuellt i 18 h (eller tills bilen
+       kopplas ur); Stoppa = tillbaka till automatiken (sol, billiga timmar). */
+    try{var LL=await logicList();await logicWrite(LL,'billadd_manuell',!nu?(Date.now()+18*3600000):Date.now());}catch(e2){}
+    toast(!nu?'Laddning startad – manuellt':'Laddning stoppad – automatiken tar över');
     setTimeout(function(){load();},1500);
   }catch(e){
     /* Samma lärdom som batteriflödet: svaret är inget kvitto. Enhetens läge
@@ -11859,6 +11866,12 @@ function byggSeatemp(){
     +histSVG('k:seatemp',{unit:'°C',icon:'waves'},'seatemp')
     +grafTidsval('seatemp');
 }
+/* BILSTYRNINGENS LÄGE (v694) ur energi_bil, som energistyr skriver varje
+   minut: sol / billig / manuell / vänta / ingen. */
+function bilStyrLage(){
+  try{var t=(_regel&&_regel.bil)?String(_regel.bil):'';if(!t)return null;var i=t.indexOf('|');
+    return {lage:i>=0?t.slice(0,i):t,skal:i>=0?t.slice(i+1):''};}catch(e){return null;}
+}
 /* ===== "PÅ NU"-RADEN (v688) =====
    Vad som är igång, ur samma källor som rutorna och knapparna använder.
    Knappar (CONFIG.BUTTONS) som är på blir egna brickor och öppnar Hem-rutans
@@ -11888,7 +11901,12 @@ function paNuLista(){
     else if(typeof diskBokad==='function'&&diskBokad())lagg('Disk bokad'+((typeof diskNar==='function'&&diskNar())?' '+diskNar():''),'dish',true);}catch(e){}
   sett['dish']=1;
   try{var L0=regelLage();if(L0&&L0.fjarr)lagg(/Laddar/.test(L0.txt)?'Laddar max':(/Sparar/.test(L0.txt)?'Batteriet sparar':'Batteriet styrs'),'batt');}catch(e){}
-  try{if(cap(DEV.laddbox,'evcharger_charging')===true)lagg('Bilen laddar','cars');}catch(e){}
+  /* BILEN (v694): styrningens läge säger varför den laddar. */
+  try{var bs=bilStyrLage(),ld=cap(DEV.laddbox,'evcharger_charging')===true;
+    if(bs&&bs.lage==='sol'&&ld)lagg('Bilen laddar på sol','cars');
+    else if(bs&&bs.lage==='billig'&&ld)lagg('Bilen laddar billigt','cars');
+    else if(bs&&bs.lage==='manuell')lagg('Bilen laddar manuellt','cars');
+    else if(ld)lagg('Bilen laddar','cars');}catch(e){}
   try{(CONFIG.BUTTONS||[]).forEach(function(b){
     if(!b||!btnState(b))return;
     var l=String(b.label||'').trim();
@@ -11911,6 +11929,7 @@ function paNuRita(){
   /* Rutorna för knapparnas popuper — en gång, när de egna knapparna finns.
      Här och inte bara vid start: knapparna kan komma senare via synken. */
   try{rutorPaNu();}catch(e){}
+  try{regelHamta(false);}catch(e){}
   var L=paNuLista();
   el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+'" onclick="openDetail(\''+x.pop+'\')">'+esc(x.txt)+'</button>';}).join('')
     :'<span class="panu-tom">Inget är på just nu</span>';
@@ -11950,7 +11969,7 @@ function hemPopup(){return popKnappar('hem')||'<div class="viz-empty">Inga knapp
    Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
    laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
    normal drift. */
-var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp'];
+var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 function regelHamta(tvinga){
   if(_regelLaddar)return;
@@ -11961,7 +11980,9 @@ function regelHamta(tvinga){
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
     _regel={forslag:p,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
-      stopp:Number(r.battladd_stopp)||0,lista:list};
+      stopp:Number(r.battladd_stopp)||0,lista:list,
+      /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
+      bil:String(r.energi_bil||'')};
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
@@ -18932,7 +18953,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v693';
+const APP_VERSION='v694';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
