@@ -3848,6 +3848,7 @@ function drawChart(elId,ss,opts){
   const X=t=>pL+((t-tMin)/(tMax-tMin||1))*(Wd-pL-pR),Y=v=>pT+(1-(v-vMin)/(vMax-vMin||1))*(H-pT-pB);
   let defs='',body='';const avlSer=[];
   for(let i=0;i<=2;i++){const gy=pT+(H-pT-pB)*i/2;body+='<line class="grid-l" x1="0" y1="'+gy.toFixed(1)+'" x2="'+Wd+'" y2="'+gy.toFixed(1)+'"/>';}
+  body+=nollLinje(nollY(Y,vMin,vMax),0,Wd);
   ss.forEach(s=>{const pts=(s.points||[]).slice().sort((a,b)=>a.t-b.t);if(pts.length<2)return;
     /* Avlast mot den SORTERADE listan — det är den kurvan ritades av. */
     avlSer.push({namn:s.name||'',farg:s.color,pts:pts,Y:Y,
@@ -5297,7 +5298,7 @@ function progKurvaSVG(off,cid){
   var faktPts=fakt.filter(function(q){return q.t>=t0&&q.t<=t1;});
   var kw=function(v){return num(v/1000,1)+' kW';};
   var svgm='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" '
-    +'aria-label="Prognos och faktisk produktion idag">'+b+xax+'</svg>';
+    +'aria-label="Prognos och faktisk produktion idag">'+nollLinje(Y(0),0,W)+b+xax+'</svg>';
   svgm=avlLager('prog',svgm,{W:W,H:H,X:X,t0:t0,t1:t1,ser:[
     {namn:'prognos',farg:'var(--gold)',pts:progPts,Y:Y,fmt:kw},
     {namn:'faktiskt',farg:'var(--solar)',pts:faktPts,Y:Y,fmt:kw}]});
@@ -5641,7 +5642,7 @@ function windChartHTML(cid){
     b+='<circle cx="'+X(sist.t).toFixed(1)+'" cy="'+Y(sist.v,s.axel).toFixed(1)+'" r="3" fill="'+s.farg+'"/>';});
   /* Riktningen har EGEN axel (0–360°) och får därför sin egen Y — annars hade
      220 grader lästs av som 220 m/s. */
-  var svgm='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Vind idag">'+b+'</svg>';
+  var svgm='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Vind idag">'+(harMs?nollLinje(Y(0,'ms'),0,W):'')+b+'</svg>';
   svgm=avlLager(cid,svgm,{W:W,H:H,X:X,t0:tMin,t1:tMax,
     ser:ser.map(function(s){var ax=s.axel;
       return {namn:s.namn,farg:s.farg,pts:s.p,
@@ -5888,7 +5889,7 @@ function gridPowerSVG(pts,cid){
   const pkKop=Math.max(0,yhi), pkSal=Math.max(0,-ylo);
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
     +fills.join('')
-    +'<line x1="'+pad+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W2-pad)+'" y2="'+zeroY.toFixed(1)+'" stroke="var(--line)" stroke-width="1" stroke-dasharray="3 3"/>'
+    +nollLinje(zeroY,pad,W2-pad)
     +paths.join('')
     +'</svg>';
   /* Avlast mot seg — de mätvärden kurvan bygger på. pl innehåller dessutom
@@ -5931,7 +5932,7 @@ function ptsLineSVG(pts,colKey,unit,id,h,titel){const now=Date.now();
   const area=line+' L'+P2[P2.length-1][0].toFixed(1)+' '+(H2-pad)+' L'+P2[0][0].toFixed(1)+' '+(H2-pad)+' Z';
   const g=areaGrad(col,0.28);
   const u=unit||'°C';
-  let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs><path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
+  let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs>'+nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)+'<path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager(id||('pts-'+colKey+'-'+u),svgm,{W:W2,H:H2,X:X,
     ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,1)+' '+u;}}]});
   return '<div class="viz">'+svgm+'<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo,1)+'–'+num(yhi,1)+' '+u+'</div></div>';}
@@ -6388,11 +6389,21 @@ function fmtKw(v){return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g,'
    där ligger effekten och laddnivån i samma bild, laddnivån på egen 0–100-skala,
    och en kraftig nollinje hörde bara till den ena av dem — den läste som att
    den gällde båda. De vanliga stödlinjerna ritas ändå. */
+/* NOLLINJEN, EN OCH SAMMA I ALLA GRAFER (v687). Samma färg (--dim) och
+   tjocklek (1) som dygnsgrafens nollinje har haft. Graferna ritade den förut
+   på olika sätt — streckad, i --line, eller inte alls. Ritas där noll ligger
+   inom skalan; en temperaturgraf på 15–28° får ingen. */
+function nollLinje(y,x1,x2){
+  if(y==null||!isFinite(y))return '';
+  return '<line class="nolli" x1="'+(+x1).toFixed(1)+'" y1="'+y.toFixed(1)+'" x2="'+(+x2).toFixed(1)+'" y2="'+y.toFixed(1)
+    +'" stroke="var(--dim)" stroke-width="1" vector-effect="non-scaling-stroke"/>';}
+function nollY(Y,lo,hi){return (lo<=0&&hi>=0)?Y(0):null;}
 function gridLines(vals,vmin,vmax,H,padT,padB,dromNoll){var g='';vals.forEach(function(v){
   var yy=(H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB));
   var noll=(Math.abs(v)<1e-9);
   if(noll&&dromNoll)return;
-  g+='<line x1="0" y1="'+yy.toFixed(1)+'" x2="300" y2="'+yy.toFixed(1)+'" stroke="var(--'+(noll?'dim':'line')+')" stroke-width="'+(noll?1:0.5)+'"/>';});
+  if(noll){g+=nollLinje(yy,0,300);return;}
+  g+='<line x1="0" y1="'+yy.toFixed(1)+'" x2="300" y2="'+yy.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5"/>';});
   return g;}
 /* Mjuk kurva (cardinal spline). Kontrollpunktens x-handtag kortas av om det skulle
    sträcka sig förbi nästa punkt – annars viker kurvan bakåt och krullar sig där
@@ -9112,6 +9123,7 @@ function wxGraphSVG(){
   var hh=function(t){var d=new Date(t);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);};
   var last=seg[seg.length-1].v;
   var svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs>'
+    +nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)
     +'<path d="'+area+'" fill="url(#'+g.id+')"/>'
     +'<path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager('wx-'+S.k,svgm,{W:W2,H:H2,X:X,
@@ -10505,6 +10517,7 @@ function multiGraf(kurvor,enhet,xTid,markT){
     var y=top+f*(H-top-ax);
     h+='<line x1="'+vx+'" y1="'+y.toFixed(1)+'" x2="'+(W-6)+'" y2="'+y.toFixed(1)
       +'" stroke="var(--line)" stroke-width="1" opacity="'+(f===1?'0.9':'0.35')+'"/>';});
+  h+=nollLinje(nollY(py,lo,hi),vx,W-6);
   /* Klockslagen ritades förut här inne, i tre <text> längst ned. De ligger
      numera i den gemensamma tidsaxeln under grafen, som alla andra grafer. */
   h+='</svg>';
@@ -11429,7 +11442,8 @@ function battGrafHTML(cid){
        ur (negativ). Samma tvåfärgsknep som elnätsgrafen: kurvan klipps vid
        noll, och avläsningens färg följer tecknet. */
     [{key:'battpow',pts:histV('battpow',cid,battPowSerie()),col:(P.green||'#7bc47f'),col2:(P.gold||'#ebcb8b'),label:'Effekt'}],
-    {t0:t0,t1:t1,cid:cid,dromNoll:true,
+    /* v687: nollinjen tillbaka — laddnivån har 0 % på samma linje. */
+    {t0:t0,t1:t1,cid:cid,
      pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
 }
 /* All infotext ligger bakom en knapp — och det är husets EGEN infoknapp, samma
@@ -11669,7 +11683,7 @@ function multiTempSVG(cid){
   if(!out.length)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
   var tr=(t1-t0)||1,yr=(yhi-ylo)||1,mp=yr*0.12;ylo-=mp;yhi+=mp;yr=yhi-ylo;
   var X=function(v){return padL+(v-t0)/tr*(W-padL-padR);},Y=function(v){return padT+(1-(v-ylo)/yr)*(H-padT-padB);};
-  var g='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+  var g='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+nollLinje(nollY(Y,ylo,yhi),padL,W-padR);
   for(var q=0;q<out.length;q++){var o=out[q];
     var d=smoothPath(o.s.map(function(pt){return [X(pt.t),Y(pt.v)];}));
     g+='<path d="'+d+'" fill="none" stroke="'+tempCol(o.t)+'"'+GRAF_LINJE+'/>';}
@@ -13952,6 +13966,7 @@ function battKurva(offset){
    egen gräns är inte uppmätt. Prognosen är en uppskattning: solprognosen kan
    slå fel och profilen vet inget om bilen. */
 var BATT_SIM={eta:0.79,ladd:5,ur:5,golv:2,steg:0.25,timmar:24};
+var _battProgVantar=false,_battProgForsok=0;
 var BATT_LAST_H=[1.5,1.5,1.6,1.5,1.5,1.7,1.7,2.1,2.8,3.1,3.6,4.6,5.3,5.3,4.7,4.4,3.9,2.9,2.4,2.4,2.3,1.9,1.7,1.5];
 /* Läget vid en tidpunkt (absoluta timmar från dagens midnatt) ur nuvarande
    läge och de bokade tiderna. */
@@ -13964,10 +13979,38 @@ function battLageVid(hAbs,nuH,lageNu,bok){
 function battSimulera(nuPct,nuH,kwh){
   if(!(kwh>0)||nuPct==null||!isFinite(nuPct))return [];
   var d0=dayStart(),e0=(typeof progDagE==='function')?progDagE(0):null,e1=(typeof progDagE==='function')?progDagE(1):null;
+  /* UTAN SOLPROGNOS INGEN PROGNOS (v687). Solprognosen hämtas från appen först
+     när solrutan öppnas. Öppnades kostnadsrutan dessförinnan räknades solen
+     som noll, och linjen visade ett batteri som laddade ur till golvet mitt
+     på förmiddagen medan det i själva verket laddade. Nu hämtas prognosen och
+     rutan ritas om; under tiden visas ingen linje hellre än en fel. */
+  if(!e0){
+    /* Högst ett försök i minuten, och omritning BARA om prognosen faktiskt kom.
+       Utan de två villkoren ritade ett misslyckat försök om rutan, som försökte
+       igen, i en oändlig slinga (fångad av t56). */
+    try{if(typeof progHamta==='function'&&!_battProgVantar&&Date.now()-_battProgForsok>60000){
+      _battProgVantar=true;_battProgForsok=Date.now();
+      progHamta().then(function(){_battProgVantar=false;
+        if(!progDagE(0))return;
+        try{if(_dlgWhich==='cost'){var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}}catch(e){}},
+        function(){_battProgVantar=false;});}}catch(e){}
+    return [];
+  }
   var solKW=function(h){var dag=(h<24)?e0:e1,i=Math.floor(h%24),v=dag&&dag.timmar?dag.timmar[i]:null;
     return (v!=null&&isFinite(v))?Math.max(0,v)/1000:0;};
   var husNu=houseNowW(),nastaHel=Math.floor(nuH)+1;
-  var lastKW=function(h){return (h<nastaHel&&husNu!=null&&isFinite(husNu))?Math.max(0,husNu)/1000:BATT_LAST_H[Math.floor(h)%24];};
+  /* PROFILEN SKALAS MOT NULÄGET (v687). Timprofilen är en median över sju
+     dygn och drar 4–5 kW mitt på dagen — bil- och poolvärmedagar ingår. När
+     huset just nu drar 1,4 kW mot profilens 3,1 visade prognosen ett batteri
+     som laddade ur fast det laddade. Profilen skalas därför med kvoten
+     nu/profil (0,4–1,6) och glider tillbaka till profilen över sex timmar.
+     Kvotens gränser och de sex timmarna är mitt val, inte uppmätta. */
+  var prof=function(h){return BATT_LAST_H[Math.floor(h)%24];};
+  var kvot=(husNu!=null&&isFinite(husNu)&&prof(nuH)>0)?Math.max(0.4,Math.min(1.6,(husNu/1000)/prof(nuH))):1;
+  var lastKW=function(h){
+    if(h<nastaHel&&husNu!=null&&isFinite(husNu))return Math.max(0,husNu)/1000;
+    var f=Math.max(0,Math.min(1,(h-nuH)/6));
+    return prof(h)*(kvot+(1-kvot)*f);};
   /* Läget nu ur växelriktaren, bokningarna ur laddregelns variabler. */
   var L=(typeof regelLage==='function')?regelLage():{fjarr:false};
   var lageNu=!L.fjarr?'normal':(/Laddar/.test(L.txt)?'ladda':(/Sparar/.test(L.txt)?'spara':'normal'));
@@ -13978,6 +14021,9 @@ function battSimulera(nuPct,nuH,kwh){
     bok.sort(function(a,b){return a.h-b.h;});}
   var etaIn=Math.sqrt(BATT_SIM.eta),etaUt=Math.sqrt(BATT_SIM.eta),golv=kwh*BATT_SIM.golv/100;
   var e=kwh*nuPct/100,ut=[{h:nuH,v:nuPct}],st=BATT_SIM.steg,slut=nuH+BATT_SIM.timmar;
+  /* Saknas morgondagens solprognos räknas bara natten med (till 06), inte en
+     solig förmiddag som noll sol. */
+  if(!e1)slut=Math.min(slut,30);
   /* Stegen följer kvartsrutnätet (14:36 → 14:45 → 15:00 …), så en bokning på
      en hel timme slår om läget exakt där och inte mitt i ett steg. */
   for(var h=nuH;h<slut-1e-9;){
@@ -14230,6 +14276,10 @@ function dayPriceGraphSVG(offset){offset=offset||0;
       s+='<path d="'+sf+'" fill="none" stroke="'+(P.sun||'#f2b705')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
     }
   }
+  /* Nollinjen (v687): prisets nolla om skalan går dit, annars batteriets 0 %
+     längst ned när batterikurvan visas. */
+  var _np=nollY(Y,ylo,yhi);
+  s+=(_np!=null)?nollLinje(_np,padL,W-padR):(bk?nollLinje(YP(0),padL,W-padR):'');
   if(bk&&bk.fakt.length>1){
     var bd='';bk.fakt.forEach(function(q,i){bd+=(i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1)+' ';});
     s+='<path d="'+bd+'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".9"/>';
@@ -14280,6 +14330,7 @@ function priceCurveSVG(){let o=plogGet();const cur=elprisNow();
   const now=new Date(),hNow=now.getHours()+now.getMinutes()/60;
   let mark='';if(o.day!=='demo'||SOURCE==='demo-data'){mark='<circle cx="'+X(Math.min(hNow,24)).toFixed(1)+'" cy="'+Y(cur!=null?cur:ys[ys.length-1]).toFixed(1)+'" r="3.4" fill="'+P.warm+'"/>';}
   return '<div class="pcurve"><svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
+    +nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)
     +'<path d="'+d+'" fill="none" stroke="'+P.blue+'" stroke-width="2" stroke-linecap="round"/>'+mark+'</svg>'
     +'<div class="pcurve-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>'
     +'<div class="pcurve-y">'+num(ylo,2)+'–'+num(yhi,2)+' kr/kWh idag</div></div>';}
@@ -14663,6 +14714,7 @@ function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice()
   const area=d+' L'+X(seg[seg.length-1][0]).toFixed(1)+' '+(H2-pad)+' L'+X(seg[0][0]).toFixed(1)+' '+(H2-pad)+' Z';
   const spanH=Math.round(tr/3600000),unit=(cfg&&cfg.unit)?cfg.unit:'';
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
+    +nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)
     +'<path d="'+area+'" fill="'+col+'" opacity=".10"/>'
     +'<path d="'+d+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/>'
     +'<circle cx="'+X(seg[seg.length-1][0]).toFixed(1)+'" cy="'+Y(seg[seg.length-1][1]).toFixed(1)+'" r="3" fill="'+col+'"/></svg>';
@@ -18657,7 +18709,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v686';
+const APP_VERSION='v687';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
