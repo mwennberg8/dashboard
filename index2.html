@@ -1149,8 +1149,19 @@ body.kiosk.panu-pa #view-flode>[data-sec="tiles"]>.fl-tiles{flex:1 1 auto;grid-a
    allt annat följer med i samma proportion. */
 body.panu-pa .fl-tiles{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
   grid-auto-rows:1fr!important;gap:calc(8px*var(--kk))!important;padding:calc(8px*var(--kk))!important}
-body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important}
-body.panu-pa .panu-c{margin:0 calc(6px*var(--kk,1)) 0 0}
+/* På nu-raden (v692): jämnt avstånd åt alla håll — samma 8 px som mellan
+   korten, både mellan brickorna och ned till korten. */
+body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important}
+body.panu-pa .panu-c{margin:0!important}
+/* ⋯ i belysningsrutans nedre hörn: Auto, Skivspelare och resten. Nere i
+   stället för uppe, så rubriken "BELYSNING" får plats på en smal telefon;
+   lägesraden slutar före knappen. */
+body.panu-pa .fl-tiles>.stat.har-mer .stat-sub{padding-right:calc(30px*var(--kk))!important}
+.tile-mer{display:none}
+body.panu-pa .fl-tiles>.stat .tile-mer{display:flex;position:absolute;bottom:calc(7px*var(--kk));right:calc(7px*var(--kk));
+  width:calc(26px*var(--kk));height:calc(22px*var(--kk));align-items:center;justify-content:center;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-a);color:var(--dim);font:inherit;font-size:calc(14px*var(--kk));
+  font-weight:800;line-height:1;padding:0;cursor:pointer;grid-column:auto}
 /* Kortet är ett rutnät: ikon och rubrik på första raden, värdet och lägesraden
    över hela bredden under. .stat-txt får display:contents så dess rader blir
    rutnätets egna — då linjerar ikonen med rubriken och värdet med kortets
@@ -1162,10 +1173,14 @@ body.panu-pa .fl-tiles>.stat{display:grid!important;grid-template-columns:calc(1
   padding:calc(10px*var(--kk))!important;box-shadow:none!important;text-align:left!important}
 body.panu-pa .fl-tiles>.stat::before,body.panu-pa .fl-tiles>.stat::after{display:none!important;content:none!important}
 body.panu-pa .fl-tiles>.stat>*{grid-column:1/-1}
-body.panu-pa .fl-tiles>.stat .stat-ic{position:static!important;grid-column:1;grid-row:1;
+body.panu-pa .fl-tiles>.stat .stat-ic{position:relative!important;grid-column:1;grid-row:1;
   width:calc(16px*var(--kk))!important;height:calc(16px*var(--kk))!important;margin:0!important;align-self:center!important;
   display:flex;align-items:center;justify-content:center;transform:none}
 body.panu-pa .fl-tiles>.stat .stat-ic svg{width:100%;height:100%}
+/* Bilens markering (inkopplad, laddar) hör till ikonen — nere till höger om
+   den, i ikonens skala. Förut hamnade den i kortets nedre hörn. */
+body.panu-pa .fl-tiles>.stat .stat-ic .ik-mark{right:calc(-6px*var(--kk));bottom:calc(-5px*var(--kk));
+  width:calc(11px*var(--kk));height:calc(11px*var(--kk))}
 body.panu-pa .fl-tiles>.stat .stat-txt{display:contents!important}
 body.panu-pa .fl-tiles>.stat .label{grid-column:2;grid-row:1;padding:0!important;font-size:calc(10px*var(--kk))!important;font-weight:800!important;
   letter-spacing:.07em;text-transform:uppercase;color:var(--faint)!important;line-height:calc(16px*var(--kk))!important;
@@ -11854,8 +11869,15 @@ function paNuLista(){
      läge ("Breveden värmer") går före knappens namn ("Breveden"). */
   var lagg=function(txt,pop,gul){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul});};
   try{var ph0=cap(DEV.poolheat,'onoff');if(ph0===true||ph0==='on')lagg('Poolvärme','pool');}catch(e){}
-  try{if(cap(DEV.attefall,'onoff')===true){var md0=String(cap(DEV.attefall,'thermostat_mode')||'');
-    lagg('Breveden '+(md0==='heat'?'värmer':(md0==='cool'?'kyler':'på')),'breveden');}}catch(e){}
+  /* BREVEDEN (v692): bara när den faktiskt värmer eller kyler. Läget "Värm 15"
+     betyder bara att den FÅR värma — rutan sa "inget behövs" medan raden sa
+     "Breveden värmer". Skriptets bild (brvState.aktiv) gäller; utan den
+     effekten (över 150 W). */
+  try{var B0=(typeof brvState==='function')?brvState():null;
+    if(B0&&!brvGammal(B0)){if(B0.aktiv)lagg('Breveden '+(B0.lage==='cool'?'kyler':'värmer'),'breveden');}
+    else{var w0=Number(cap(DEV.attefall,'measure_power'));var md0=String(cap(DEV.attefall,'thermostat_mode')||'');
+      if(cap(DEV.attefall,'onoff')===true&&w0>150)lagg('Breveden '+(md0==='cool'?'kyler':'värmer'),'breveden');}}catch(e){}
+  sett['breveden']=1;   /* knappens namn ska aldrig bli en egen bricka */
   try{if(cap(DEV.dish,'onoff')===true){var pr0=parsePct(cap(DEV.dish,'bshc_string.progress'));
     lagg((pr0!=null&&pr0>0)?'Disk pågår':'Disk väntar','dish',true);}}catch(e){}
   try{var L0=regelLage();if(L0&&L0.fjarr)lagg(/Laddar/.test(L0.txt)?'Laddar max':(/Sparar/.test(L0.txt)?'Batteriet sparar':'Batteriet styrs'),'batt');}catch(e){}
@@ -11868,6 +11890,7 @@ function paNuLista(){
     else if(dst==='breveden')lagg('Breveden','breveden');
     else if(dst==='dish')lagg('Disk bokad','dish',true);
     else if(dst==='pool')lagg('Poolvärme','pool');
+    else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())lagg('Tänt','hem');
     else lagg(l.replace(/\s+\d+([,.]\d+)?°.*$/,''),'hem');});}catch(e){}
   return ut;
 }
@@ -12183,6 +12206,7 @@ function openDetail(which){
       +prog
       +dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_temperature'),1)+' °C')+dRow('Luftfukt poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
   }else if(which==='hem'){title='Hem';
+    /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
     body=hemPopup();
   }else if(which==='dish'){title='Diskmaskin';const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
@@ -13052,12 +13076,25 @@ function computeMetric(cfg){
         on:!!(B&&B.aktiv),dim:okand||gammal};}
     case 'poolheat':{const ph=cap(DEV.poolheat,'onoff'),on=(ph==='on'||ph===true);return {label:'Poolvärme',icon:'swimming-pool',v:on?'På':'Av',meta:on?'värmer poolen':'avstängd',det:'pool'};}
     case 'hem':{
-      var auto=(CONFIG.BUTTONS||[]).filter(function(b){return b&&/^auto$/i.test(String(b.label||'').trim());})[0];
-      var andra=(CONFIG.BUTTONS||[]).filter(function(b){return b&&b!==auto&&knappTill(b)==='hem'&&btnState(b);})
-        .map(function(b){return String(b.label||'').toLowerCase();});
-      var aPa=auto?btnState(auto):null;
-      return {label:'Hem',icon:'house',v:auto?(aPa?'Auto':'Manuell'):(andra.length?andra.length+' på':'Av'),
-        meta:andra.length?andra.join(' · '):'allt släckt',det:'hem',on:!!aPa};}
+      /* BELYSNING (v692, nyckeln heter fortfarande 'hem'). Rutan gör det
+         Tänd/Släck-knappen gjorde: ett tryck tänder eller släcker, och rutan
+         visar hur många av moodets lampor som lyser. Auto, Skivspelare och
+         resten ligger kvar i popupen bakom knappen ⋯ i hörnet. */
+      var li=ljusKnapp(),lb=(li>=0)?CONFIG.BUTTONS[li]:null;
+      if(!lb)return {label:'Hem',icon:'house',v:'–',meta:'ingen ljusknapp',det:'hem',mer:true};
+      /* Lamporna räknas bara för ett mood — då är det samma lampor som avgör
+         knappens läge, så "Tänt" och "x av y tända" kan inte säga emot varandra. */
+      var pa=btnState(lb),ids=[];try{if(lb.type==='moodtoggle')ids=moodLightIds(lb)||[];}catch(e){}
+      var tanda=ids.filter(function(id){return cap(id,'onoff')===true;}).length;
+      var meta;
+      var vt=(_ljusVanta&&Date.now()-_ljusVanta.t<12000)?_ljusVanta:null;
+      if(vt&&vt.pa===pa)vt=null;            /* läget har redan slagit om */
+      if(armed.i===li&&Date.now()-armed.t<4000)meta='tryck igen för att '+(pa?'släcka':'tända');
+      else if(vt)meta=vt.pa?'tänder…':'släcker…';
+      else if(ids.length)meta=tanda?(tanda+' av '+ids.length+' lampor tända'):'allt släckt';
+      else meta=pa?'tänt':'släckt';
+      return {label:'Belysning',icon:'lightbulb',icc:pa?'var(--gold)':'var(--faint)',v:pa?'Tänt':'Släckt',
+        meta:meta,det:'hem',on:pa,mer:true,tryck:'ljus'};}
     case 'dish':{const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
       return {label:'Diskmaskin',icon:'fork-knife',v:on?(pr!=null?pr+' <small>%</small>':'På'):'Av',meta:on?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):'avstängd',det:'dish'};}
   }
@@ -18199,7 +18236,7 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
       const stI='';
       /* Centreringslägena gäller alla sex rutorna samtidigt. */
       var mitt=((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'');
-      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
+      h+='<div class="panel stat clickable'+(m.mer?' har-mer':'')+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
         /* UNDERRADEN kom tillbaka i v556, men bara dar den tillfor nagot.
            Den gamla meta-texten upprepade ofta rubriken med andra ord och togs
            bort i v545. Nu ar det ett eget falt, sub, som bara nagra rutor
@@ -18209,7 +18246,8 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
         /* Med På nu-raden (v689) får rutor utan egen undertext sin
            lägesrad (meta) där — Breveden "värmer mot 15°", disken "klar ~…". */
         +((m.sub||((CFG&&CFG.paNu)&&m.meta))?('<div class="stat-sub">'+(m.sub||m.meta)+'</div>'):'')
-        +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI+'</div>';
+        +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI
+        +(m.mer?'<button type="button" class="tile-mer" aria-label="Fler val" onclick="event.stopPropagation();openDetail(\''+(m.det||'hem')+'\')">⋯</button>':'')+'</div>';
     }});
   wrap.innerHTML=h;}
 
@@ -18223,7 +18261,25 @@ function lpDown(e){const tile=e.target.closest&&e.target.closest('[data-slot]'),
 function lpMove(e){if(!_lp.timer)return;const p=(e.touches&&e.touches[0])||e;if(Math.abs(p.clientX-_lp.x)>10||Math.abs(p.clientY-_lp.y)>10){clearTimeout(_lp.timer);_lp.timer=null;}}
 function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
+/* Belysningsrutan: trycket tänder eller släcker via Tänd/Släck-knappen —
+   samma knapp, så dess bekräftelse och mood gäller. */
+var _ljusVanta=null;
+function ljusKnapp(){
+  var B=CONFIG.BUTTONS||[];
+  var i=B.findIndex(function(b){return b&&b.type==='moodtoggle'&&knappTill(b)==='hem';});
+  if(i<0)i=B.findIndex(function(b){return b&&knappTill(b)==='hem'&&/tänd|släck|ljus|lamp/i.test(String(b.label||''));});
+  return i;}
+function ljusTryck(){
+  var i=ljusKnapp();if(i<0){openDetail('hem');return;}
+  var fore=btnState(CONFIG.BUTTONS[i]);
+  btnTap(i);
+  /* btnTap armerar först om knappen kräver bekräftelse — då inget väntläge. */
+  if(armed.i!==i)_ljusVanta={t:Date.now(),pa:!fore};
+  try{renderTiles('flode');}catch(e){}
+  setTimeout(function(){try{renderTiles('flode');}catch(e){}},1600);
+  setTimeout(function(){try{renderTiles('flode');}catch(e){}},4200);}
 function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=gridTiles(g)[i];if(!cfg)return;const m=computeMetric(cfg);
+  if(m&&m.tryck==='ljus'){ljusTryck();return;}
   if(m&&m.det==='batttom'){try{btPop();}catch(e){}return;}
   /* Breveden öppnar sin ruta sedan v605. Det gamla trycket — starta eller
      stoppa via skriptet — ligger kvar som snabbvalet "Auto" därinne. */
@@ -18866,7 +18922,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v691';
+const APP_VERSION='v692';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
