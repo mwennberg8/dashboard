@@ -2793,7 +2793,13 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
    den i grafens översta pixlar och krockade med varje topp som nådde dit.
    Egen rad kostar fjorton pixlar och kan inte krocka med någonting. */
 .avl-lager{position:relative}
-.avl-rad{position:relative;height:18px;margin-bottom:2px}
+.avl-rad{position:relative;min-height:18px;margin-bottom:3px}
+/* Värdena på fast plats: en rad som bryts vid behov, alltid vänsterställd. Höjden
+   för två rader reserveras när grafen har fler än två serier, så grafen inte
+   hoppar när avläsningen byter längd. */
+.avl-rad .avl-tag{position:static!important;transform:none!important;display:flex;flex-wrap:wrap;column-gap:10px;row-gap:1px;
+  white-space:normal;height:auto!important;line-height:18px!important;gap:1px 10px}
+.avl-rad.tva{min-height:38px}
 .avl-graf{position:relative;touch-action:pan-y}
 .avl-ovl{position:absolute;inset:0;pointer-events:none}
 /* EN TIDSAXEL FÖR ALLA GRAFER. Förut fanns fyra: g2-xax under dygnsgrafen,
@@ -3777,7 +3783,27 @@ function parseEntries(d){
             v:Number(p.v!=null?p.v:(p.y!=null?p.y:NaN))};
   }).filter(function(p){return !isNaN(p.t)&&!isNaN(p.v);});
 }
-async function seedHistory(){if(seeded)return;seeded=true;const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
+/* LUCKOR FYLLS FRÅN INSIGHTS (v685). Historiken hämtades bara en gång, när
+   sidan laddades. Låg appen i bakgrunden på telefonen stod mätningen still, och
+   när den öppnades igen fanns bara det som samlats sedan dess — i 1 h och 3 h
+   blev batterilinjen ett kort streck. Nu hämtas de senaste sex timmarna igen
+   när sidan blir synlig efter en paus, eller när serierna har en lucka. */
+var _seedFyllAt=0;
+function seedFyll(){
+  try{
+    if(typeof SOURCE==='undefined'||SOURCE==='demo-data'||!BASE)return;
+    if(Date.now()-_seedFyllAt<5*60000)return;
+    _seedFyllAt=Date.now();
+    seedHistory('last6Hours',true);
+  }catch(e){}
+}
+var _doldSedan=0;
+try{document.addEventListener('visibilitychange',function(){
+  if(document.hidden){_doldSedan=Date.now();return;}
+  if(_doldSedan&&Date.now()-_doldSedan>=3*60000)seedFyll();
+  _doldSedan=0;});}catch(e){}
+function histLucka(k){var a=HIST[k];if(!a||!a.length)return true;return Date.now()-a[a.length-1].t>10*60000;}
+async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res=res||'today';const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
   const want={solar:[DEV.solar,['measure_power','watt']],house:[DEV.consume,['measure_power','watt']],price:[DEV.tibber,['measure_price_total','price_total','price']],
     batt:[DEV.battery,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
     grid:[DEV.pulse,['measure_power','watt']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[DEV.battery,['energy_power']],
@@ -3787,7 +3813,7 @@ async function seedHistory(){if(seeded)return;seeded=true;const logs=await homey
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
     t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
   for(const k in want){const lg=findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
-    const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=today');
+    const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res);
     let pts=parseEntries(e);
     /* Vindloggen ligger i km/h i Homey. Allt annat i dashboarden är m/s. */
     if(k==='wind'||k==='gust')pts=pts.map(p=>({t:p.t,v:p.v/3.6}));
@@ -6444,7 +6470,7 @@ function glesa(seg,max){
    geo = {W,H,X(t),t0,t1,ser:[{namn,farg,pts,Y(v),fmt(v)}],kl(t)}
    X och Y är grafens egna funktioner i användarkoordinater; modulen räknar om
    dem till procent av ritrutan och behöver därför aldrig mäta i DOM:en. */
-var _avlGeo={},_avlVald={},_avlDrag=null;
+var _avlGeo={},_avlVald={},_avlDrag=null,_avlVantar=false;
 function avlId(s){return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'')||'graf';}
 /* X() är linjär i tiden, så två kända punkter ger inversen exakt — ingen egen
    invers behöver skickas in. */
@@ -6590,7 +6616,10 @@ function avlDelar(id){
   if(!rutor)return tom;
   /* Nära kanten förankras etiketten i sidan i stället för i mitten, annars
      klipps den — samma regel som pgTagg(). */
-  var stil=(xp<16)?'left:2px':((xp>84)?'right:2px':'left:'+xp.toFixed(2)+'%;transform:translateX(-50%)');
+  /* FAST PLATS (v685): värdena står alltid till vänster ovanför grafen i
+     stället för att följa fingret — de flyttade sig under tummen och var svåra
+     att läsa medan man drog. */
+  var stil='left:0;right:0';
   var kl=(typeof g.kl==='function')?g.kl(t):(avlLangt(g)?avlDagKl(t):avlKl(t));
   return {rad:'<span class="avl-tag" style="'+stil+'"><i>'+esc(kl)+'</i>'+rutor+'</span>',graf:h};
 }
@@ -6634,7 +6663,7 @@ function avlLager(id,svg,geo){
   /* onclick stoppas här: popupen stängs vid tryck utanför, och ett släpp efter
      en dragning får inte bubbla upp och räknas som ett sådant tryck. */
   return '<div class="avl-lager">'
-    +'<div class="avl-rad" id="avl-rad-'+id+'">'+del.rad+'</div>'
+    +'<div class="avl-rad'+(ser.length>2?' tva':'')+'" id="avl-rad-'+id+'">'+del.rad+'</div>'
     +'<div class="avl-graf" id="avl-'+id+'" data-avl="'+id+'"'
     +' onpointerdown="avlNer(event,\''+id+'\')" onpointermove="avlRor(event)"'
     +' onpointerup="avlUpp(event)" onpointercancel="avlUpp(event)"'
@@ -6671,7 +6700,9 @@ function avlRor(e){
   var dx=e.clientX-d.x0,dy=e.clientY-d.y0;
   if(!d.tagit){
     if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
-    if(Math.abs(dy)>Math.abs(dx)){_avlDrag=null;return;}   /* lodrätt = rulla sidan */
+    /* Tydligt lodrätt = rulla sidan. Förut räckte det att första rörelsen var
+       lite mer lodrät än vågrät, och då släpptes dragningen. */
+    if(Math.abs(dy)>2*Math.abs(dx)){_avlDrag=null;return;}
     d.tagit=true;
     var lg=avlEl('avl-'+d.id);
     if(lg&&lg.classList)lg.classList.add('drar');
@@ -6693,6 +6724,10 @@ function avlUpp(e){
   _avlVald[d.id]=avlHem(d.id);
   avlMala(d.id);
   try{dlgIdleReset();}catch(err){}
+  /* En omritning som väntade under dragningen görs nu. */
+  if(_avlVantar){_avlVantar=false;
+    try{var _gb=$('dlg-back');if(_gb&&_gb.classList&&_gb.classList.contains('open')&&typeof _grafOmRita==='function')_grafOmRita();}catch(err){}
+    try{if(_grafFull)grafFullRita();}catch(err){}}
 }
 /* Batteriets laddnivå ritas som en STRECKAD kurva på egen 0–100-skala: 0 % vid
    nollinjen, 100 % vid grafens tak. Watt och procent har inget gemensamt mått,
@@ -11048,7 +11083,9 @@ function energiSerier(kalla,cid){
     linjer:[
       {key:'solar',pts:H['solar']||[],col:(P.sun||'#f2b705'),label:'Solproduktion'},
       {key:'house',pts:H['house']||[],col:(P.warm||'#e8933a'),label:'Förbrukning'},
-      {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),label:'Batteri'},
+      /* Grön när batteriet laddar, gul när det laddar ur — samma som
+         husbatteriets graf (v685). */
+      {key:'batt', pts:bp,            col:(P.green||'#7bc47f'),col2:(P.gold||'#ebcb8b'),label:'Batteri'},
       /* Elnätet (Pulse): positivt = köper, negativt = säljer — samma tecken som
          elnätsrutans egen graf. Blått som dess köp-färg, så det känns igen.
          Egen fmt: dragpunkten säger "köper 1,2 kW"/"säljer 0,8 kW" i stället
@@ -18723,7 +18760,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v684';
+const APP_VERSION='v685';
 const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19281,10 +19318,18 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{yearDataMaybe();}catch(e){}
+  /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
+     från Insights (högst var femte minut). */
+  try{if(histLucka('battpow')||histLucka('house'))seedFyll();}catch(e){}
   /* En öppen batteri-/elnätspopup och en öppen helskärmsgraf ritas om med
      färsk data. _grafOmRita pekar på rätt kroppsbyggare; helskärmen på sin. */
+  /* Inte medan man drar i en graf: omritningen byter ut ytan under fingret och
+     dragningen tappas (v685). Görs när fingret släpps. */
+  if(_avlDrag&&_avlDrag.tagit){_avlVantar=true;}
+  else{
   try{var _gb=$('dlg-back');if(_gb&&_gb.classList&&_gb.classList.contains('open')&&typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
   try{if(_grafFull)grafFullRita();}catch(e){}
+  }
   /* Hämtas från appen, som räknar. Cachad i fem minuter — en episod som varat
      i timmar behöver inte läsas var femtonde sekund. */
   try{if(SOURCE!=='demo-data')btHamta();}catch(e){}
