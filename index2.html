@@ -12590,6 +12590,23 @@ function gridTiles(g){if(TILESTATE[g])return TILESTATE[g];const G=GRIDS[g];let a
   if(!a&&g==='flode'){try{const old=localStorage.getItem('tilesFlode_v4')||localStorage.getItem('tilesFlode_v3');if(old){let p=JSON.parse(old);if(Array.isArray(p)){let out=p.map(t=>(t&&t.type==='computed'&&t.key==='cars')?{type:'computed',key:'car1'}:t);if(out.length>=1){a=out;localStorage.setItem(G.store,JSON.stringify(out));}}}}catch(e){}}
   if(!a)a=G.def.map(x=>Object.assign({},x));TILESTATE[g]=a;return a;}
 function saveGrid(g){try{localStorage.setItem(GRIDS[g].store,JSON.stringify(TILESTATE[g]));}catch(e){}}
+/* FASTA RUTOR MED PÅ NU (v695). Breveden, Diskmaskin och Belysning bär
+   knapparna när knappavsnittet är gömt, så de får inte kunna försvinna. I
+   v691–v694 skrevs de EN gång in i rutlayouten — och layouten synkas mellan
+   enheter av samma typ via Homey. En annan platta eller telefon med sina sex
+   rutor skrev över dem, och engångsflaggan hindrade att de kom tillbaka. Nu
+   ligger de inte i layouten alls: de visas sist så länge layouten inte redan
+   har dem, och bara om det finns en knapp som hör till dem. Syns de i
+   layouten (som på enheter som fick dem i v691) gäller layoutens plats. */
+function fastaRutor(arr){
+  if(!(CFG&&CFG.paNu))return [];
+  var B=CONFIG.BUTTONS||[],har=function(k){return arr.some(function(x){return x&&x.type==='computed'&&x.key===k;});};
+  var ut=[];
+  [['breveden','breveden'],['dish','dish'],['hem','hem']].forEach(function(p){
+    if(!har(p[0])&&B.some(function(b){return knappTill(b)===p[1];}))ut.push({type:'computed',key:p[0],glow:false,fast:true});});
+  return ut;
+}
+function visadeRutor(g){var a=gridTiles(g);return (g==='flode')?a.concat(fastaRutor(a)):a;}
 
 /* HUSETS FÖRBRUKNING JUST NU.
    Laddboxens effekt ADDERADES förut ovanpå förbrukningsmätaren. Det dubbel-
@@ -18221,7 +18238,7 @@ const GLOWVAR={gold:'gold',green:'ok',cyan:'cyan',warm:'warm',hot:'hot',blue:'bl
 function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wrap)return;
   /* Måtten räknas om efter ritningen — rutorna finns inte att mäta på innan. */
   if(typeof setTimeout==='function')setTimeout(storlekOm,0);
-  const arr=gridTiles(g);let h='';const chip=(G.style==='chip');
+  const arr=visadeRutor(g);let h='';const chip=(G.style==='chip');
   arr.forEach((cfg,i)=>{
     if(cfg&&cfg.type==='computed'&&(cfg.key==='krcmp'||cfg.key==='krcmp2')){h+=krcHTML(g,i,cfg);return;}
     const fill=tileFill(cfg,g);
@@ -18288,7 +18305,7 @@ function lpDown(e){const tile=e.target.closest&&e.target.closest('[data-slot]'),
   _lp.fired=false;_lp.kind=tile?'tile':'btn';
   if(tile){const ge=tile.closest&&tile.closest('[data-grid]');_lp.grid=ge?ge.getAttribute('data-grid'):'';_lp.slot=+t.dataset.slot;}else{_lp.grid='';_lp.slot=+t.dataset.bi;}
   const p=(e.touches&&e.touches[0])||e;_lp.x=p.clientX;_lp.y=p.clientY;
-  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=gridTiles(_lp.grid)[_lp.slot];if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
+  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=visadeRutor(_lp.grid)[_lp.slot];if(_c&&_c.fast){return;}if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
 function lpMove(e){if(!_lp.timer)return;const p=(e.touches&&e.touches[0])||e;if(Math.abs(p.clientX-_lp.x)>10||Math.abs(p.clientY-_lp.y)>10){clearTimeout(_lp.timer);_lp.timer=null;}}
 function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
@@ -18309,7 +18326,7 @@ function ljusTryck(){
   try{renderTiles('flode');}catch(e){}
   setTimeout(function(){try{renderTiles('flode');}catch(e){}},1600);
   setTimeout(function(){try{renderTiles('flode');}catch(e){}},4200);}
-function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=gridTiles(g)[i];if(!cfg)return;const m=computeMetric(cfg);
+function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=visadeRutor(g)[i];if(!cfg)return;const m=computeMetric(cfg);
   if(m&&m.tryck==='ljus'){ljusTryck();return;}
   if(m&&m.det==='batttom'){try{btPop();}catch(e){}return;}
   /* Breveden öppnar sin ruta sedan v605. Det gamla trycket — starta eller
@@ -18953,7 +18970,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v694';
+const APP_VERSION='v695';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19483,6 +19500,8 @@ function cfgPaNu(v){CFG.paNu=(v!=='off');saveCfg();try{rutorPaNu();}catch(e){}tr
    Diskmaskin eller Hem i rutnätet (och det finns knappar för dem) läggs de
    till sist, så länge rutnätet har plats (högst 12). */
 function rutorPaNu(){
+  /* v695: ersatt av fastaRutor — rutorna skrivs inte längre in i layouten. */
+  return;
   try{
     if(!(CFG&&CFG.paNu))return;
     if(localStorage.getItem('panuRutor_v1'))return;
