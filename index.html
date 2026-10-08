@@ -1159,6 +1159,19 @@ body.panu-pa .panu.panu-tomt{display:none!important}
 /* LADDREGELNS RAD (v696) under Sol nu / Batteri / Elnät. Ikon, en kort
    mening och två knappar på en rad; meningen får två rader på smal skärm. */
 .regelrad{display:none}
+/* Laddregelns logg (v697) */
+.rl-graf{margin:8px 0 4px}
+.rl-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;font-weight:700;color:var(--dim);margin:4px 0 8px}
+.rl-leg span{display:inline-flex;align-items:center;gap:5px}
+.rl-leg i{display:inline-block;width:14px;height:8px;border-radius:2px}
+.rl-leg i.str{height:0;border-top:2px dashed;border-radius:0}
+.rl-leg .rl-not{font-weight:600;color:var(--faint)}
+.rl-rad{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
+.rl-rad:last-child{border-bottom:0}
+.rl-kl{flex:0 0 auto;font-weight:800;color:var(--dim);min-width:40px}
+.rl-txt{flex:1 1 auto;min-width:0;font-weight:700}
+.rl-txt small{display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-top:1px}
+.rl-ok{color:var(--ok)}
 .regelrad.visa{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:8px 8px 8px 11px;border-radius:14px;
   background:rgba(235,203,139,.13);border:1px solid rgba(235,203,139,.45)}
 .regelrad .rr-ic{flex:0 0 auto;width:20px;height:20px;color:var(--gold);display:flex}
@@ -11902,6 +11915,106 @@ function bilStyrLage(){
   try{var t=(_regel&&_regel.bil)?String(_regel.bil):'';if(!t)return null;var i=t.indexOf('|');
     return {lage:i>=0?t.slice(0,i):t,skal:i>=0?t.slice(i+1):''};}catch(e){return null;}
 }
+/* ===== LADDREGELNS LOGG (v697) =====
+   Planeraren (battnotis 1.3.1) loggar varje förslag i battladd_logg:
+   {v:1, d:{datum:[24 timpriser]}, f:[{t0,t1,typ,start,spara,stopp,kwh,vinst,
+   soc,fragad,bokad,...}]}. Här visas ett dygn i taget — idag och tre bakåt —
+   med priset, batteriets laddnivå (Insights, Husbatteri) och förslagen som
+   band: grönt = ladda från nätet, blått = spara. Fyllt band = bokat, streckat
+   = inte bokat. En triangel överst = när förslaget kom. */
+var _rl=null,_rlAt=0,_rlDag=0,_rlLaddar=false;
+function rlDemo(){
+  var dag=function(off){var d=svDatum(Date.now()-off*86400000);return {y:d.y,m:d.m,d:d.d,ms:svMidnatt(d.y,d.m,d.d),k:d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0')};};
+  var L={v:1,d:{},f:[]},H=3600000;
+  for(var o=0;o<4;o++){var D=dag(o);
+    L.d[D.k]=Array.from({length:24},function(_,h){return Math.round((0.95+0.35*Math.sin((h-4)/24*Math.PI*2)+(h>=17&&h<21?0.9:0)+(h>=7&&h<9?0.4:0)+o*0.05)*1000)/1000;});
+    L.f.push({t0:D.ms+10.5*H,t1:D.ms+14*H,typ:'spara',start:0,spara:D.ms+10.5*H,stopp:D.ms+17*H,kwh:0,vinst:5.8-o,soc:40+o*5,fragad:true,bokad:o!==1});
+    if(o===2)L.f.push({t0:D.ms+1*H,t1:D.ms+2*H,typ:'ladda',start:D.ms+2*H,spara:D.ms+5*H,stopp:D.ms+7*H,kwh:9.5,vinst:7.4,soc:22,fragad:true,bokad:false});}
+  return L;
+}
+async function rlHamta(tvinga){
+  if(_rlLaddar)return;
+  if(!tvinga&&_rl&&Date.now()-_rlAt<120000)return;
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){_rl=rlDemo();_rlAt=Date.now();return;}
+  _rlLaddar=true;
+  try{var L=await logicList();var v=(L||[]).find(function(x){return x&&x.name==='battladd_logg';});
+    _rl=v&&v.value?JSON.parse(String(v.value)):{v:1,d:{},f:[],tom:true};_rlAt=Date.now();}
+  catch(e){_rl={v:1,d:{},f:[],fel:(e&&e.message)||'kunde inte läsa loggen'};}
+  finally{_rlLaddar=false;try{if(_dlgWhich==='regellogg'){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();}}catch(e){}}
+}
+function rlValjDag(o){_rlDag=o;var b=$('dlg-body');if(b)b.innerHTML=rlPopup();}
+/* Ett dygn: {k, ms (midnatt), slut (nästa midnatt)} för o dygn bakåt. */
+function rlDygn(o){var d=svDatum(Date.now()-o*86400000),ms=svMidnatt(d.y,d.m,d.d),n=svMidnatt(d.y,d.m,d.d+1);
+  return {k:d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0'),ms:ms,slut:n};}
+/* Batteriets laddnivå under dygnet: sjudygnsloggen från Insights, och för idag
+   även den lokala historiken (tätare, och den senaste timmen). */
+function rlSoc(D){
+  var ut=[];
+  [(typeof HIST7!=='undefined'&&HIST7.battpct)||[],(D.slut>Date.now()-3600000)?(HIST.batt||[]):[]].forEach(function(a){
+    a.forEach(function(p){if(p&&p.t>=D.ms&&p.t<=D.slut&&isFinite(p.v))ut.push({t:p.t,v:p.v});});});
+  ut.sort(function(a,b){return a.t-b.t;});
+  return ut;
+}
+function rlGraf(D,L){
+  var W=300,H=150,pT=12,pB=6,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
+  var pr=(L.d&&L.d[D.k])||null,max=0;(pr||[]).forEach(function(v){if(isFinite(v)&&v>max)max=v;});
+  max=max>0?Math.ceil(max*2)/2:3;
+  var YP=function(v){return H-pB-(v/max)*(H-pT-pB);},YS=function(v){return H-pB-(v/100)*(H-pT-pB);};
+  var s='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris, batteri och förslag">';
+  /* rutnät + nollinje */
+  [0.25,0.5,0.75,1].forEach(function(f){var y=YP(max*f);s+='<line x1="0" x2="'+W+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
+  s+=nollLinje(YP(0),0,W);
+  /* förslagen som band */
+  var dagens=(L.f||[]).filter(function(e){var a=e.start||e.spara||e.t0,b=e.stopp;return b>D.ms&&a<D.slut;});
+  dagens.forEach(function(e){
+    var del=[];
+    if(e.start)del.push(['ladda',e.start,e.spara||e.stopp]);
+    if(e.spara||!e.start)del.push(['spara',e.spara||e.t0,e.stopp]);
+    del.forEach(function(q){var a=Math.max(D.ms,q[1]),b=Math.min(D.slut,q[2]);if(b<=a)return;
+      var col=q[0]==='ladda'?'var(--ok)':'var(--blue)';
+      s+='<rect x="'+X(a).toFixed(1)+'" y="'+pT+'" width="'+(X(b)-X(a)).toFixed(1)+'" height="'+(H-pT-pB)+'" fill="'+col+'" opacity="'+(e.bokad?0.24:0.08)+'"'
+        +(e.bokad?'':' stroke="'+col+'" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke"')+'/>';});
+  });
+  /* priset: trappa */
+  if(pr){var d='';pr.forEach(function(v,h){if(!isFinite(v))return;var x0=X(D.ms+h*3600000),x1=X(D.ms+(h+1)*3600000),y=YP(v);
+      d+=(d?'L':'M')+x0.toFixed(1)+' '+y.toFixed(1)+'L'+x1.toFixed(1)+' '+y.toFixed(1);});
+    s+='<path d="'+d+'" fill="none" stroke="var(--gold)" stroke-width="2"'+' vector-effect="non-scaling-stroke"/>';}
+  /* batteriet */
+  var so=rlSoc(D);
+  if(so.length>1)s+='<path d="'+so.map(function(p,i){return (i?'L':'M')+X(p.t).toFixed(1)+' '+YS(p.v).toFixed(1);}).join('')+'" fill="none" stroke="var(--cyan)" stroke-width="1.8" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
+  /* när förslagen kom */
+  dagens.forEach(function(e,i){if(e.t0<D.ms||e.t0>D.slut)return;var x=X(e.t0);
+    s+='<path d="M'+(x-4).toFixed(1)+' 1L'+(x+4).toFixed(1)+' 1L'+x.toFixed(1)+' '+(pT-2)+'Z" fill="'+(e.typ==='ladda'?'var(--ok)':'var(--blue)')+'"/>';});
+  /* nu */
+  var nu=Date.now();if(nu>D.ms&&nu<D.slut)s+='<line x1="'+X(nu).toFixed(1)+'" x2="'+X(nu).toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--dim)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
+  s+='</svg>';
+  return {svg:s,max:max,dagens:dagens,pris:!!pr,soc:so.length>1};
+}
+function rlPopup(){
+  var L=_rl,h='';
+  var namn=['Idag','Igår','2 d sedan','3 d sedan'];
+  h+='<div class="graf-lage">'+namn.map(function(n,i){return '<button type="button" class="graf-lage-b'+(i===_rlDag?' on':'')+'" onclick="rlValjDag('+i+')">'+n+'</button>';}).join('')+'</div>';
+  if(!L)return h+'<div class="det-note">Hämtar loggen…</div>';
+  if(L.fel)return h+'<div class="det-note">Kunde inte läsa loggen: '+esc(L.fel)+'</div>';
+  var D=rlDygn(_rlDag),G=rlGraf(D,L);
+  h+='<div class="rl-graf">'+G.svg+'<div class="pgraph-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
+  h+='<div class="rl-leg"><span><i style="background:var(--gold)"></i>Pris (0–'+num(G.max,1)+' kr)</span><span><i class="str" style="border-color:var(--cyan)"></i>Batteri %</span>'
+    +'<span><i style="background:var(--blue);opacity:.45"></i>Spara</span><span><i style="background:var(--ok);opacity:.45"></i>Ladda</span><span class="rl-not">fyllt = bokat · streckat = inte bokat</span></div>';
+  if(!G.pris&&!G.dagens.length)h+='<div class="det-note">Inget loggat det här dygnet. Loggen började med laddregeln 1.3.1'+(L.tom?' och är tom än så länge':'')+'.</div>';
+  else if(!G.dagens.length)h+='<div class="det-note">Inga förslag det här dygnet.</div>';
+  else{
+    h+=dSec('Förslag');
+    G.dagens.forEach(function(e){
+      /* Klockslag utan datum — dygnet står i valet ovanför. */
+      var tider=(e.start?'Ladda '+avlKl(e.start)+'–'+avlKl(e.spara||e.stopp)+(e.spara?', spara till '+avlKl(e.stopp):''):'Spara '+avlKl(e.spara||e.t0)+'–'+avlKl(e.stopp));
+      var status=(e.bokad?'<b class="rl-ok">bokat</b>':(e.fragad?'frågat, inte bokat':'inte frågat'));
+      h+='<div class="rl-rad"><span class="rl-kl">'+avlKl(e.t0)+'</span><span class="rl-txt">'+esc(tider)
+        +'<small>'+(e.kwh?num(e.kwh,1)+' kWh · ':'')+'beräknat ca '+Math.round(e.vinst||0)+' kr · batteri '+(e.soc!=null?e.soc+' %':'–')+' · '+status+'</small></span></div>';});
+  }
+  if(!G.soc)h+='<div class="det-note">Batteriets laddnivå saknas för dygnet (hämtas från Insights).</div>';
+  return h;
+}
+
 /* ===== LADDREGELNS RAD I ENERGIRUTAN (v696) =====
    Förslaget från laddregeln (battladd_forslag) som en rad med Starta och
    Ignorera. Starta = samma som Ja i notisen (regelStarta). Ignorera döljer
@@ -12311,6 +12424,10 @@ function openDetail(which){
       +(rt!=null?dRow('Trend',(rt>=0?'+':'')+num(rt,1)+' °/h'):'')
       +prog
       +dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_temperature'),1)+' °C')+dRow('Luftfukt poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
+  }else if(which==='regellogg'){title='Laddregelns förslag';
+    _popupRebuild=rlPopup;_grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();};
+    /* Hämtningen först: i demoläget sätts loggen direkt, utan att vänta. */
+    rlHamta(false);try{hist7Hamta(false);}catch(e){}body=rlPopup();
   }else if(which==='hem'){title='Hem';
     /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
@@ -19051,7 +19168,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v696';
+const APP_VERSION='v697';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19342,6 +19459,8 @@ function openConfig(){
      ingen letar efter en exportfunktion där. Hit hör den: det är energidata. */
   h+='<div class="cfg-sec">Solprognos</div>';
   h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export per dygn och per timme');
+  /* v697: uppföljning av laddregelns förslag, bredvid solprognosens. */
+  h+=cfgMi('openDetail(\'regellogg\')','battery-charging','Laddregelns förslag','Förslagen mot pris och batteri – idag och tre dygn bakåt');
   h+='<div class="cfg-sec">Energimätning</div>';
   h+=stepRow('Batteri kWh','cfgnum-batt',((CFG.battkwh||10))+'','cfgBatt');
   h+='<div class="cfg-row"><span class="cfg-row-l">Köpt i år (kWh)</span><div class="cfg-step"><input id="cfg-boughtyear" class="cfg-inp" type="number" inputmode="numeric" value="'+(boughtYear()!=null?Math.round(boughtYear()):'')+'"><button class="cfg-pm wide" onclick="calibBoughtYear()">Kalibrera</button></div></div>';
