@@ -1155,6 +1155,30 @@ body.panu-pa .fl-tiles{display:grid!important;grid-template-columns:repeat(3,min
    korten, både mellan brickorna och ned till korten. */
 body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important}
 body.panu-pa .panu-c{margin:0!important}
+body.panu-pa .panu.panu-tomt{display:none!important}
+/* LADDREGELNS RAD (v696) under Sol nu / Batteri / Elnät. Ikon, en kort
+   mening och två knappar på en rad; meningen får två rader på smal skärm. */
+.regelrad{display:none}
+.regelrad.visa{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:8px 8px 8px 11px;border-radius:14px;
+  background:rgba(235,203,139,.13);border:1px solid rgba(235,203,139,.45)}
+.regelrad .rr-ic{flex:0 0 auto;width:20px;height:20px;color:var(--gold);display:flex}
+.regelrad .rr-ic svg{width:100%;height:100%}
+.regelrad .rr-t{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.3;font-weight:800;color:var(--ink)}
+/* Två rader, var och en på en rad med … — rubriken är kort nog att alltid synas. */
+.regelrad .rr-t>span,.regelrad .rr-t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.regelrad .rr-t small{font-size:11px;font-weight:650;color:var(--dim)}
+.regelrad .rr-b{flex:0 0 auto;display:flex;gap:6px}
+.regelrad button{height:30px;padding:0 12px;border-radius:999px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.regelrad .rr-ja{background:var(--gold);color:#2e3440;border:1px solid var(--gold)}
+.regelrad .rr-nej{background:none;color:var(--dim);border:1px solid var(--line)}
+/* Telefonen: Ignorera blir ett ✕ — annars får meningen bara ~90 px på en
+   360 px-skärm och rubriken klipps. */
+.regelrad .rr-kort{display:none}
+body.mobile .regelrad .rr-lang{display:none}
+body.mobile .regelrad .rr-kort{display:inline}
+body.mobile .regelrad .rr-nej{width:30px;padding:0;font-size:13px}
+body.kiosk .regelrad .rr-t{font-size:13.5px}
+body.kiosk .regelrad button{height:34px;font-size:13px}
 /* ⋯ i belysningsrutans nedre hörn: Auto, Skivspelare och resten. Nere i
    stället för uppe, så rubriken "BELYSNING" får plats på en smal telefon;
    lägesraden slutar före knappen. */
@@ -3314,6 +3338,9 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
              läses som en. -->
         <div class="pn-del"></div>
         <div class="grid stats st3 en-stats pn-tiles" id="stats-energy" data-grid="energy"></div>
+        <!-- Laddregelns förslag (v696): syns bara när det finns ett att ta
+             ställning till. -->
+        <div class="regelrad" id="regelrad" aria-live="polite"></div>
         <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
              och blir ett kort mindre på startsidan. -->
         <div class="pn-del" id="sp-del"></div>
@@ -3503,6 +3530,9 @@ const ICONS={
 'timer':'<path d="M216,136a88,88,0,1,1-88-88A88,88,0,0,1,216,136Z" opacity="0.2"/><path d="M128,40a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,40Zm0,176a80,80,0,1,1,80-80A80.09,80.09,0,0,1,128,216ZM173.66,90.34a8,8,0,0,1,0,11.32l-40,40a8,8,0,0,1-11.32-11.32l40-40A8,8,0,0,1,173.66,90.34ZM96,16a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,16Z"/>',
 'clock':'<path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"/><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/>',
 'buildings':'<path d="M136,32V216H40V85.35a8,8,0,0,1,3.56-6.66l80-53.33A8,8,0,0,1,136,32Z" opacity="0.2"/><path d="M240,208H224V96a16,16,0,0,0-16-16H144V32a16,16,0,0,0-24.88-13.32L39.12,72A16,16,0,0,0,32,85.34V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM208,96V208H144V96ZM48,85.34,128,32V208H48ZM112,112v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm-32,0v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm0,56v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Zm32,0v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Z"/>',
+/* STUGA (v696) — Brevedens ikon: sadeltak med skorsten, timrade väggar och en
+   dörr. Ritad i samma tvåtonsstil som Phosphor-ikonerna. */
+'stuga':'<path d="M40,116 L128,44 L216,116 V212 H40 Z" opacity="0.2"/><path d="M24,124 L128,40 L232,124" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="M168,74 V48 H196 V96" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,112 V212 H208 V112" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,150 H104 M152,150 H208 M48,182 H104 M152,182 H208" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" opacity="0.7"/><path d="M104,212 V148 H152 V212" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/>',
 'house-line':'<path d="M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z" opacity="0.2"/><path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z"/>',
 'lightbulb-off':'<path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm37.66-6.34a8,8,0,0,1-11.32,11.32L177.36,212H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49a88.6,88.6,0,0,1,3.68-25.11L18.34,53.66A8,8,0,0,1,29.66,42.34ZM97.09,133.41a71.86,71.86,0,0,1-9.19-30.36,8,8,0,0,0-16,.9,87.66,87.66,0,0,0,10.9,36.44ZM96,192h65.36L67.57,98.21A71.6,71.6,0,0,0,73.77,160,32,32,0,0,1,80,178.66Zm119.66-30.79A87.55,87.55,0,0,0,216,104,88,88,0,0,0,80.77,29.9a8,8,0,1,0,9,13.23A72,72,0,0,1,200,104a71.65,71.65,0,0,1-27.53,56.65,32.06,32.06,0,0,0-8.62,10.1,8,8,0,0,0,13.94,7.84,16.1,16.1,0,0,1,4.28-5A87.24,87.24,0,0,0,195.66,161.21Z"/>','lightning':'<path d="M96,240l16-80L48,136,160,16,144,96l64,24Z" opacity="0.2"/><path d="M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5-9.06L62,132.71l84.62-90.66L136.16,94.43a8,8,0,0,0,5,9.06l52.8,19.8Z"/>','moon':'<path d="M227.89,147.89A96,96,0,1,1,108.11,28.11,96.09,96.09,0,0,0,227.89,147.89Z" opacity="0.2"/><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/>','plug':'<path d="M212,132l-58.63,58.63a32,32,0,0,1-45.25,0L65.37,147.88a32,32,0,0,1,0-45.25L124,44Z" opacity="0.2"/><path d="M237.66,66.34a8,8,0,0,0-11.32,0L192,100.69,155.31,64l34.35-34.34a8,8,0,1,0-11.32-11.32L144,52.69,117.66,26.34a8,8,0,0,0-11.32,11.32L112.69,44l-53,53a40,40,0,0,0,0,56.57l15.71,15.71L26.34,218.34a8,8,0,0,0,11.32,11.32l49.09-49.09,15.71,15.71a40,40,0,0,0,56.57,0l53-53,6.34,6.35a8,8,0,0,0,11.32-11.32L203.31,112l34.35-34.34A8,8,0,0,0,237.66,66.34ZM147.72,185a24,24,0,0,1-33.95,0L71,142.23a24,24,0,0,1,0-33.95l53-53L200.69,132Z"/>','sparkle':'<path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"/><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/>','sun-dim':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z"/>','sun-horizon':'<path d="M192,144a64.33,64.33,0,0,1-2,16H66a64,64,0,1,1,126-16Z" opacity="0.2"/><path d="M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z"/>','sun':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>','swimming-pool':'<path d="M224,168v40c-24,0-24,16-48,16s-24-16-48-16-24,16-48,16-24-16-48-16V168c24,0,24,16,48,16s24-16,48-16,24,16,48,16S200,168,224,168Z" opacity="0.2"/><path d="M88,149.39a8,8,0,0,0,8-8V128h64v15.29a8,8,0,0,0,16,0V32a8,8,0,0,0-16,0V48H96V32a8,8,0,0,0-16,0V141.39A8,8,0,0,0,88,149.39ZM96,112V96h64v16Zm64-48V80H96V64ZM24,168a8,8,0,0,1,8-8c14.42,0,22.19,5.18,28.44,9.34C66,173.06,70.42,176,80,176s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34a8,8,0,0,1,0,16c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,178.94,137.57,176,128,176s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,178.94,41.58,176,32,176A8,8,0,0,1,24,168Zm208,40a8,8,0,0,1-8,8c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,218.94,137.57,216,128,216s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,218.94,41.58,216,32,216a8,8,0,0,1,0-16c14.42,0,22.19,5.18,28.44,9.34C66,213.06,70.42,216,80,216s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34A8,8,0,0,1,232,208Z"/>','tag':'<path d="M237.66,153,153,237.66a8,8,0,0,1-11.31,0L42.34,138.34A8,8,0,0,1,40,132.69V40h92.69a8,8,0,0,1,5.65,2.34l99.32,99.32A8,8,0,0,1,237.66,153Z" opacity="0.2"/><path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/>','thermometer-simple':'<path d="M160,138V48a32,32,0,0,0-64,0v90a56,56,0,1,0,64,0Zm-32,70a24,24,0,1,1,24-24A24,24,0,0,1,128,208Z" opacity="0.2"/><path d="M136,153V88a8,8,0,0,0-16,0v65a32,32,0,1,0,16,0Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,200Zm40-66V48a40,40,0,0,0-80,0v86a64,64,0,1,0,80,0Zm-40,98a48,48,0,0,1-27.42-87.4A8,8,0,0,0,104,138V48a24,24,0,0,1,48,0v90a8,8,0,0,0,3.42,6.56A48,48,0,0,1,128,232Z"/>','umbrella':'<path d="M128,32S88,64,88,136H32a8,8,0,0,1-8-8.71A104.21,104.21,0,0,1,128,32Zm104,95.29A104.21,104.21,0,0,0,128,32s40,32,40,104h56A8,8,0,0,0,232,127.29Z" opacity="0.2"/><path d="M240,126.63A112.44,112.44,0,0,0,51.75,53.75a111.56,111.56,0,0,0-35.7,72.88A16,16,0,0,0,32,144h88v56a32,32,0,0,0,64,0,8,8,0,0,0-16,0,16,16,0,0,1-32,0V144h88a16,16,0,0,0,16-17.37ZM32,128l0,0a96.15,96.15,0,0,1,76.2-85.89C96.48,58,81.85,86.11,80.17,128Zm64.15,0c1.39-30.77,10.53-52.81,18.3-66.24A106.44,106.44,0,0,1,128,43.16a106.31,106.31,0,0,1,13.52,18.6C154.8,84.7,159,109.28,159.82,128Zm79.65,0c-1.68-41.89-16.31-70-28-85.94A96.07,96.07,0,0,1,224,128Z"/>','warning':'<path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2"/><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/>','wind':'<path d="M120,96a24,24,0,1,1,24-24A24,24,0,0,1,120,96Zm88-16a24,24,0,1,0,24,24A24,24,0,0,0,208,80Zm-56,80a24,24,0,1,0,24,24A24,24,0,0,0,152,160Z" opacity="0.2"/><path d="M184,184a32,32,0,0,1-32,32c-13.7,0-26.95-8.93-31.5-21.22a8,8,0,0,1,15-5.56C137.74,195.27,145,200,152,200a16,16,0,0,0,0-32H40a8,8,0,0,1,0-16H152A32,32,0,0,1,184,184Zm-64-80a32,32,0,0,0,0-64c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C105.74,60.73,113,56,120,56a16,16,0,0,1,0,32H24a8,8,0,0,0,0,16Zm88-32c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C193.74,92.73,201,88,208,88a16,16,0,0,1,0,32H32a8,8,0,0,0,0,16H208a32,32,0,0,0,0-64Z"/>'};
 Object.assign(ICONS,{'cloud-fog':'<path d="M224,100a68,68,0,0,1-68,68H76A44,44,0,1,1,90.2,82.34v.11A68.06,68.06,0,0,1,224,100Z" opacity="0.2"/><path d="M120,208H72a8,8,0,0,1,0-16h48a8,8,0,0,1,0,16Zm64-16H160a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Zm-24,32H104a8,8,0,0,0,0,16h56a8,8,0,0,0,0-16Zm72-124a76.08,76.08,0,0,1-76,76H76A52,52,0,0,1,76,72a53.26,53.26,0,0,1,8.92.76A76.08,76.08,0,0,1,232,100Zm-16,0A60.06,60.06,0,0,0,96,96.46a8,8,0,0,1-16-.92q.21-3.66.77-7.23A38.11,38.11,0,0,0,76,88a36,36,0,0,0,0,72h80A60.07,60.07,0,0,0,216,100Z"/>','cloud-rain':'<path d="M224,92a68,68,0,0,1-68,68H76A44,44,0,1,1,90.2,74.34v.11A68.06,68.06,0,0,1,224,92Z" opacity="0.2"/><path d="M158.66,196.44l-32,48a8,8,0,1,1-13.32-8.88l32-48a8,8,0,0,1,13.32,8.88ZM232,92a76.08,76.08,0,0,1-76,76H132.28l-29.62,44.44a8,8,0,1,1-13.32-8.88L113.05,168H76A52,52,0,0,1,76,64a53.26,53.26,0,0,1,8.92.76A76.08,76.08,0,0,1,232,92Zm-16,0A60.06,60.06,0,0,0,96,88.46a8,8,0,0,1-16-.92q.21-3.66.77-7.23A38.11,38.11,0,0,0,76,80a36,36,0,0,0,0,72h80A60.07,60.07,0,0,0,216,92Z"/>','cloud':'<path d="M240,128a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.74l0,.1A80,80,0,0,1,240,128Z" opacity="0.2"/><path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Z"/>','compass-tool':'<path d="M160,80a32,32,0,1,1-32-32A32,32,0,0,1,160,80Z" opacity="0.2"/><path d="M215.12,123.64a8,8,0,1,0-14.24-7.28,79.58,79.58,0,0,1-33.08,33.5l-16.58-37.32A40,40,0,0,0,136,40.8V24a8,8,0,0,0-16,0V40.8a40,40,0,0,0-15.22,71.74L56.69,220.75a8,8,0,1,0,14.62,6.5l25.14-56.56A95.48,95.48,0,0,0,128,176a99.13,99.13,0,0,0,31.6-5.21l25.09,56.46a8,8,0,0,0,14.62-6.5l-25-56.25A95.81,95.81,0,0,0,215.12,123.64ZM128,56a24,24,0,1,1-24,24A24,24,0,0,1,128,56Zm0,104a79.52,79.52,0,0,1-25-4l16.42-36.94a39.81,39.81,0,0,0,17.2,0l16.48,37.06A83.21,83.21,0,0,1,128,160Z"/>','navigation-arrow':'<path d="M234.35,129,152,152,129,234.35a8,8,0,0,1-15.21.27l-65.28-176A8,8,0,0,1,58.63,48.46l176,65.28A8,8,0,0,1,234.35,129Z" opacity="0.2"/><path d="M237.33,106.21,61.41,41l-.16-.05A16,16,0,0,0,40.9,61.25a1,1,0,0,0,.05.16l65.26,175.92A15.77,15.77,0,0,0,121.28,248h.3a15.77,15.77,0,0,0,15-11.29l.06-.2,21.84-78,78-21.84.2-.06a16,16,0,0,0,.62-30.38ZM149.84,144.3a8,8,0,0,0-5.54,5.54L121.3,232l-.06-.17L56,56l175.82,65.22.16.06Z"/>','snowflake':'<path d="M220,128a92,92,0,1,1-92-92A92.1,92.1,0,0,1,220,128Z" opacity="0.2"/><path d="M223.77,150.09a8,8,0,0,1-5.86,9.68l-24.64,6,6.46,24.11a8,8,0,0,1-5.66,9.8A8.25,8.25,0,0,1,192,200a8,8,0,0,1-7.72-5.93l-7.72-28.8L136,141.86v46.83l21.66,21.65a8,8,0,0,1-11.32,11.32L128,203.31l-18.34,18.35a8,8,0,0,1-11.32-11.32L120,188.69V141.86L79.45,165.27l-7.72,28.8A8,8,0,0,1,64,200a8.25,8.25,0,0,1-2.08-.27,8,8,0,0,1-5.66-9.8l6.46-24.11-24.64-6a8,8,0,0,1,3.82-15.54l29.45,7.23L112,128,71.36,104.54l-29.45,7.23A7.85,7.85,0,0,1,40,112a8,8,0,0,1-1.91-15.77l24.64-6L56.27,66.07a8,8,0,0,1,15.46-4.14l7.72,28.8L120,114.14V67.31L98.34,45.66a8,8,0,0,1,11.32-11.32L128,52.69l18.34-18.35a8,8,0,0,1,11.32,11.32L136,67.31v46.83l40.55-23.41,7.72-28.8a8,8,0,0,1,15.46,4.14l-6.46,24.11,24.64,6A8,8,0,0,1,216,112a7.85,7.85,0,0,1-1.91-.23l-29.45-7.23L144,128l40.64,23.46,29.45-7.23A8,8,0,0,1,223.77,150.09Z"/>','sun-dim':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z"/>','x':'<path d="M216,56V200a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40H200A16,16,0,0,1,216,56Z" opacity="0.2"/><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>'});
@@ -11872,6 +11902,50 @@ function bilStyrLage(){
   try{var t=(_regel&&_regel.bil)?String(_regel.bil):'';if(!t)return null;var i=t.indexOf('|');
     return {lage:i>=0?t.slice(0,i):t,skal:i>=0?t.slice(i+1):''};}catch(e){return null;}
 }
+/* ===== LADDREGELNS RAD I ENERGIRUTAN (v696) =====
+   Förslaget från laddregeln (battladd_forslag) som en rad med Starta och
+   Ignorera. Starta = samma som Ja i notisen (regelStarta). Ignorera döljer
+   just det förslaget på den här enheten; ett nytt förslag (ny nyckel) syns igen.
+   I demoläget visas ett exempel. */
+var REGEL_IGN_KEY='regelIgnorera_v1';
+function regelDemo(){
+  var nu=Date.now(),h=3600000,t0=Math.ceil(nu/h)*h;
+  return {v:2,nyckel:'demo',text:'Spara batteriet till kvällen',startMs:0,sparaMs:nu-60000,stoppMs:t0+3*h,kwh:0,vinst:6.2,satt:nu-10*60000};
+}
+function regelKort(p,nu){
+  var t=regelTider(p,nu);if(t.fel)return null;
+  var kl=function(ms){return regelKl(ms);};
+  /* Kort, så raden ryms på en 360 px-telefon: rubrik + en underrad. Hela
+     motiveringen finns i husbatteriets popup. */
+  var v=(Number(p.vinst)>=0.5)?('sparar ca '+Math.round(Number(p.vinst))+' kr'):'';
+  if(t.start)return {txt:'Ladda '+kl(t.start)+'–'+kl(t.spara||t.stopp),sub:'batteriet'+(p.kwh?' · '+num(p.kwh,1)+' kWh':'')+(t.spara?' · spara till '+kl(t.stopp):'')+(v?' · '+v:'')};
+  return {txt:'Spara '+(t.spara<=nu?'till '+kl(t.stopp):kl(t.spara)+'–'+kl(t.stopp)),sub:'batteriet'+(v?' · '+v:' · ingen urladdning')};
+}
+function regelRadRita(){
+  var el=$('regelrad');if(!el)return;
+  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
+  var R=_regel,nu=Date.now(),p=demo?regelDemo():(R&&R.forslag);
+  var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
+  var bokat=!demo&&R&&R.stopp>nu&&p&&R.stopp===Number(p.stoppMs);
+  var k=(p&&p.v===2&&!bokat&&String(p.nyckel||p.stoppMs)!==ign)?regelKort(p,nu):null;
+  if(!demo&&(typeof regelLage==='function')){try{if(regelLage().fjarr)k=null;}catch(e){}}
+  el.classList.toggle('visa',!!k);
+  el.innerHTML=k?('<span class="rr-ic">'+icon('battery-charging')+'</span>'
+    +'<div class="rr-t"><span>'+esc(k.txt)+'</span>'+(k.sub?'<small>'+esc(k.sub)+'</small>':'')+'</div>'
+    +'<div class="rr-b"><button type="button" class="rr-nej" onclick="regelIgnorera()" aria-label="Ignorera förslaget"><span class="rr-lang">Ignorera</span><span class="rr-kort">✕</span></button>'
+    +'<button type="button" class="rr-ja" onclick="regelRadStarta()">Starta</button></div>'):'';
+}
+function regelIgnorera(){
+  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
+  var p=demo?regelDemo():(_regel&&_regel.forslag);
+  try{localStorage.setItem(REGEL_IGN_KEY,String((p&&(p.nyckel||p.stoppMs))||''));}catch(e){}
+  regelRadRita();try{fitScreen();}catch(e){}
+}
+function regelRadStarta(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');regelIgnorera();return;}
+  Promise.resolve(regelStarta()).then(function(){regelRadRita();});
+}
+
 /* ===== "PÅ NU"-RADEN (v688) =====
    Vad som är igång, ur samma källor som rutorna och knapparna använder.
    Knappar (CONFIG.BUTTONS) som är på blir egna brickor och öppnar Hem-rutans
@@ -11931,8 +12005,10 @@ function paNuRita(){
   try{rutorPaNu();}catch(e){}
   try{regelHamta(false);}catch(e){}
   var L=paNuLista();
-  el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+'" onclick="openDetail(\''+x.pop+'\')">'+esc(x.txt)+'</button>';}).join('')
-    :'<span class="panu-tom">Inget är på just nu</span>';
+  /* v696: ingenting igång → raden göms helt, så luften ovanför korten blir
+     densamma som under dem (rutnätets egen kantluft). */
+  el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+'" onclick="openDetail(\''+x.pop+'\')">'+esc(x.txt)+'</button>';}).join(''):'';
+  el.classList.toggle('panu-tomt',!L.length);
 }
 /* VARJE KNAPP I SIN RUTAS POPUP (v690). Knappen som hör till en ruta ligger
    i den rutans popup: boka disk i diskmaskinens, poolvärmen i poolens, ladda
@@ -11985,6 +12061,7 @@ function regelHamta(tvinga){
       bil:String(r.energi_bil||'')};
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
+    try{regelRadRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
     else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
@@ -13092,13 +13169,13 @@ function computeMetric(cfg){
       const B=brvState();
       const gammal=brvGammal(B);
       const okand=!B||B.nastaLage==='okand'||gammal;
-      let ic='thermometer-simple',iccol='var(--faint)';
-      if(B&&B.aktiv){
-        ic=(B.lage==='cool')?'snowflake':(B.lage==='heat')?'flame':'thermometer-simple';
+      /* v696: alltid stugan. Att den värmer eller kyler just nu visas med
+         indikatorn i ikonens hörn (låga eller snöflinga, se tileIkon). */
+      let ic='stuga',iccol='var(--dim)';
+      if(B&&B.aktiv&&!gammal){
         iccol=(B.lage==='cool')?'var(--cyan)':(B.lage==='heat')?'var(--warm)':'var(--gold)';
         if(B.malNott)iccol='var(--ok)';
-      }else if(B&&B.nastaLage==='cool'){ic='snowflake';iccol='var(--faint)';}
-      else if(B&&B.nastaLage==='heat'){ic='flame';iccol='var(--faint)';}
+      }
       if(okand)iccol='var(--faint)';
       /* Väntetillstånd direkt efter ett tryck. */
       const vantar=(_brvVanta&&Date.now()-_brvVanta<12000);
@@ -18174,6 +18251,10 @@ function tileIkon(cfg,m){
     if(cap(DEV.battery,'battery_charging_state')==='charging')puls=true;
   }else if(k==='dish'){
     if(cap(DEV.dish,'onoff')===true&&typeof diskKor==='function'&&diskKor()){extra='clock-counter-clockwise';puls=true;}
+  }else if(k==='breveden'){
+    /* v696: värmer eller kyler Breveden JUST NU — låga eller snöflinga i
+       stugans hörn. Läget "Värm 15" utan att den arbetar ger ingen markör. */
+    try{var Bv=brvState();if(Bv&&Bv.aktiv&&!brvGammal(Bv)){extra=(Bv.lage==='cool')?'snowflake':'flame';puls=true;}}catch(e){}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
     if(varms())extra='flame';
   }
@@ -18970,7 +19051,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v695';
+const APP_VERSION='v696';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -19555,6 +19636,7 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 function render(){
   try{yearDataMaybe();}catch(e){}
   try{paNuRita();}catch(e){}
+  try{regelHamta(false);regelRadRita();}catch(e){}
   /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
      från Insights (högst var femte minut). */
   try{if(histLucka('battpow')||histLucka('house'))seedFyll();}catch(e){}
@@ -21247,7 +21329,7 @@ const rSort=(a,b)=>rNamn(a).localeCompare(rNamn(b),'sv');
    "Utomhus " har ett efterföljande blanksteg i Homey — därför trim(). */
 const RUM_IC={'kök':'fork-knife','vardagsrum':'couch','sovrum':'bed','kontor':'desktop',
   'hall':'door','gästrum':'bed','lekrum':'game-controller','källare':'stairs',
-  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'house-line',
+  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'stuga',
   'snickarboa':'hammer','utomhus':'tree','el':'lightning','hus':'house'};
 function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
 
