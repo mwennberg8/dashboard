@@ -1160,10 +1160,45 @@ body.panu-pa .panu.panu-tomt{display:none!important}
    mening och två knappar på en rad; meningen får två rader på smal skärm. */
 .regelrad{display:none}
 /* Laddregelns logg (v697) */
-.rl-graf{margin:8px 0 4px}
+.rl-graf{margin:10px 0 4px}
+/* v699: plot + segmentrader i ett rutnät med gemensamma marginaler, så att
+   tiderna i grafen och i raderna står exakt under varandra. */
+.rl-r{display:flex;align-items:stretch}
+.rl-gl{flex:0 0 44px;font-size:10.5px;font-weight:800;color:var(--dim);display:flex;align-items:center;padding-right:6px}
+.rl-gr{flex:0 0 40px}
+.rl-tr{flex:1 1 auto;min-width:0;position:relative}
+.rl-plot .rl-svg{display:block;width:100%;height:170px}
+body.kiosk .rl-plot .rl-svg{height:220px}
+.rl-ax{position:relative;padding:0}
+.rl-ax span{position:absolute;transform:translateY(-50%);font-size:10px;font-weight:700;color:var(--faint);white-space:nowrap;line-height:1}
+.rl-gl.rl-ax span{right:6px}
+.rl-gr.rl-ax span{left:5px}
+.rl-rb{margin-top:5px}
+.rl-bana{background:var(--inset);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.rl-tick{position:absolute;top:0;bottom:0;width:0;border-left:1px solid var(--line)}
+.rl-nu{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--dim);z-index:2}
+.rl-tom{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:700;color:var(--faint)}
+.rl-seg{position:absolute;height:17px;box-sizing:border-box;border:1.5px solid currentColor;border-radius:5px;overflow:hidden;
+  display:flex;align-items:center;padding:0 5px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.rl-seg::before{content:'';position:absolute;inset:0;background:currentColor;opacity:.38}
+.rl-seg span{position:relative;color:var(--ink);overflow:hidden;text-overflow:clip}
+.rl-seg.spara{color:var(--blue)}
+.rl-seg.ladda{color:var(--ok)}
+.rl-seg.ej{border-style:dashed}
+.rl-seg.ej::before{opacity:.08}
+.rl-seg.ej span{color:var(--dim)}
+.rl-seg.oppen{border-right-style:dotted}
+.rl-x{display:block;height:13px;margin-top:3px;padding:0}
+.rl-x span{position:absolute;top:0;transform:translateX(-50%)}
+.rl-x span:nth-child(1){left:0}.rl-x span:nth-child(2){left:25%}.rl-x span:nth-child(3){left:50%}.rl-x span:nth-child(4){left:75%}.rl-x span:nth-child(5){left:100%}
+.rl-li{display:inline-block;width:14px;height:9px;border-radius:3px;border:1.5px solid currentColor;position:relative;box-sizing:border-box;vertical-align:middle}
+.rl-li::before{content:'';position:absolute;inset:0;background:currentColor;opacity:.38}
+.rl-li.spara{color:var(--blue)}
+.rl-li.ladda{color:var(--ok)}
 .rl-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;font-weight:700;color:var(--dim);margin:4px 0 8px}
 .rl-leg span{display:inline-flex;align-items:center;gap:5px}
-.rl-leg i{display:inline-block;width:14px;height:8px;border-radius:2px}
+.rl-leg i{display:inline-block;width:14px;height:3px;border-radius:2px}
+.rl-leg i.rl-li{height:9px;border-radius:3px}
 .rl-leg i.str{height:0;border-top:2px dashed;border-radius:0}
 .rl-leg .rl-not{font-weight:600;color:var(--faint)}
 .rl-rad{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
@@ -11955,40 +11990,101 @@ function rlSoc(D){
   ut.sort(function(a,b){return a.t-b.t;});
   return ut;
 }
+/* v699: bokat och föreslaget som egna segmentrader under grafen, i stället
+   för band över hela grafen. Ett förslag ger en eller två delar. */
+function rlDelar(e){
+  var d=[],b=Number(e.stopp)||0;
+  if(e.start)d.push({typ:'ladda',a:+e.start,b:+(e.spara||b)||0});
+  if(e.spara)d.push({typ:'spara',a:+e.spara,b:b});
+  else if(!e.start&&e.t0)d.push({typ:'spara',a:+e.t0,b:b});
+  return d;
+}
+/* Delarna klipps mot dygnet och läggs i rader så att överlappande inte ritas
+   ovanpå varandra. Saknas slut (en ren starttid) ritas en timme, öppen. */
+function rlSpar(lista,D){
+  var ut=[],sett={};
+  lista.forEach(function(q){
+    var oppen=!(q.b>q.a),b=oppen?q.a+3600000:q.b,k=q.typ+'|'+q.a+'|'+(oppen?0:q.b);
+    if(sett[k])return;sett[k]=1;
+    var a2=Math.max(D.ms,q.a),b2=Math.min(D.slut,b);if(b2<=a2)return;
+    ut.push({typ:q.typ,a:q.a,b:b,a2:a2,b2:b2,oppen:oppen,kalla:q.kalla||'',e:q.e||null});});
+  ut.sort(function(x,y){return x.a2-y.a2||x.b2-y.b2;});
+  var slut=[];
+  ut.forEach(function(q){var r=0;while(r<slut.length&&slut[r]>q.a2)r++;slut[r]=q.b2;q.rad=r;});
+  return {lista:ut,rader:Math.max(1,slut.length)};
+}
+/* Det som var bokat: förslag som bokades, plus den bokning som ligger i
+   Homey just nu (Starta-knappen, Ladda max eller ett ja i notisen). */
+function rlBokat(D,L){
+  var q=[];
+  (L.f||[]).forEach(function(e){if(e&&e.bokad)rlDelar(e).forEach(function(x){x.kalla='förslaget '+avlKl(e.t0);x.e=e;q.push(x);});});
+  var R=(typeof _regel!=='undefined'&&_regel)||null;
+  if(R&&(R.start||R.spara)&&(!R.stopp||R.stopp>Date.now()-86400000*4))
+    rlDelar({start:R.start,spara:R.spara,stopp:R.stopp}).forEach(function(x){x.kalla='bokat i Homey';q.push(x);});
+  return rlSpar(q,D);
+}
+function rlForslag(D,L){
+  var q=[];
+  (L.f||[]).forEach(function(e){if(e)rlDelar(e).forEach(function(x){x.kalla='förslaget '+avlKl(e.t0);x.e=e;q.push(x);});});
+  return rlSpar(q,D);
+}
+function rlTid(q){return avlKl(q.a)+(q.oppen?'→':'–'+avlKl(q.b));}
+function rlSegHtml(q,D,ej){
+  var span=D.slut-D.ms,l=(q.a2-D.ms)/span*100,w=(q.b2-q.a2)/span*100;
+  var namn=q.typ==='ladda'?'Ladda':'Spara',full=namn+' '+rlTid(q);
+  var txt=w>=38?full:(w>=12?namn:(w>=5?namn.charAt(0):''));
+  return '<div class="rl-seg '+q.typ+(ej?' ej':'')+(q.oppen?' oppen':'')+'" data-k="'+esc(full)+'|'+namn+'|'+namn.charAt(0)+'" style="left:'+l.toFixed(2)+'%;width:'+Math.max(w,0.8).toFixed(2)+'%;top:'+(3+q.rad*20)+'px" title="'+esc(full)+'"><span>'+esc(txt)+'</span></div>';
+}
+/* Längsta etikett som ryms, mätt i webbläsaren. Utan layout (jsdom) står
+   procentgissningen från rlSegHtml kvar. */
+function rlSegPassa(){
+  try{document.querySelectorAll('#dlg-body .rl-seg[data-k]').forEach(function(g){
+    var sp=g.querySelector('span'),bredd=g.clientWidth-10;if(!sp||!(g.clientWidth>0))return;
+    var alt=g.getAttribute('data-k').split('|').concat(['']);
+    for(var i=0;i<alt.length;i++){sp.textContent=alt[i];if(sp.scrollWidth<=bredd)break;}});}catch(e){}
+}
+function rlBana(namn,S,D,ej,tom){
+  var nu=Date.now(),h=3+S.rader*20+1;
+  var x='<div class="rl-r rl-rb"><span class="rl-gl">'+namn+'</span><div class="rl-tr rl-bana" style="height:'+h+'px">';
+  [6,12,18].forEach(function(t){x+='<i class="rl-tick" style="left:'+(t/24*100).toFixed(2)+'%"></i>';});
+  if(!S.lista.length)x+='<span class="rl-tom">'+tom+'</span>';
+  S.lista.forEach(function(q){x+=rlSegHtml(q,D,ej);});
+  if(nu>D.ms&&nu<D.slut)x+='<i class="rl-nu" style="left:'+((nu-D.ms)/(D.slut-D.ms)*100).toFixed(2)+'%"></i>';
+  return x+'</div><span class="rl-gr"></span></div>';
+}
 function rlGraf(D,L){
-  var W=300,H=150,pT=12,pB=6,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
+  var W=300,H=150,pT=10,pB=4,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
   var pr=(L.d&&L.d[D.k])||null,max=0;(pr||[]).forEach(function(v){if(isFinite(v)&&v>max)max=v;});
   max=max>0?Math.ceil(max*2)/2:3;
   var YP=function(v){return H-pB-(v/max)*(H-pT-pB);},YS=function(v){return H-pB-(v/100)*(H-pT-pB);};
-  var s='<svg class="tg-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris, batteri och förslag">';
+  var s='<svg class="rl-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris och batteri">';
   /* rutnät + nollinje */
-  [0.25,0.5,0.75,1].forEach(function(f){var y=YP(max*f);s+='<line x1="0" x2="'+W+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
+  [0.5,1].forEach(function(f){var y=YP(max*f);s+='<line x1="0" x2="'+W+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
+  [6,12,18].forEach(function(t){var x=X(D.ms+t*3600000);s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
   s+=nollLinje(YP(0),0,W);
-  /* förslagen som band */
-  var dagens=(L.f||[]).filter(function(e){var a=e.start||e.spara||e.t0,b=e.stopp;return b>D.ms&&a<D.slut;});
-  dagens.forEach(function(e){
-    var del=[];
-    if(e.start)del.push(['ladda',e.start,e.spara||e.stopp]);
-    if(e.spara||!e.start)del.push(['spara',e.spara||e.t0,e.stopp]);
-    del.forEach(function(q){var a=Math.max(D.ms,q[1]),b=Math.min(D.slut,q[2]);if(b<=a)return;
-      var col=q[0]==='ladda'?'var(--ok)':'var(--blue)';
-      s+='<rect x="'+X(a).toFixed(1)+'" y="'+pT+'" width="'+(X(b)-X(a)).toFixed(1)+'" height="'+(H-pT-pB)+'" fill="'+col+'" opacity="'+(e.bokad?0.24:0.08)+'"'
-        +(e.bokad?'':' stroke="'+col+'" stroke-dasharray="3 3" stroke-width="1" vector-effect="non-scaling-stroke"')+'/>';});
-  });
-  /* priset: trappa */
-  if(pr){var d='';pr.forEach(function(v,h){if(!isFinite(v))return;var x0=X(D.ms+h*3600000),x1=X(D.ms+(h+1)*3600000),y=YP(v);
-      d+=(d?'L':'M')+x0.toFixed(1)+' '+y.toFixed(1)+'L'+x1.toFixed(1)+' '+y.toFixed(1);});
-    s+='<path d="'+d+'" fill="none" stroke="var(--gold)" stroke-width="2"'+' vector-effect="non-scaling-stroke"/>';}
-  /* batteriet */
+  /* batteriet: linje med svag yta under */
   var so=rlSoc(D);
-  if(so.length>1)s+='<path d="'+so.map(function(p,i){return (i?'L':'M')+X(p.t).toFixed(1)+' '+YS(p.v).toFixed(1);}).join('')+'" fill="none" stroke="var(--cyan)" stroke-width="1.8" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"/>';
-  /* när förslagen kom */
-  dagens.forEach(function(e,i){if(e.t0<D.ms||e.t0>D.slut)return;var x=X(e.t0);
-    s+='<path d="M'+(x-4).toFixed(1)+' 1L'+(x+4).toFixed(1)+' 1L'+x.toFixed(1)+' '+(pT-2)+'Z" fill="'+(e.typ==='ladda'?'var(--ok)':'var(--blue)')+'"/>';});
+  if(so.length>1){var d=so.map(function(p,i){return (i?'L':'M')+X(p.t).toFixed(1)+' '+YS(p.v).toFixed(1);}).join('');
+    s+='<path d="'+d+'L'+X(so[so.length-1].t).toFixed(1)+' '+YS(0).toFixed(1)+'L'+X(so[0].t).toFixed(1)+' '+YS(0).toFixed(1)+'Z" fill="var(--cyan)" opacity="0.10"/>';
+    s+='<path class="rl-soc" d="'+d+'" fill="none" stroke="var(--cyan)" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';}
+  /* priset: trappa */
+  if(pr){var d2='';pr.forEach(function(v,h){if(!isFinite(v))return;var x0=X(D.ms+h*3600000),x1=X(D.ms+(h+1)*3600000),y=YP(v);
+      d2+=(d2?'L':'M')+x0.toFixed(1)+' '+y.toFixed(1)+'L'+x1.toFixed(1)+' '+y.toFixed(1);});
+    s+='<path class="rl-pris" d="'+d2+'" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/>';}
   /* nu */
   var nu=Date.now();if(nu>D.ms&&nu<D.slut)s+='<line x1="'+X(nu).toFixed(1)+'" x2="'+X(nu).toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--dim)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
   s+='</svg>';
-  return {svg:s,max:max,dagens:dagens,pris:!!pr,soc:so.length>1};
+  /* Axelvärden som HTML (svg:en sträcks, text i den skulle förvrängas). */
+  var top=function(y){return (y/H*100).toFixed(1)+'%';};
+  var vl='<span style="top:'+top(YP(max))+'">'+num(max,1)+' kr</span><span style="top:'+top(YP(max/2))+'">'+num(max/2,max/2%1?2:1)+'</span><span style="top:'+top(YP(0))+'">0</span>';
+  var hl='<span style="top:'+top(YS(100))+'">100 %</span><span style="top:'+top(YS(50))+'">50 %</span><span style="top:'+top(YS(0))+'">0 %</span>';
+  var B=rlBokat(D,L),F=rlForslag(D,L);
+  var dagens=(L.f||[]).filter(function(e){var a=e.start||e.spara||e.t0,b=e.stopp;return b>D.ms&&a<D.slut;});
+  var h='<div class="rl-r"><span class="rl-gl rl-ax">'+vl+'</span><div class="rl-tr rl-plot">'+s+'</div><span class="rl-gr rl-ax">'+hl+'</span></div>'
+    +rlBana('Bokat',B,D,false,'ingen bokning')
+    +rlBana('Förslag',F,D,true,'inga förslag')
+    +'<div class="rl-r"><span class="rl-gl"></span><div class="rl-tr pgraph-x rl-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span class="rl-gr"></span></div>';
+  return {html:h,svg:s,max:max,dagens:dagens,bokat:B,forslag:F,pris:!!pr,soc:so.length>1};
 }
 function rlPopup(){
   var L=_rl,h='';
@@ -11997,12 +12093,19 @@ function rlPopup(){
   if(!L)return h+'<div class="det-note">Hämtar loggen…</div>';
   if(L.fel)return h+'<div class="det-note">Kunde inte läsa loggen: '+esc(L.fel)+'</div>';
   var D=rlDygn(_rlDag),G=rlGraf(D,L);
-  h+='<div class="rl-graf">'+G.svg+'<div class="pgraph-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div></div>';
-  h+='<div class="rl-leg"><span><i style="background:var(--gold)"></i>Pris (0–'+num(G.max,1)+' kr)</span><span><i class="str" style="border-color:var(--cyan)"></i>Batteri %</span>'
-    +'<span><i style="background:var(--blue);opacity:.45"></i>Spara</span><span><i style="background:var(--ok);opacity:.45"></i>Ladda</span><span class="rl-not">fyllt = bokat · streckat = inte bokat</span></div>';
-  if(!G.pris&&!G.dagens.length)h+='<div class="det-note">Inget loggat det här dygnet. Loggen började med laddregeln 1.3.1'+(L.tom?' och är tom än så länge':'')+'.</div>';
-  else if(!G.dagens.length)h+='<div class="det-note">Inga förslag det här dygnet.</div>';
-  else{
+  h+='<div class="rl-graf">'+G.html+'</div>';
+  setTimeout(rlSegPassa,0);
+  h+='<div class="rl-leg"><span><i style="background:var(--gold)"></i>Pris</span><span><i style="background:var(--cyan)"></i>Batteri %</span>'
+    +'<span><i class="rl-li spara"></i>Spara</span><span><i class="rl-li ladda"></i>Ladda</span><span class="rl-not">streckat = inte bokat</span></div>';
+  if(!G.pris&&!G.dagens.length&&!G.bokat.lista.length)h+='<div class="det-note">Inget loggat det här dygnet. Loggen började med laddregeln 1.3.1'+(L.tom?' och är tom än så länge':'')+'.</div>';
+  if(G.bokat.lista.length){
+    h+=dSec('Bokat');
+    G.bokat.lista.forEach(function(q){
+      var nu=Date.now(),st=q.oppen?(nu<q.a?'kommande':''):(nu>=q.b?'klart':(nu>=q.a?'<b class="rl-ok">pågår</b>':'kommande'));
+      h+='<div class="rl-rad"><span class="rl-kl"><i class="rl-li '+q.typ+'"></i></span><span class="rl-txt">'+(q.typ==='ladda'?'Ladda ':'Spara ')+esc(rlTid(q))
+        +'<small>'+esc(q.kalla)+(st?' · '+st:'')+'</small></span></div>';});
+  }
+  if(G.dagens.length){
     h+=dSec('Förslag');
     G.dagens.forEach(function(e){
       /* Klockslag utan datum — dygnet står i valet ovanför. */
@@ -12427,7 +12530,8 @@ function openDetail(which){
   }else if(which==='regellogg'){title='Laddregelns förslag';
     _popupRebuild=rlPopup;_grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();};
     /* Hämtningen först: i demoläget sätts loggen direkt, utan att vänta. */
-    rlHamta(false);try{hist7Hamta(false);}catch(e){}body=rlPopup();
+    _dlgWide=true;                                   /* v699: grafen och segmenten behöver bredden */
+    rlHamta(false);try{hist7Hamta(false);}catch(e){}try{regelHamta(false);}catch(e){}body=rlPopup();
   }else if(which==='hem'){title='Hem';
     /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
@@ -19168,7 +19272,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v698';
+const APP_VERSION='v699';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
