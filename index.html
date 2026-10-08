@@ -1123,6 +1123,113 @@ body:not(.kiosk) .wx2-temp,body:not(.kiosk) .wx2-wv{font-size:25px}
 .cmp-arrow{fill:var(--warm)}
 .f-hit{fill:transparent;cursor:pointer}
 .flikrad{display:none}
+/* "PÅ NU"-RADEN (v688, inställningen CFG.paNu). Det som är igång just nu som
+   brickor överst i rutorna; ett tryck öppnar rätt popup. Knappavsnittet göms —
+   knapparna ligger i rutornas popuper och i Hem-rutans popup. */
+.panu{display:none}
+body.panu-pa .panu{display:flex;flex-wrap:wrap;margin:0 0 6px;min-height:30px;align-items:center}
+.panu-c{display:inline-flex;align-items:center;height:30px;border-radius:999px;padding:0 11px;margin:0 6px 6px 0;
+  font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;
+  background:rgba(163,190,140,.16);color:var(--ok);border:1px solid rgba(163,190,140,.45)}
+.panu-c.gul{background:rgba(235,203,139,.18);color:var(--gold);border-color:rgba(235,203,139,.5)}
+.panu-tom{font-size:12px;font-weight:700;color:var(--faint);margin:0 0 6px 2px}
+body.panu-pa #view-flode>[data-sec="buttons"]{display:none!important}
+/* v693: rapportrutan längst ned är borttagen med den nya startsidan. */
+body.panu-pa #view-flode>[data-sec="report"]{display:none!important}
+.tileswrap>.panu{padding:calc(8px*var(--kk,1)) calc(8px*var(--kk,1)) 0}
+/* Skalan sätts på avsnittet, så På nu-raden och korten har samma kantluft. */
+body.panu-pa #view-flode>[data-sec="tiles"]{--kk:1}
+body.kiosk.panu-pa #view-flode>[data-sec="tiles"]{--kk:1.05}
+/* Väggplattan: knapprutan som fyllde höjden är borta — rutorna tar över den
+   och raderna delar på höjden. */
+body.kiosk.panu-pa #view-flode>[data-sec="tiles"]{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+body.kiosk.panu-pa #view-flode>[data-sec="tiles"]>.fl-tiles{flex:1 1 auto;grid-auto-rows:1fr;align-content:stretch}
+/* RUTORNA SOM KORT (v689–v690, med På nu-raden). Varje ruta ett eget kort,
+   alla LIKA STORA: tre lika breda kolumner och lika höga rader (1fr). Måtten
+   hänger ihop genom en enda skala, --kk: ikon = rubrikens radhöjd, värdet
+   2,2 × rubriken, luften i kortet = ikonen. Väggplattan sätter --kk större;
+   allt annat följer med i samma proportion. */
+body.panu-pa .fl-tiles{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:1fr!important;gap:calc(8px*var(--kk))!important;padding:calc(8px*var(--kk))!important}
+/* På nu-raden (v692): jämnt avstånd åt alla håll — samma 8 px som mellan
+   korten, både mellan brickorna och ned till korten. */
+body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important}
+body.panu-pa .panu-c{margin:0!important}
+body.panu-pa .panu.panu-tomt{display:none!important}
+/* LADDREGELNS RAD (v696) under Sol nu / Batteri / Elnät. Ikon, en kort
+   mening och två knappar på en rad; meningen får två rader på smal skärm. */
+.regelrad{display:none}
+.regelrad.visa{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:8px 8px 8px 11px;border-radius:14px;
+  background:rgba(235,203,139,.13);border:1px solid rgba(235,203,139,.45)}
+.regelrad .rr-ic{flex:0 0 auto;width:20px;height:20px;color:var(--gold);display:flex}
+.regelrad .rr-ic svg{width:100%;height:100%}
+.regelrad .rr-t{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.3;font-weight:800;color:var(--ink)}
+/* Två rader, var och en på en rad med … — rubriken är kort nog att alltid synas. */
+.regelrad .rr-t>span,.regelrad .rr-t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.regelrad .rr-t small{font-size:11px;font-weight:650;color:var(--dim)}
+.regelrad .rr-b{flex:0 0 auto;display:flex;gap:6px}
+.regelrad button{height:30px;padding:0 12px;border-radius:999px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
+.regelrad .rr-ja{background:var(--gold);color:#2e3440;border:1px solid var(--gold)}
+.regelrad .rr-nej{background:none;color:var(--dim);border:1px solid var(--line)}
+/* Telefonen: Ignorera blir ett ✕ — annars får meningen bara ~90 px på en
+   360 px-skärm och rubriken klipps. */
+.regelrad .rr-kort{display:none}
+body.mobile .regelrad .rr-lang{display:none}
+body.mobile .regelrad .rr-kort{display:inline}
+body.mobile .regelrad .rr-nej{width:30px;padding:0;font-size:13px}
+body.kiosk .regelrad .rr-t{font-size:13.5px}
+body.kiosk .regelrad button{height:34px;font-size:13px}
+/* ⋯ i belysningsrutans nedre hörn: Auto, Skivspelare och resten. Nere i
+   stället för uppe, så rubriken "BELYSNING" får plats på en smal telefon;
+   lägesraden slutar före knappen. */
+body.panu-pa .fl-tiles>.stat.har-mer .stat-sub{padding-right:calc(30px*var(--kk))!important}
+.tile-mer{display:none}
+body.panu-pa .fl-tiles>.stat .tile-mer{display:flex;position:absolute;bottom:calc(7px*var(--kk));right:calc(7px*var(--kk));
+  width:calc(26px*var(--kk));height:calc(22px*var(--kk));align-items:center;justify-content:center;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-a);color:var(--dim);font:inherit;font-size:calc(14px*var(--kk));
+  font-weight:800;line-height:1;padding:0;cursor:pointer;grid-column:auto}
+/* Kortet är ett rutnät: ikon och rubrik på första raden, värdet och lägesraden
+   över hela bredden under. .stat-txt får display:contents så dess rader blir
+   rutnätets egna — då linjerar ikonen med rubriken och värdet med kortets
+   vänsterkant, utan absoluta positioner som inte följer med skalan. */
+body.panu-pa .fl-tiles>.stat{display:grid!important;grid-template-columns:calc(16px*var(--kk)) minmax(0,1fr);
+  column-gap:calc(6px*var(--kk));row-gap:0;align-content:start;justify-items:stretch;align-items:center!important;
+  position:relative;min-width:0;min-height:0;height:auto!important;width:auto!important;margin:0!important;
+  background:var(--panel-b)!important;border:1px solid var(--line)!important;border-radius:calc(14px*var(--kk))!important;
+  padding:calc(10px*var(--kk))!important;box-shadow:none!important;text-align:left!important}
+body.panu-pa .fl-tiles>.stat::before,body.panu-pa .fl-tiles>.stat::after{display:none!important;content:none!important}
+body.panu-pa .fl-tiles>.stat>*{grid-column:1/-1}
+body.panu-pa .fl-tiles>.stat .stat-ic{position:relative!important;grid-column:1;grid-row:1;
+  width:calc(16px*var(--kk))!important;height:calc(16px*var(--kk))!important;margin:0!important;align-self:center!important;
+  display:flex;align-items:center;justify-content:center;transform:none}
+body.panu-pa .fl-tiles>.stat .stat-ic svg{width:100%;height:100%}
+/* Bilens markering (inkopplad, laddar) hör till ikonen — nere till höger om
+   den, i ikonens skala. Förut hamnade den i kortets nedre hörn. */
+body.panu-pa .fl-tiles>.stat .stat-ic .ik-mark{right:calc(-6px*var(--kk));bottom:calc(-5px*var(--kk));
+  width:calc(11px*var(--kk));height:calc(11px*var(--kk))}
+body.panu-pa .fl-tiles>.stat .stat-txt{display:contents!important}
+body.panu-pa .fl-tiles>.stat .label{grid-column:2;grid-row:1;padding:0!important;font-size:calc(10px*var(--kk))!important;font-weight:800!important;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--faint)!important;line-height:calc(16px*var(--kk))!important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0!important;text-align:left!important}
+body.panu-pa .fl-tiles>.stat .v{grid-column:1/-1;grid-row:2;font-size:calc(22px*var(--kk))!important;font-weight:800!important;line-height:1.1!important;
+  margin:calc(6px*var(--kk)) 0 0!important;white-space:nowrap;overflow:hidden;text-align:left!important}
+body.panu-pa .fl-tiles>.stat .v small{font-size:calc(12px*var(--kk))!important;font-weight:700;color:var(--dim);margin-left:2px}
+body.panu-pa .fl-tiles>.stat .stat-sub{grid-column:1/-1;grid-row:3;font-size:calc(11.5px*var(--kk))!important;line-height:1.3;color:var(--dim)!important;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:calc(3px*var(--kk)) 0 0!important;text-align:left!important}
+body.panu-pa .fl-tiles>.stat .meta{display:none!important}
+/* (v693: ingen grön ton för aktiva rutor — glöden är borttagen.) */
+/* Väggplattan: samma kort, större skala. Raderna fyller höjden, innehållet
+   centreras i höjdled. */
+/* --kk 1,1: avsnittet har redan väggplattans grundzoom (120 %), så korten blir
+   ~26 % större än på telefonen (1,05 × 1,2). 1,3 och 1,1 gick inte in — korten svämmade ut under
+   avsnittet (uppmätt i Chromium 800×1280). Raderna får krympa (minmax 0) och
+   korten klipper hellre än att tränga ut rapporten. */
+body.kiosk.panu-pa .fl-tiles{grid-auto-rows:minmax(0,1fr)!important}
+body.kiosk.panu-pa .fl-tiles>.stat{overflow:hidden}
+body.kiosk.panu-pa .fl-tiles>.stat{align-content:center}
+body.kiosk.panu-pa .panu-c{height:34px;font-size:13.5px;padding:0 14px}
+.hem-pop{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.hem-pop .ctl-row{display:flex;gap:8px}
 /* FLIKAR NERE (v675, bara mobilläget). Hem, Insikter, Jämför och Väder flyttar
    från toppraden till en rad längst ned, inom räckhåll för tummen. Uppe blir
    klockan, inställningarna, växlingen och statusen kvar. Under popuper (50)
@@ -3231,6 +3338,9 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
              läses som en. -->
         <div class="pn-del"></div>
         <div class="grid stats st3 en-stats pn-tiles" id="stats-energy" data-grid="energy"></div>
+        <!-- Laddregelns förslag (v696): syns bara när det finns ett att ta
+             ställning till. -->
+        <div class="regelrad" id="regelrad" aria-live="polite"></div>
         <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
              och blir ett kort mindre på startsidan. -->
         <div class="pn-del" id="sp-del"></div>
@@ -3285,7 +3395,7 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
       </section>
 
     <!-- Rutorna som ett avsnitt: panelen bär ramen, rutnätet ligger inuti. -->
-    <section class="panel tileswrap" data-sec="tiles"><div class="grid stats fl-tiles" id="stats-flode" data-grid="flode"></div></section>
+    <section class="panel tileswrap" data-sec="tiles"><div class="panu" id="panu"></div><div class="grid stats fl-tiles" id="stats-flode" data-grid="flode"></div></section>
 
     <section class="panel controls" id="controls" data-sec="buttons"></section>
     <!-- Enhetsstyrningen. Ritas bara i mobilläge; renderRooms sätter hidden annars. -->
@@ -3420,6 +3530,9 @@ const ICONS={
 'timer':'<path d="M216,136a88,88,0,1,1-88-88A88,88,0,0,1,216,136Z" opacity="0.2"/><path d="M128,40a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,40Zm0,176a80,80,0,1,1,80-80A80.09,80.09,0,0,1,128,216ZM173.66,90.34a8,8,0,0,1,0,11.32l-40,40a8,8,0,0,1-11.32-11.32l40-40A8,8,0,0,1,173.66,90.34ZM96,16a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,16Z"/>',
 'clock':'<path d="M224,128a96,96,0,1,1-96-96A96,96,0,0,1,224,128Z" opacity="0.2"/><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/>',
 'buildings':'<path d="M136,32V216H40V85.35a8,8,0,0,1,3.56-6.66l80-53.33A8,8,0,0,1,136,32Z" opacity="0.2"/><path d="M240,208H224V96a16,16,0,0,0-16-16H144V32a16,16,0,0,0-24.88-13.32L39.12,72A16,16,0,0,0,32,85.34V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM208,96V208H144V96ZM48,85.34,128,32V208H48ZM112,112v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm-32,0v16a8,8,0,0,1-16,0V112a8,8,0,1,1,16,0Zm0,56v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Zm32,0v16a8,8,0,0,1-16,0V168a8,8,0,0,1,16,0Z"/>',
+/* STUGA (v696) — Brevedens ikon: sadeltak med skorsten, timrade väggar och en
+   dörr. Ritad i samma tvåtonsstil som Phosphor-ikonerna. */
+'stuga':'<path d="M40,116 L128,44 L216,116 V212 H40 Z" opacity="0.2"/><path d="M24,124 L128,40 L232,124" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="M168,74 V48 H196 V96" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,112 V212 H208 V112" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,150 H104 M152,150 H208 M48,182 H104 M152,182 H208" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" opacity="0.7"/><path d="M104,212 V148 H152 V212" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/>',
 'house-line':'<path d="M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z" opacity="0.2"/><path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z"/>',
 'lightbulb-off':'<path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm37.66-6.34a8,8,0,0,1-11.32,11.32L177.36,212H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49a88.6,88.6,0,0,1,3.68-25.11L18.34,53.66A8,8,0,0,1,29.66,42.34ZM97.09,133.41a71.86,71.86,0,0,1-9.19-30.36,8,8,0,0,0-16,.9,87.66,87.66,0,0,0,10.9,36.44ZM96,192h65.36L67.57,98.21A71.6,71.6,0,0,0,73.77,160,32,32,0,0,1,80,178.66Zm119.66-30.79A87.55,87.55,0,0,0,216,104,88,88,0,0,0,80.77,29.9a8,8,0,1,0,9,13.23A72,72,0,0,1,200,104a71.65,71.65,0,0,1-27.53,56.65,32.06,32.06,0,0,0-8.62,10.1,8,8,0,0,0,13.94,7.84,16.1,16.1,0,0,1,4.28-5A87.24,87.24,0,0,0,195.66,161.21Z"/>','lightning':'<path d="M96,240l16-80L48,136,160,16,144,96l64,24Z" opacity="0.2"/><path d="M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5-9.06L62,132.71l84.62-90.66L136.16,94.43a8,8,0,0,0,5,9.06l52.8,19.8Z"/>','moon':'<path d="M227.89,147.89A96,96,0,1,1,108.11,28.11,96.09,96.09,0,0,0,227.89,147.89Z" opacity="0.2"/><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/>','plug':'<path d="M212,132l-58.63,58.63a32,32,0,0,1-45.25,0L65.37,147.88a32,32,0,0,1,0-45.25L124,44Z" opacity="0.2"/><path d="M237.66,66.34a8,8,0,0,0-11.32,0L192,100.69,155.31,64l34.35-34.34a8,8,0,1,0-11.32-11.32L144,52.69,117.66,26.34a8,8,0,0,0-11.32,11.32L112.69,44l-53,53a40,40,0,0,0,0,56.57l15.71,15.71L26.34,218.34a8,8,0,0,0,11.32,11.32l49.09-49.09,15.71,15.71a40,40,0,0,0,56.57,0l53-53,6.34,6.35a8,8,0,0,0,11.32-11.32L203.31,112l34.35-34.34A8,8,0,0,0,237.66,66.34ZM147.72,185a24,24,0,0,1-33.95,0L71,142.23a24,24,0,0,1,0-33.95l53-53L200.69,132Z"/>','sparkle':'<path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"/><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/>','sun-dim':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z"/>','sun-horizon':'<path d="M192,144a64.33,64.33,0,0,1-2,16H66a64,64,0,1,1,126-16Z" opacity="0.2"/><path d="M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z"/>','sun':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>','swimming-pool':'<path d="M224,168v40c-24,0-24,16-48,16s-24-16-48-16-24,16-48,16-24-16-48-16V168c24,0,24,16,48,16s24-16,48-16,24,16,48,16S200,168,224,168Z" opacity="0.2"/><path d="M88,149.39a8,8,0,0,0,8-8V128h64v15.29a8,8,0,0,0,16,0V32a8,8,0,0,0-16,0V48H96V32a8,8,0,0,0-16,0V141.39A8,8,0,0,0,88,149.39ZM96,112V96h64v16Zm64-48V80H96V64ZM24,168a8,8,0,0,1,8-8c14.42,0,22.19,5.18,28.44,9.34C66,173.06,70.42,176,80,176s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34a8,8,0,0,1,0,16c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,178.94,137.57,176,128,176s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,178.94,41.58,176,32,176A8,8,0,0,1,24,168Zm208,40a8,8,0,0,1-8,8c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,218.94,137.57,216,128,216s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,218.94,41.58,216,32,216a8,8,0,0,1,0-16c14.42,0,22.19,5.18,28.44,9.34C66,213.06,70.42,216,80,216s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34A8,8,0,0,1,232,208Z"/>','tag':'<path d="M237.66,153,153,237.66a8,8,0,0,1-11.31,0L42.34,138.34A8,8,0,0,1,40,132.69V40h92.69a8,8,0,0,1,5.65,2.34l99.32,99.32A8,8,0,0,1,237.66,153Z" opacity="0.2"/><path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/>','thermometer-simple':'<path d="M160,138V48a32,32,0,0,0-64,0v90a56,56,0,1,0,64,0Zm-32,70a24,24,0,1,1,24-24A24,24,0,0,1,128,208Z" opacity="0.2"/><path d="M136,153V88a8,8,0,0,0-16,0v65a32,32,0,1,0,16,0Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,200Zm40-66V48a40,40,0,0,0-80,0v86a64,64,0,1,0,80,0Zm-40,98a48,48,0,0,1-27.42-87.4A8,8,0,0,0,104,138V48a24,24,0,0,1,48,0v90a8,8,0,0,0,3.42,6.56A48,48,0,0,1,128,232Z"/>','umbrella':'<path d="M128,32S88,64,88,136H32a8,8,0,0,1-8-8.71A104.21,104.21,0,0,1,128,32Zm104,95.29A104.21,104.21,0,0,0,128,32s40,32,40,104h56A8,8,0,0,0,232,127.29Z" opacity="0.2"/><path d="M240,126.63A112.44,112.44,0,0,0,51.75,53.75a111.56,111.56,0,0,0-35.7,72.88A16,16,0,0,0,32,144h88v56a32,32,0,0,0,64,0,8,8,0,0,0-16,0,16,16,0,0,1-32,0V144h88a16,16,0,0,0,16-17.37ZM32,128l0,0a96.15,96.15,0,0,1,76.2-85.89C96.48,58,81.85,86.11,80.17,128Zm64.15,0c1.39-30.77,10.53-52.81,18.3-66.24A106.44,106.44,0,0,1,128,43.16a106.31,106.31,0,0,1,13.52,18.6C154.8,84.7,159,109.28,159.82,128Zm79.65,0c-1.68-41.89-16.31-70-28-85.94A96.07,96.07,0,0,1,224,128Z"/>','warning':'<path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2"/><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/>','wind':'<path d="M120,96a24,24,0,1,1,24-24A24,24,0,0,1,120,96Zm88-16a24,24,0,1,0,24,24A24,24,0,0,0,208,80Zm-56,80a24,24,0,1,0,24,24A24,24,0,0,0,152,160Z" opacity="0.2"/><path d="M184,184a32,32,0,0,1-32,32c-13.7,0-26.95-8.93-31.5-21.22a8,8,0,0,1,15-5.56C137.74,195.27,145,200,152,200a16,16,0,0,0,0-32H40a8,8,0,0,1,0-16H152A32,32,0,0,1,184,184Zm-64-80a32,32,0,0,0,0-64c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C105.74,60.73,113,56,120,56a16,16,0,0,1,0,32H24a8,8,0,0,0,0,16Zm88-32c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C193.74,92.73,201,88,208,88a16,16,0,0,1,0,32H32a8,8,0,0,0,0,16H208a32,32,0,0,0,0-64Z"/>'};
 Object.assign(ICONS,{'cloud-fog':'<path d="M224,100a68,68,0,0,1-68,68H76A44,44,0,1,1,90.2,82.34v.11A68.06,68.06,0,0,1,224,100Z" opacity="0.2"/><path d="M120,208H72a8,8,0,0,1,0-16h48a8,8,0,0,1,0,16Zm64-16H160a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Zm-24,32H104a8,8,0,0,0,0,16h56a8,8,0,0,0,0-16Zm72-124a76.08,76.08,0,0,1-76,76H76A52,52,0,0,1,76,72a53.26,53.26,0,0,1,8.92.76A76.08,76.08,0,0,1,232,100Zm-16,0A60.06,60.06,0,0,0,96,96.46a8,8,0,0,1-16-.92q.21-3.66.77-7.23A38.11,38.11,0,0,0,76,88a36,36,0,0,0,0,72h80A60.07,60.07,0,0,0,216,100Z"/>','cloud-rain':'<path d="M224,92a68,68,0,0,1-68,68H76A44,44,0,1,1,90.2,74.34v.11A68.06,68.06,0,0,1,224,92Z" opacity="0.2"/><path d="M158.66,196.44l-32,48a8,8,0,1,1-13.32-8.88l32-48a8,8,0,0,1,13.32,8.88ZM232,92a76.08,76.08,0,0,1-76,76H132.28l-29.62,44.44a8,8,0,1,1-13.32-8.88L113.05,168H76A52,52,0,0,1,76,64a53.26,53.26,0,0,1,8.92.76A76.08,76.08,0,0,1,232,92Zm-16,0A60.06,60.06,0,0,0,96,88.46a8,8,0,0,1-16-.92q.21-3.66.77-7.23A38.11,38.11,0,0,0,76,80a36,36,0,0,0,0,72h80A60.07,60.07,0,0,0,216,92Z"/>','cloud':'<path d="M240,128a80,80,0,0,1-80,80H72A56,56,0,1,1,85.92,97.74l0,.1A80,80,0,0,1,240,128Z" opacity="0.2"/><path d="M160,40A88.09,88.09,0,0,0,81.29,88.67,64,64,0,1,0,72,216h88a88,88,0,0,0,0-176Zm0,160H72a48,48,0,0,1,0-96c1.1,0,2.2,0,3.29.11A88,88,0,0,0,72,128a8,8,0,0,0,16,0,72,72,0,1,1,72,72Z"/>','compass-tool':'<path d="M160,80a32,32,0,1,1-32-32A32,32,0,0,1,160,80Z" opacity="0.2"/><path d="M215.12,123.64a8,8,0,1,0-14.24-7.28,79.58,79.58,0,0,1-33.08,33.5l-16.58-37.32A40,40,0,0,0,136,40.8V24a8,8,0,0,0-16,0V40.8a40,40,0,0,0-15.22,71.74L56.69,220.75a8,8,0,1,0,14.62,6.5l25.14-56.56A95.48,95.48,0,0,0,128,176a99.13,99.13,0,0,0,31.6-5.21l25.09,56.46a8,8,0,0,0,14.62-6.5l-25-56.25A95.81,95.81,0,0,0,215.12,123.64ZM128,56a24,24,0,1,1-24,24A24,24,0,0,1,128,56Zm0,104a79.52,79.52,0,0,1-25-4l16.42-36.94a39.81,39.81,0,0,0,17.2,0l16.48,37.06A83.21,83.21,0,0,1,128,160Z"/>','navigation-arrow':'<path d="M234.35,129,152,152,129,234.35a8,8,0,0,1-15.21.27l-65.28-176A8,8,0,0,1,58.63,48.46l176,65.28A8,8,0,0,1,234.35,129Z" opacity="0.2"/><path d="M237.33,106.21,61.41,41l-.16-.05A16,16,0,0,0,40.9,61.25a1,1,0,0,0,.05.16l65.26,175.92A15.77,15.77,0,0,0,121.28,248h.3a15.77,15.77,0,0,0,15-11.29l.06-.2,21.84-78,78-21.84.2-.06a16,16,0,0,0,.62-30.38ZM149.84,144.3a8,8,0,0,0-5.54,5.54L121.3,232l-.06-.17L56,56l175.82,65.22.16.06Z"/>','snowflake':'<path d="M220,128a92,92,0,1,1-92-92A92.1,92.1,0,0,1,220,128Z" opacity="0.2"/><path d="M223.77,150.09a8,8,0,0,1-5.86,9.68l-24.64,6,6.46,24.11a8,8,0,0,1-5.66,9.8A8.25,8.25,0,0,1,192,200a8,8,0,0,1-7.72-5.93l-7.72-28.8L136,141.86v46.83l21.66,21.65a8,8,0,0,1-11.32,11.32L128,203.31l-18.34,18.35a8,8,0,0,1-11.32-11.32L120,188.69V141.86L79.45,165.27l-7.72,28.8A8,8,0,0,1,64,200a8.25,8.25,0,0,1-2.08-.27,8,8,0,0,1-5.66-9.8l6.46-24.11-24.64-6a8,8,0,0,1,3.82-15.54l29.45,7.23L112,128,71.36,104.54l-29.45,7.23A7.85,7.85,0,0,1,40,112a8,8,0,0,1-1.91-15.77l24.64-6L56.27,66.07a8,8,0,0,1,15.46-4.14l7.72,28.8L120,114.14V67.31L98.34,45.66a8,8,0,0,1,11.32-11.32L128,52.69l18.34-18.35a8,8,0,0,1,11.32,11.32L136,67.31v46.83l40.55-23.41,7.72-28.8a8,8,0,0,1,15.46,4.14l-6.46,24.11,24.64,6A8,8,0,0,1,216,112a7.85,7.85,0,0,1-1.91-.23l-29.45-7.23L144,128l40.64,23.46,29.45-7.23A8,8,0,0,1,223.77,150.09Z"/>','sun-dim':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z"/>','x':'<path d="M216,56V200a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40H200A16,16,0,0,1,216,56Z" opacity="0.2"/><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/>'});
@@ -3934,8 +4047,12 @@ function bilStyrHTML(){
   var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
   var kl=klimatLas();
   /* Två knappar bredvid varandra, lika breda. */
-  return '<div class="bil-styr">'
-    +bilStyrKnapp(laddar?'Laddar':'Ladda','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Starta laddning?')
+  /* v694: styrningens läge ovanför knapparna. Ladda/Stoppa här är det
+     MANUELLA valet — automatiken (sol, billiga timmar) sköter resten. */
+  var bs=bilStyrLage();
+  var styr=(bs&&bs.lage&&bs.lage!=='ingen')?('<div class="drow"><span>Styrning</span><b>'+esc(bs.skal||bs.lage)+'</b></div>'):'';
+  return styr+'<div class="bil-styr">'
+    +bilStyrKnapp(laddar?'Laddar':'Ladda nu','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Ladda nu, oavsett pris?')
     +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()','klimat',kl?'Stoppa klimat?':'Starta klimat?')
     +'</div>';
 }
@@ -3951,7 +4068,10 @@ async function bilLaddToggle(){
   bilStyrOm();
   try{
     await homeyPut(DEV.laddbox,'evcharger_charging',!nu);
-    toast(!nu?'Laddning startad':'Laddning stoppad');
+    /* v694: säg till styrningen. Ladda = manuellt i 18 h (eller tills bilen
+       kopplas ur); Stoppa = tillbaka till automatiken (sol, billiga timmar). */
+    try{var LL=await logicList();await logicWrite(LL,'billadd_manuell',!nu?(Date.now()+18*3600000):Date.now());}catch(e2){}
+    toast(!nu?'Laddning startad – manuellt':'Laddning stoppad – automatiken tar över');
     setTimeout(function(){load();},1500);
   }catch(e){
     /* Samma lärdom som batteriflödet: svaret är inget kvitto. Enhetens läge
@@ -4868,6 +4988,11 @@ function renderControls(){
     for(let q=0;q<k;q++,i++)h+=knapp(CONFIG.BUTTONS[i],i);
     h+='</div>';}
   el.innerHTML=h;
+  /* Hem-rutans popup visar samma knappar — rita om den när knapparna ändras. */
+  try{if(_dlgWhich==='hem'){var hb=$('dlg-body');if(hb)hb.innerHTML=hemPopup();}
+    else{var pk=$('popk-'+({dish:'dish',pool:'pool',batt:'batt'}[_dlgWhich]||'x'));
+      if(pk){var ny=popKnappar(_dlgWhich==='dish'?'dish':_dlgWhich);var t=document.createElement('div');t.innerHTML=ny;
+        if(t.firstChild)pk.innerHTML=t.firstChild.innerHTML;}}}catch(e){}
 }
 async function btnTap(i){
   if(_lp.fired){_lp.fired=false;return;}
@@ -11771,6 +11896,146 @@ function byggSeatemp(){
     +histSVG('k:seatemp',{unit:'°C',icon:'waves'},'seatemp')
     +grafTidsval('seatemp');
 }
+/* BILSTYRNINGENS LÄGE (v694) ur energi_bil, som energistyr skriver varje
+   minut: sol / billig / manuell / vänta / ingen. */
+function bilStyrLage(){
+  try{var t=(_regel&&_regel.bil)?String(_regel.bil):'';if(!t)return null;var i=t.indexOf('|');
+    return {lage:i>=0?t.slice(0,i):t,skal:i>=0?t.slice(i+1):''};}catch(e){return null;}
+}
+/* ===== LADDREGELNS RAD I ENERGIRUTAN (v696) =====
+   Förslaget från laddregeln (battladd_forslag) som en rad med Starta och
+   Ignorera. Starta = samma som Ja i notisen (regelStarta). Ignorera döljer
+   just det förslaget på den här enheten; ett nytt förslag (ny nyckel) syns igen.
+   I demoläget visas ett exempel. */
+var REGEL_IGN_KEY='regelIgnorera_v1';
+function regelDemo(){
+  var nu=Date.now(),h=3600000,t0=Math.ceil(nu/h)*h;
+  return {v:2,nyckel:'demo',text:'Spara batteriet till kvällen',startMs:0,sparaMs:nu-60000,stoppMs:t0+3*h,kwh:0,vinst:6.2,satt:nu-10*60000};
+}
+function regelKort(p,nu){
+  var t=regelTider(p,nu);if(t.fel)return null;
+  var kl=function(ms){return regelKl(ms);};
+  /* Kort, så raden ryms på en 360 px-telefon: rubrik + en underrad. Hela
+     motiveringen finns i husbatteriets popup. */
+  var v=(Number(p.vinst)>=0.5)?('sparar ca '+Math.round(Number(p.vinst))+' kr'):'';
+  if(t.start)return {txt:'Ladda '+kl(t.start)+'–'+kl(t.spara||t.stopp),sub:'batteriet'+(p.kwh?' · '+num(p.kwh,1)+' kWh':'')+(t.spara?' · spara till '+kl(t.stopp):'')+(v?' · '+v:'')};
+  return {txt:'Spara '+(t.spara<=nu?'till '+kl(t.stopp):kl(t.spara)+'–'+kl(t.stopp)),sub:'batteriet'+(v?' · '+v:' · ingen urladdning')};
+}
+function regelRadRita(){
+  var el=$('regelrad');if(!el)return;
+  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
+  var R=_regel,nu=Date.now(),p=demo?regelDemo():(R&&R.forslag);
+  var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
+  var bokat=!demo&&R&&R.stopp>nu&&p&&R.stopp===Number(p.stoppMs);
+  var k=(p&&p.v===2&&!bokat&&String(p.nyckel||p.stoppMs)!==ign)?regelKort(p,nu):null;
+  if(!demo&&(typeof regelLage==='function')){try{if(regelLage().fjarr)k=null;}catch(e){}}
+  el.classList.toggle('visa',!!k);
+  el.innerHTML=k?('<span class="rr-ic">'+icon('battery-charging')+'</span>'
+    +'<div class="rr-t"><span>'+esc(k.txt)+'</span>'+(k.sub?'<small>'+esc(k.sub)+'</small>':'')+'</div>'
+    +'<div class="rr-b"><button type="button" class="rr-nej" onclick="regelIgnorera()" aria-label="Ignorera förslaget"><span class="rr-lang">Ignorera</span><span class="rr-kort">✕</span></button>'
+    +'<button type="button" class="rr-ja" onclick="regelRadStarta()">Starta</button></div>'):'';
+}
+function regelIgnorera(){
+  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
+  var p=demo?regelDemo():(_regel&&_regel.forslag);
+  try{localStorage.setItem(REGEL_IGN_KEY,String((p&&(p.nyckel||p.stoppMs))||''));}catch(e){}
+  regelRadRita();try{fitScreen();}catch(e){}
+}
+function regelRadStarta(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');regelIgnorera();return;}
+  Promise.resolve(regelStarta()).then(function(){regelRadRita();});
+}
+
+/* ===== "PÅ NU"-RADEN (v688) =====
+   Vad som är igång, ur samma källor som rutorna och knapparna använder.
+   Knappar (CONFIG.BUTTONS) som är på blir egna brickor och öppnar Hem-rutans
+   popup — utom de som hör till en egen ruta (poolvärme, Breveden, disk, ladda
+   max), som öppnar den rutans popup. */
+function paNuLista(){
+  var ut=[],sett={};
+  /* En bricka per sak: allt som hör till en egen ruta (pool, Breveden, disk,
+     batteri, bil) räknas en gång, det mest beskrivande först — enhetens eget
+     läge ("Breveden värmer") går före knappens namn ("Breveden"). */
+  var lagg=function(txt,pop,gul){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul});};
+  try{var ph0=cap(DEV.poolheat,'onoff');if(ph0===true||ph0==='on')lagg('Poolvärme','pool');}catch(e){}
+  /* BREVEDEN (v692): bara när den faktiskt värmer eller kyler. Läget "Värm 15"
+     betyder bara att den FÅR värma — rutan sa "inget behövs" medan raden sa
+     "Breveden värmer". Skriptets bild (brvState.aktiv) gäller; utan den
+     effekten (över 150 W). */
+  try{var B0=(typeof brvState==='function')?brvState():null;
+    if(B0&&!brvGammal(B0)){if(B0.aktiv)lagg('Breveden '+(B0.lage==='cool'?'kyler':'värmer'),'breveden');}
+    else{var w0=Number(cap(DEV.attefall,'measure_power'));var md0=String(cap(DEV.attefall,'thermostat_mode')||'');
+      if(cap(DEV.attefall,'onoff')===true&&w0>150)lagg('Breveden '+(md0==='cool'?'kyler':'värmer'),'breveden');}}catch(e){}
+  sett['breveden']=1;   /* knappens namn ska aldrig bli en egen bricka */
+  /* DISKEN (v693): bara när den faktiskt diskar eller är bokad med
+     diskknappen — samma regler som diskknappen (diskKor/diskBokad). Att
+     maskinen står påslagen betyder ingenting: diskKor ser på hur framsteg och
+     tid RÖR sig, och ett stillastående tal räknas som att den bara står på. */
+  try{if(typeof diskKor==='function'&&diskKor())lagg('Disk pågår','dish');
+    else if(typeof diskBokad==='function'&&diskBokad())lagg('Disk bokad'+((typeof diskNar==='function'&&diskNar())?' '+diskNar():''),'dish',true);}catch(e){}
+  sett['dish']=1;
+  try{var L0=regelLage();if(L0&&L0.fjarr)lagg(/Laddar/.test(L0.txt)?'Laddar max':(/Sparar/.test(L0.txt)?'Batteriet sparar':'Batteriet styrs'),'batt');}catch(e){}
+  /* BILEN (v694): styrningens läge säger varför den laddar. */
+  try{var bs=bilStyrLage(),ld=cap(DEV.laddbox,'evcharger_charging')===true;
+    if(bs&&bs.lage==='sol'&&ld)lagg('Bilen laddar på sol','cars');
+    else if(bs&&bs.lage==='billig'&&ld)lagg('Bilen laddar billigt','cars');
+    else if(bs&&bs.lage==='manuell')lagg('Bilen laddar manuellt','cars');
+    else if(ld)lagg('Bilen laddar','cars');}catch(e){}
+  try{(CONFIG.BUTTONS||[]).forEach(function(b){
+    if(!b||!btnState(b))return;
+    var l=String(b.label||'').trim();
+    var dst=knappTill(b);
+    if(dst==='batt')lagg('Laddar max','batt');
+    else if(dst==='breveden')lagg('Breveden','breveden');
+    else if(dst==='dish')lagg('Disk bokad','dish',true);
+    else if(dst==='pool')lagg('Poolvärme','pool');
+    else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())lagg('Tänt','hem');
+    else if(/^auto$/i.test(l))return;            /* v693: Auto är grundläget — ingen bricka */
+    else lagg(l.replace(/\s+\d+([,.]\d+)?°.*$/,''),'hem');});}catch(e){}
+  return ut;
+}
+function paNuRita(){
+  var el=$('panu');if(!el)return;
+  /* Egen klass på body — "panu" är radens klass, och .panu{display:none}
+     gömde hela sidan när body fick samma namn. */
+  document.body.classList.toggle('panu-pa',!!(CFG&&CFG.paNu));
+  if(!(CFG&&CFG.paNu)){el.innerHTML='';return;}
+  /* Rutorna för knapparnas popuper — en gång, när de egna knapparna finns.
+     Här och inte bara vid start: knapparna kan komma senare via synken. */
+  try{rutorPaNu();}catch(e){}
+  try{regelHamta(false);}catch(e){}
+  var L=paNuLista();
+  /* v696: ingenting igång → raden göms helt, så luften ovanför korten blir
+     densamma som under dem (rutnätets egen kantluft). */
+  el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+'" onclick="openDetail(\''+x.pop+'\')">'+esc(x.txt)+'</button>';}).join(''):'';
+  el.classList.toggle('panu-tomt',!L.length);
+}
+/* VARJE KNAPP I SIN RUTAS POPUP (v690). Knappen som hör till en ruta ligger
+   i den rutans popup: boka disk i diskmaskinens, poolvärmen i poolens, ladda
+   max i husbatteriets. Breveden har sina tre lägen i sin popup redan, så dess
+   knapp behövs inte där. Resten — Auto, Tänd, Skivspelare — ligger i Hem.
+   Knapparna är exakt de som knappavsnittet ritar (renderControls ritar vidare
+   i det dolda avsnittet), så flöden, bekräftelse och väntelägen följer med. */
+function knappTill(b){
+  if(!b)return null;var l=String(b.label||'');
+  if(b.type==='disk'||/disk/i.test(l))return 'dish';
+  if(b.type==='breveden'||/breveden/i.test(l))return 'breveden';
+  if(b.type==='battladd')return 'batt';
+  if(/pool/i.test(l))return 'pool';
+  return 'hem';
+}
+function popKnappar(dest){
+  var c=$('controls');if(!c||!c.querySelectorAll)return '';
+  var ut=[];
+  Array.prototype.forEach.call(c.querySelectorAll('.ctl[data-bi]'),function(b){
+    var i=+b.getAttribute('data-bi');if(knappTill(CONFIG.BUTTONS[i])===dest)ut.push(b.outerHTML);});
+  if(!ut.length)return '';
+  /* Högst fyra per rad. */
+  var h='';for(var r=0;r<ut.length;r+=4)h+='<div class="ctl-row">'+ut.slice(r,r+4).join('')+'</div>';
+  return '<div class="controls hem-pop" id="popk-'+dest+'">'+h+'</div>';
+}
+function hemPopup(){return popKnappar('hem')||'<div class="viz-empty">Inga knappar utan egen ruta.</div>';}
+
 /* ===== LADDREGELN I BATTERIPOPUPEN =====
    Visar vad laddregeln (battnotis) föreslår och vad battboka har bokat, och
    låter man starta förslaget härifrån om push-notisen missades — samma
@@ -11780,7 +12045,7 @@ function byggSeatemp(){
    Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
    laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
    normal drift. */
-var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp'];
+var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 function regelHamta(tvinga){
   if(_regelLaddar)return;
@@ -11791,9 +12056,12 @@ function regelHamta(tvinga){
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
     _regel={forslag:p,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
-      stopp:Number(r.battladd_stopp)||0,lista:list};
+      stopp:Number(r.battladd_stopp)||0,lista:list,
+      /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
+      bil:String(r.energi_bil||'')};
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
+    try{regelRadRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
     else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
@@ -11895,7 +12163,9 @@ function byggBatt(){
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
     +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
-    +regelHTML();
+    +regelHTML()
+    /* Ladda max bor i batteriets popup när knappavsnittet är gömt (v688). */
+    +((CFG&&CFG.paNu)?popKnappar('batt'):'');
 }
 var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
@@ -12035,12 +12305,20 @@ function openDetail(which){
       +dRow('Pooltemp',num(pv,1)+' °C')
       +idag
       +dRow('Poolvärme',(ph==='on'||ph===true)?'på':'av')
+      /* Poolvärmens knapp i poolens popup när knappavsnittet är gömt (v690:
+         den riktiga knappen ur knappavsnittet). */
+      +((CFG&&CFG.paNu)?popKnappar('pool'):'')
       +(rt!=null?dRow('Trend',(rt>=0?'+':'')+num(rt,1)+' °/h'):'')
       +prog
       +dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_temperature'),1)+' °C')+dRow('Luftfukt poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
+  }else if(which==='hem'){title='Hem';
+    /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
+    body=hemPopup();
   }else if(which==='dish'){title='Diskmaskin';const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
     const bar=(on&&pr!=null)?('<div class="pbar"><i style="width:'+pr+'%"></i></div>'):'';
-    body=dRow('Status',on?'kör':'avstängd')+(pr!=null&&on?dRow('Klart',pr+' %'):'')+(on&&rem!=null&&rem>0?dRow('Tid kvar','~'+(rem>=60?Math.floor(rem/60)+' h '+(rem%60)+' min':rem+' min'))+dRow('Klar ca',finishTime(rem)):'')+bar;
+    body=dRow('Status',on?'kör':'avstängd')+(pr!=null&&on?dRow('Klart',pr+' %'):'')+(on&&rem!=null&&rem>0?dRow('Tid kvar','~'+(rem>=60?Math.floor(rem/60)+' h '+(rem%60)+' min':rem+' min'))+dRow('Klar ca',finishTime(rem)):'')+bar
+      +((CFG&&CFG.paNu)?popKnappar('dish'):'');
   }else if(which==='cars'){title='Bilar';
     /* Egen byggare, så växlarna kan rita om rutan utan att bygga om allt. */
     _popupRebuild=buildCarsPopup;
@@ -12389,6 +12667,23 @@ function gridTiles(g){if(TILESTATE[g])return TILESTATE[g];const G=GRIDS[g];let a
   if(!a&&g==='flode'){try{const old=localStorage.getItem('tilesFlode_v4')||localStorage.getItem('tilesFlode_v3');if(old){let p=JSON.parse(old);if(Array.isArray(p)){let out=p.map(t=>(t&&t.type==='computed'&&t.key==='cars')?{type:'computed',key:'car1'}:t);if(out.length>=1){a=out;localStorage.setItem(G.store,JSON.stringify(out));}}}}catch(e){}}
   if(!a)a=G.def.map(x=>Object.assign({},x));TILESTATE[g]=a;return a;}
 function saveGrid(g){try{localStorage.setItem(GRIDS[g].store,JSON.stringify(TILESTATE[g]));}catch(e){}}
+/* FASTA RUTOR MED PÅ NU (v695). Breveden, Diskmaskin och Belysning bär
+   knapparna när knappavsnittet är gömt, så de får inte kunna försvinna. I
+   v691–v694 skrevs de EN gång in i rutlayouten — och layouten synkas mellan
+   enheter av samma typ via Homey. En annan platta eller telefon med sina sex
+   rutor skrev över dem, och engångsflaggan hindrade att de kom tillbaka. Nu
+   ligger de inte i layouten alls: de visas sist så länge layouten inte redan
+   har dem, och bara om det finns en knapp som hör till dem. Syns de i
+   layouten (som på enheter som fick dem i v691) gäller layoutens plats. */
+function fastaRutor(arr){
+  if(!(CFG&&CFG.paNu))return [];
+  var B=CONFIG.BUTTONS||[],har=function(k){return arr.some(function(x){return x&&x.type==='computed'&&x.key===k;});};
+  var ut=[];
+  [['breveden','breveden'],['dish','dish'],['hem','hem']].forEach(function(p){
+    if(!har(p[0])&&B.some(function(b){return knappTill(b)===p[1];}))ut.push({type:'computed',key:p[0],glow:false,fast:true});});
+  return ut;
+}
+function visadeRutor(g){var a=gridTiles(g);return (g==='flode')?a.concat(fastaRutor(a)):a;}
 
 /* HUSETS FÖRBRUKNING JUST NU.
    Laddboxens effekt ADDERADES förut ovanpå förbrukningsmätaren. Det dubbel-
@@ -12874,13 +13169,13 @@ function computeMetric(cfg){
       const B=brvState();
       const gammal=brvGammal(B);
       const okand=!B||B.nastaLage==='okand'||gammal;
-      let ic='thermometer-simple',iccol='var(--faint)';
-      if(B&&B.aktiv){
-        ic=(B.lage==='cool')?'snowflake':(B.lage==='heat')?'flame':'thermometer-simple';
+      /* v696: alltid stugan. Att den värmer eller kyler just nu visas med
+         indikatorn i ikonens hörn (låga eller snöflinga, se tileIkon). */
+      let ic='stuga',iccol='var(--dim)';
+      if(B&&B.aktiv&&!gammal){
         iccol=(B.lage==='cool')?'var(--cyan)':(B.lage==='heat')?'var(--warm)':'var(--gold)';
         if(B.malNott)iccol='var(--ok)';
-      }else if(B&&B.nastaLage==='cool'){ic='snowflake';iccol='var(--faint)';}
-      else if(B&&B.nastaLage==='heat'){ic='flame';iccol='var(--faint)';}
+      }
       if(okand)iccol='var(--faint)';
       /* Väntetillstånd direkt efter ett tryck. */
       const vantar=(_brvVanta&&Date.now()-_brvVanta<12000);
@@ -12903,6 +13198,26 @@ function computeMetric(cfg){
         meta:meta,det:'breveden',
         on:!!(B&&B.aktiv),dim:okand||gammal};}
     case 'poolheat':{const ph=cap(DEV.poolheat,'onoff'),on=(ph==='on'||ph===true);return {label:'Poolvärme',icon:'swimming-pool',v:on?'På':'Av',meta:on?'värmer poolen':'avstängd',det:'pool'};}
+    case 'hem':{
+      /* BELYSNING (v692, nyckeln heter fortfarande 'hem'). Rutan gör det
+         Tänd/Släck-knappen gjorde: ett tryck tänder eller släcker, och rutan
+         visar hur många av moodets lampor som lyser. Auto, Skivspelare och
+         resten ligger kvar i popupen bakom knappen ⋯ i hörnet. */
+      var li=ljusKnapp(),lb=(li>=0)?CONFIG.BUTTONS[li]:null;
+      if(!lb)return {label:'Hem',icon:'house',v:'–',meta:'ingen ljusknapp',det:'hem',mer:true};
+      /* Lamporna räknas bara för ett mood — då är det samma lampor som avgör
+         knappens läge, så "Tänt" och "x av y tända" kan inte säga emot varandra. */
+      var pa=btnState(lb),ids=[];try{if(lb.type==='moodtoggle')ids=moodLightIds(lb)||[];}catch(e){}
+      var tanda=ids.filter(function(id){return cap(id,'onoff')===true;}).length;
+      var meta;
+      var vt=(_ljusVanta&&Date.now()-_ljusVanta.t<12000)?_ljusVanta:null;
+      if(vt&&vt.pa===pa)vt=null;            /* läget har redan slagit om */
+      if(armed.i===li&&Date.now()-armed.t<4000)meta='tryck igen för att '+(pa?'släcka':'tända');
+      else if(vt)meta=vt.pa?'tänder…':'släcker…';
+      else if(ids.length)meta=tanda?(tanda+' av '+ids.length+' lampor tända'):'allt släckt';
+      else meta=pa?'tänt':'släckt';
+      return {label:'Belysning',icon:'lightbulb',icc:pa?'var(--gold)':'var(--faint)',v:pa?'Tänt':'Släckt',
+        meta:meta,det:'hem',on:pa,mer:true,tryck:'ljus'};}
     case 'dish':{const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
       return {label:'Diskmaskin',icon:'fork-knife',v:on?(pr!=null?pr+' <small>%</small>':'På'):'Av',meta:on?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):'avstängd',det:'dish'};}
   }
@@ -12917,7 +13232,7 @@ const CAT=[
   {type:'computed',key:'kop_d',g:'Pengar'},{type:'computed',key:'kop_w',g:'Pengar'},{type:'computed',key:'kop_m',g:'Pengar'},{type:'computed',key:'kop_y',g:'Pengar'},
   {type:'computed',key:'sal_d',g:'Pengar'},{type:'computed',key:'sal_w',g:'Pengar'},{type:'computed',key:'sal_m',g:'Pengar'},{type:'computed',key:'sal_y',g:'Pengar'},
   {type:'computed',key:'krcmp',g:'Pengar'},{type:'computed',key:'krcmp2',g:'Pengar'},
-  {type:'computed',key:'cars',g:'Bil & batteri'},{type:'computed',key:'car2',g:'Bil & batteri'},{type:'computed',key:'battpct',g:'Bil & batteri'},{type:'computed',key:'battpow',g:'Bil & batteri'},
+  {type:'computed',key:'hem',g:'Hus'},{type:'computed',key:'cars',g:'Bil & batteri'},{type:'computed',key:'car2',g:'Bil & batteri'},{type:'computed',key:'battpct',g:'Bil & batteri'},{type:'computed',key:'battpow',g:'Bil & batteri'},
   {type:'computed',key:'breveden',g:'Hus'},{type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
   {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
   {type:'computed',key:'gridnow',g:'Nät'},
@@ -16708,7 +17023,7 @@ async function huvudHamta(){
   try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
   if(syncSign()!==fore){
     loadCfg();applyCfg();
-    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;try{rutorPaNu();}catch(e){}
     applySecOrder();
     try{ritaOmSakert();}catch(e){}
     return true;
@@ -17687,7 +18002,7 @@ async function doFetchSync(){const el=$('sync-status');if(el)el.textContent='Hä
       }
       if(n>0){
         loadCfg();applyCfg();
-        var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+        var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;try{rutorPaNu();}catch(e){}
         applySecOrder();
         try{render();}catch(e){}
         var e2=$('sync-status');
@@ -17793,7 +18108,7 @@ function doImport(){const t=$('bk-in'),s=$('bk-status');if(!t)return;let obj;try
      kopia inte far ata upp ens egna matt. */
   let n=0;Object.keys(obj).forEach(k=>{if(SYNC_KEYS.indexOf(k)>=0){try{localStorage.setItem(k,obj[k]);n++;}catch(e){}}});
   _learn=null;_demoOv=null;try{Object.keys(TILESTATE).forEach(k=>delete TILESTATE[k]);}catch(e){}
-  loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;applySecOrder();render();
+  loadCfg();applyCfg();const sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;try{rutorPaNu();}catch(e){}applySecOrder();render();
   if(s)s.textContent='Importerat ✓ ('+n+' nycklar). Layouten är uppdaterad.';}
 function pctl(a,p){if(!a.length)return null;const b=a.slice().sort((x,y)=>x-y),i=(b.length-1)*p,lo=Math.floor(i),hi=Math.ceil(i);return lo===hi?b[lo]:b[lo]+(b[hi]-b[lo])*(i-lo);}
 function learnBand(key){const cfg=LEARN_KEYS[key];if(!cfg)return{lo:0,hi:1,n:0,learned:false};
@@ -17936,6 +18251,10 @@ function tileIkon(cfg,m){
     if(cap(DEV.battery,'battery_charging_state')==='charging')puls=true;
   }else if(k==='dish'){
     if(cap(DEV.dish,'onoff')===true&&typeof diskKor==='function'&&diskKor()){extra='clock-counter-clockwise';puls=true;}
+  }else if(k==='breveden'){
+    /* v696: värmer eller kyler Breveden JUST NU — låga eller snöflinga i
+       stugans hörn. Läget "Värm 15" utan att den arbetar ger ingen markör. */
+    try{var Bv=brvState();if(Bv&&Bv.aktiv&&!brvGammal(Bv)){extra=(Bv.lage==='cool')?'snowflake':'flame';puls=true;}}catch(e){}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
     if(varms())extra='flame';
   }
@@ -18000,7 +18319,7 @@ const GLOWVAR={gold:'gold',green:'ok',cyan:'cyan',warm:'warm',hot:'hot',blue:'bl
 function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wrap)return;
   /* Måtten räknas om efter ritningen — rutorna finns inte att mäta på innan. */
   if(typeof setTimeout==='function')setTimeout(storlekOm,0);
-  const arr=gridTiles(g);let h='';const chip=(G.style==='chip');
+  const arr=visadeRutor(g);let h='';const chip=(G.style==='chip');
   arr.forEach((cfg,i)=>{
     if(cfg&&cfg.type==='computed'&&(cfg.key==='krcmp'||cfg.key==='krcmp2')){h+=krcHTML(g,i,cfg);return;}
     const fill=tileFill(cfg,g);
@@ -18024,7 +18343,9 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     const st0=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
     const st=(st0&&!visaIk)?{glow:st0.glow,lvl:st0.lvl}:st0;
     const m=computeMetric(cfg);
-    const visaGlow=(cfg.glow!==false&&!fill);
+    /* v693: glöden är borttagen på alla rutor. Läget syns i ikonens färg och i
+       lägesraden; "På nu"-raden säger vad som är igång. */
+    const visaGlow=false;
     const glow=(visaGlow&&st&&st.glow)?('var(--'+(GLOWVAR[st.glow]||'blue')+')'):'';
     /* Ikonens färg följer statusen även utan glow — annars blir en aktiv ruta
        gråmarkerad och syns knappt. */
@@ -18044,15 +18365,18 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
       const stI='';
       /* Centreringslägena gäller alla sex rutorna samtidigt. */
       var mitt=((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'');
-      h+='<div class="panel stat clickable'+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
+      h+='<div class="panel stat clickable'+(m.mer?' har-mer':'')+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
         /* UNDERRADEN kom tillbaka i v556, men bara dar den tillfor nagot.
            Den gamla meta-texten upprepade ofta rubriken med andra ord och togs
            bort i v545. Nu ar det ett eget falt, sub, som bara nagra rutor
            fyller i - fasbelastning, laddniva, utbyte mot mojligt. Ingen ruta
            far en rad bara for att det finns plats.
            m.meta raknas fortfarande ut och anvands i popuparna. */
-        +(m.sub?('<div class="stat-sub">'+m.sub+'</div>'):'')
-        +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI+'</div>';
+        /* Med På nu-raden (v689) får rutor utan egen undertext sin
+           lägesrad (meta) där — Breveden "värmer mot 15°", disken "klar ~…". */
+        +((m.sub||((CFG&&CFG.paNu)&&m.meta))?('<div class="stat-sub">'+(m.sub||m.meta)+'</div>'):'')
+        +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI
+        +(m.mer?'<button type="button" class="tile-mer" aria-label="Fler val" onclick="event.stopPropagation();openDetail(\''+(m.det||'hem')+'\')">⋯</button>':'')+'</div>';
     }});
   wrap.innerHTML=h;}
 
@@ -18062,11 +18386,29 @@ function lpDown(e){const tile=e.target.closest&&e.target.closest('[data-slot]'),
   _lp.fired=false;_lp.kind=tile?'tile':'btn';
   if(tile){const ge=tile.closest&&tile.closest('[data-grid]');_lp.grid=ge?ge.getAttribute('data-grid'):'';_lp.slot=+t.dataset.slot;}else{_lp.grid='';_lp.slot=+t.dataset.bi;}
   const p=(e.touches&&e.touches[0])||e;_lp.x=p.clientX;_lp.y=p.clientY;
-  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=gridTiles(_lp.grid)[_lp.slot];if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
+  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=visadeRutor(_lp.grid)[_lp.slot];if(_c&&_c.fast){return;}if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
 function lpMove(e){if(!_lp.timer)return;const p=(e.touches&&e.touches[0])||e;if(Math.abs(p.clientX-_lp.x)>10||Math.abs(p.clientY-_lp.y)>10){clearTimeout(_lp.timer);_lp.timer=null;}}
 function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
-function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=gridTiles(g)[i];if(!cfg)return;const m=computeMetric(cfg);
+/* Belysningsrutan: trycket tänder eller släcker via Tänd/Släck-knappen —
+   samma knapp, så dess bekräftelse och mood gäller. */
+var _ljusVanta=null;
+function ljusKnapp(){
+  var B=CONFIG.BUTTONS||[];
+  var i=B.findIndex(function(b){return b&&b.type==='moodtoggle'&&knappTill(b)==='hem';});
+  if(i<0)i=B.findIndex(function(b){return b&&knappTill(b)==='hem'&&/tänd|släck|ljus|lamp/i.test(String(b.label||''));});
+  return i;}
+function ljusTryck(){
+  var i=ljusKnapp();if(i<0){openDetail('hem');return;}
+  var fore=btnState(CONFIG.BUTTONS[i]);
+  btnTap(i);
+  /* btnTap armerar först om knappen kräver bekräftelse — då inget väntläge. */
+  if(armed.i!==i)_ljusVanta={t:Date.now(),pa:!fore};
+  try{renderTiles('flode');}catch(e){}
+  setTimeout(function(){try{renderTiles('flode');}catch(e){}},1600);
+  setTimeout(function(){try{renderTiles('flode');}catch(e){}},4200);}
+function tileTap(g,i){if(_lp.fired){_lp.fired=false;return;}const cfg=visadeRutor(g)[i];if(!cfg)return;const m=computeMetric(cfg);
+  if(m&&m.tryck==='ljus'){ljusTryck();return;}
   if(m&&m.det==='batttom'){try{btPop();}catch(e){}return;}
   /* Breveden öppnar sin ruta sedan v605. Det gamla trycket — starta eller
      stoppa via skriptet — ligger kvar som snabbvalet "Auto" därinne. */
@@ -18709,8 +19051,8 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v687';
-const CFG_DEF={theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
+const APP_VERSION='v696';
+const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
      "orört". En ny enhet ska se ut som den inarbetade från början. */
@@ -19118,6 +19460,9 @@ function openConfig(){
     h+=cfgBack();
     h+='<div class="cfg-sec">Uppdatering</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Uppdatering</span><select class="cfg-sel" onchange="cfgInterval(this.value)">'+[15,30,60,120].map(s=>'<option value="'+s+'"'+((CONFIG.REFRESH_SECONDS||15)===s?' selected':'')+'>'+s+' s</option>').join('')+'</select></div>';
+  /* v691: På nu-raden och knapparna i rutornas popuper. Av = knappavsnittet
+     som förut. */
+  h+='<div class="cfg-row"><span class="cfg-row-l">På nu-raden (knappar i rutornas popuper)</span><select class="cfg-sel" onchange="cfgPaNu(this.value)"><option value="on"'+(CFG.paNu!==false?' selected':'')+'>På</option><option value="off"'+(CFG.paNu===false?' selected':'')+'>Av – knappavsnittet</option></select></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Auto-uppdatera vid ny fil</span><select class="cfg-sel" onchange="cfgAutoReload(this.value)"><option value="on"'+(CFG.autoreload!==false?' selected':'')+'>På</option><option value="off"'+(CFG.autoreload===false?' selected':'')+'>Av</option></select></div>';
   /* v195: Nattdampning, Batteri kWh och arshistoriken lag under "Uppdatering" - de
      hamnade dar av misstag nar menyn delades upp i v193. Flyttade till ratt sidor. */
@@ -19230,6 +19575,29 @@ function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick(
 function nclockOffLabel(){const m=(CFG&&CFG.nclockOffset)||0;if(m===0)return 'vid solnedgång';return (m>0?'+':'−')+Math.abs(m)+' min';}
 function cfgNclockOff(d){CFG.nclockOffset=Math.max(-120,Math.min(120,((CFG.nclockOffset||0)+d*15)));saveCfg();const n=$('cfgnum-nclockoff');if(n)n.textContent=nclockOffLabel();render();}
 function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
+function cfgPaNu(v){CFG.paNu=(v!=='off');saveCfg();try{rutorPaNu();}catch(e){}try{renderTiles('flode');renderControls();render();}catch(e){}}
+/* RUTORNA FÖR KNAPPARNAS POPUPER (v691), en gång. Med På nu-raden ligger
+   knapparna i rutornas popuper — då måste rutorna finnas. Saknas Breveden,
+   Diskmaskin eller Hem i rutnätet (och det finns knappar för dem) läggs de
+   till sist, så länge rutnätet har plats (högst 12). */
+function rutorPaNu(){
+  /* v695: ersatt av fastaRutor — rutorna skrivs inte längre in i layouten. */
+  return;
+  try{
+    if(!(CFG&&CFG.paNu))return;
+    if(localStorage.getItem('panuRutor_v1'))return;
+    /* Först när användarens egna knappar finns — inte standardknapparna. */
+    if(!loadButtons())return;
+    var t=gridTiles('flode').slice(),har=function(k){return t.some(function(x){return x&&x.type==='computed'&&x.key===k;});};
+    var B=CONFIG.BUTTONS||[],behov=[];
+    if(!har('breveden')&&B.some(function(b){return knappTill(b)==='breveden';}))behov.push('breveden');
+    if(!har('dish')&&B.some(function(b){return knappTill(b)==='dish';}))behov.push('dish');
+    if(!har('hem')&&B.some(function(b){return knappTill(b)==='hem';}))behov.push('hem');
+    behov.forEach(function(k){if(t.length<12)t.push({type:'computed',key:k,glow:false});});
+    if(behov.length){TILESTATE['flode']=t;try{localStorage.setItem(GRIDS.flode.store,JSON.stringify(t));}catch(e){}}
+    localStorage.setItem('panuRutor_v1','1');
+  }catch(e){}
+}
 function cfgAutoReload(v){CFG.autoreload=(v!=='off');saveCfg();if(CFG.autoreload&&_selfSig==null)checkForUpdate();}
 function cfgKiosk(val){CONFIG.KIOSK=val;applyKiosk();}
 function cfgTabPrev(v){CFG.tabPrev=(v!=='off');saveCfg();applyKiosk();if(typeof setTimeout==='function')setTimeout(fitScreen,60);}
@@ -19267,6 +19635,8 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{yearDataMaybe();}catch(e){}
+  try{paNuRita();}catch(e){}
+  try{regelHamta(false);regelRadRita();}catch(e){}
   /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
      från Insights (högst var femte minut). */
   try{if(histLucka('battpow')||histLucka('house'))seedFyll();}catch(e){}
@@ -20596,7 +20966,7 @@ async function secResetHomey(){
        värdena — layouten såg då oförändrad ut trots att hämtningen lyckats.
        Samma ordning som knappen "Hämta från Homey" använder. */
     loadCfg();applyCfg();
-    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;
+    var sb=loadButtons();if(sb)CONFIG.BUTTONS=sb;try{rutorPaNu();}catch(e){}
     applySecOrder();
     try{render();}catch(e){}
     try{renderControls();}catch(e){}
@@ -20959,7 +21329,7 @@ const rSort=(a,b)=>rNamn(a).localeCompare(rNamn(b),'sv');
    "Utomhus " har ett efterföljande blanksteg i Homey — därför trim(). */
 const RUM_IC={'kök':'fork-knife','vardagsrum':'couch','sovrum':'bed','kontor':'desktop',
   'hall':'door','gästrum':'bed','lekrum':'game-controller','källare':'stairs',
-  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'house-line',
+  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'stuga',
   'snickarboa':'hammer','utomhus':'tree','el':'lightning','hus':'house'};
 function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
 
