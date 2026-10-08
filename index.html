@@ -11937,7 +11937,7 @@ async function rlHamta(tvinga){
   if(!tvinga&&_rl&&Date.now()-_rlAt<120000)return;
   if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){_rl=rlDemo();_rlAt=Date.now();return;}
   _rlLaddar=true;
-  try{var L=await logicList();var v=(L||[]).find(function(x){return x&&x.name==='battladd_logg';});
+  try{var L=await logicList();var v=logicArr(L).find(function(x){return x&&x.name==='battladd_logg';});
     _rl=v&&v.value?JSON.parse(String(v.value)):{v:1,d:{},f:[],tom:true};_rlAt=Date.now();}
   catch(e){_rl={v:1,d:{},f:[],fel:(e&&e.message)||'kunde inte läsa loggen'};}
   finally{_rlLaddar=false;try{if(_dlgWhich==='regellogg'){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();}}catch(e){}}
@@ -19168,7 +19168,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v697';
+const APP_VERSION='v698';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
