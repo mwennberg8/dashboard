@@ -3634,7 +3634,38 @@ const DEV={tibber:'291ba3e3-c5e2-4542-bad8-a67a5ecc8611',solar:'b47e45d7-9485-4e
 let DATA={},ZONES={},SOURCE='demo',seeded=false,zonesDone=false,BASE='',_gid=0,lastUpdate=0,curTheme='',lastInsight=0,_refreshTimer=null,_suppressClick=false,_online=false;
 const $=id=>document.getElementById(id);
 let _timeActive=false,_timeMap=null,_timeInfo=null;
-const capLive=(id,c)=>{const d=DATA[id];if(!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]))return null;const v=d.capabilitiesObj[c].value;return (typeof v==='number'&&!isFinite(v))?null:v;};
+const capRaw=(id,c)=>{const d=DATA[id];if(!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]))return null;const v=d.capabilitiesObj[c].value;return (typeof v==='number'&&!isFinite(v))?null:v;};
+/* BATTERIET LÄSES UR MODBUS (v701). Husbatteri-enheten (331c4824…) fastnade:
+   2026-10-09 07:29 visade den 0 W och "idle" medan växelriktaren laddade med
+   5 003 W, och dess Insights-logg energy_power stod på 0 hela tiden.
+   Modbus har två register, båda ≥ 0 (uppmätt i Insights 2026-10-02–09):
+     measure_power.batt_charge    = effekt in i batteriet
+     measure_power.batt_discharge = effekt ut ur batteriet
+   Nettot charge − discharge är alltså positivt vid laddning och negativt vid
+   urladdning. Resten av dashboarden frågar fortfarande efter DEV.battery med
+   measure_power (belopp), battery_charging_state och energy_power (med tecken)
+   — de tre räknas ut här, så ingen annan rad behöver veta var värdet kommer ifrån.
+   Saknar Modbus värdet används Husbatteri-enheten som förut. */
+const BATT_MB='438aa2c6-7413-4b1e-9e9a-ec66ed54baff';
+const BATT_TROSKEL_W=20;   /* under det räknas batteriet som vilande */
+function battNettoW(){
+  const c=capRaw(BATT_MB,'measure_power.batt_charge'),d=capRaw(BATT_MB,'measure_power.batt_discharge');
+  if(c==null&&d==null)return null;
+  const cn=Number(c),dn=Number(d);
+  /* Skulle charge en dag komma med eget tecken (negativ vid urladdning) gäller det. */
+  if(isFinite(cn)&&cn<0)return cn;
+  return (isFinite(cn)?cn:0)-(isFinite(dn)?Math.abs(dn):0);
+}
+function battMb(c){
+  if(c==='measure_battery'){const v=capRaw(BATT_MB,'measure_battery');return v!=null?v:capRaw(BATT_MB,'battery');}
+  if(c==='measure_power'||c==='energy_power'||c==='battery_charging_state'){
+    const n=battNettoW();if(n==null)return null;
+    if(c==='energy_power')return n;
+    if(c==='measure_power')return Math.abs(n);
+    return n>BATT_TROSKEL_W?'charging':(n<-BATT_TROSKEL_W?'discharging':'idle');}
+  return null;
+}
+const capLive=(id,c)=>{if(id===DEV.battery){const v=battMb(c);if(v!=null)return v;}return capRaw(id,c);};
 function cap(id,c){if(_timeActive&&_timeMap){const k=id+'|'+c;return (k in _timeMap)?_timeMap[k]:null;}return capLive(id,c);}
 const capOf=(d,c)=>d&&d.capabilitiesObj&&d.capabilitiesObj[c]?d.capabilitiesObj[c].value:null;
 /* SVENSK FORMATERING i botten. num() gav rå toFixed — "27.4" och "1453" — och
@@ -3658,7 +3689,7 @@ const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.
 const setT=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
 const esc=s=>(''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const zoneName=id=>{const z=ZONES[id];return z&&z.name?z.name:'';};
-const isSensorBatt=d=>['battery','car','evcharger'].indexOf(d.class||d.type||'')<0;
+const isSensorBatt=d=>['battery','car','evcharger'].indexOf(d.class||d.type||'')<0&&d.id!==BATT_MB;   /* v701: växelriktarens husbatteri är ingen sensor med lågt batteri */
 function tempColor(t){if(t==null)return'var(--faint)';if(t<18)return'var(--blue)';if(t<=23)return'var(--ok)';if(t<=26)return'var(--warm)';return'var(--hot)';}
 function co2Color(v){if(v==null)return'var(--faint)';if(v<800)return'var(--ok)';if(v<1200)return'var(--warm)';return'var(--hot)';}
 
@@ -3820,7 +3851,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
    Definitionen skickas härifrån, för det är dashboarden som vet vilken enhet
    "t_snickarboa" är. Appen sköter bara hämtningen. */
 var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar,'measure_power'],
-  house:[()=>DEV.consume,'measure_power'],batt:[()=>DEV.battery,'measure_battery'],
+  house:[()=>DEV.consume,'measure_power'],batt:[()=>BATT_MB,'measure_battery'],
   t_kok:[()=>DEV.vader,'measure_temperature'],
   t_vard:[()=>'1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature'],
   t_ute:[()=>DEV.outdoor,'measure_temperature'],co2:[()=>DEV.vader,'measure_co2'],
@@ -3958,14 +3989,17 @@ function histLucka(k){var a=HIST[k];if(!a||!a.length)return true;return Date.now
 var SEED_EXAKT={solar:1,house:1,grid:1,battpow:1};
 async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res=res||'today';const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
   const want={solar:[DEV.solar,['energy_power','measure_power']],house:[DEV.consume,['energy_power','measure_power']],price:[DEV.tibber,['measure_price_total','price_total','price']],
-    batt:[DEV.battery,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
-    grid:[DEV.pulse,['energy_power','measure_power']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[DEV.battery,['energy_power']],
+    batt:[BATT_MB,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
+    grid:[DEV.pulse,['energy_power','measure_power']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[BATT_MB,['netto']],
     wind:[DEV.windMs,['measure_wind_strength']],gust:[DEV.windMs,['measure_gust_strength']],winddir:[DEV.windNet,['measure_wind_angle']],rain:[DEV.rain,['measure_rain.24h']],
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
     t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
-  for(const k in want){const lg=SEED_EXAKT[k]?exaktLogg(logs,want[k][0],want[k][1]):findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
+  for(const k in want){
+    if(k==='battpow'){const pn=await battNettoHist(logs,async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));});
+      if(pn.length)HIST[k]=histMerge(HIST[k],pn,Date.now()-CONFIG.HISTORY_HOURS*3600*1000);continue;}
+    const lg=SEED_EXAKT[k]?exaktLogg(logs,want[k][0],want[k][1]):findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
     const e=await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res);
     let pts=parseEntries(e);
     /* Vindloggen ligger i km/h i Homey. Allt annat i dashboarden är m/s. */
@@ -6494,8 +6528,10 @@ async function emixBackfill(force){
     var exp=await series(DEV.pulse,['meter_power.exported','exported'],'last31Days');
     /* batteriet pa finaste mojliga upplosning - measure_power ar momentant, sa glesa
        punkter tappar urladdningspass. Slao ihop flera fonster, tatast vinner. */
-    var bat7=await series(DEV.battery,['measure_power'],'last7Days');
-    var bat1=await series(DEV.battery,['measure_power'],'last24Hours');
+    /* v701: Modbus, laddning − urladdning (+ = laddar), som resten av batterihistoriken. */
+    var hamtaRes=function(res){return async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));};};
+    var bat7=await battNettoHist(logs,hamtaRes('last7Days'));
+    var bat1=await battNettoHist(logs,hamtaRes('last24Hours'));
     var bat=[];
     (function(){var seen={};[bat1,bat7].forEach(function(a){(a||[]).forEach(function(pp){
       var kk=pp.t; if(!(kk in seen)){seen[kk]=1;bat.push(pp);}});});
@@ -11396,8 +11432,8 @@ var LANG_KALLA={
   solar:  function(){return [DEV.solar,LANG_EFFEKT];},
   house:  function(){return [DEV.consume,LANG_EFFEKT];},
   grid:   function(){return [DEV.pulse,LANG_EFFEKT];},
-  battpow:function(){return [DEV.battery,['energy_power']];},
-  batt:   function(){return [DEV.battery,['measure_battery']];},
+  battpow:function(){return [BATT_MB,['netto']];},          /* v701: Modbus, laddning − urladdning */
+  batt:   function(){return [BATT_MB,['measure_battery']];},
   price:  function(){return [DEV.tibber,['measure_price_total']];},
   t_ute:  function(){return [DEV.outdoor,['measure_temperature']];},
   t_kok:  function(){return [DEV.vader,['measure_temperature']];},
@@ -11419,7 +11455,7 @@ var LANG_KALLA={
   t_batt:     function(){return [BATT_MODBUS,['measure_temperature.battery']];},
   /* Brickornas inlärda serier (histSVG). Flödena är belopp, som när de lärs. */
   gridflow:function(){return [DEV.pulse,LANG_EFFEKT,Math.abs];},
-  battflow:function(){return [DEV.battery,['energy_power'],Math.abs];}
+  battflow:function(){return [BATT_MB,['netto'],Math.abs];}
 };
 /* Källa för en nyckel: fast tabell, eller en sensorbricka "c:<enhet>:<cap>". */
 function langKalla(k){
@@ -11429,6 +11465,22 @@ function langKalla(k){
 }
 /* EXAKT kapacitet. findLog matchar på delsträng, och då kunde measure_power
    träffa measure_power.batt_charge beroende på loggarnas ordning. */
+/* v701: batteriets historik ur Modbus. Effekten är två loggar (laddning och
+   urladdning, båda ≥ 0) som slås ihop till ett netto med tecken: + laddar.
+   hamta(lg) ska ge punkterna [{t,v}] för en logg. */
+async function battNettoHist(logs,hamta){
+  var lc=exaktLogg(logs,BATT_MB,['measure_power.batt_charge']),ld=exaktLogg(logs,BATT_MB,['measure_power.batt_discharge']);
+  if(!lc&&!ld)return [];
+  var a=lc?(await hamta(lc))||[]:[],b=ld?(await hamta(ld))||[]:[];
+  return battNettoSlå(a,b);
+}
+function battNettoSlå(a,b){
+  var m={};
+  (a||[]).forEach(function(p){if(p&&isFinite(p.v))(m[p.t]=m[p.t]||{}).c=p.v;});
+  (b||[]).forEach(function(p){if(p&&isFinite(p.v))(m[p.t]=m[p.t]||{}).d=p.v;});
+  return Object.keys(m).map(Number).sort(function(x,y){return x-y;}).map(function(t){var o=m[t];
+    return {t:t,v:(o.c<0?o.c:(o.c||0))-Math.abs(o.d||0)};});
+}
 function exaktLogg(logs,devId,caps){
   var arr=Array.isArray(logs)?logs:Object.values(logs||{}),owner='homey:device:'+devId;
   for(var c=0;c<caps.length;c++){
@@ -11462,9 +11514,13 @@ async function langHamta(){
     for(var i=0;i<keys.length;i++){var k=keys[i];
       LANG_AT[k]=Date.now();                    /* även vid fel: inget nytt försök förrän TTL */
       var src=langKalla(k);if(!src)continue;
-      var lg=exaktLogg(_langLogs,src.dev,src.caps);if(!lg)continue;
-      var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);
-      var pts=e.data?parseEntries(e.data):[];
+      var pts;
+      if(src.caps[0]==='netto'){
+        pts=await battNettoHist(_langLogs,async function(lg){var e1=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);return e1.data?parseEntries(e1.data):[];});
+      }else{
+        var lg=exaktLogg(_langLogs,src.dev,src.caps);if(!lg)continue;
+        var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);
+        pts=e.data?parseEntries(e.data):[];}
       if(src.f)pts=pts.map(function(p){return {t:p.t,v:src.f(p.v)};});
       if(pts.length){LANG[k]=pts;nagot=true;}
     }
@@ -11689,8 +11745,8 @@ var HIST7={}, _hist7At=0, _hist7Laddar=false, _hist7Fel=null, _hist7Info={};
 const HIST7_VILL={
   solar:  [function(){return DEV.solar;},   ['energy_power','measure_power','watt']],
   house:  [function(){return DEV.consume;}, ['energy_power','measure_power','watt']],
-  battpow:[function(){return DEV.battery;}, ['energy_power']],
-  battpct:[function(){return DEV.battery;}, ['measure_battery']]
+  battpow:[function(){return BATT_MB;}, ['netto']],          /* v701: Modbus, laddning − urladdning */
+  battpct:[function(){return BATT_MB;}, ['measure_battery']]
 };
 /* findLog tar en lista och tar första loggen som matchar NÅGON av strängarna —
    då avgör loggarnas ordning, inte vår. Här frågar vi en kandidat i taget, så
@@ -11736,6 +11792,10 @@ async function hist7Hamta(force){
     if(!logs){_hist7Fel='Insights svarade inte'+(lr.fel?(' ('+lr.fel+')'):'');return;}
     var ut={};
     for(var k in HIST7_VILL){
+      if(HIST7_VILL[k][1][0]==='netto'){
+        var pn=await battNettoHist(logs,async function(lg2){var e2=await insGet('/api/manager/insights/log/'+lg2.uri+'/'+lg2.id+'/entry?resolution=last7Days');return e2.data?parseEntries(e2.data):[];});
+        _hist7Info[k]={id:'batt_charge − batt_discharge',n:pn.length,fel:pn.length?null:'ingen logg hittad'};
+        if(pn.length)ut[k]=pn;continue;}
       var lg=hittaLogg(logs,HIST7_VILL[k][0](),HIST7_VILL[k][1]);
       if(!lg){_hist7Info[k]={fel:'ingen logg hittad'};continue;}
       var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last7Days');
@@ -19292,7 +19352,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v700';
+const APP_VERSION='v701';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
