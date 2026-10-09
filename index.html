@@ -1131,6 +1131,11 @@ body.panu-pa .panu{display:flex;flex-wrap:wrap;margin:0 0 6px;min-height:30px;al
 .panu-c{display:inline-flex;align-items:center;height:30px;border-radius:999px;padding:0 11px;margin:0 6px 6px 0;
   font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;
   background:rgba(163,190,140,.16);color:var(--ok);border:1px solid rgba(163,190,140,.45)}
+.panu-c.varn{background:rgba(191,97,106,.16);color:var(--hot,#d0707a);border-color:rgba(191,97,106,.55);gap:5px}
+.panu-c.varn .ic{width:14px;height:14px}
+.rg-varn{display:flex;align-items:flex-start;gap:8px;margin:6px 0 2px;padding:8px 10px;border-radius:10px;
+  background:rgba(191,97,106,.14);border:1px solid rgba(191,97,106,.45);color:var(--ink);font-size:13px;font-weight:700}
+.rg-varn .ic{flex:0 0 auto;width:17px;height:17px;color:var(--hot,#d0707a);margin-top:1px}
 .panu-c.gul{background:rgba(235,203,139,.18);color:var(--gold);border-color:rgba(235,203,139,.5)}
 .panu-tom{font-size:12px;font-weight:700;color:var(--faint);margin:0 0 6px 2px}
 body.panu-pa #view-flode>[data-sec="buttons"]{display:none!important}
@@ -2118,6 +2123,20 @@ body.mobile{--ds-sun:14px}
   border-radius:13px;color:var(--ink);font:inherit;font-size:19px;font-weight:700;cursor:pointer}
 .brv-step:active{transform:scale(.95)}
 .brv-step[disabled]{opacity:.35}
+/* v703: talet är ett fält; OK skickar. */
+.brv-falt{flex:1 1 auto;min-width:74px;display:flex;align-items:baseline;justify-content:center;gap:3px;
+  height:46px;box-sizing:border-box;padding:0 8px;background:var(--inset);border:1px solid var(--line);border-radius:13px}
+.brv-falt:focus-within{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.brv-falt input{width:3.2ch;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:24px;font-weight:800;
+  text-align:right;padding:0;line-height:44px;outline:none;-webkit-appearance:none;appearance:none}
+.brv-falt span{font-size:14px;font-weight:700;color:var(--dim)}
+.brv-ok{flex:0 0 auto;min-width:58px;height:46px;padding:0 14px;border-radius:13px;border:1px solid var(--line);
+  background:var(--inset);color:var(--faint);font:inherit;font-size:15px;font-weight:800;cursor:pointer}
+.brv-ok.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.brv-ok[disabled]{opacity:.45;cursor:default}
+.brv-ok:active:not([disabled]){transform:scale(.95)}
+.brv-utkast:empty{display:none}
+.brv-utkast{margin-top:6px;font-size:11.5px;font-weight:700;color:var(--dim);text-align:center}
 /* Spjällen ställs i en bild av inomhusdelen. En pil är lättare att peka på än
    ett ord som "Mellanhög", och bilden visar vad valet faktiskt gör. */
 .brv-fig{width:100%;height:auto;display:block;margin:2px 0 4px;touch-action:manipulation}
@@ -12223,7 +12242,7 @@ function regelRadRita(){
   var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
   var bokat=!demo&&R&&R.stopp>nu&&p&&R.stopp===Number(p.stoppMs);
   var k=(p&&p.v===2&&!bokat&&String(p.nyckel||p.stoppMs)!==ign)?regelKort(p,nu):null;
-  if(!demo&&(typeof regelLage==='function')){try{if(regelLage().fjarr)k=null;}catch(e){}}
+  if(!demo&&(typeof regelLage==='function')){try{var Lr=regelLage();if(Lr.fjarr&&Lr.lage!=='egen')k=null;}catch(e){}}
   el.classList.toggle('visa',!!k);
   el.innerHTML=k?('<span class="rr-ic">'+icon('battery-charging')+'</span>'
     +'<div class="rr-t"><span>'+esc(k.txt)+'</span>'+(k.sub?'<small>'+esc(k.sub)+'</small>':'')+'</div>'
@@ -12251,7 +12270,7 @@ function paNuLista(){
   /* En bricka per sak: allt som hör till en egen ruta (pool, Breveden, disk,
      batteri, bil) räknas en gång, det mest beskrivande först — enhetens eget
      läge ("Breveden värmer") går före knappens namn ("Breveden"). */
-  var lagg=function(txt,pop,gul){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul});};
+  var lagg=function(txt,pop,gul,varn){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul,varn:!!varn});};
   try{var ph0=cap(DEV.poolheat,'onoff');if(ph0===true||ph0==='on')lagg('Poolvärme','pool');}catch(e){}
   /* BREVEDEN (v692): bara när den faktiskt värmer eller kyler. Läget "Värm 15"
      betyder bara att den FÅR värma — rutan sa "inget behövs" medan raden sa
@@ -12269,7 +12288,12 @@ function paNuLista(){
   try{if(typeof diskKor==='function'&&diskKor())lagg('Disk pågår','dish');
     else if(typeof diskBokad==='function'&&diskBokad())lagg('Disk bokad'+((typeof diskNar==='function'&&diskNar())?' '+diskNar():''),'dish',true);}catch(e){}
   sett['dish']=1;
-  try{var L0=regelLage();if(L0&&L0.fjarr)lagg(/Laddar/.test(L0.txt)?'Laddar max':(/Sparar/.test(L0.txt)?'Batteriet sparar':'Batteriet styrs'),'batt');}catch(e){}
+  /* v704: vad batteriet faktiskt gör, och en varning när läget och effekten
+     inte stämmer (spara/ladda men urladdning över 300 W). */
+  try{var L0=regelLage();
+    if(L0&&L0.lage&&L0.lage!=='normal'){
+      if(L0.varn)lagg((L0.lage==='spara'?'Sparar':'Laddar max')+' – men '+L0.varn,'batt',false,true);
+      else lagg(L0.lage==='ladda'?'Laddar max':L0.lage==='spara'?'Batteriet sparar':('Batteriet '+L0.txt.charAt(0).toLowerCase()+L0.txt.slice(1)),'batt');}}catch(e){}
   /* BILEN (v694): styrningens läge säger varför den laddar. */
   try{var bs=bilStyrLage(),ld=cap(DEV.laddbox,'evcharger_charging')===true;
     if(bs&&bs.lage==='sol'&&ld)lagg('Bilen laddar på sol','cars');
@@ -12302,7 +12326,7 @@ function paNuRita(){
   var L=paNuLista();
   /* v696: ingenting igång → raden göms helt, så luften ovanför korten blir
      densamma som under dem (rutnätets egen kantluft). */
-  el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+'" onclick="openDetail(\''+x.pop+'\')">'+esc(x.txt)+'</button>';}).join(''):'';
+  el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+(x.varn?' varn':'')+'" onclick="openDetail(\''+x.pop+'\')">'+(x.varn?icon('warning'):'')+esc(x.txt)+'</button>';}).join(''):'';
   el.classList.toggle('panu-tomt',!L.length);
 }
 /* VARJE KNAPP I SIN RUTAS POPUP (v690). Knappen som hör till en ruta ligger
@@ -12380,19 +12404,38 @@ function regelKl(ms){
     ((svMidnatt(d.y,d.m,d.d)-svMidnatt(i.y,i.m,i.d)===86400000)?' imorgon':(' '+avlDag(ms)));
   return avlKl(ms)+dag;
 }
+/* VAD BATTERIET GÖR (v704). Läget ur växelriktarens två register:
+   storagecontrolmode 4 = fjärrstyrd, och då avgör storagedefaultmode.
+   1 och 3 är våra flöden (spara, ladda max). 7 = egenförbrukning stod det på
+   2026-10-09 utan att något av flödena satt det. Texterna för 0, 2, 4 och 5
+   kommer ur SolarEdges beskrivning av registret — de har inte setts här.
+   lage: 'normal' | 'egen' | 'spara' | 'ladda' | 'annat' | null (ingen kontakt).
+   varn: läget säger spara eller ladda, men batteriet laddar ur mer än 300 W
+   (effekten ur Modbus, v701). Då stämmer inte läget med verkligheten. */
+var BATT_DM_TXT={'0':'av','2':'laddar från sol först','4':'maximal export','5':'laddar ur mot förbrukningen','7':'egenförbrukning'};
+var BATT_VARN_W=300;
 function regelLage(){
   var km=cap(BATT_MODBUS,'storagecontrolmode');
-  if(km==null)return {txt:'ingen kontakt med växelriktaren',fjarr:null};
-  if(String(km)!=='4')return {txt:'Normal drift',fjarr:false};
+  if(km==null)return {txt:'ingen kontakt med växelriktaren',fjarr:null,lage:null,varn:null};
+  if(String(km)!=='4')return {txt:'Normal drift',fjarr:false,lage:'normal',varn:null};
   var dm=String(cap(BATT_MODBUS,'storagedefaultmode'));
-  if(dm==='3')return {txt:'Laddar från nätet',fjarr:true};
-  if(dm==='1')return {txt:'Sparar – ingen urladdning',fjarr:true};
-  return {txt:'Fjärrstyrd (läge '+esc(dm)+')',fjarr:true};
+  var L;
+  if(dm==='3')L={txt:'Laddar från nätet',lage:'ladda'};
+  else if(dm==='1')L={txt:'Sparar – ingen urladdning',lage:'spara'};
+  else if(dm==='7')L={txt:'Styrs – egenförbrukning',lage:'egen'};
+  else L={txt:'Styrs – '+(BATT_DM_TXT[dm]||('läge '+dm)),lage:'annat'};
+  L.fjarr=true;L.varn=null;
+  if(L.lage==='spara'||L.lage==='ladda'){
+    var w=null;try{w=battEffektNu();}catch(e){}
+    if(w!=null&&isFinite(w)&&w<-BATT_VARN_W)L.varn='laddar ur '+(Math.abs(w)>=1000?num(Math.abs(w)/1000,1)+' kW':Math.round(Math.abs(w))+' W');
+  }
+  return L;
 }
 function regelHTML(){
   regelHamta(false);
   var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
   h+=dRow('Just nu',esc(L.txt));
+  if(L.varn)h+='<div class="rg-varn">'+icon('warning')+'<span>Läget säger '+(L.lage==='spara'?'spara':'ladda')+', men batteriet '+esc(L.varn)+'.</span></div>';
   if(!R)return h+'<div class="det-note">Hämtar laddregelns förslag…</div>';
   var steg=[];
   if(R.start>nu)steg.push(['Laddar från',R.start]);
@@ -12556,6 +12599,7 @@ function openDetail(which){
     if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
     body=battLaddHTML();
   }else if(which==='breveden'){title='Breveden · AC';
+    _brvUtkast=null;
     body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
     _popupRebuild=buildCostPopup;
@@ -14631,7 +14675,9 @@ function battSimulera(nuPct,nuH,kwh){
     return prof(h)*(kvot+(1-kvot)*f);};
   /* Läget nu ur växelriktaren, bokningarna ur laddregelns variabler. */
   var L=(typeof regelLage==='function')?regelLage():{fjarr:false};
-  var lageNu=!L.fjarr?'normal':(/Laddar/.test(L.txt)?'ladda':(/Sparar/.test(L.txt)?'spara':'normal'));
+  /* v704: ur lage. Spara/ladda som inte håller (varn) räknas som normal drift —
+     prognosen ska visa det batteriet gör, inte det läget påstår. */
+  var lageNu=(L.lage==='ladda'&&!L.varn)?'ladda':((L.lage==='spara'&&!L.varn)?'spara':'normal');
   try{if(typeof regelHamta==='function')regelHamta(false);}catch(e){}
   var R=(typeof _regel!=='undefined')?_regel:null,bok=[],nuMs=Date.now();
   if(R){[['start','ladda'],['spara','spara'],['stopp','normal']].forEach(function(x){var ms=R[x[0]];
@@ -15538,12 +15584,54 @@ async function brvSkriv(steg){
 /* Löftet lämnas vidare, inte bara startas: annars går det inte att veta när
    skrivningen är klar — varken i ett prov eller i en framtida kedja. */
 function brvSattLage(m){return brvSkriv(m==='off'?[['thermostat_mode','off']]:[['thermostat_mode',m],['onoff',true]]);}
-function brvSattTemp(d){
+/* v703: TEMPERATUREN SKICKAS FÖRST PÅ OK. − och + ändrar bara ett utkast i
+   rutan (förut skickades varje tryck till värmepumpen). Utkastet ligger utanför
+   DOM:en så att det överlever att rutan ritas om, och nollställs när rutan
+   öppnas och när värdet har skickats. */
+var _brvUtkast=null;
+function brvTempGr(){
   var o=brvCapObj('target_temperature');
-  var v=(o&&typeof o.value==='number')?o.value:19;
-  var st=(o&&o.step)||1, mn=(o&&o.min!=null)?o.min:10, mx=(o&&o.max!=null)?o.max:30;
-  v=Math.max(mn,Math.min(mx,Math.round((v+d*st)*10)/10));
-  return brvSkriv([['target_temperature',v]]);
+  return {v:(o&&typeof o.value==='number')?o.value:null,st:(o&&o.step)||1,
+    mn:(o&&o.min!=null)?o.min:10,mx:(o&&o.max!=null)?o.max:30};
+}
+function brvTempKlamp(v,g){return Math.max(g.mn,Math.min(g.mx,Math.round(v/g.st)*g.st));}
+function brvUtkastText(v){return v==null?'Skickas när du trycker OK':'Nu '+num(v,0)+' \u00b0C \u2013 skickas när du trycker OK';}
+function brvTempVisa(){
+  var g=brvTempGr(),u=(_brvUtkast!=null)?_brvUtkast:g.v;
+  var f=$('brv-tal-in'),ok=$('brv-ok'),mi=$('brv-minus'),pl=$('brv-plus');
+  if(f&&document.activeElement!==f)f.value=(u==null?'':String(u));
+  var andrat=(_brvUtkast!=null&&_brvUtkast!==g.v);
+  if(ok){ok.disabled=!andrat||!!_brvSkriver;ok.classList.toggle('on',andrat);}
+  var ut=$('brv-utkast');if(ut)ut.textContent=andrat?brvUtkastText(g.v):'';
+  if(mi)mi.disabled=(u!=null&&u<=g.mn);
+  if(pl)pl.disabled=(u!=null&&u>=g.mx);
+}
+function brvSattTemp(d){
+  var g=brvTempGr(),u=(_brvUtkast!=null)?_brvUtkast:(g.v!=null?g.v:19);
+  _brvUtkast=brvTempKlamp(Math.round((u+d*g.st)*10)/10,g);
+  var f=$('brv-tal-in');if(f)f.value=String(_brvUtkast);
+  brvTempVisa();
+}
+/* Inmatning i fältet. Kommatecken tas som decimaltecken; ett tomt eller
+   ofullständigt fält lämnar utkastet orört tills det går att tolka. */
+function brvTempIn(el){
+  var t=String(el&&el.value||'').replace(',','.').trim();
+  var g=brvTempGr(),ok=$('brv-ok'),x=Number(t);
+  /* Utanför enhetens gränser (eller halvskrivet, som "2" på väg till "22")
+     går inte att skicka. Inget klipps tyst — det som står är det som skickas. */
+  if(!/^\d{1,2}(\.\d)?$/.test(t)||x<g.mn||x>g.mx){if(ok){ok.disabled=true;ok.classList.remove('on');}return;}
+  _brvUtkast=x;brvTempVisa();
+}
+function brvTempOk(){
+  var f=$('brv-tal-in'),g=brvTempGr();
+  if(f){var t=String(f.value||'').replace(',','.').trim(),x=Number(t);
+    /* Ett ogiltigt fält skickar ingenting — inte heller ett äldre utkast. */
+    if(!/^\d{1,2}(\.\d)?$/.test(t)||x<g.mn||x>g.mx)return Promise.resolve();
+    _brvUtkast=x;}
+  if(_brvUtkast==null||_brvUtkast===g.v)return Promise.resolve();
+  var v=brvTempKlamp(_brvUtkast,g);
+  try{if(f&&f.blur)f.blur();}catch(e){}
+  return brvSkriv([['target_temperature',v]]).then(function(){if(!_brvFel)_brvUtkast=null;brvPopRita();});
 }
 function brvSattCap(c,v){return brvSkriv([[c,v]]);}
 
@@ -15686,13 +15774,20 @@ function brvPopHTML(){
     /* Knapparna gråas när enhetens egen gräns är nådd — ett tryck som ändå
        skickar samma värde ser ut som att ingenting händer. */
     var tmn=(tO.min!=null)?tO.min:10, tmx=(tO.max!=null)?tO.max:30;
+    var tu=(_brvUtkast!=null)?_brvUtkast:acTgt, tAndrat=(_brvUtkast!=null&&_brvUtkast!==acTgt);
     h+='<div class="dsec">Inställd temperatur</div>'
       +'<div class="brv-temp">'
-      +'<button class="brv-step"'+((acTgt!=null&&acTgt<=tmn)?' disabled':'')
+      +'<button class="brv-step" id="brv-minus"'+((tu!=null&&tu<=tmn)?' disabled':'')
       +' onclick="brvSattTemp(-1)">\u2212</button>'
-      +'<span class="brv-tal">'+(acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')+'</span>'
-      +'<button class="brv-step"'+((acTgt!=null&&acTgt>=tmx)?' disabled':'')
-      +' onclick="brvSattTemp(1)">+</button></div>';
+      +'<label class="brv-falt"><input id="brv-tal-in" type="text" inputmode="decimal" maxlength="4" autocomplete="off"'
+      +' value="'+(tu==null?'':esc(String(tu)))+'" oninput="brvTempIn(this)"'
+      +' onkeydown="if(event.key===\'Enter\'){event.preventDefault();brvTempOk();}"'
+      +' aria-label="Inställd temperatur"><span>\u00b0C</span></label>'
+      +'<button class="brv-step" id="brv-plus"'+((tu!=null&&tu>=tmx)?' disabled':'')
+      +' onclick="brvSattTemp(1)">+</button>'
+      +'<button class="brv-ok'+(tAndrat?' on':'')+'" id="brv-ok"'+((!tAndrat||_brvSkriver)?' disabled':'')
+      +' onclick="brvTempOk()">OK</button></div>'
+      +'<div class="brv-utkast" id="brv-utkast">'+(tAndrat?brvUtkastText(acTgt):'')+'</div>';
   }
 
   /* HOPFÄLLT: på/av, läge, fläkt och spjäll. Byggs bara om enheten har något
@@ -19369,7 +19464,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v702';
+const APP_VERSION='v704';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
