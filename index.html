@@ -1173,21 +1173,10 @@ body.kiosk .rl-plot .rl-svg{height:220px}
 .rl-ax span{position:absolute;transform:translateY(-50%);font-size:10px;font-weight:700;color:var(--faint);white-space:nowrap;line-height:1}
 .rl-gl.rl-ax span{right:6px}
 .rl-gr.rl-ax span{left:5px}
-.rl-rb{margin-top:5px}
-.rl-bana{background:var(--inset);border:1px solid var(--line);border-radius:7px;overflow:hidden}
-.rl-tick{position:absolute;top:0;bottom:0;width:0;border-left:1px solid var(--line)}
-.rl-nu{position:absolute;top:0;bottom:0;width:0;border-left:1px dashed var(--dim);z-index:2}
-.rl-tom{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:700;color:var(--faint)}
-.rl-seg{position:absolute;height:17px;box-sizing:border-box;border:1.5px solid currentColor;border-radius:5px;overflow:hidden;
-  display:flex;align-items:center;padding:0 5px;font-size:10.5px;font-weight:800;white-space:nowrap}
-.rl-seg::before{content:'';position:absolute;inset:0;background:currentColor;opacity:.38}
-.rl-seg span{position:relative;color:var(--ink);overflow:hidden;text-overflow:clip}
-.rl-seg.spara{color:var(--blue)}
-.rl-seg.ladda{color:var(--ok)}
-.rl-seg.ej{border-style:dashed}
-.rl-seg.ej::before{opacity:.08}
-.rl-seg.ej span{color:var(--dim)}
-.rl-seg.oppen{border-right-style:dotted}
+.rl-etr{height:16px;margin-bottom:2px}
+.rl-lbl{position:absolute;top:0;height:16px;line-height:16px;text-align:center;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden}
+.rl-lbl.spara{color:var(--blue)}
+.rl-lbl.ladda{color:var(--ok)}
 .rl-x{display:block;height:13px;margin-top:3px;padding:0}
 .rl-x span{position:absolute;top:0;transform:translateX(-50%)}
 .rl-x span:nth-child(1){left:0}.rl-x span:nth-child(2){left:25%}.rl-x span:nth-child(3){left:50%}.rl-x span:nth-child(4){left:75%}.rl-x span:nth-child(5){left:100%}
@@ -11957,7 +11946,7 @@ function bilStyrLage(){
    med priset, batteriets laddnivå (Insights, Husbatteri) och förslagen som
    band: grönt = ladda från nätet, blått = spara. Fyllt band = bokat, streckat
    = inte bokat. En triangel överst = när förslaget kom. */
-var _rl=null,_rlAt=0,_rlDag=0,_rlLaddar=false;
+var _rl=null,_rlAt=0,_rlDag=null,_rlLaddar=false;   /* null = dygnet väljs efter bokningen (v700) */
 function rlDemo(){
   var dag=function(off){var d=svDatum(Date.now()-off*86400000);return {y:d.y,m:d.m,d:d.d,ms:svMidnatt(d.y,d.m,d.d),k:d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0')};};
   var L={v:1,d:{},f:[]},H=3600000;
@@ -12029,74 +12018,103 @@ function rlForslag(D,L){
   return rlSpar(q,D);
 }
 function rlTid(q){return avlKl(q.a)+(q.oppen?'→':'–'+avlKl(q.b));}
-function rlSegHtml(q,D,ej){
-  var span=D.slut-D.ms,l=(q.a2-D.ms)/span*100,w=(q.b2-q.a2)/span*100;
-  var namn=q.typ==='ladda'?'Ladda':'Spara',full=namn+' '+rlTid(q);
-  var txt=w>=38?full:(w>=12?namn:(w>=5?namn.charAt(0):''));
-  return '<div class="rl-seg '+q.typ+(ej?' ej':'')+(q.oppen?' oppen':'')+'" data-k="'+esc(full)+'|'+namn+'|'+namn.charAt(0)+'" style="left:'+l.toFixed(2)+'%;width:'+Math.max(w,0.8).toFixed(2)+'%;top:'+(3+q.rad*20)+'px" title="'+esc(full)+'"><span>'+esc(txt)+'</span></div>';
-}
 /* Längsta etikett som ryms, mätt i webbläsaren. Utan layout (jsdom) står
-   procentgissningen från rlSegHtml kvar. */
+   procentgissningen från rlEtikett kvar. */
 function rlSegPassa(){
-  try{document.querySelectorAll('#dlg-body .rl-seg[data-k]').forEach(function(g){
-    var sp=g.querySelector('span'),bredd=g.clientWidth-10;if(!sp||!(g.clientWidth>0))return;
+  try{document.querySelectorAll('#dlg-body .rl-lbl[data-k]').forEach(function(g){
+    var sp=g,bredd=g.clientWidth;if(!(g.clientWidth>0))return;   /* scrollWidth = clientWidth när texten ryms */
     var alt=g.getAttribute('data-k').split('|').concat(['']);
     for(var i=0;i<alt.length;i++){sp.textContent=alt[i];if(sp.scrollWidth<=bredd)break;}});}catch(e){}
 }
-function rlBana(namn,S,D,ej,tom){
-  var nu=Date.now(),h=3+S.rader*20+1;
-  var x='<div class="rl-r rl-rb"><span class="rl-gl">'+namn+'</span><div class="rl-tr rl-bana" style="height:'+h+'px">';
-  [6,12,18].forEach(function(t){x+='<i class="rl-tick" style="left:'+(t/24*100).toFixed(2)+'%"></i>';});
-  if(!S.lista.length)x+='<span class="rl-tom">'+tom+'</span>';
-  S.lista.forEach(function(q){x+=rlSegHtml(q,D,ej);});
-  if(nu>D.ms&&nu<D.slut)x+='<i class="rl-nu" style="left:'+((nu-D.ms)/(D.slut-D.ms)*100).toFixed(2)+'%"></i>';
-  return x+'</div><span class="rl-gr"></span></div>';
+/* v700: bokade perioder ritas i själva grafen — ett lodrätt streck i början
+   och ett i slutet, skuggat emellan, och en etikett ovanför. Förslag som inte
+   bokades får bara streckade lodräta linjer. */
+function rlEtikett(q,D){
+  var span=D.slut-D.ms,l=(q.a2-D.ms)/span*100,w=(q.b2-q.a2)/span*100;
+  var namn=q.typ==='ladda'?'Ladda':'Spara',full=namn+' '+rlTid(q);
+  var txt=w>=38?full:(w>=12?namn:(w>=5?namn.charAt(0):''));
+  return '<span class="rl-lbl '+q.typ+'" data-k="'+esc(full)+'|'+namn+'|'+namn.charAt(0)+'" style="left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%" title="'+esc(full)+'">'+esc(txt)+'</span>';
+}
+/* Priser för dygnet: loggens i första hand (det laddregeln såg), annars
+   dashboardens egen prisserie (tibber_pris) — den har även morgondagen. */
+function rlPriser(D,L){
+  var pr=(L.d&&L.d[D.k])||null;
+  if(!pr&&typeof _prisJ!=='undefined'&&_prisJ&&_prisJ.d&&Array.isArray(_prisJ.d[D.k]))pr=_prisJ.d[D.k];
+  return (pr&&pr.some(function(v){return typeof v==='number'&&isFinite(v);}))?pr:null;
 }
 function rlGraf(D,L){
-  var W=300,H=150,pT=10,pB=4,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
-  var pr=(L.d&&L.d[D.k])||null,max=0;(pr||[]).forEach(function(v){if(isFinite(v)&&v>max)max=v;});
+  var W=300,H=150,pT=6,pB=4,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
+  var pr=rlPriser(D,L),max=0;(pr||[]).forEach(function(v){if(isFinite(v)&&v>max)max=v;});
   max=max>0?Math.ceil(max*2)/2:3;
   var YP=function(v){return H-pB-(v/max)*(H-pT-pB);},YS=function(v){return H-pB-(v/100)*(H-pT-pB);};
-  var s='<svg class="rl-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris och batteri">';
+  var B=rlBokat(D,L),F=rlForslag(D,L),bset={};
+  B.lista.forEach(function(q){bset[q.typ+'|'+q.a+'|'+q.b]=1;});
+  var s='<svg class="rl-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris, batteri och bokade perioder">';
+  /* bokat: skuggning under allt annat */
+  B.lista.forEach(function(q){var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
+    s+='<rect class="rl-bok '+q.typ+'" x="'+X(q.a2).toFixed(1)+'" y="0" width="'+(X(q.b2)-X(q.a2)).toFixed(1)+'" height="'+(H-pB)+'" fill="'+col+'" opacity="0.18"/>';});
   /* rutnät + nollinje */
   [0.5,1].forEach(function(f){var y=YP(max*f);s+='<line x1="0" x2="'+W+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
   [6,12,18].forEach(function(t){var x=X(D.ms+t*3600000);s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
   s+=nollLinje(YP(0),0,W);
+  /* förslag som inte bokades: streckade lodräta linjer */
+  F.lista.forEach(function(q){if(bset[q.typ+'|'+q.a+'|'+q.b])return;var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
+    [q.a,q.oppen?null:q.b].forEach(function(t){if(t==null||t<D.ms||t>D.slut)return;var x=X(t).toFixed(1);
+      s+='<line class="rl-ej" x1="'+x+'" x2="'+x+'" y1="0" y2="'+(H-pB)+'" stroke="'+col+'" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.8" vector-effect="non-scaling-stroke"/>';});});
   /* batteriet: linje med svag yta under */
   var so=rlSoc(D);
   if(so.length>1){var d=so.map(function(p,i){return (i?'L':'M')+X(p.t).toFixed(1)+' '+YS(p.v).toFixed(1);}).join('');
-    s+='<path d="'+d+'L'+X(so[so.length-1].t).toFixed(1)+' '+YS(0).toFixed(1)+'L'+X(so[0].t).toFixed(1)+' '+YS(0).toFixed(1)+'Z" fill="var(--cyan)" opacity="0.10"/>';
+    s+='<path d="'+d+'L'+X(so[so.length-1].t).toFixed(1)+' '+YS(0).toFixed(1)+'L'+X(so[0].t).toFixed(1)+' '+YS(0).toFixed(1)+'Z" fill="var(--cyan)" opacity="0.08"/>';
     s+='<path class="rl-soc" d="'+d+'" fill="none" stroke="var(--cyan)" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';}
-  /* priset: trappa */
-  if(pr){var d2='';pr.forEach(function(v,h){if(!isFinite(v))return;var x0=X(D.ms+h*3600000),x1=X(D.ms+(h+1)*3600000),y=YP(v);
+  /* priset: trappa (24 timmar eller 96 kvartar) */
+  if(pr){var d2='',st=(D.slut-D.ms)/pr.length;pr.forEach(function(v,h){if(typeof v!=='number'||!isFinite(v))return;var x0=X(D.ms+h*st),x1=X(D.ms+(h+1)*st),y=YP(v);
       d2+=(d2?'L':'M')+x0.toFixed(1)+' '+y.toFixed(1)+'L'+x1.toFixed(1)+' '+y.toFixed(1);});
     s+='<path class="rl-pris" d="'+d2+'" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/>';}
+  /* bokat: heldragna lodräta streck i början och slutet, överst */
+  B.lista.forEach(function(q){var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
+    [q.a,q.oppen?null:q.b].forEach(function(t){if(t==null||t<D.ms||t>D.slut)return;var x=X(t).toFixed(1);
+      s+='<line class="rl-kant '+q.typ+'" x1="'+x+'" x2="'+x+'" y1="0" y2="'+(H-pB)+'" stroke="'+col+'" stroke-width="2" vector-effect="non-scaling-stroke"/>';});});
   /* nu */
-  var nu=Date.now();if(nu>D.ms&&nu<D.slut)s+='<line x1="'+X(nu).toFixed(1)+'" x2="'+X(nu).toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--dim)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
+  var nu=Date.now();if(nu>D.ms&&nu<D.slut)s+='<line x1="'+X(nu).toFixed(1)+'" x2="'+X(nu).toFixed(1)+'" y1="0" y2="'+(H-pB)+'" stroke="var(--dim)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
   s+='</svg>';
   /* Axelvärden som HTML (svg:en sträcks, text i den skulle förvrängas). */
   var top=function(y){return (y/H*100).toFixed(1)+'%';};
   var vl='<span style="top:'+top(YP(max))+'">'+num(max,1)+' kr</span><span style="top:'+top(YP(max/2))+'">'+num(max/2,max/2%1?2:1)+'</span><span style="top:'+top(YP(0))+'">0</span>';
   var hl='<span style="top:'+top(YS(100))+'">100 %</span><span style="top:'+top(YS(50))+'">50 %</span><span style="top:'+top(YS(0))+'">0 %</span>';
-  var B=rlBokat(D,L),F=rlForslag(D,L);
   var dagens=(L.f||[]).filter(function(e){var a=e.start||e.spara||e.t0,b=e.stopp;return b>D.ms&&a<D.slut;});
-  var h='<div class="rl-r"><span class="rl-gl rl-ax">'+vl+'</span><div class="rl-tr rl-plot">'+s+'</div><span class="rl-gr rl-ax">'+hl+'</span></div>'
-    +rlBana('Bokat',B,D,false,'ingen bokning')
-    +rlBana('Förslag',F,D,true,'inga förslag')
+  var et=B.lista.map(function(q){return rlEtikett(q,D);}).join('');
+  var h='<div class="rl-r"><span class="rl-gl"></span><div class="rl-tr rl-etr">'+et+'</div><span class="rl-gr"></span></div>'
+    +'<div class="rl-r"><span class="rl-gl rl-ax">'+vl+'</span><div class="rl-tr rl-plot">'+s+'</div><span class="rl-gr rl-ax">'+hl+'</span></div>'
     +'<div class="rl-r"><span class="rl-gl"></span><div class="rl-tr pgraph-x rl-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span class="rl-gr"></span></div>';
   return {html:h,svg:s,max:max,dagens:dagens,bokat:B,forslag:F,pris:!!pr,soc:so.length>1};
 }
+/* Vilket dygn popupen öppnar på: där bokningen gäller (pågående eller nästa),
+   annars idag. Ett tryck på en flik tar över. */
+function rlAutoDag(){
+  var R=(typeof _regel!=='undefined'&&_regel)||null,nu=Date.now();
+  if(!R)return 0;
+  var del=rlDelar({start:R.start,spara:R.spara,stopp:R.stopp}).filter(function(q){return !(q.b>q.a)||q.b>nu;});
+  if(!del.length)return 0;
+  var t=Math.max(nu,Math.min.apply(null,del.map(function(q){return q.a;})));
+  return t>=rlDygn(0).slut?-1:0;
+}
+function rlHarImorgon(){
+  var D=rlDygn(-1),L=_rl||{d:{},f:[]};
+  return !!(rlPriser(D,L)||rlBokat(D,L).lista.length||rlForslag(D,L).lista.length);
+}
 function rlPopup(){
   var L=_rl,h='';
-  var namn=['Idag','Igår','2 d sedan','3 d sedan'];
-  h+='<div class="graf-lage">'+namn.map(function(n,i){return '<button type="button" class="graf-lage-b'+(i===_rlDag?' on':'')+'" onclick="rlValjDag('+i+')">'+n+'</button>';}).join('')+'</div>';
+  var flikar=[[0,'Idag'],[1,'Igår'],[2,'2 d sedan'],[3,'3 d sedan']];
+  var dag=(_rlDag==null)?rlAutoDag():_rlDag;
+  if(dag===-1||(L&&rlHarImorgon()))flikar.unshift([-1,'Imorgon']);
+  h+='<div class="graf-lage">'+flikar.map(function(f){return '<button type="button" class="graf-lage-b'+(f[0]===dag?' on':'')+'" onclick="rlValjDag('+f[0]+')">'+f[1]+'</button>';}).join('')+'</div>';
   if(!L)return h+'<div class="det-note">Hämtar loggen…</div>';
   if(L.fel)return h+'<div class="det-note">Kunde inte läsa loggen: '+esc(L.fel)+'</div>';
-  var D=rlDygn(_rlDag),G=rlGraf(D,L);
+  var D=rlDygn(dag),G=rlGraf(D,L);
   h+='<div class="rl-graf">'+G.html+'</div>';
   setTimeout(rlSegPassa,0);
   h+='<div class="rl-leg"><span><i style="background:var(--gold)"></i>Pris</span><span><i style="background:var(--cyan)"></i>Batteri %</span>'
-    +'<span><i class="rl-li spara"></i>Spara</span><span><i class="rl-li ladda"></i>Ladda</span><span class="rl-not">streckat = inte bokat</span></div>';
+    +'<span><i class="rl-li spara"></i>Spara</span><span><i class="rl-li ladda"></i>Ladda</span><span class="rl-not">skuggat = bokat · streckad linje = förslag som inte bokades</span></div>';
   if(!G.pris&&!G.dagens.length&&!G.bokat.lista.length)h+='<div class="det-note">Inget loggat det här dygnet. Loggen började med laddregeln 1.3.1'+(L.tom?' och är tom än så länge':'')+'.</div>';
   if(G.bokat.lista.length){
     h+=dSec('Bokat');
@@ -12114,7 +12132,8 @@ function rlPopup(){
       h+='<div class="rl-rad"><span class="rl-kl">'+avlKl(e.t0)+'</span><span class="rl-txt">'+esc(tider)
         +'<small>'+(e.kwh?num(e.kwh,1)+' kWh · ':'')+'beräknat ca '+Math.round(e.vinst||0)+' kr · batteri '+(e.soc!=null?e.soc+' %':'–')+' · '+status+'</small></span></div>';});
   }
-  if(!G.soc)h+='<div class="det-note">Batteriets laddnivå saknas för dygnet (hämtas från Insights).</div>';
+  if(!G.soc&&D.ms<Date.now())h+='<div class="det-note">Batteriets laddnivå saknas för dygnet (hämtas från Insights).</div>';
+  if(dag===0&&!G.bokat.lista.length&&rlBokat(rlDygn(-1),L).lista.length)h+='<div class="det-note">Bokningen gäller imorgon – se fliken Imorgon.</div>';
   return h;
 }
 
@@ -12281,6 +12300,7 @@ function regelHamta(tvinga){
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
     else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
+    else if(_dlgWhich==='regellogg'){try{var b2=$('dlg-body');if(b2)b2.innerHTML=rlPopup();}catch(e){}}
   });
 }
 /* Samma regler som battsvar 1.2.0: inget bokas efter fönstret, och är
@@ -12530,7 +12550,7 @@ function openDetail(which){
   }else if(which==='regellogg'){title='Laddregelns förslag';
     _popupRebuild=rlPopup;_grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();};
     /* Hämtningen först: i demoläget sätts loggen direkt, utan att vänta. */
-    _dlgWide=true;                                   /* v699: grafen och segmenten behöver bredden */
+    _dlgWide=true;_rlDag=null;                       /* v699: bredd · v700: dygnet väljs efter bokningen */
     rlHamta(false);try{hist7Hamta(false);}catch(e){}try{regelHamta(false);}catch(e){}body=rlPopup();
   }else if(which==='hem'){title='Hem';
     /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
@@ -19272,7 +19292,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v699';
+const APP_VERSION='v700';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
