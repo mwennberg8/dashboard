@@ -2104,6 +2104,10 @@ body.mobile{--ds-sun:14px}
 /* Bilrutans två styrknappar. Marginaler i stället för gap, så layouten går att
    mäta i renderaren — samma skäl som i ladda max-rutan och vädersidan. */
 .bil-styr{display:flex;flex-wrap:wrap;margin:2px -4px 4px}
+.bil-rad{margin:8px 0 4px;gap:8px}
+.bil-rad .te-alt .ic{width:15px;height:15px}
+.brv-falt.bil-a{align-items:baseline}
+.brv-falt.bil-a b{font-size:24px;font-weight:800;line-height:44px;color:var(--ink)}
 .bil-styr .brv-q{flex:0 0 calc(50% - 8px);width:calc(50% - 8px);margin:4px;box-sizing:border-box}
 .brv-snabb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 /* Bilknapparna väntar på bekräftelse: guldkant och frågan som text. */
@@ -4144,7 +4148,102 @@ function bilStyrHTML(){
   return styr+'<div class="bil-styr">'
     +bilStyrKnapp(laddar?'Laddar':'Ladda nu','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Ladda nu, oavsett pris?')
     +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()','klimat',kl?'Stoppa klimat?':'Starta klimat?')
-    +'</div>';
+    +'</div>'+bilBokaHTML()+bilStromHTML();
+}
+/* ===== BOKAD START OCH LADDSTRÖM (v705) =====
+   Dashboarden skriver bara två Logic-variabler; verkställaren (energistyr
+   2.3.0, varje minut) gör resten:
+     billadd_bokad  tidsstämpel (ms) när laddningen ska starta. När tiden är
+                    nådd räknas laddningen som manuell i 18 h — precis som
+                    "Ladda nu" — och bokningen nollställs.
+     billadd_strom  ampere per fas, 6–16, för manuell och bokad laddning.
+                    0 = ingen gräns (laddboxens 16 A, säkringsvakten gäller alltid).
+   Automatiken (sol, billiga timmar) styr sin egen ström som förut. */
+var BIL_BOKA_VAR='billadd_bokad',BIL_STROM_VAR='billadd_strom',BIL_A_MIN=6,BIL_A_MAX=16;
+var _bilBokaVy=false,_bilTid=null,_bilStromUtk=null,_bilLokal={};
+/* Lokalt skrivet värde gäller tills nästa hämtning visar Homeys. */
+function bilBokad(){
+  var v=('bokad' in _bilLokal)?_bilLokal.bokad:((_regel&&_regel.bilBokad)||0);
+  return (v>Date.now())?v:0;
+}
+function bilStromVal(){
+  var v=('strom' in _bilLokal)?_bilLokal.strom:((_regel&&_regel.bilStrom)||0);
+  return (v>=BIL_A_MIN&&v<=BIL_A_MAX)?v:0;
+}
+function bilKlText(ms){
+  var d=new Date(ms),i=new Date();
+  return battKlAv(ms)+((d.getDate()!==i.getDate()||d.getMonth()!==i.getMonth())?' imorgon':'');
+}
+function bilTidMin(){
+  if(_bilTid==null){var d=new Date(Date.now()+3600000);_bilTid=(d.getHours()*60+Math.round(d.getMinutes()/15)*15)%1440;}
+  return _bilTid;
+}
+function bilBokaHTML(){
+  var b=bilBokad(),h='<div class="dsec">Bokad start</div>';
+  if(b)h+=dRow('Startar',bilKlText(b))
+    +'<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilAvboka()">Avboka</button>'
+    +'<button class="te-alt" onclick="bilBokaVisa()">'+(_bilBokaVy?'Stäng':'Ändra tid')+'</button></div>';
+  else if(!_bilBokaVy)h+='<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilBokaVisa()">'+icon('clock')+'Boka start</button></div>';
+  if(!_bilBokaVy)return h;
+  h+='<div class="bl-val">';
+  var c=battBilligKl();
+  if(c)h+='<button class="bl-b bl-pris" onclick="bilBoka('+battTidTill(c.off,c.h)+')"><b>Lägsta pris</b><small>'+battKl(c.h*60)+(c.off?' imorgon':'')+' \u00b7 '+oren(c.pris)+'</small></button>';
+  else h+='<button class="bl-b bl-pris" disabled><b>Lägsta pris</b><small>ingen billig timme framåt</small></button>';
+  [[1,'Om 1 timme'],[3,'Om 3 timmar'],[8,'Om 8 timmar']].forEach(function(x){var t=Date.now()+x[0]*3600000;
+    h+='<button class="bl-b" onclick="bilBoka('+t+')"><b>'+x[1]+'</b><small>'+battKlAv(t)+'</small></button>';});
+  h+='</div>';
+  var m=bilTidMin(),tt=String(Math.floor(m/60)).padStart(2,'0'),mm=String(m%60).padStart(2,'0');
+  var kol=function(v,txt){return '<div class="bl-kol"><button class="bl-pil" onclick="bilTidJust(\''+v+'\',1)" aria-label="upp">'+icon('caret-up')+'</button>'
+    +'<span class="bl-num">'+txt+'</span><button class="bl-pil" onclick="bilTidJust(\''+v+'\',-1)" aria-label="ner">'+icon('caret-down')+'</button></div>';};
+  h+='<div class="bl-egen"><div class="bl-ur">'+kol('t',tt)+'<span class="bl-kolon">:</span>'+kol('m',mm)+'</div>'
+    +'<button class="bl-boka" onclick="bilBokaEgen()">Boka '+tt+':'+mm+'</button></div>';
+  return h;
+}
+function bilBokaVisa(){_bilBokaVy=!_bilBokaVy;bilStyrOm();}
+function bilTidJust(v,r){var m=bilTidMin(),t=Math.floor(m/60),mi=m%60;
+  if(v==='t')t=((t+r)%24+24)%24;else mi=((mi+r*15)%60+60)%60;_bilTid=t*60+mi;bilStyrOm();}
+function bilBokaEgen(){var t=dayStart()+bilTidMin()*60000;if(t<=Date.now())t+=86400000;return bilBoka(t);}
+async function bilBoka(ms){
+  if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
+  _bilLokal.bokad=ms;_bilBokaVy=false;bilStyrOm();
+  try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,ms,'number');toast('Laddning bokad '+bilKlText(ms));}
+  catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
+  try{regelHamta(true);}catch(e){}
+}
+async function bilAvboka(){
+  _bilLokal.bokad=0;_bilBokaVy=false;bilStyrOm();
+  try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,0,'number');toast('Avbokad');}
+  catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte avboka: '+((e&&e.message)||'okänt'));return;}
+  try{regelHamta(true);}catch(e){}
+}
+/* LADDSTRÖMMEN: samma mönster som Brevedens temperatur (v703) — − och + ändrar
+   ett utkast, OK skickar. 0 = ingen egen gräns. */
+function bilStromHTML(){
+  var v=bilStromVal(),u=(_bilStromUtk!=null)?_bilStromUtk:(v||BIL_A_MAX),andrat=(_bilStromUtk!=null&&_bilStromUtk!==(v||BIL_A_MAX));
+  var nuA=cap(DEV.laddbox,'offered_current');
+  var kw=Math.round(3*230*u/100)/10;
+  return '<div class="dsec">Laddström</div>'
+    +'<div class="brv-temp">'
+    +'<button class="brv-step" id="bil-a-minus"'+(u<=BIL_A_MIN?' disabled':'')+' onclick="bilStromSteg(-1)">\u2212</button>'
+    +'<span class="brv-falt bil-a"><b id="bil-a-tal">'+u+'</b><span>A</span></span>'
+    +'<button class="brv-step" id="bil-a-plus"'+(u>=BIL_A_MAX?' disabled':'')+' onclick="bilStromSteg(1)">+</button>'
+    +'<button class="brv-ok'+(andrat?' on':'')+'" id="bil-a-ok"'+(andrat?'':' disabled')+' onclick="bilStromOk()">OK</button></div>'
+    +'<div class="brv-utkast">\u2248 '+num(kw,1)+' kW på 3 faser \u00b7 '+(v?'inställt '+v+' A':'ingen egen gräns')
+    +(nuA!=null&&isFinite(nuA)?' \u00b7 laddboxen ger nu '+Math.round(nuA)+' A':'')+'</div>'
+    +'<div class="det-note">Gäller när du laddar själv eller bokat start. Sol och billiga timmar styr strömmen själva, och säkringsvakten (23 A per fas) gäller alltid.</div>'
+    +(v?'<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
+}
+function bilStromSteg(d){
+  var v=bilStromVal()||BIL_A_MAX,u=(_bilStromUtk!=null)?_bilStromUtk:v;
+  _bilStromUtk=Math.max(BIL_A_MIN,Math.min(BIL_A_MAX,u+d));
+  bilStyrOm();
+}
+function bilStromOk(){if(_bilStromUtk==null)return Promise.resolve();var u=_bilStromUtk;return bilStromSatt(u);}
+async function bilStromSatt(a){
+  _bilLokal.strom=a;_bilStromUtk=null;bilStyrOm();
+  try{var L=await logicList();await logicWrite(L,BIL_STROM_VAR,a,'number');toast(a?'Laddström '+a+' A':'Ingen egen gräns');}
+  catch(e){delete _bilLokal.strom;bilStyrOm();toast('Kunde inte spara: '+((e&&e.message)||'okänt'));return;}
+  try{regelHamta(true);}catch(e){}
 }
 /* Ritar om bilrutan om den står öppen. */
 function bilStyrOm(){try{var b=$('dlg-body');if(b)b.innerHTML=buildCarsPopup();}catch(e){}}
@@ -12294,6 +12393,8 @@ function paNuLista(){
     if(L0&&L0.lage&&L0.lage!=='normal'){
       if(L0.varn)lagg((L0.lage==='spara'?'Sparar':'Laddar max')+' – men '+L0.varn,'batt',false,true);
       else lagg(L0.lage==='ladda'?'Laddar max':L0.lage==='spara'?'Batteriet sparar':('Batteriet '+L0.txt.charAt(0).toLowerCase()+L0.txt.slice(1)),'batt');}}catch(e){}
+  /* v705: bokad billaddning syns som gul bricka tills den startar. */
+  try{var bb=bilBokad();if(bb&&!(cap(DEV.laddbox,'evcharger_charging')===true))lagg('Bilen bokad '+bilKlText(bb),'cars',true);}catch(e){}
   /* BILEN (v694): styrningens läge säger varför den laddar. */
   try{var bs=bilStyrLage(),ld=cap(DEV.laddbox,'evcharger_charging')===true;
     if(bs&&bs.lage==='sol'&&ld)lagg('Bilen laddar på sol','cars');
@@ -12364,7 +12465,7 @@ function hemPopup(){return popKnappar('hem')||'<div class="viz-empty">Inga knapp
    Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
    laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
    normal drift. */
-var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil'];
+var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 function regelHamta(tvinga){
   if(_regelLaddar)return;
@@ -12377,9 +12478,14 @@ function regelHamta(tvinga){
     _regel={forslag:p,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
       stopp:Number(r.battladd_stopp)||0,lista:list,
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
-      bil:String(r.energi_bil||'')};
+      bil:String(r.energi_bil||''),
+      /* v705: bilens bokade start (ms) och laddström (A). Verkställs av energistyr 2.3.0. */
+      bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0};
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
+    try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
+      if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
+    if(_dlgWhich==='cars'){try{bilStyrOm();}catch(e){}}
     try{regelRadRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
@@ -12667,6 +12773,7 @@ function openDetail(which){
   }else if(which==='cars'){title='Bilar';
     /* Egen byggare, så växlarna kan rita om rutan utan att bygga om allt. */
     _popupRebuild=buildCarsPopup;
+    _bilBokaVy=false;_bilStromUtk=null;try{regelHamta(false);}catch(e){}
     body=buildCarsPopup();
   }else if(which==='air'){title='Luft i köket';
     body=dRow('CO₂',num(cap(DEV.vader,'measure_co2'),0)+' ppm')+dRow('Temperatur',num(cap(DEV.vader,'measure_temperature'),1)+' °C')+dRow('Luftfukt',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Ljudnivå',num(cap(DEV.vader,'measure_noise'),0)+' dB');
@@ -16251,14 +16358,19 @@ function isAbort(e){return !!(e&&(e.name==='AbortError'||/abort/i.test(e.message
    inte alltid varje skrivning bli klar inom en snål tidsgräns, och då avbryts hela
    sparningen med "signal is aborted without reason". Därför gott om tid och några
    omförsök vid just timeout – riktiga fel (t.ex. 401) kastas direkt. */
-async function logicWrite(list,name,value){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,base=apiBase()+'/api/manager/logic/variable/';
+async function logicWrite(list,name,value,typ){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,base=apiBase()+'/api/manager/logic/variable/';
   let found=null;for(const v of logicArr(list)){if(v&&v.name===name){found=v;break;}}
+  /* v705: värdet följer variabelns typ. Ett tal till en strängvariabel skickas
+     som text och tvärtom — om Homey godtar en blandning är inte provat, så
+     ingen blandning skickas. En ny variabel får typen typ (förval string). */
+  if(found&&found.type==='string'&&typeof value==='number')value=String(value);
+  else if(found&&found.type==='number'&&typeof value==='string'&&value.trim()!==''&&isFinite(Number(value)))value=Number(value);
   const hdr={Authorization:'Bearer '+tk,'Content-Type':'application/json'};
   async function attempt(ms){const t=withTimeout(ms);
     try{
       const r=found
         ? await fetch(base+found.id,{method:'PUT',headers:hdr,body:JSON.stringify({value:value}),signal:t.signal})
-        : await fetch(base,{method:'POST',headers:hdr,body:JSON.stringify({name:name,type:'string',value:value}),signal:t.signal});
+        : await fetch(base,{method:'POST',headers:hdr,body:JSON.stringify({name:name,type:typ||'string',value:value}),signal:t.signal});
       t.clear();
       if(!r.ok)throw new Error((found?'PUT ':'POST ')+r.status);
       return true;
@@ -19464,7 +19576,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v704';
+const APP_VERSION='v705';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
