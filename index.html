@@ -12341,7 +12341,12 @@ function regelRadRita(){
   var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
   var bokat=!demo&&R&&R.stopp>nu&&p&&R.stopp===Number(p.stoppMs);
   var k=(p&&p.v===2&&!bokat&&String(p.nyckel||p.stoppMs)!==ign)?regelKort(p,nu):null;
-  if(!demo&&(typeof regelLage==='function')){try{var Lr=regelLage();if(Lr.fjarr&&Lr.lage!=='egen')k=null;}catch(e){}}
+  /* v707: står batteriet i spara för att bilen laddar billigt (verkställarens
+     eget spara) visas ett förslag som LADDAR ändå — batteriet får laddas medan
+     bilen laddar (battnotis 1.3.2 frågar då också). */
+  if(!demo&&(typeof regelLage==='function')){try{var Lr=regelLage();
+    var bilSpara=Lr.lage==='spara'&&R&&String(R.bil||'').split('|')[0]==='billig'&&p&&Number(p.startMs)>0;
+    if(Lr.fjarr&&Lr.lage!=='egen'&&!bilSpara)k=null;}catch(e){}}
   el.classList.toggle('visa',!!k);
   el.innerHTML=k?('<span class="rr-ic">'+icon('battery-charging')+'</span>'
     +'<div class="rr-t"><span>'+esc(k.txt)+'</span>'+(k.sub?'<small>'+esc(k.sub)+'</small>':'')+'</div>'
@@ -19588,7 +19593,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v706';
+const APP_VERSION='v707';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
