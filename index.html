@@ -4440,6 +4440,7 @@ function moodSenseInfo(b){
    ocksa kontrollmode 4, men defaultmode 1, och det ar ett annat lage som inte
    ska tanda den har knappen. */
 const BATT_FLOW_PA='565bae12-d675-4bc6-93b4-d3a03edc7af2';   /* ladda max 5000 W */
+const BATT_FLOW_SPARA='9d41e63b-eec8-4673-a304-f74521f356b0'; /* spara (ingen urladdning), v708 */
 const BATT_FLOW_AV='0e9598ed-9c6b-4a94-9869-5c3d5c69bb39';   /* normal drift */
 const BATT_MODBUS='438aa2c6-7413-4b1e-9e9a-ec66ed54baff';
 function battLaddLage(){
@@ -4546,6 +4547,10 @@ var _battAvBusy=false, _battAvGjort='';
 function battAutoKoll(){
   try{
     battStartKoll();                      /* schemalagd start i samma varv */
+    /* v708: AUTOMATIKEN AVSTÄNGD (Markus beslut 2026-10-10). Förut slog den här
+       om till normal drift strax före en dyr timme när Ladda max var på. Nu
+       gäller bara knapparna och bokningarna. */
+    if(BATT_AUTO_AV)return;
     if(battLaddLage()!==true){_battAvGjort='';return;}
     var u=battPrisUppgang();
     if(!u)return;
@@ -12336,6 +12341,7 @@ function regelKort(p,nu){
 }
 function regelRadRita(){
   var el=$('regelrad');if(!el)return;
+  if(REGEL_AV){el.classList.remove('visa');el.innerHTML='';return;}
   var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
   var R=_regel,nu=Date.now(),p=demo?regelDemo():(R&&R.forslag);
   var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
@@ -12454,6 +12460,7 @@ function popKnappar(dest){
   var ut=[];
   Array.prototype.forEach.call(c.querySelectorAll('.ctl[data-bi]'),function(b){
     var i=+b.getAttribute('data-bi');if(knappTill(CONFIG.BUTTONS[i])===dest)ut.push(b.outerHTML);});
+  if(dest==='batt'){try{ut.push(battSparaKnapp());}catch(e){}}   /* v708 */
   if(!ut.length)return '';
   /* Högst fyra per rad. */
   var h='';for(var r=0;r<ut.length;r+=4)h+='<div class="ctl-row">'+ut.slice(r,r+4).join('')+'</div>';
@@ -12470,6 +12477,9 @@ function hemPopup(){return popKnappar('hem')||'<div class="viz-empty">Inga knapp
    Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
    laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
    normal drift. */
+/* v708: laddregeln (planeraren) och all automatik för bil och batteri är
+   avstängd i Homey. Förslagsraden döljs och popupen säger det. */
+var REGEL_AV=true, BATT_AUTO_AV=true;
 var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 function regelHamta(tvinga){
@@ -12547,14 +12557,16 @@ function regelHTML(){
   var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
   h+=dRow('Just nu',esc(L.txt));
   if(L.varn)h+='<div class="rg-varn">'+icon('warning')+'<span>Läget säger '+(L.lage==='spara'?'spara':'ladda')+', men batteriet '+esc(L.varn)+'.</span></div>';
-  if(!R)return h+'<div class="det-note">Hämtar laddregelns förslag…</div>';
+  if(!R)return h+'<div class="det-note">'+(REGEL_AV?'Hämtar bokningarna…':'Hämtar laddregelns förslag…')+'</div>';
   var steg=[];
   if(R.start>nu)steg.push(['Laddar från',R.start]);
   if(R.spara>nu)steg.push(['Sparar från',R.spara]);
   if(R.stopp>nu)steg.push(['Normal drift',R.stopp]);
   steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
   var p=R.forslag,knappar='';
-  if(p&&p.v===2&&p.text){
+  if(REGEL_AV){
+    h+='<div class="rg-forslag">Laddregeln är avstängd.</div>';
+  }else if(p&&p.v===2&&p.text){
     var t=regelTider(p,nu),bokat=(R.stopp>nu&&R.stopp===Number(p.stoppMs));
     h+='<div class="rg-forslag">'+esc(p.text)
       +'<small>'+(bokat?'Bokat.':(t.fel?('Gäller inte längre: '+esc(t.fel)+'.'):'Inte bokat – svara på notisen eller starta här.'))
@@ -12601,6 +12613,95 @@ async function regelNormal(){
   setTimeout(function(){try{load();}catch(e){}},1500);
   regelHamta(true);
 }
+/* ===== SPARA TILL NÄSTA DYRA PERIOD (v708) =====
+   Knappen bredvid Ladda max i batteriets popup. Ett tryck bokar spara (ingen
+   urladdning) från nu till dess nästa dyra period börjar — då går batteriet
+   tillbaka till normal drift och tas i bruk när elen är dyr. Bokningen är
+   samma tre Logic-variabler som förut (battladd_stopp/spara/start), så den
+   verkställs av Energi · styrning i Homey även om ingen skärm är vaken.
+
+   DYRT avgörs som i laddregeln: timmarna från och med nu, och en timme är dyr
+   när priset ligger i övre 45 % av spannet framåt (DYR_FRAC 0,55). Nästa dyra
+   period är den första sammanhängande dyra perioden som BÖRJAR efter
+   innevarande timme — står man i en dyr period nu är det nästa efter den.
+   Tibbers egna tal räcker: omräkningen till det du betalar är affin med
+   positiv lutning och ändrar inte vilka timmar som är dyra. */
+var SPARA_DYR_FRAC=0.55;
+function svKlMs(y,m,d,h){
+  var vagg=Date.UTC(y,m-1,d,h,0,0);
+  var off=function(ms){var q={};new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',
+      month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})
+    .formatToParts(new Date(ms)).forEach(function(p){q[p.type]=p.value;});
+    return Date.UTC(+q.year,+q.month-1,+q.day,+q.hour,+q.minute,+q.second)-Math.floor(ms/1000)*1000;};
+  var ms=vagg-off(vagg);
+  return vagg-off(ms);
+}
+/* Ren funktion. pts0/pts1 = prisDygn(0)/prisDygn(1) ([[timme, kr], …], timmar
+   eller kvartar). Returnerar {franMs, tillMs, snitt} eller null. */
+function sparaMal(pts0,pts1,nuMs){
+  var d0=svDatum(nuMs),m0=svMidnatt(d0.y,d0.m,d0.d),d1=svDatum(m0+36*3600000);
+  var tim=[];
+  [[pts0,d0],[pts1,d1]].forEach(function(x){
+    var pts=x[0],d=x[1];if(!Array.isArray(pts))return;
+    var sum={},n={};
+    pts.forEach(function(p){var h=Math.floor(p[0]);if(h<0||h>23||!isFinite(p[1]))return;sum[h]=(sum[h]||0)+p[1];n[h]=(n[h]||0)+1;});
+    for(var h=0;h<24;h++)if(n[h]){var t0=svKlMs(d.y,d.m,d.d,h);tim.push({t0:t0,t1:t0+3600000,kr:sum[h]/n[h]});}
+  });
+  var fr=tim.filter(function(t){return t.t1>nuMs;});
+  if(fr.length<2)return null;
+  var v=fr.map(function(t){return t.kr;}),lo=Math.min.apply(null,v),hi=Math.max.apply(null,v);
+  if(!(hi-lo>0.05))return null;
+  var gr=lo+(hi-lo)*SPARA_DYR_FRAC;
+  fr.forEach(function(t){t.dyr=t.kr>=gr;});
+  var prev=fr[0].dyr,start=-1;
+  for(var i=1;i<fr.length;i++){if(fr[i].dyr&&!prev){start=i;break;}prev=fr[i].dyr;}
+  if(start<0)return null;
+  var slut=start,s=0;while(slut<fr.length&&fr[slut].dyr){s+=fr[slut].kr;slut++;}
+  return {franMs:fr[start].t0,tillMs:fr[slut-1].t1,snitt:s/(slut-start)};
+}
+/* Pågår eller är spara bokat? Ett stopp framåt utan inbokad laddstart. */
+function battSparaLage(){
+  var R=_regel,nu=Date.now();
+  if(R&&R.stopp>nu&&!(R.start>nu))return {aktiv:true,till:R.stopp};
+  return {aktiv:false};
+}
+var _sparaArm=0;
+function battSparaKnapp(){
+  var L=battSparaLage(),arm=!!_sparaArm&&Date.now()-_sparaArm<4000,lbl;
+  if(L.aktiv)lbl=arm?'Avbryta?':'Sparar till '+regelKl(L.till);
+  else{var m=null;try{m=sparaMal(prisDygn(0),prisDygn(1),Date.now());}catch(e){}
+    lbl=m?'Spara till '+regelKl(m.franMs):'Spara';}
+  return '<button type="button" class="ctl'+(L.aktiv?' on':'')+(arm?' arm':'')+'" data-spara="1" onclick="battSparaTryck()">'
+    +'<span class="ctl-ic">'+icon('lock-simple')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
+}
+async function battSparaTryck(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');return;}
+  var L=battSparaLage();
+  /* Pågående spara avbryts med två tryck, som Ladda max. */
+  if(L.aktiv){
+    if(!(_sparaArm&&Date.now()-_sparaArm<4000)){_sparaArm=Date.now();try{renderControls();}catch(e){}
+      setTimeout(function(){_sparaArm=0;try{renderControls();}catch(e){}},4100);return;}
+    _sparaArm=0;await regelNormal();try{renderControls();}catch(e){}return;
+  }
+  var m=sparaMal(prisDygn(0),prisDygn(1),Date.now());
+  if(!m){toast('Ingen dyr period i sikte i elpriset');return;}
+  var nu=Date.now();
+  try{
+    var list=await logicList();
+    /* Stoppet först: verkställaren ska aldrig se ett spara utan sitt slut. */
+    await logicWrite(list,'battladd_stopp',m.franMs);
+    await logicWrite(list,'battladd_spara',nu);
+    await logicWrite(list,'battladd_start',0);
+    _regel=_regel||{};_regel.stopp=m.franMs;_regel.spara=nu;_regel.start=0;
+    try{localStorage.removeItem(BATT_START_KEY);}catch(e){}
+  }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
+  /* Direkt, så det syns nu — verkställaren skickar samma sak inom en minut. */
+  try{await homeyTriggerFlow('standard',BATT_FLOW_SPARA);}catch(e){}
+  toast('Sparar till '+regelKl(m.franMs));
+  try{renderControls();}catch(e){}
+  regelHamta(true);
+  setTimeout(function(){try{load();}catch(e){}},1500);
+}
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
   return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
@@ -12614,8 +12715,9 @@ function byggBatt(){
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
     +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
     +regelHTML()
-    /* Ladda max bor i batteriets popup när knappavsnittet är gömt (v688). */
-    +((CFG&&CFG.paNu)?popKnappar('batt'):'');
+    /* Ladda max bor i batteriets popup när knappavsnittet är gömt (v688).
+       v708: Spara ligger bredvid; utan Ladda max i popupen står den ensam. */
+    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+'</div></div>'));
 }
 var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
@@ -19593,7 +19695,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v707';
+const APP_VERSION='v708';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
