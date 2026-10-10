@@ -17632,6 +17632,8 @@ async function backupTick(){
        Fråga i stället Homey hur mycket som ligger där. Har appen väsentligt fler
        nycklar än vi har lokalt är vi den tomma parten och ska hämta, inte skriva. */
     if(!o.len){
+      /* v706: en gång per dygn — se nedan. */
+      if(o.tomHamtad===k)return;
       try{
         if(appKan()){
           var fjarr=await appGet('/backup');
@@ -17642,12 +17644,18 @@ async function backupTick(){
             if(vv!=null&&vv.length)antalHar++;
           }
           if(antalFjarr>2&&antalHar<antalFjarr*0.6){
-            o.blocked=k;o.blockedLen=len;o.fjarrAntal=antalFjarr;o.harAntal=antalHar;
+            /* v706: EN GÅNG PER DYGN. o.len sätts bara när enheten skriver, och
+               det gör den aldrig härifrån — kopian räknar båda enhetsklassernas
+               fack, så en enhet kan stå kvar som "tom" fast den har allt. Då
+               hämtades och ritades sidan om vid varje tick, var 15:e sekund. */
+            o.blocked=k;o.blockedLen=len;o.fjarrAntal=antalFjarr;o.harAntal=antalHar;o.tomHamtad=k;
             try{localStorage.setItem(BKP_KEY,JSON.stringify(o));}catch(e){}
             /* HÄMTA i stället — enheten är tom och Homey har sanningen. */
-            try{await appBackupLas();loadCfg();applyCfg();
-              var sb2=loadButtons();if(sb2)CONFIG.BUTTONS=sb2;
-              applySecOrder();render();}catch(e){}
+            try{var fore2=syncSign();await appBackupLas();
+              /* Rita bara om när något faktiskt ändrats, som bootSync gör. */
+              if(syncSign()!==fore2){loadCfg();applyCfg();
+                var sb2=loadButtons();if(sb2)CONFIG.BUTTONS=sb2;
+                applySecOrder();render();}}catch(e){}
             return;
           }
         }
@@ -17673,13 +17681,17 @@ async function backupTick(){
         return;
       }
       try{
+        var fore3=syncSign();
         var n2=await appBackupLas();
         if(n2>0){
+          /* v706: rita bara om när något faktiskt ändrats. */
+          if(syncSign()!==fore3){
           loadCfg();applyCfg();
           var sb3=loadButtons();if(sb3)CONFIG.BUTTONS=sb3;
           applySecOrder();
           try{render();}catch(e){}
           try{renderControls();}catch(e){}
+          }
           o.argt=argt;o.arvdaFran=o.blockadAv;o.arvdaAt=Date.now();o.arvdaAntal=n2;
         }
       }catch(e){}
@@ -19576,7 +19588,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v705';
+const APP_VERSION='v706';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21398,9 +21410,19 @@ function solIn(){
 
 function applySecOrder(){const view=$('view-flode');if(!view||!view.appendChild)return;const o=secOrderGet();
   const dolt=secDolda();
+  /* v706: FLYTTA BARA OM ORDNINGEN SKILJER. appendChild på ett avsnitt som
+     redan står rätt tar ändå ut det ur sidan och sätter in det igen, och då
+     startar .view-animationen "rise" om på varje avsnitt — hela startsidan
+     tonade in och gled 13 px. Anropades det vid varje uppdatering blinkade
+     sidan var 15:e sekund. Står avsnitten redan sist i rätt ordning rörs de inte. */
+  /* Bara avsnitt som ligger direkt i vyn räknas. Spotpris och solbandet står
+     också i ordningen men bor inne i energipanelen (spotIn/solIn flyttar dit dem). */
+  const els=[];o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;if(el&&el.parentNode===view)els.push(el);});
+  const barn=view.children?Array.prototype.slice.call(view.children):null;
+  const redanRatt=!!barn&&barn.length>=els.length&&els.every((el,i)=>barn[barn.length-els.length+i]===el);
   o.forEach(sec=>{const el=view.querySelector?view.querySelector('[data-sec="'+sec+'"]'):null;
     if(!el)return;
-    view.appendChild(el);
+    if(!redanRatt)view.appendChild(el);
     /* hidden, inte display:none i en regel: elementet ska kunna tas fram igen
        utan att kioskens flexlayout behöver räknas om på nytt. */
     el.classList.toggle('sec-dold',!!dolt[sec]);});
