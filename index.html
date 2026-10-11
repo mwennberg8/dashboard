@@ -3688,14 +3688,20 @@ function battNettoW(){
    Homeys lastUpdated används bara första gången ett värde ses (innan någon
    ändring observerats) – om Homey stämplar om även när appen skriver samma
    värde igen vet jag inte, och då hade en fastnad källa sett färsk ut.
-   Lika (inget känt) → Modbus, som förut. */
+   Lika (inget känt) → Modbus, som förut.
+   v712: lastUpdated används INTE längre. v711 visade Modbus 13 % / 0 W medan
+   Husbatteri stod på 21 % / 5 000 W – troligen för att Modbus stämplades
+   nyare vid sidladdningen (ej bevisat). I stället läses Homeys egen Insights-
+   logg för laddnivån (båda enheterna loggar measure_battery): tiden för
+   senaste ÄNDRING i loggen gäller för källan, även efter omladdning. Effekten
+   saknar logg på Husbatteri, så källans laddnivålogg får gälla även effekten,
+   tillsammans med de ändringar dashboarden själv ser. */
 const BATT_HB='331c4824-2fc0-4ebb-90e3-2c6591bba254';
 var _battSett={},_battKalla={};
-function capLu(id,c){const d=DATA[id];const o=d&&d.capabilitiesObj&&d.capabilitiesObj[c];if(!o||!o.lastUpdated)return 0;const t=Date.parse(o.lastUpdated);return isFinite(t)?t:0;}
-function battNoter(k,v,lu){
+function battNoter(k,v){
   var s=_battSett[k];
-  /* Första gången (sidan just laddad): ingen ändring sedd – Homeys stämpel. */
-  if(!s){_battSett[k]={v:v,t:lu||0};return lu||0;}
+  /* Första gången (sidan just laddad): ingen ändring sedd ännu. */
+  if(!s){_battSett[k]={v:v,t:0};return 0;}
   if(v!==s.v){s.v=v;s.t=Date.now();}
   return s.t;
 }
@@ -3710,21 +3716,45 @@ function mbSoc(){const v=capRaw(BATT_MB,'measure_battery');return v!=null?v:capR
 function battVal(kind){
   const soc=kind==='soc';
   const a=soc?mbSoc():battNettoW(), b=soc?capRaw(BATT_HB,'measure_battery'):husNettoW();
-  const luA=soc?Math.max(capLu(BATT_MB,'measure_battery'),capLu(BATT_MB,'battery'))
-               :Math.max(capLu(BATT_MB,'measure_power.batt_charge'),capLu(BATT_MB,'measure_power.batt_discharge'));
-  const luB=soc?capLu(BATT_HB,'measure_battery'):Math.max(capLu(BATT_HB,'measure_power'),capLu(BATT_HB,'battery_charging_state'));
   /* Saknade värden noteras också: ett värde som dyker upp senare är en ändring. */
-  const ta0=battNoter('mb_'+kind,a,luA), tb0=battNoter('hb_'+kind,b,luB);
-  const ta=a==null?-1:ta0, tb=b==null?-1:tb0;
+  const ta0=battNoter('mb_'+kind,a), tb0=battNoter('hb_'+kind,b);
+  const ev=_battLogT||{};
+  const ta=a==null?-1:Math.max(ta0,ev.mb||0), tb=b==null?-1:Math.max(tb0,ev.hb||0);
   if(a==null&&b==null){_battKalla[kind]=null;return null;}
   const hb=tb>ta;
   _battKalla[kind]={src:hb?'hb':'mb',t:hb?tb:ta};
   return hb?b:a;
 }
+/* v712: senaste ändringen av laddnivån enligt Insights, per källa. */
+var _battLogT={mb:0,hb:0},_battLogAt=0,_battLogLista=null,_battLogListaAt=0,_battLogKor=false;
+function senastAndrad(pts){
+  var last=null,t=0;
+  for(var i=0;i<(pts||[]).length;i++){var p=pts[i];if(!p||!isFinite(p.v)||!isFinite(p.t))continue;
+    if(last!==null&&p.v!==last)t=p.t;last=p.v;}
+  return t;
+}
+async function battLoggKoll(tvinga){
+  if(_battLogKor)return;
+  try{if(isDemo()||!credFinns()||!BASE)return;}catch(e){return;}
+  if(!tvinga&&Date.now()-_battLogAt<120000)return;
+  _battLogKor=true;_battLogAt=Date.now();
+  try{
+    if(!_battLogLista||Date.now()-_battLogListaAt>30*60000){
+      var lr=await insGet('/api/manager/insights/log/',15000);
+      if(lr.data){_battLogLista=lr.data;_battLogListaAt=Date.now();}}
+    if(!_battLogLista)return;
+    var par=[['mb',BATT_MB],['hb',BATT_HB]];
+    for(var i=0;i<par.length;i++){
+      var lg=exaktLogg(_battLogLista,par[i][1],['measure_battery']);if(!lg)continue;
+      var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last6Hours',15000);
+      if(e.data)_battLogT[par[i][0]]=senastAndrad(parseEntries(e.data));
+    }
+  }catch(e){}finally{_battLogKor=false;}
+}
 /* "Modbus · ändrad 10:27" – för batteripopupen. */
 function battKallaText(kind){
   const k=_battKalla[kind];if(!k)return '–';
-  let t='';try{if(k.t>0)t=' · ändrad '+new Date(k.t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}catch(e){}
+  let t='';try{if(k.t>0)t=' · ändrad '+hhmm(new Date(k.t));}catch(e){}   /* webbläsarens lokala tid, som resten av dashboarden */
   return (k.src==='hb'?'SolarEdge (Husbatteri)':'Modbus')+t;
 }
 function battMb(c){
@@ -19778,7 +19808,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v711';
+const APP_VERSION='v712';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21863,6 +21893,9 @@ setInterval(function(){try{kronKoll();}catch(e){}},60000);
    nog — avstängningen läggs på hela minuten och en halv minuts släp märks inte,
    medan var 15:e vore fyrdubbelt fler priskontroller än nödvändigt. */
 setInterval(function(){try{battAutoKoll();}catch(e){}},30000);
+/* v712: källvalet för batteriet – Insights-loggarna var 2:a minut, första gången strax efter start. */
+setTimeout(function(){try{battLoggKoll(true);}catch(e){}},4000);
+setInterval(function(){try{battLoggKoll();}catch(e){}},60000);
 /* Breveden var femte minut — variabeln uppdateras var 15:e i Homey, men även
    vid varje temperaturändring på Attefall, så tätare läsning ger färskare kort
    utan att kosta något nämnvärt. */
