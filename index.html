@@ -3718,7 +3718,9 @@ function battVal(kind){
   return hb?b:a;
 }
 /* v712: senaste ändringen av laddnivån enligt Insights, per källa. */
-var _battLogT={mb:0,hb:0},_battLogAt=0,_battLogLista=null,_battLogListaAt=0,_battLogKor=false;
+/* v715: senaste kända ändringstider sparas, så en omladdning börjar med dem
+   i stället för att gissa Modbus tills Insights hunnit svara. */
+var _battLogT=(function(){try{var o=JSON.parse(localStorage.getItem('battLogT_v1')||'null');if(o&&isFinite(o.mb)&&isFinite(o.hb))return {mb:+o.mb,hb:+o.hb};}catch(e){}return {mb:0,hb:0};})(),_battLogAt=0,_battLogLista=null,_battLogListaAt=0,_battLogKor=false;
 function senastAndrad(pts){
   var last=null,t=0;
   for(var i=0;i<(pts||[]).length;i++){var p=pts[i];if(!p||!isFinite(p.v)||!isFinite(p.t))continue;
@@ -3741,6 +3743,10 @@ async function battLoggKoll(tvinga){
       var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last6Hours',15000);
       if(e.data)_battLogT[par[i][0]]=senastAndrad(parseEntries(e.data));
     }
+    try{localStorage.setItem('battLogT_v1',JSON.stringify(_battLogT));}catch(e){}
+    /* v715: byttes källan ritas sidan om direkt, inte först vid nästa hämtning. */
+    try{var fore=_battKalla&&_battKalla.soc&&_battKalla.soc.src;cap(DEV.battery,'measure_battery');
+      var efter=_battKalla&&_battKalla.soc&&_battKalla.soc.src;if(fore!==efter&&typeof render==='function')render();}catch(e){}
   }catch(e){}finally{_battLogKor=false;}
 }
 /* "Modbus · ändrad 10:27" – för batteripopupen. */
@@ -4515,9 +4521,10 @@ const BATT_FLOW_AV='0e9598ed-9c6b-4a94-9869-5c3d5c69bb39';   /* normal drift */
 const BATT_MODBUS='438aa2c6-7413-4b1e-9e9a-ec66ed54baff';
 function battLaddLage(){
   var km=cap(BATT_MODBUS,'storagecontrolmode');
-  var dm=cap(BATT_MODBUS,'storagedefaultmode');
   if(km==null)return null;                       /* modbus svarar inte */
-  return String(km)==='4'&&String(dm)==='3';
+  /* v714: samma bedömning som På nu – registret när det går att lita på,
+     annars vad batteriet gör (se regelLage). */
+  try{return regelLage().lage==='ladda';}catch(e){return String(km)==='4'&&String(cap(BATT_MODBUS,'storagedefaultmode'))==='3';}
 }
 function battLaddText(){
   var km=cap(BATT_MODBUS,'storagecontrolmode');
@@ -12472,7 +12479,9 @@ function paNuLista(){
   try{var L0=regelLage();
     if(L0&&L0.lage&&L0.lage!=='normal'){
       if(L0.varn)lagg((L0.lage==='spara'?'Sparar':'Laddar max')+' – men '+L0.varn,'batt',false,true);
-      else lagg(L0.lage==='ladda'?'Laddar max':L0.lage==='spara'?'Batteriet sparar':('Batteriet '+L0.txt.charAt(0).toLowerCase()+L0.txt.slice(1)),'batt');}}catch(e){}
+      else if(L0.lage==='fullt')lagg('Batteriet fullt','batt');
+      else if(L0.lage!=='oklart')   /* v714: oklart läge ger ingen bricka – popupen säger det */
+        lagg(L0.lage==='ladda'?'Laddar max':L0.lage==='spara'?'Batteriet sparar':('Batteriet '+L0.txt.charAt(0).toLowerCase()+L0.txt.slice(1)),'batt');}}catch(e){}
   /* v705: bokad billaddning syns som gul bricka tills den startar. */
   try{var bb=bilBokad();if(bb&&!bilDrar())lagg('Bilen bokad '+bilKlText(bb),'cars',true);}catch(e){}
   /* BILEN (v694): styrningens läge säger varför den laddar.
@@ -12562,7 +12571,7 @@ function hemPopup(){
 /* v708: laddregeln (planeraren) och all automatik för bil och batteri är
    avstängd i Homey. Förslagsraden döljs och popupen säger det. */
 var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
+var REGEL_VARS=['battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 function regelHamta(tvinga){
   if(_regelLaddar)return;
@@ -12577,7 +12586,10 @@ function regelHamta(tvinga){
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
       bil:String(r.energi_bil||''),
       /* v705: bilens bokade start (ms) och laddström (A). Verkställs av energistyr 2.3.0. */
-      bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0};
+      bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0,
+      /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
+      max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max)};
+    try{if(_regel.max!=null)localStorage.setItem('battMax_v1',String(_regel.max));}catch(e){}
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
     try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
@@ -12617,7 +12629,56 @@ function regelKl(ms){
    (effekten ur Modbus, v701). Då stämmer inte läget med verkligheten. */
 var BATT_DM_TXT={'0':'av','2':'laddar från sol först','4':'maximal export','5':'laddar ur mot förbrukningen','7':'egenförbrukning'};
 var BATT_VARN_W=300;
+/* v714: LÄGET EFTER DET SENAST UPPDATERADE VÄRDET. Registret (4/3 osv.) finns
+   bara i Modbus, och 2026-10-11 ljög det åt båda hållen: 4/0 medan batteriet
+   laddade 5 kW från nätet, 4/3 när det var fullt och matade ut 410 W.
+     * Laddar batteriet ≥ 1 kW, mer än solen ger och huset importerar ≥ 500 W,
+       är det Ladda max – vad registret än säger (laddning från nätet sker bara
+       i 4/3). Markeras bedomd.
+     * Är Modbus INTE den färskaste källan (Husbatteri ändrades senare, se
+       battVal) går registret inte att lita på: läget blir "oklart", eller
+       "Batteriet fullt" vid ≥ 99 %.
+     * Ladda max och ≥ 99 % utan laddning: "Batteriet fullt", ingen varning.
+       energistyr 3.1.0 slår om till normal drift inom en minut.
+   Varningen (spara/ladda men laddar ur) gäller bara ett läge som går att lita på. */
+var BATT_NAT_W=1000, BATT_IMPORT_W=500, BATT_FULLT=99;
+function battModbusFarsk(){try{cap(DEV.battery,'measure_battery');var k=_battKalla&&_battKalla.soc;return !k||k.src!=='hb';}catch(e){return true;}}
+/* v715: LADDA MAX UR MARKÖREN, inte ur registret. battladd_max sätts av
+   flödena själva (ladda max → 1, spara/normal/sol → 0), så den är rätt även när
+   Modbus-registret står kvar på 4/3 – som 2026-10-11 kl 16–18, då batteriet
+   laddade ur 4 kW till huset. Innan variablerna hämtats används senast kända
+   värde (localStorage); saknas variabeln helt gäller registret som förut. */
+function battMaxMark(){
+  try{if(_regel&&_regel.max!=null&&isFinite(_regel.max))return _regel.max===1?1:0;}catch(e){}
+  try{var v=localStorage.getItem('battMax_v1');if(v==='1')return 1;if(v==='0')return 0;}catch(e){}
+  return null;
+}
+function battNatLaddar(w){
+  if(w==null||!isFinite(w)||w<BATT_NAT_W)return false;
+  var g=cap(DEV.pulse,'measure_power'),sol=cap(DEV.solar,'measure_power');
+  if(g==null||!isFinite(g)||g<BATT_IMPORT_W)return false;
+  return w>(Number(sol)||0)+BATT_IMPORT_W;
+}
 function regelLage(){
+  var L=regelLageReg();
+  if(L.lage===null)return L;
+  var mk=battMaxMark();
+  if(mk===0&&L.lage==='ladda')L={txt:'Normal drift',lage:'normal',fjarr:false,varn:null,regLadda:true};
+  else if(mk===1&&L.lage!=='ladda')L={txt:'Laddar från nätet',lage:'ladda',fjarr:true,varn:null};
+  var w=null;try{w=battEffektNu();}catch(e){}
+  var soc=cap(DEV.battery,'measure_battery'),full=(soc!=null&&isFinite(soc)&&soc>=BATT_FULLT);
+  if(battNatLaddar(w)){
+    if(L.lage!=='ladda')L={txt:'Laddar från nätet',lage:'ladda',fjarr:true,varn:null,bedomd:true};
+    return L;}
+  if(L.lage!=='normal'&&!battModbusFarsk())
+    return full?{txt:'Batteriet fullt',lage:'fullt',fjarr:true,varn:null}
+               :{txt:'Läget oklart – Modbus står still',lage:'oklart',fjarr:true,varn:null};
+  if(L.lage==='ladda'&&full&&!(w!=null&&w>BATT_TROSKEL_W))return {txt:'Batteriet fullt',lage:'fullt',fjarr:true,varn:null};
+  if((L.lage==='spara'||L.lage==='ladda')&&w!=null&&isFinite(w)&&w<-BATT_VARN_W)
+    L.varn='laddar ur '+(Math.abs(w)>=1000?num(Math.abs(w)/1000,1)+' kW':Math.round(Math.abs(w))+' W');
+  return L;
+}
+function regelLageReg(){
   var km=cap(BATT_MODBUS,'storagecontrolmode');
   if(km==null)return {txt:'ingen kontakt med växelriktaren',fjarr:null,lage:null,varn:null};
   if(String(km)!=='4')return {txt:'Normal drift',fjarr:false,lage:'normal',varn:null};
@@ -12628,16 +12689,13 @@ function regelLage(){
   else if(dm==='7')L={txt:'Styrs – egenförbrukning',lage:'egen'};
   else L={txt:'Styrs – '+(BATT_DM_TXT[dm]||('läge '+dm)),lage:'annat'};
   L.fjarr=true;L.varn=null;
-  if(L.lage==='spara'||L.lage==='ladda'){
-    var w=null;try{w=battEffektNu();}catch(e){}
-    if(w!=null&&isFinite(w)&&w<-BATT_VARN_W)L.varn='laddar ur '+(Math.abs(w)>=1000?num(Math.abs(w)/1000,1)+' kW':Math.round(Math.abs(w))+' W');
-  }
   return L;
 }
 function regelHTML(){
   regelHamta(false);
   var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
-  h+=dRow('Just nu',esc(L.txt));
+  h+=dRow('Just nu',esc(L.txt)+(L.bedomd?' <small>(bedömt av effekten)</small>':'')
+    +(L.regLadda?' <small>(registret säger 4/3, men Ladda max är inte startat)</small>':''));
   if(L.varn)h+='<div class="rg-varn">'+icon('warning')+'<span>Läget säger '+(L.lage==='spara'?'spara':'ladda')+', men batteriet '+esc(L.varn)+'.</span></div>';
   if(!R)return h+'<div class="det-note">'+(REGEL_AV?'Hämtar bokningarna…':'Hämtar laddregelns förslag…')+'</div>';
   var steg=[];
@@ -19823,7 +19881,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v713';
+const APP_VERSION='v715';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20991,7 +21049,7 @@ async function load(){
       }
     }
   }
-  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}try{if(!_battLogAt)battLoggKoll(true);}catch(e1){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
   else if(VISAR_CACHE){
     /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
        besked: det står redan siffror där, och de är gamla — vilket är precis
