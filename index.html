@@ -3679,10 +3679,58 @@ function battNettoW(){
   if(isFinite(cn)&&cn<0)return cn;
   return (isFinite(cn)?cn:0)-(isFinite(dn)?Math.abs(dn):0);
 }
+/* v711: SENAST ÄNDRADE KÄLLAN VINNER. Båda källorna fastnar ibland:
+   Husbatteri-enheten visade 0 W "idle" under laddning (2026-10-09), och
+   Modbus-registren stod still 2026-10-11 – SOC 1,06 % i sex timmar, sedan
+   12,77 % medan batteriet laddade med 5 kW och molnet räknade 13 → 16 %.
+   Därför väljs, var för sig för laddnivå och effekt, den källa vars värde
+   senast ÄNDRADES. Ändringen ses av dashboarden själv mellan hämtningarna.
+   Homeys lastUpdated används bara första gången ett värde ses (innan någon
+   ändring observerats) – om Homey stämplar om även när appen skriver samma
+   värde igen vet jag inte, och då hade en fastnad källa sett färsk ut.
+   Lika (inget känt) → Modbus, som förut. */
+const BATT_HB='331c4824-2fc0-4ebb-90e3-2c6591bba254';
+var _battSett={},_battKalla={};
+function capLu(id,c){const d=DATA[id];const o=d&&d.capabilitiesObj&&d.capabilitiesObj[c];if(!o||!o.lastUpdated)return 0;const t=Date.parse(o.lastUpdated);return isFinite(t)?t:0;}
+function battNoter(k,v,lu){
+  var s=_battSett[k];
+  /* Första gången (sidan just laddad): ingen ändring sedd – Homeys stämpel. */
+  if(!s){_battSett[k]={v:v,t:lu||0};return lu||0;}
+  if(v!==s.v){s.v=v;s.t=Date.now();}
+  return s.t;
+}
+function husNettoW(){
+  const v=capRaw(BATT_HB,'measure_power');if(v==null)return null;
+  let n=Number(v);if(!isFinite(n))return null;
+  /* Tecken: negativ vid urladdning. Kommer beloppet utan tecken avgör läget. */
+  if(n>0&&capRaw(BATT_HB,'battery_charging_state')==='discharging')n=-n;
+  return n;
+}
+function mbSoc(){const v=capRaw(BATT_MB,'measure_battery');return v!=null?v:capRaw(BATT_MB,'battery');}
+function battVal(kind){
+  const soc=kind==='soc';
+  const a=soc?mbSoc():battNettoW(), b=soc?capRaw(BATT_HB,'measure_battery'):husNettoW();
+  const luA=soc?Math.max(capLu(BATT_MB,'measure_battery'),capLu(BATT_MB,'battery'))
+               :Math.max(capLu(BATT_MB,'measure_power.batt_charge'),capLu(BATT_MB,'measure_power.batt_discharge'));
+  const luB=soc?capLu(BATT_HB,'measure_battery'):Math.max(capLu(BATT_HB,'measure_power'),capLu(BATT_HB,'battery_charging_state'));
+  /* Saknade värden noteras också: ett värde som dyker upp senare är en ändring. */
+  const ta0=battNoter('mb_'+kind,a,luA), tb0=battNoter('hb_'+kind,b,luB);
+  const ta=a==null?-1:ta0, tb=b==null?-1:tb0;
+  if(a==null&&b==null){_battKalla[kind]=null;return null;}
+  const hb=tb>ta;
+  _battKalla[kind]={src:hb?'hb':'mb',t:hb?tb:ta};
+  return hb?b:a;
+}
+/* "Modbus · ändrad 10:27" – för batteripopupen. */
+function battKallaText(kind){
+  const k=_battKalla[kind];if(!k)return '–';
+  let t='';try{if(k.t>0)t=' · ändrad '+new Date(k.t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}catch(e){}
+  return (k.src==='hb'?'SolarEdge (Husbatteri)':'Modbus')+t;
+}
 function battMb(c){
-  if(c==='measure_battery'){const v=capRaw(BATT_MB,'measure_battery');return v!=null?v:capRaw(BATT_MB,'battery');}
+  if(c==='measure_battery')return battVal('soc');
   if(c==='measure_power'||c==='energy_power'||c==='battery_charging_state'){
-    const n=battNettoW();if(n==null)return null;
+    const n=battVal('pow');if(n==null)return null;
     if(c==='energy_power')return n;
     if(c==='measure_power')return Math.abs(n);
     return n>BATT_TROSKEL_W?'charging':(n<-BATT_TROSKEL_W?'discharging':'idle');}
@@ -12717,6 +12765,7 @@ function byggBatt(){
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
+    +dRow('Källa laddnivå',esc(battKallaText('soc')))+dRow('Källa effekt',esc(battKallaText('pow')))
     +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
     +regelHTML()
     /* Ladda max bor i batteriets popup när knappavsnittet är gömt (v688).
@@ -19729,7 +19778,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v710';
+const APP_VERSION='v711';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
