@@ -12405,13 +12405,17 @@ function paNuLista(){
       if(L0.varn)lagg((L0.lage==='spara'?'Sparar':'Laddar max')+' – men '+L0.varn,'batt',false,true);
       else lagg(L0.lage==='ladda'?'Laddar max':L0.lage==='spara'?'Batteriet sparar':('Batteriet '+L0.txt.charAt(0).toLowerCase()+L0.txt.slice(1)),'batt');}}catch(e){}
   /* v705: bokad billaddning syns som gul bricka tills den startar. */
-  try{var bb=bilBokad();if(bb&&!(cap(DEV.laddbox,'evcharger_charging')===true))lagg('Bilen bokad '+bilKlText(bb),'cars',true);}catch(e){}
-  /* BILEN (v694): styrningens läge säger varför den laddar. */
-  try{var bs=bilStyrLage(),ld=cap(DEV.laddbox,'evcharger_charging')===true;
-    if(bs&&bs.lage==='sol'&&ld)lagg('Bilen laddar på sol','cars');
-    else if(bs&&bs.lage==='billig'&&ld)lagg('Bilen laddar billigt','cars');
-    else if(bs&&bs.lage==='manuell')lagg('Bilen laddar manuellt','cars');
-    else if(ld)lagg('Bilen laddar','cars');}catch(e){}
+  try{var bb=bilBokad();if(bb&&!bilDrar())lagg('Bilen bokad '+bilKlText(bb),'cars',true);}catch(e){}
+  /* BILEN (v694): styrningens läge säger varför den laddar.
+     v710: bara när bilen FAKTISKT drar ström (bilDrar). Läget "manuell" ligger
+     kvar i energistyr upp till 18 h och sa "laddar manuellt" utan någon
+     kontroll alls, även när laddboxen stod i SuspendedEV med 1 W. */
+  try{var bs=bilStyrLage();
+    if(bilDrar()){
+      if(bs&&bs.lage==='sol')lagg('Bilen laddar på sol','cars');
+      else if(bs&&bs.lage==='billig')lagg('Bilen laddar billigt','cars');
+      else if(bs&&bs.lage==='manuell')lagg('Bilen laddar manuellt','cars');
+      else lagg('Bilen laddar','cars');}}catch(e){}
   try{(CONFIG.BUTTONS||[]).forEach(function(b){
     if(!b||!btnState(b))return;
     var l=String(b.label||'').trim();
@@ -12740,7 +12744,28 @@ function buildCostPopup(){
       +dayBarsHTML('cost','kr per dag','warm');
   return body;
 }
-function openDetail(which){
+/* VEM ÄGER POPUPEN (v709). render() ritar om en öppen popup var 15:e sekund
+   via _grafOmRita, och flera ställen gör samma sak via _dlgWhich. Båda sätts
+   bara av openDetail — men ett trettiotal andra rutor (Google TV, rum,
+   inställningar …) öppnar samma dialog själva och lämnade dem orörda. Då
+   skrev nästa uppdatering förra popupens innehåll i den nya: Google TV fick
+   förbrukningsgrafen. Nu bevakas titeln: varje gång NÅGON ANNAN än openDetail
+   (eller openProgLogg) skriver titeln släpps omritaren. De två egna
+   öppnarna tömmer bevakningens kö direkt efter sig (takeRecords), så deras
+   egen titelskrivning räknas inte. Stängs popupen släpps omritaren också.
+   Jämförelse av titeltext räckte inte: energipopupen saknar rubrik och
+   ärvde förra titeln, så Google TV såg ut att vara samma popup. */
+var _dlgObs=null;
+function dlgAga(){try{if(_dlgObs)_dlgObs.takeRecords();}catch(e){}}
+(function(){try{
+  var t=document.getElementById('dlg-title');if(!t||typeof MutationObserver==='undefined')return;
+  _dlgObs=new MutationObserver(function(rec){
+    if(rec&&rec.length){_grafOmRita=null;_dlgWhich=null;}
+  });
+  _dlgObs.observe(t,{childList:true,characterData:true,subtree:true});
+}catch(e){}})();
+function openDetail(which){var r=openDetailKarna(which);dlgAga();return r;}
+function openDetailKarna(which){
   _grafOmRita=null;
   if(_suppressClick){_suppressClick=false;_tapCfg=null;return;}
   let _dlgWide=false;
@@ -12972,7 +12997,10 @@ function openDetail(which){
   setT('dlg-title',title);setIcon('dlg-ic',icn);const bd=$('dlg-body');if(bd)bd.innerHTML=body;
   const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
 function closeDetail(e){if(e){const t=e.target,onX=t&&t.closest&&t.closest('.dlg-x'),onBack=t&&t.classList&&t.classList.contains('dlg-back');if(!onX&&!onBack)return;}
-  const back=$('dlg-back');if(back&&back.classList)back.classList.remove('open');const dl=$('dlg');if(dl&&dl.classList)dl.classList.remove('nohead');_popupRebuild=null;_energyOpen=false;if(_dlgIdle){clearTimeout(_dlgIdle);_dlgIdle=null;}}
+  const back=$('dlg-back');if(back&&back.classList)back.classList.remove('open');const dl=$('dlg');if(dl&&dl.classList)dl.classList.remove('nohead');_popupRebuild=null;_energyOpen=false;
+  /* v709: popupens omritare följer inte med till nästa popup. */
+  _grafOmRita=null;_dlgWhich=null;
+  if(_dlgIdle){clearTimeout(_dlgIdle);_dlgIdle=null;}}
 function openReport(){if(_suppressClick){_suppressClick=false;return;}
   const dlgn=$('dlg');if(dlgn&&dlgn.classList){dlgn.classList.remove('wide');dlgn.classList.remove('edit');}
   const list=(_warnList&&_warnList.length)?_warnList:[['okc','leaf','Inget att rapportera – allt ser bra ut','']];
@@ -13857,6 +13885,12 @@ function carCharging(id){const st=(''+(cap(id,'ev_charging_state')||'')).toLower
 function carPlugged(id){const st=(''+(cap(id,'ev_charging_state')||'')).toLowerCase();return carCharging(id)||st.indexOf('plugged_in')>=0||st.indexOf('connected')>=0;}
 function carStatusSv(id){if(carCharging(id))return 'laddar';if(carPlugged(id))return 'inkopplad';return 'urkopplad';}
 function chargerW(){const p=cap(DEV.laddbox,'measure_power');return (p==null)?null:Math.abs(p);}
+/* v710: laddar bilen på riktigt? Uppmätt effekt i laddboxen, inte status.
+   evcharger_charging och energistyrs läge kan stå kvar när bilen är full eller
+   har pausat (SuspendedEV, ~1 W). Samma gräns som energistyr (BIL_MIN_W).
+   Saknas effektvärdet helt faller den tillbaka på laddboxens status. */
+var BIL_DRAR_W=1000;
+function bilDrar(){var p=chargerW();if(p==null||!isFinite(p))return cap(DEV.laddbox,'evcharger_charging')===true;return p>=BIL_DRAR_W;}
 function carHome(id){if(carCharging(id))return true;const d=cap(id,'distance');if(d==null)return false;const m=(''+d).match(/([\d.]+)\s*(km|m)\b/i);if(!m)return false;const meters=m[2].toLowerCase()==='km'?parseFloat(m[1])*1000:parseFloat(m[1]);return isFinite(meters)&&meters<=150;}
 function battIcon(b){if(b==null)return 'battery-high';
   if(b>=90)return 'battery-full';
@@ -15440,7 +15474,7 @@ function openProgLogg(){
   var h=progLoggBody();
   const dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
   _popupRebuild=null;
-  setT('dlg-title','Solprognos · träffsäkerhet');setIcon('dlg-ic','sun');
+  setT('dlg-title','Solprognos · träffsäkerhet');setIcon('dlg-ic','sun');dlgAga();
   const bd=$('dlg-body');if(bd)bd.innerHTML=h;
   const bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
   dlgTop();
@@ -19695,7 +19729,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v708';
+const APP_VERSION='v710';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
