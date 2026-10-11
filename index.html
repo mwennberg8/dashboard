@@ -599,15 +599,6 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   padding:9px 15px;font-size:12.5px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.35);
   opacity:0;pointer-events:none;transition:.2s}
 #rum-toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-#tv-sec[hidden]{display:none!important}
-.tvbox{padding:var(--rum-luft);display:flex;flex-direction:column;gap:var(--rum-luft)}
-.tvrad{display:flex;align-items:center;gap:9px;min-width:0}
-.tv-n{flex:1 1 auto;min-width:0;font-size:13px;font-weight:700;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis}
-.tv-n small{display:block;font-size:10px;color:var(--faint);font-weight:600}
-.tv-oppna{appearance:none;background:none;border:0;padding:0;margin:0;display:flex;
-  align-items:center;gap:9px;flex:1 1 auto;min-width:0;color:inherit;font:inherit;
-  text-align:left;cursor:pointer}
 .dlg-body .gtv-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;
   max-width:260px;margin:4px auto 0;place-items:stretch}
 .dlg-body .gtv-rad{display:flex;gap:7px;margin-top:7px}
@@ -1226,6 +1217,9 @@ body.kiosk .regelrad button{height:34px;font-size:13px}
    lägesraden slutar före knappen. */
 body.panu-pa .fl-tiles>.stat.har-mer .stat-sub{padding-right:calc(30px*var(--kk))!important}
 .tile-mer{display:none}
+/* v713: lägg till knapp i belysningspopupen */
+.hem-ny{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+.hem-ny span{font-size:11.5px;color:var(--faint)}
 body.panu-pa .fl-tiles>.stat .tile-mer{display:flex;position:absolute;bottom:calc(7px*var(--kk));right:calc(7px*var(--kk));
   width:calc(26px*var(--kk));height:calc(22px*var(--kk));align-items:center;justify-content:center;border-radius:999px;
   border:1px solid var(--line);background:var(--panel-a);color:var(--dim);font:inherit;font-size:calc(14px*var(--kk));
@@ -3373,8 +3367,6 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 
   <section class="view" id="view-flode">
 
-      <!-- TV-rutan. Ritas bara när en TV är på; renderTV sätter hidden annars. -->
-      <section class="panel tvbox" id="tv-sec" data-sec="tv" hidden></section>
       <section class="panel statusbar" data-sec="status">
         <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
       </section>
@@ -4141,8 +4133,8 @@ function drawChart(elId,ss,opts){
     const d=smoothPath(pts.map(p=>[X(p.t),Y(p.v)]));
     if(s.area){const gid='g'+(_gid++);defs+='<linearGradient id="'+gid+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+s.color+'" stop-opacity="0.28"/><stop offset="1" stop-color="'+s.color+'" stop-opacity="0"/></linearGradient>';
       body+='<path d="'+d+' L '+X(pts[pts.length-1].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' L '+X(pts[0].t).toFixed(1)+' '+Y(vMin).toFixed(1)+' Z" fill="url(#'+gid+')"/>';}
-    body+='<path d="'+d+'" fill="none" stroke="'+s.color+'"'+GRAF_LINJE+'/>';
-    const last=pts[pts.length-1];body+='<circle cx="'+X(last.t).toFixed(1)+'" cy="'+Y(last.v).toFixed(1)+'" r="3" fill="'+s.color+'"/>';});
+    body+='<path d="'+d+'" fill="none" stroke="'+s.color+'"'+GRAF_LINJE+'/>';});
+    /* v713: ingen prick i linjens slut – bara avläsningens dragbara prick. */
   let svg='<svg class="chart" viewBox="0 0 '+Wd+' '+H+'" preserveAspectRatio="none" role="img" aria-label="graf"><defs>'+defs+'</defs>'+body+'</svg>';
   svg=avlLager(elId,svg,{W:Wd,H:H,X:X,ser:avlSer});
   const fy=opts.fmtY||(v=>(''+(Math.round(v*100)/100))),hh=t=>new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});
@@ -6035,8 +6027,7 @@ function windChartHTML(cid){
     var d=smoothPath(s.p.map(function(q){return [X(q.t),Y(q.v,s.axel)];}));
     b+='<path d="'+d+'" fill="none" stroke="'+s.farg+'"'+GRAF_LINJE+' '
       +(s.axel==='deg'?' stroke-dasharray="5 4" opacity=".85"':'')+'/>';
-    var sist=s.p[s.p.length-1];
-    b+='<circle cx="'+X(sist.t).toFixed(1)+'" cy="'+Y(sist.v,s.axel).toFixed(1)+'" r="3" fill="'+s.farg+'"/>';});
+    /* v713: ingen slutprick. */});
   /* Riktningen har EGEN axel (0–360°) och får därför sin egen Y — annars hade
      220 grader lästs av som 220 m/s. */
   var svgm='<svg class="chart" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Vind idag">'+(harMs?nollLinje(Y(0,'ms'),0,W):'')+b+'</svg>';
@@ -12548,7 +12539,16 @@ function popKnappar(dest){
   var h='';for(var r=0;r<ut.length;r+=4)h+='<div class="ctl-row">'+ut.slice(r,r+4).join('')+'</div>';
   return '<div class="controls hem-pop" id="popk-'+dest+'">'+h+'</div>';
 }
-function hemPopup(){return popKnappar('hem')||'<div class="viz-empty">Inga knappar utan egen ruta.</div>';}
+/* v713: knappar läggs till direkt i belysningsrutans popup. "+ Lägg till
+   knapp" skapar en ny knapp (samma som i knappredigeraren) och öppnar
+   redigeraren. Håll in en knapp i popupen för att ändra eller ta bort den.
+   En knapp hamnar här så länge den inte hör till en annan ruta (disk, pool,
+   Breveden, batteriet) – se knappTill. */
+function hemPopup(){
+  return (popKnappar('hem')||'<div class="viz-empty">Inga knappar ännu.</div>')
+    +'<div class="hem-ny"><button type="button" class="te-alt" onclick="beAdd()">＋ Lägg till knapp</button>'
+    +'<span>Håll in en knapp för att ändra eller ta bort den.</span></div>';
+}
 
 /* ===== LADDREGELN I BATTERIPOPUPEN =====
    Visar vad laddregeln (battnotis) föreslår och vad battboka har bokat, och
@@ -12851,7 +12851,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -12973,6 +12973,10 @@ function openDetailKarna(which){
     /* Hämtningen först: i demoläget sätts loggen direkt, utan att vänta. */
     _dlgWide=true;_rlDag=null;                       /* v699: bredd · v700: dygnet väljs efter bokningen */
     rlHamta(false);try{hist7Hamta(false);}catch(e){}try{regelHamta(false);}catch(e){}body=rlPopup();
+  }else if(which==='tv'){title='TV';
+    /* v713: samma innehåll som den gamla TV-rutans fjärrkontroll. */
+    _popupRebuild=gtvHTML;
+    body=gtvHTML();
   }else if(which==='hem'){title='Hem';
     /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
@@ -13886,6 +13890,16 @@ function computeMetric(cfg){
       else meta=pa?'tänt':'släckt';
       return {label:'Belysning',icon:'lightbulb',icc:pa?'var(--gold)':'var(--faint)',v:pa?'Tänt':'Släckt',
         meta:meta,det:'hem',on:pa,mer:true,tryck:'ljus'};}
+    case 'tv':{
+      /* v713: TV-rutan. På när TV:n eller Google TV är på; appen som körs under.
+         Id:na skrivs ut här – TV_DEV och GTV_DEV deklareras längre ner i
+         skriptet och får inte läsas innan de finns. */
+      var tvOn=cap('7c12535d-e1fc-418f-be3a-a591c38b5135','onoff')===true,
+          gOn=cap('e6c96e95-05ec-48ca-a92a-e29b22cd0014','onoff')===true,app='';
+      try{if(gOn)app=gtvNuApp();}catch(e){}
+      var paTv=tvOn||gOn;
+      return {label:'TV',icon:'television',icc:paTv?'var(--blue)':'var(--faint)',v:paTv?'På':'Av',
+        meta:paTv?(app||'på'):'avstängd',det:'tv',on:paTv};}
     case 'dish':{const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
       return {label:'Diskmaskin',icon:'fork-knife',v:on?(pr!=null?pr+' <small>%</small>':'På'):'Av',meta:on?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):'avstängd',det:'dish'};}
   }
@@ -13903,6 +13917,7 @@ const CAT=[
   {type:'computed',key:'hem',g:'Hus'},{type:'computed',key:'cars',g:'Bil & batteri'},{type:'computed',key:'car2',g:'Bil & batteri'},{type:'computed',key:'battpct',g:'Bil & batteri'},{type:'computed',key:'battpow',g:'Bil & batteri'},
   {type:'computed',key:'breveden',g:'Hus'},{type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
   {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
+  {type:'computed',key:'tv',g:'Hus'},
   {type:'computed',key:'gridnow',g:'Nät'},
   {type:'sensor',g:'Hus',device:DEV.pooltemp,cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_temperature',label:'Utetemp',icon:'thermometer-simple',unit:'°C',dec:1},
@@ -15319,7 +15334,8 @@ function priceCurveSVG(){let o=plogGet();const cur=elprisNow();
   const X=v=>pad+(v-x0)/(x1-x0)*(W2-2*pad),Y=v=>H2-pad-(v-ylo)/yr*(H2-2*pad);
   let d='';o.pts.forEach((p,i)=>{d+=(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)+' ';});
   const now=new Date(),hNow=now.getHours()+now.getMinutes()/60;
-  let mark='';if(o.day!=='demo'||SOURCE==='demo-data'){mark='<circle cx="'+X(Math.min(hNow,24)).toFixed(1)+'" cy="'+Y(cur!=null?cur:ys[ys.length-1]).toFixed(1)+'" r="3.4" fill="'+P.warm+'"/>';}
+  /* v713: pricken vid "nu" satt där linjen slutar (loggen går fram till nu) – borta. */
+  const mark='';
   return '<div class="pcurve"><svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
     +nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)
     +'<path d="'+d+'" fill="none" stroke="'+P.blue+'" stroke-width="2" stroke-linecap="round"/>'+mark+'</svg>'
@@ -15707,8 +15723,7 @@ function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice()
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none">'
     +nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)
     +'<path d="'+area+'" fill="'+col+'" opacity=".10"/>'
-    +'<path d="'+d+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/>'
-    +'<circle cx="'+X(seg[seg.length-1][0]).toFixed(1)+'" cy="'+Y(seg[seg.length-1][1]).toFixed(1)+'" r="3" fill="'+col+'"/></svg>';
+    +'<path d="'+d+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';   /* v713: ingen slutprick */
   /* Insiktsserien lagras som [t,v]-par, inte som {t,v}. Modulen läser {t,v},
      så den ritade listan skrivs om — inte råserien. */
   svgm=avlLager(cid||('hist-'+key),svgm,{W:W2,H:H2,X:X,
@@ -19808,7 +19823,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v712';
+const APP_VERSION='v713';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20467,7 +20482,6 @@ function render(){
   renderEnergy();
   renderControls();
   try{renderRooms();}catch(e){}
-  try{renderTV();}catch(e){}
 
   /* Hysteres pa exporten: gar over till "Solöverskott" forst vid tydlig export
      (< -300 W) och tillbaka forst nar exporten upphort (> -50 W). Da slutar domen
@@ -21405,7 +21419,7 @@ function armAutoFull(){if(_autoFullArmed||!CFG.autoFull)return;_autoFullArmed=tr
 loadCfg();applyCfg();
 
 /* ===== flyttbara sektioner ===== */
-const SECMETA={tv:'TV',energy:'Energi','kopt-salt':'Köpt & sålt',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
+const SECMETA={energy:'Energi','kopt-salt':'Köpt & sålt',sun:'Sol upp/ner',weather:'Väder',spot:'Spotpris',tiles:'Rutorna',buttons:'Knappar',rum:'Rum (mobil)',report:'Rapport'};
 /* AVSNITT SOM LIGGER INUTI ETT ANNAT. Spotpriset ritas i energipanelen och
    soluppgången i väderrutan. De flyttas med sin förälder, kan inte flyttas
    själva — det hade inte synts — men går att dölja och skala. "Ordna avsnitt"
@@ -21428,7 +21442,8 @@ function secMedInne(top,o){
    secOrderGet listar allt i SEC_DEF stod de kvar i "Ordna avsnitt" med sina
    råa id:n och utan något att ordna. secOrderGet filtrerar sparade listor mot
    SEC_DEF, så gamla sparade ordningar tappar dem av sig själva. */
-const SEC_DEF=['tv','energy','spot','kopt-salt','sun','weather','tiles','buttons','rum','report'];
+/* v713: 'tv' borta – TV:n är en ruta bland de andra. Sparade ordningar filtreras mot SEC_DEF. */
+const SEC_DEF=['energy','spot','kopt-salt','sun','weather','tiles','buttons','rum','report'];
 /* Avsnittens ORDNING per enhetstyp. Nyckeln har två fack, precis som höjderna
    och de dolda avsnitten. Ordningen man vill ha på en vägghängd platta är
    sällan den man vill ha i handen. */
@@ -21783,6 +21798,12 @@ function lpAttach(el){if(!el)return;el.addEventListener('pointerdown',lpDown);el
    inte att komma åt, och glowet inte att stänga av. */
 lpAttach($('stats-flode'));lpAttach($('stats-energy'));lpAttach($('stats-weather'));
 lpAttach($('weather-flow'));lpAttach($('controls'));
+/* v713: långtryck på knapparna i popuperna (belysningens m.fl.) öppnar
+   knappredigeraren. Bara knappar – rutor i en popup ska inte redigeras här. */
+(function(){var d=$('dlg-body');if(!d||!d.addEventListener)return;
+  d.addEventListener('pointerdown',function(e){var b=e.target&&e.target.closest&&e.target.closest('.ctl[data-bi]');if(b)lpDown(e);});
+  d.addEventListener('pointermove',lpMove);d.addEventListener('pointerup',lpUp);
+  d.addEventListener('pointerleave',lpUp);d.addEventListener('pointercancel',lpUp);})();
 /* Håll-inne för storleksmenyn. Lyssnaren satt bara på #weather-flow, men
    remsan (Inne, Uterum, Lägst, Högst, Max vind) flyttades ut ur den behållaren
    när den lades sist i väderrutan — och då försvann menyn tyst. Lyssna på hela
@@ -22713,8 +22734,10 @@ function renderRooms(){
    behöver anropa ett. */
 function rumRita(){renderRooms();try{vanorUppdatera();}catch(e){}}
 
-/* ===== TV-RUTAN =====
-   Ligger överst och syns bara när TV:n är på. EN bestämd enhet, inte alla med
+/* ===== TV:N =====
+   v713: den dynamiska TV-rutan överst är borta. TV:n är en vanlig ruta
+   (computed 'tv') som läggs till bland de andra och öppnar fjärrkontrollen.
+   EN bestämd enhet, inte alla med
    klassen tv: vardagsrummet har två (TV och Google TV) och det är den som
    heter TV som styr ljudet. Google TV lämnas utanför.
 
@@ -22723,8 +22746,6 @@ function rumRita(){renderRooms();try{vanorUppdatera();}catch(e){}}
    spegla. Mute och av har lägen och speglas därför direkt, så knappen svarar
    utan att vänta på nästa hämtning. */
 const TV_DEV='7c12535d-e1fc-418f-be3a-a591c38b5135';   /* TV, vardagsrummet */
-function tvDevs(){const d=DATA[TV_DEV];return (d&&rHar(d,'onoff'))?[d]:[];}
-function tvPa(){return tvDevs().filter(d=>capOf(d,'onoff')===true);}
 async function tvVol(id,upp){
   const c=upp?'volume_up':'volume_down';
   const d=DATA[id];
@@ -22734,12 +22755,12 @@ async function tvVol(id,upp){
 async function tvMute(id){
   const d=DATA[id];if(!d||!rHar(d,'volume_mute'))return;
   const ny=!(capOf(d,'volume_mute')===true);
-  try{await rSatt(id,'volume_mute',ny);renderTV();setTimeout(load,900);}
+  try{await rSatt(id,'volume_mute',ny);tvPopOm();setTimeout(load,900);}
   catch(e){rumToast('Kunde inte nå Homey');}
 }
 async function tvAv(id){
   const d=DATA[id];if(!d)return;
-  try{await rSatt(id,'onoff',false);renderTV();setTimeout(load,900);}
+  try{await rSatt(id,'onoff',false);tvPopOm();setTimeout(load,900);}
   catch(e){rumToast('Kunde inte nå Homey');}
 }
 /* ===== FJARRKONTROLL FOR GOOGLE TV =====
@@ -22847,56 +22868,9 @@ function gtvHTML(){
     +'</div>';
   return h;
 }
-function openTVfjarr(){
-  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.remove('edit');}
-  _popupRebuild=gtvHTML;
-  setT('dlg-title','Google TV');setIcon('dlg-ic','television');
-  var bd=$('dlg-body');if(bd)bd.innerHTML=gtvHTML();
-  var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
-  dlgTop();
-}
-function tvRad(d){
-  const mute=capOf(d,'volume_mute')===true;
-  const app=capOf(d,'current_application');
-  /* "Android TV launcher" är hemskärmen, inte något man tittar på. */
-  const visaApp=(app&&!/launcher/i.test(String(app)))?String(app):'';
-  const kn=(hand,inne,kl,lbl)=>'<button class="tv-k'+(kl?(' '+kl):'')+'" onclick="'+hand+'" aria-label="'+esc(lbl)+'">'+inne+'</button>';
-  /* Namnet oppnar fjarrkontrollen. Knapparna gor det inte - de har egna
-     arenden, och ett tryck pa volymen ska inte oppna en ruta. */
-  const gApp=gtvFinns()?gtvNuApp():'';
-  return '<div class="tvrad">'
-    +'<button class="tv-oppna" onclick="openTVfjarr()" aria-label="Öppna fjärrkontrollen">'
-    +'<span class="dv-ic">'+icon('television')+'</span>'
-    +'<span class="tv-n">'+esc(rNamn(d))
-      +((visaApp||gApp)?('<small>'+esc(visaApp||gApp)+'</small>'):'')+'</span></button>'
-    +kn("tvVol('"+d.id+"',false)",'\u2212','','sänk volymen')
-    +kn("tvVol('"+d.id+"',true)",'+','','höj volymen')
-    +(rHar(d,'volume_mute')?kn("tvMute('"+d.id+"')",icon(mute?'speaker-none':'speaker-high'),mute?'pa':'',mute?'slå på ljudet':'tysta'):'')
-    /* Spela och pausa flyttades till fjarrkontrollen i v560. I raden konkurrerade
-       de med volymen om tummen, och de hor ihop med resten av uppspelningen. */
-    +kn("tvAv('"+d.id+"')",icon('power'),'av','stäng av')
-    +'</div>';
-}
-function renderTV(){
-  const sec=$('tv-sec');if(!sec)return;
-  /* ALDRIG på väggplattan. Den sitter i köket och visar hus och väder; en ruta
-     som dyker upp och försvinner efter vardagsrummets TV flyttar allt annat på
-     skärmen mitt i att man tittar på det. Telefonen har man i handen, och där
-     är rutan poängen. */
-  if(IS_SAMSUNG_TABLET){
-    const fore=sec.hidden;
-    sec.hidden=true;sec.innerHTML='';
-    if(!fore&&typeof fitScreen==='function'){try{setTimeout(fitScreen,40);}catch(e){}}
-    return;
-  }
-  const pa=tvPa();
-  const fore=sec.hidden;
-  sec.hidden=!pa.length;
-  sec.innerHTML=pa.map(tvRad).join('');
-  /* Kioskläget skalar innehållet efter höjden. Dyker rutan upp eller försvinner
-     måste den räkningen göras om, annars ligger sidan kvar i fel storlek. */
-  if(fore!==sec.hidden&&typeof fitScreen==='function'){try{setTimeout(fitScreen,40);}catch(e){}}
-}
+/* v713: TV-popupen öppnas från TV-rutan (openDetail('tv')). Står den öppen
+   ritas den om när mute eller av ändrats, så knappen svarar direkt. */
+function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML=gtvHTML();}}catch(e){}}
 (function(){
   if(typeof document==='undefined'||!document.addEventListener)return;
   document.addEventListener('pointerdown',slxNer,true);
