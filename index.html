@@ -3687,7 +3687,16 @@ function battNettoW(){
    logg för laddnivån (båda enheterna loggar measure_battery): tiden för
    senaste ÄNDRING i loggen gäller för källan, även efter omladdning. Effekten
    saknar logg på Husbatteri, så källans laddnivålogg får gälla även effekten,
-   tillsammans med de ändringar dashboarden själv ser. */
+   tillsammans med de ändringar dashboarden själv ser.
+   v716: HUSBATTERI ÄR FÖRVALT (Markus val 2026-10-11). Modbus tar över bara
+   när Husbatteris värde inte ändrats på BATT_HB_GAMMAL_MS OCH Modbus ändrats
+   senare än så. Laddnivå och effekt bedöms var för sig. Insights läses nu för
+   båda storheterna: Husbatteri measure_battery + energy_power, Modbus
+   measure_battery + batt_charge/batt_discharge. 30 minuter är mitt val:
+   molnets laddnivå ändras var 3–6:e minut vid några kW, men vid låg effekt kan
+   en procent ta närmare en timme – då får Modbus ta över om den rör sig. */
+var BATT_HB_GAMMAL_MS=30*60000;
+var _battTider={};
 const BATT_HB='331c4824-2fc0-4ebb-90e3-2c6591bba254';
 var _battSett={},_battKalla={};
 function battNoter(k,v){
@@ -3711,16 +3720,22 @@ function battVal(kind){
   /* Saknade värden noteras också: ett värde som dyker upp senare är en ändring. */
   const ta0=battNoter('mb_'+kind,a), tb0=battNoter('hb_'+kind,b);
   const ev=_battLogT||{};
-  const ta=a==null?-1:Math.max(ta0,ev.mb||0), tb=b==null?-1:Math.max(tb0,ev.hb||0);
+  const evT=function(src){var x=ev[src];return typeof x==='number'?x:((x&&x[kind])||0);};
+  const ta=a==null?-1:Math.max(ta0,evT('mb')), tb=b==null?-1:Math.max(tb0,evT('hb'));
+  _battTider[kind]={mb:ta,hb:tb};
   if(a==null&&b==null){_battKalla[kind]=null;return null;}
-  const hb=tb>ta;
+  var hb;
+  if(b==null)hb=false;
+  else if(a==null)hb=true;
+  else hb=!((Date.now()-tb>BATT_HB_GAMMAL_MS)&&ta>tb);   /* Husbatteri om det inte står still medan Modbus rör sig */
   _battKalla[kind]={src:hb?'hb':'mb',t:hb?tb:ta};
   return hb?b:a;
 }
 /* v712: senaste ändringen av laddnivån enligt Insights, per källa. */
 /* v715: senaste kända ändringstider sparas, så en omladdning börjar med dem
    i stället för att gissa Modbus tills Insights hunnit svara. */
-var _battLogT=(function(){try{var o=JSON.parse(localStorage.getItem('battLogT_v1')||'null');if(o&&isFinite(o.mb)&&isFinite(o.hb))return {mb:+o.mb,hb:+o.hb};}catch(e){}return {mb:0,hb:0};})(),_battLogAt=0,_battLogLista=null,_battLogListaAt=0,_battLogKor=false;
+var _battLogT=(function(){var tom={mb:{soc:0,pow:0},hb:{soc:0,pow:0}};try{var o=JSON.parse(localStorage.getItem('battLogT_v2')||'null');
+  if(o&&o.mb&&o.hb)['mb','hb'].forEach(function(k){['soc','pow'].forEach(function(q){var v=+o[k][q];if(isFinite(v))tom[k][q]=v;});});}catch(e){}return tom;})(),_battLogAt=0,_battLogLista=null,_battLogListaAt=0,_battLogKor=false;
 function senastAndrad(pts){
   var last=null,t=0;
   for(var i=0;i<(pts||[]).length;i++){var p=pts[i];if(!p||!isFinite(p.v)||!isFinite(p.t))continue;
@@ -3737,13 +3752,20 @@ async function battLoggKoll(tvinga){
       var lr=await insGet('/api/manager/insights/log/',15000);
       if(lr.data){_battLogLista=lr.data;_battLogListaAt=Date.now();}}
     if(!_battLogLista)return;
-    var par=[['mb',BATT_MB],['hb',BATT_HB]];
+    /* v716: [källa, storhet, enhet, loggar]. Effektens tid = senaste ändringen i någon av loggarna. */
+    var par=[['mb','soc',BATT_MB,['measure_battery']],['mb','pow',BATT_MB,['measure_power.batt_charge','measure_power.batt_discharge']],
+             ['hb','soc',BATT_HB,['measure_battery']],['hb','pow',BATT_HB,['energy_power']]];
+    if(!_battLogT.mb||typeof _battLogT.mb!=='object')_battLogT={mb:{soc:0,pow:0},hb:{soc:0,pow:0}};
     for(var i=0;i<par.length;i++){
-      var lg=exaktLogg(_battLogLista,par[i][1],['measure_battery']);if(!lg)continue;
-      var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last6Hours',15000);
-      if(e.data)_battLogT[par[i][0]]=senastAndrad(parseEntries(e.data));
+      var t=0,fanns=false;
+      for(var j=0;j<par[i][3].length;j++){
+        var lg=exaktLogg(_battLogLista,par[i][2],[par[i][3][j]]);if(!lg)continue;
+        var e=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last6Hours',15000);
+        if(e.data){fanns=true;t=Math.max(t,senastAndrad(parseEntries(e.data)));}
+      }
+      if(fanns)_battLogT[par[i][0]][par[i][1]]=t;
     }
-    try{localStorage.setItem('battLogT_v1',JSON.stringify(_battLogT));}catch(e){}
+    try{localStorage.setItem('battLogT_v2',JSON.stringify(_battLogT));}catch(e){}
     /* v715: byttes källan ritas sidan om direkt, inte först vid nästa hämtning. */
     try{var fore=_battKalla&&_battKalla.soc&&_battKalla.soc.src;cap(DEV.battery,'measure_battery');
       var efter=_battKalla&&_battKalla.soc&&_battKalla.soc.src;if(fore!==efter&&typeof render==='function')render();}catch(e){}
@@ -12642,7 +12664,14 @@ var BATT_VARN_W=300;
        energistyr 3.1.0 slår om till normal drift inom en minut.
    Varningen (spara/ladda men laddar ur) gäller bara ett läge som går att lita på. */
 var BATT_NAT_W=1000, BATT_IMPORT_W=500, BATT_FULLT=99;
-function battModbusFarsk(){try{cap(DEV.battery,'measure_battery');var k=_battKalla&&_battKalla.soc;return !k||k.src!=='hb';}catch(e){return true;}}
+/* v716: Modbus räknas som inaktuell (registret går inte att lita på) när
+   Husbatteri ändrats mer än BATT_HB_GAMMAL_MS efter Modbus senaste ändring –
+   alltså när Modbus bevisligen stått still medan batteriet rört sig. Står båda
+   still (fullt, vilar) litar vi på registret. */
+function battModbusFarsk(){try{cap(DEV.battery,'measure_battery');cap(DEV.battery,'measure_power');
+  var s=_battTider.soc||{},p=_battTider.pow||{};
+  var mb=Math.max(s.mb||0,p.mb||0),hb=Math.max(s.hb||0,p.hb||0);
+  return !(hb>mb+BATT_HB_GAMMAL_MS);}catch(e){return true;}}
 /* v715: LADDA MAX UR MARKÖREN, inte ur registret. battladd_max sätts av
    flödena själva (ladda max → 1, spara/normal/sol → 0), så den är rätt även när
    Modbus-registret står kvar på 4/3 – som 2026-10-11 kl 16–18, då batteriet
@@ -19881,7 +19910,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v715';
+const APP_VERSION='v717';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21237,7 +21266,8 @@ function extOppen(){var o=document.getElementById('extfr');
    Annars öppnas vinkällaren direkt, som förut. */
 function prickHall(){
   var hv=(typeof window!=='undefined')?window.HUSVAKT:null,tva=false;
-  try{tva=!!(hv&&typeof hv.pa==='function'&&hv.pa());}catch(e){}
+  /* v717: "Byt hus" när två hus finns (husvakt 1.8.0 tva), inte bara när automatiken är på. */
+  try{tva=!!(hv&&(typeof hv.tva==='function'?hv.tva():(typeof hv.pa==='function'&&hv.pa())));}catch(e){}
   if(!tva){extOpen();return;}
   var m=document.getElementById('prick-meny');if(m)m.remove();
   m=document.createElement('div');m.id='prick-meny';
@@ -22940,7 +22970,7 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
 
 </script>
 <script>
-/* ===== husvakt 1.7.0 =====
+/* ===== husvakt 1.8.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -22950,9 +22980,18 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
         till kvarn vinner. Säger de fel hus byts sidan.
    Positionen kostar oftast ingenting (telefonen har redan en färsk), medan
    sonderingen är snabb men beroende av publik DNS för homeylocal-namnet — den
-   faller alltså hemma också, om internet är nere. Därför båda, inte den ena. */
+   faller alltså hemma också, om internet är nere. Därför båda, inte den ena.
+
+   1.8.0 (2026-10-13): automatiken och knappen hängde båda på EN flagga i
+   telefonens lagring (husval_v1 = auto, satt med ?hem=auto). Försvann den
+   slutade allt tyst: inget byte, ingen knapp i Göteborgsfilen. Varför den
+   försvann vet jag inte – ingen kod i någon av filerna tar bort den. Nu:
+     * automatiken är PÅ som standard på https; ?hem=av stänger av den
+       (sparas som 'av'), ?hem=auto slår på den igen,
+     * knappen finns alltid på https, även med automatiken avstängd,
+     * knappen läggs tillbaka om sidan ritar om toppraden (kollas var 5:e s). */
 (function(){
-  var VER='1.7.0';
+  var VER='1.8.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -22997,7 +23036,10 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
   /* Bara på https. Kopian som serveras från Homeys egen HTTP-server ska bete
      sig precis som förut — där finns varken den andra filen eller position. */
   function tillaten(){return location.protocol==='https:';}
-  function pa(){return tillaten()&&ls(NYCK)==='auto';}
+  /* 1.8.0: på om ingen uttryckligen stängt av den. */
+  function pa(){return tillaten()&&ls(NYCK)!=='av';}
+  /* Två hus finns (https): knappen och "Byt hus" visas, oavsett automatiken. */
+  function tva(){return tillaten();}
 
   var rort=false;
   ['pointerdown','keydown','touchstart'].forEach(function(t){
@@ -23125,7 +23167,7 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
       +'border:1px solid #4c566a;border-radius:14px;padding:12px 14px;white-space:pre-wrap;'
       +'box-shadow:0 10px 30px rgba(0,0,0,.45)');
     var rader=['husvakt '+VER+'  (tryck för att stänga)',
-      'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'av'),'minne: '+(ls(SIST)||'–'),
+      'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'ingen (= auto)')+' → automatik '+(pa()?'på':'av'),'minne: '+(ls(SIST)||'–'),
       'gräns: '+GRANS,
       'lås: '+(function(){var l=last();return l?(l.hus+', '+Math.round((LAS_MS-(Date.now()-l.t))/60000)+' min kvar'):'inget';})(),
       'mäter…'];
@@ -23193,7 +23235,7 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
   }
 
   var API={
-    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
+    ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, tva:tva, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
     position:position, sond:sond, forst:forst, lokal:lokal, diag:diag, last:last,
     navigera:function(u){location.replace(u);}
   };
@@ -23206,13 +23248,16 @@ function tvPopOm(){try{if(_dlgWhich==='tv'){var b=$('dlg-body');if(b)b.innerHTML
     if(q.get('demo')==='1')return;
     var hem=q.get('hem');
     if(hem==='auto'){lsSet(NYCK,'auto');}
-    else if(hem==='av'){lsDel(NYCK);}
+    else if(hem==='av'){lsSet(NYCK,'av');}
     else if(hem==='diag'){diag();return;}
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
-    if(!pa())return;
+    if(!tva())return;
     /* Knappen skapas fortfarande: plattan har kvar toppraden. I mobilläget är
-       toppraden dold och växlingen sker med hålltryck på liveprickan. */
+       toppraden dold och växlingen sker med hålltryck på liveprickan.
+       1.8.0: alltid på https, och tillbaka om toppraden ritats om. */
     knapp();
+    try{setInterval(knapp,5000);}catch(e){}
+    if(!pa())return;
     /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler.
        Låset gäller 45 minuter och bara för huset du valde. */
     var l=last();
