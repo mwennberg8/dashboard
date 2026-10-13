@@ -1266,6 +1266,11 @@ body.kiosk.panu-pa .fl-tiles>.stat{align-content:center}
 body.kiosk.panu-pa .panu-c{height:34px;font-size:13.5px;padding:0 14px}
 .hem-pop{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .hem-pop .ctl-row{display:flex;gap:8px}
+/* v719: knapprader i popuper går kant i kant med raderna och graferna, utan
+   knappavsnittets innerkant. Id-väljaren slår body.mobile:not(.kiosk) .controls. */
+#dlg-body .controls.hem-pop{padding:0;margin:12px 0 4px;gap:8px;overflow:visible}
+#dlg-body .controls.hem-pop:first-child{margin-top:4px}
+#dlg-body .hem-pop .ctl-row{gap:8px}
 /* FLIKAR NERE (v675, bara mobilläget). Hem, Insikter, Jämför och Väder flyttar
    från toppraden till en rad längst ned, inom räckhåll för tummen. Uppe blir
    klockan, inställningarna, växlingen och statusen kvar. Under popuper (50)
@@ -2097,12 +2102,16 @@ body.mobile{--ds-sun:14px}
    flex-wrap gav ojämna rader — ett rutnät ger lika stora ytor att träffa. */
 /* Bilrutans två styrknappar. Marginaler i stället för gap, så layouten går att
    mäta i renderaren — samma skäl som i ladda max-rutan och vädersidan. */
-.bil-styr{display:flex;flex-wrap:wrap;margin:2px -4px 4px}
-.bil-rad{margin:8px 0 4px;gap:8px}
-.bil-rad .te-alt .ic{width:15px;height:15px}
+/* v719: laddrutorna (husbatteri och bil). Samma luft under varje rubrik. */
+.ladd-pop .dsec:first-child{padding-top:2px}
+.ladd-pop .dsec+.drow{margin-top:2px}
+.ladd-pop .dsec+.bl-val{margin-top:6px}
+.ladd-pop .dsec+.bl-egen{margin-top:10px}
+.ladd-pop .dsec+.brv-temp{margin-top:10px}
+.bl-rad{margin:10px 0 4px;gap:8px}
+.te-alt.arm{border-color:var(--warm);color:var(--warm-t);background:rgba(250,179,135,.18)}
 .brv-falt.bil-a{align-items:baseline}
 .brv-falt.bil-a b{font-size:24px;font-weight:800;line-height:44px;color:var(--ink)}
-.bil-styr .brv-q{flex:0 0 calc(50% - 8px);width:calc(50% - 8px);margin:4px;box-sizing:border-box}
 .brv-snabb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 /* Bilknapparna väntar på bekräftelse: guldkant och frågan som text. */
 .brv-q.arm{border-color:var(--gold)!important;color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
@@ -3695,7 +3704,27 @@ function battNettoW(){
    measure_battery + batt_charge/batt_discharge. 30 minuter är mitt val:
    molnets laddnivå ändras var 3–6:e minut vid några kW, men vid låg effekt kan
    en procent ta närmare en timme – då får Modbus ta över om den rör sig. */
-var BATT_HB_GAMMAL_MS=30*60000;
+/* v718: HUSBATTERI GÄLLER (Markus 2026-10-13). Natten till 13/10 visade
+   dashboarden Modbus 26 % medan Husbatteri stod på 0 %: batteriet var tomt och
+   ingen av källorna ändrades på timmar, och v715 valde då Modbus vid lika.
+   Även v716:s regel ("Husbatteri stilla 30 min") var fel tänkt – ett tomt
+   eller fullt batteri ändras inte, utan att värdet för den skull är gammalt.
+   Nu används Modbus BARA om
+     * Husbatteri saknar värdet, eller
+     * Husbatteri motsäger sig självt: effekt ≥ BATT_HB_MOTS_W men samma
+       laddnivå i minst BATT_HB_MOTS_MS. Vid 500 W borde nivån ändras ungefär
+       två procent i timmen. Laddnivåns ändringstid kommer från Insights och
+       från det dashboarden själv ser; innan Insights svarat dras ingen slutsats. */
+var BATT_HB_GAMMAL_MS=30*60000, BATT_HB_MOTS_W=500, BATT_HB_MOTS_MS=60*60000, _battLogKand=false;
+function battHbMotsager(){
+  var w=husNettoW();if(w==null||!isFinite(w)||Math.abs(w)<BATT_HB_MOTS_W)return false;
+  var b=capRaw(BATT_HB,'measure_battery');if(b==null)return false;
+  var obs=(_battSett.hb_soc&&_battSett.hb_soc.t)||0;
+  var ev=_battLogT&&_battLogT.hb&&typeof _battLogT.hb==='object'?(_battLogT.hb.soc||0):0;
+  var t=Math.max(obs,ev);
+  if(!t&&!_battLogKand)return false;     /* okänt är inte detsamma som gammalt */
+  return Date.now()-t>=BATT_HB_MOTS_MS;
+}
 var _battTider={};
 const BATT_HB='331c4824-2fc0-4ebb-90e3-2c6591bba254';
 var _battSett={},_battKalla={};
@@ -3727,7 +3756,7 @@ function battVal(kind){
   var hb;
   if(b==null)hb=false;
   else if(a==null)hb=true;
-  else hb=!((Date.now()-tb>BATT_HB_GAMMAL_MS)&&ta>tb);   /* Husbatteri om det inte står still medan Modbus rör sig */
+  else hb=!battHbMotsager();   /* v718: Husbatteri, utom när det motsäger sig självt */
   _battKalla[kind]={src:hb?'hb':'mb',t:hb?tb:ta};
   return hb?b:a;
 }
@@ -3764,6 +3793,7 @@ async function battLoggKoll(tvinga){
         if(e.data){fanns=true;t=Math.max(t,senastAndrad(parseEntries(e.data)));}
       }
       if(fanns)_battLogT[par[i][0]][par[i][1]]=t;
+      if(fanns&&par[i][0]==='hb'&&par[i][1]==='soc')_battLogKand=true;
     }
     try{localStorage.setItem('battLogT_v2',JSON.stringify(_battLogT));}catch(e){}
     /* v715: byttes källan ritas sidan om direkt, inte först vid nästa hämtning. */
@@ -4211,21 +4241,10 @@ function klimatSatt(pa){
   try{if(pa)localStorage.setItem(KLIMAT_KEY,String(Date.now()));
     else localStorage.removeItem(KLIMAT_KEY);}catch(e){}
 }
-/* SAMMA KNAPPSTIL SOM STARTSIDAN OCH BREVEDEN — .brv-q: ikon över etikett,
-   tänd ram när läget är på. En vippa (.dv-sw) hörde inte hemma här; den ser ut
-   som en inställning, inte som en knapp man trycker på.
-   Etiketten säger LÄGET, inte vad ett tryck gör, precis som ladda max-knappen:
-   "Laddar" när den laddar, "Ladda" när den står still. */
-/* BEKRÄFTELSE (v682): laddning och klimat kräver två tryck. Första trycket
-   ändrar knappen till frågan ("Starta laddning?") i 4 s, andra trycket gör
-   det. Samma mönster som knapprutans "tryck två gånger". */
+/* BEKRÄFTELSE (v682): klimat kräver två tryck, och Stoppa laddning i
+   laddrutan likaså. Första trycket byter texten till frågan i 4 s, andra
+   trycket gör det. Samma mönster som knapprutans "tryck två gånger". */
 var _bilArm={k:null,t:0};
-function bilStyrKnapp(lab,ic,pa,fn,k,fraga){
-  var arm=(_bilArm.k===k&&Date.now()-_bilArm.t<4000);
-  return '<button class="brv-q'+(pa?' on':'')+(arm?' arm':'')+'" onclick="bilTryck(\''+k+'\')"'
-    +(arm?' aria-label="'+esc(fraga)+' Tryck igen för att bekräfta."':'')+'>'
-    +icon(ic)+'<span>'+esc(arm?fraga:lab)+'</span></button>';
-}
 function bilTryck(k){
   if(!(_bilArm.k===k&&Date.now()-_bilArm.t<4000)){
     _bilArm={k:k,t:Date.now()};bilStyrOm();
@@ -4233,20 +4252,47 @@ function bilTryck(k){
     return;
   }
   _bilArm={k:null,t:0};
-  if(k==='ladda')bilLaddToggle();else bilKlimatToggle();
+  /* "stopp" (laddrutan) stoppar bara – har laddningen redan slutat startas den inte. */
+  if(k==='stopp'){if(cap(DEV.laddbox,'evcharger_charging')===true)bilLaddToggle();else bilStyrOm();}
+  else bilKlimatToggle();
 }
+/* v719: SAMMA KNAPPAR SOM BATTERIETS POPUP. Ladda och Klimat bredvid varandra
+   i samma stil (.ctl) som Ladda och Spara i husbatteriets popup. Ladda öppnar
+   laddrutan (Ladda nu, Lägsta pris, egen tid, strömgräns) – alltid, också när
+   bilen laddar, eftersom strömgränsen ligger där. Stoppa finns i rutan.
+   Klimat kräver två tryck som förut. */
 function bilStyrHTML(){
-  var laddar=(cap(DEV.laddbox,'evcharger_charging')===true);
-  var kl=klimatLas();
-  /* Två knappar bredvid varandra, lika breda. */
-  /* v694: styrningens läge ovanför knapparna. Ladda/Stoppa här är det
-     MANUELLA valet — automatiken (sol, billiga timmar) sköter resten. */
+  var laddar=(cap(DEV.laddbox,'evcharger_charging')===true),kl=klimatLas(),bk=bilBokad();
+  /* v694: styrningens läge ovanför knapparna. */
   var bs=bilStyrLage();
   var styr=(bs&&bs.lage&&bs.lage!=='ingen')?('<div class="drow"><span>Styrning</span><b>'+esc(bs.skal||bs.lage)+'</b></div>'):'';
-  return styr+'<div class="bil-styr">'
-    +bilStyrKnapp(laddar?'Laddar':'Ladda nu','battery-charging',laddar,'bilLaddToggle()','ladda',laddar?'Stoppa laddning?':'Ladda nu, oavsett pris?')
-    +bilStyrKnapp(kl?'Klimat på':'Klimat EX40','thermometer',kl,'bilKlimatToggle()','klimat',kl?'Stoppa klimat?':'Starta klimat?')
-    +'</div>'+bilBokaHTML()+bilStromHTML();
+  var armK=(_bilArm.k==='klimat'&&Date.now()-_bilArm.t<4000);
+  var kn=function(cls,ic,txt,fn,aria){return '<button type="button" class="ctl'+cls+'" onclick="'+fn+'"'+(aria?' aria-label="'+esc(aria)+'"':'')+'>'
+    +'<span class="ctl-ic">'+icon(ic)+'</span><span class="ctl-l">'+esc(txt)+'</span></button>';};
+  return styr+'<div class="controls hem-pop" id="popk-bil"><div class="ctl-row">'
+    +kn((laddar?' on':'')+(!laddar&&bk?' bokad':''),'battery-charging',laddar?'Laddar':(bk?'Bokad \u00b7 '+battKlAv(bk):'Ladda'),'bilLaddKnapp()')
+    +kn((kl?' on':'')+(armK?' arm':''),'thermometer',armK?(kl?'Stoppa klimat?':'Starta klimat?'):(kl?'Klimat på':'Klimat EX40'),"bilTryck('klimat')",
+        armK?'Tryck igen för att bekräfta.':'')
+    +'</div></div>';
+}
+function bilLaddKnapp(){_blMal='bil';openDetail('billadd');}
+/* Bilens laddruta: samma väljare som husbatteriets, plus stopp och strömgräns. */
+function bilLaddPopHTML(){
+  var laddar=(cap(DEV.laddbox,'evcharger_charging')===true),bk=bilBokad(),h='<div class="ladd-pop">';
+  if(laddar){
+    var w=chargerW(),arm=(_bilArm.k==='stopp'&&Date.now()-_bilArm.t<4000);
+    h+='<div class="dsec">Laddar nu</div>'+dRow('Laddbox',w!=null?W(w):'laddar')
+      +'<div class="cfg-btns bl-rad"><button class="te-alt'+(arm?' arm':'')+'" onclick="bilTryck(\'stopp\')">'
+      +(arm?'Stoppa? Tryck igen':'Stoppa laddning')+'</button></div>';
+  }
+  if(bk)h+='<div class="dsec">Inbokad start</div>'+dRow('Startar',bilKlText(bk))
+    +'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilAvboka()">Avboka</button></div>';
+  return h+laddValHTML(laddar)+bilStromHTML()+'</div>';
+}
+/* Ladda nu ur rutan: valet i rutan är bekräftelsen, som för husbatteriet. */
+function bilLaddaNu(){
+  closeDetail();
+  if(cap(DEV.laddbox,'evcharger_charging')!==true)bilLaddToggle();
 }
 /* ===== BOKAD START OCH LADDSTRÖM (v705) =====
    Dashboarden skriver bara två Logic-variabler; verkställaren (energistyr
@@ -4258,7 +4304,7 @@ function bilStyrHTML(){
                     0 = ingen gräns (laddboxens 16 A, säkringsvakten gäller alltid).
    Automatiken (sol, billiga timmar) styr sin egen ström som förut. */
 var BIL_BOKA_VAR='billadd_bokad',BIL_STROM_VAR='billadd_strom',BIL_A_MIN=6,BIL_A_MAX=16;
-var _bilBokaVy=false,_bilTid=null,_bilStromUtk=null,_bilLokal={};
+var _bilStromUtk=null,_bilLokal={};
 /* Lokalt skrivet värde gäller tills nästa hämtning visar Homeys. */
 function bilBokad(){
   var v=('bokad' in _bilLokal)?_bilLokal.bokad:((_regel&&_regel.bilBokad)||0);
@@ -4272,44 +4318,16 @@ function bilKlText(ms){
   var d=new Date(ms),i=new Date();
   return battKlAv(ms)+((d.getDate()!==i.getDate()||d.getMonth()!==i.getMonth())?' imorgon':'');
 }
-function bilTidMin(){
-  if(_bilTid==null){var d=new Date(Date.now()+3600000);_bilTid=(d.getHours()*60+Math.round(d.getMinutes()/15)*15)%1440;}
-  return _bilTid;
-}
-function bilBokaHTML(){
-  var b=bilBokad(),h='<div class="dsec">Bokad start</div>';
-  if(b)h+=dRow('Startar',bilKlText(b))
-    +'<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilAvboka()">Avboka</button>'
-    +'<button class="te-alt" onclick="bilBokaVisa()">'+(_bilBokaVy?'Stäng':'Ändra tid')+'</button></div>';
-  else if(!_bilBokaVy)h+='<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilBokaVisa()">'+icon('clock')+'Boka start</button></div>';
-  if(!_bilBokaVy)return h;
-  h+='<div class="bl-val">';
-  var c=battBilligKl();
-  if(c)h+='<button class="bl-b bl-pris" onclick="bilBoka('+battTidTill(c.off,c.h)+')"><b>Lägsta pris</b><small>'+battKl(c.h*60)+(c.off?' imorgon':'')+' \u00b7 '+oren(c.pris)+'</small></button>';
-  else h+='<button class="bl-b bl-pris" disabled><b>Lägsta pris</b><small>ingen billig timme framåt</small></button>';
-  [[1,'Om 1 timme'],[3,'Om 3 timmar'],[8,'Om 8 timmar']].forEach(function(x){var t=Date.now()+x[0]*3600000;
-    h+='<button class="bl-b" onclick="bilBoka('+t+')"><b>'+x[1]+'</b><small>'+battKlAv(t)+'</small></button>';});
-  h+='</div>';
-  var m=bilTidMin(),tt=String(Math.floor(m/60)).padStart(2,'0'),mm=String(m%60).padStart(2,'0');
-  var kol=function(v,txt){return '<div class="bl-kol"><button class="bl-pil" onclick="bilTidJust(\''+v+'\',1)" aria-label="upp">'+icon('caret-up')+'</button>'
-    +'<span class="bl-num">'+txt+'</span><button class="bl-pil" onclick="bilTidJust(\''+v+'\',-1)" aria-label="ner">'+icon('caret-down')+'</button></div>';};
-  h+='<div class="bl-egen"><div class="bl-ur">'+kol('t',tt)+'<span class="bl-kolon">:</span>'+kol('m',mm)+'</div>'
-    +'<button class="bl-boka" onclick="bilBokaEgen()">Boka '+tt+':'+mm+'</button></div>';
-  return h;
-}
-function bilBokaVisa(){_bilBokaVy=!_bilBokaVy;bilStyrOm();}
-function bilTidJust(v,r){var m=bilTidMin(),t=Math.floor(m/60),mi=m%60;
-  if(v==='t')t=((t+r)%24+24)%24;else mi=((mi+r*15)%60+60)%60;_bilTid=t*60+mi;bilStyrOm();}
-function bilBokaEgen(){var t=dayStart()+bilTidMin()*60000;if(t<=Date.now())t+=86400000;return bilBoka(t);}
 async function bilBoka(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
-  _bilLokal.bokad=ms;_bilBokaVy=false;bilStyrOm();
+  /* v719: rutan stängs direkt, som husbatteriets. */
+  _bilLokal.bokad=ms;closeDetail();
   try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,ms,'number');toast('Laddning bokad '+bilKlText(ms));}
   catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
   try{regelHamta(true);}catch(e){}
 }
 async function bilAvboka(){
-  _bilLokal.bokad=0;_bilBokaVy=false;bilStyrOm();
+  _bilLokal.bokad=0;bilStyrOm();
   try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,0,'number');toast('Avbokad');}
   catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte avboka: '+((e&&e.message)||'okänt'));return;}
   try{regelHamta(true);}catch(e){}
@@ -4320,7 +4338,7 @@ function bilStromHTML(){
   var v=bilStromVal(),u=(_bilStromUtk!=null)?_bilStromUtk:(v||BIL_A_MAX),andrat=(_bilStromUtk!=null&&_bilStromUtk!==(v||BIL_A_MAX));
   var nuA=cap(DEV.laddbox,'offered_current');
   var kw=Math.round(3*230*u/100)/10;
-  return '<div class="dsec">Laddström</div>'
+  return '<div class="dsec">Strömgräns</div>'
     +'<div class="brv-temp">'
     +'<button class="brv-step" id="bil-a-minus"'+(u<=BIL_A_MIN?' disabled':'')+' onclick="bilStromSteg(-1)">\u2212</button>'
     +'<span class="brv-falt bil-a"><b id="bil-a-tal">'+u+'</b><span>A</span></span>'
@@ -4329,7 +4347,7 @@ function bilStromHTML(){
     +'<div class="brv-utkast">\u2248 '+num(kw,1)+' kW på 3 faser \u00b7 '+(v?'inställt '+v+' A':'ingen egen gräns')
     +(nuA!=null&&isFinite(nuA)?' \u00b7 laddboxen ger nu '+Math.round(nuA)+' A':'')+'</div>'
     +'<div class="det-note">Gäller när du laddar själv eller bokat start. Sol och billiga timmar styr strömmen själva, och säkringsvakten (23 A per fas) gäller alltid.</div>'
-    +(v?'<div class="cfg-btns bil-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
+    +(v?'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
 }
 function bilStromSteg(d){
   var v=bilStromVal()||BIL_A_MAX,u=(_bilStromUtk!=null)?_bilStromUtk:v;
@@ -4344,7 +4362,10 @@ async function bilStromSatt(a){
   try{regelHamta(true);}catch(e){}
 }
 /* Ritar om bilrutan om den står öppen. */
-function bilStyrOm(){try{var b=$('dlg-body');if(b)b.innerHTML=buildCarsPopup();}catch(e){}}
+/* v719: ritar om den bilruta som står öppen – Bilar eller laddrutan – och
+   ingen annan. */
+function bilStyrOm(){try{var b=$('dlg-body');if(!b)return;
+  if(_dlgWhich==='billadd')b.innerHTML=bilLaddPopHTML();else if(_dlgWhich==='cars')b.innerHTML=buildCarsPopup();}catch(e){}}
 async function bilLaddToggle(){
   var nu=(cap(DEV.laddbox,'evcharger_charging')===true);
   /* Skriv lokalt först så växlaren svarar direkt; nästa hämtning har sista
@@ -4778,22 +4799,32 @@ function battKlAv(ms){
   var d=new Date(ms);
   return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
 }
+/* v719: SAMMA VÄLJARE FÖR HUSBATTERIET OCH BILEN. _blMal säger vilken av dem
+   rutan styr ('batt' eller 'bil'); den sätts när rutan öppnas. Tidsväljarens
+   läge (_blTid, _blTimer, _blLage) delas – man ställer en tid i taget. */
+var _blMal='batt';
 function battLaddHTML(){
   var vald=battStartAktiv();
-  var h='';
+  var h='<div class="ladd-pop">';
   if(vald){
     h+='<div class="dsec">Inbokad start</div>'
       +dRow('Startar',battKlAv(vald)+((new Date(vald)).getDate()!==battNu().getDate()?' imorgon':''))
-      +'<div class="cfg-btns" style="margin:10px 0 4px">'
-      +'<button class="te-alt" onclick="battAvbokaStart()">Avboka</button></div>';
+      +'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="battAvbokaStart()">Avboka</button></div>';
   }
+  return h+laddValHTML(false)+'</div>';
+}
+/* Rutnätet (Ladda nu, Lägsta pris, Om 1 h, Om 3 h) och egen tid. laddarNu =
+   bilen laddar redan, så "Ladda nu" har inget att göra. */
+function laddValHTML(laddarNu){
+  var h='';
   /* SAMMA FORM PÅ ALLA FYRA: stor rad = vad man väljer, liten rad = vad det
      blir. Förut stod klockslaget stort på de fasta valen och valets namn litet,
      tvärtemot prisknappen — och prisknappens långa text radbröts till tre rader
      så knappen blev högre än de andra. Nu är texterna korta nog att rymmas på
      en rad, och en gemensam minsta höjd håller rutnätet jämnt. */
   h+='<div class="dsec">Starta laddning</div><div class="bl-val">';
-  h+='<button class="bl-b pri" onclick="blValt(this,\'nu\')">'
+  if(laddarNu)h+='<button class="bl-b pri" disabled><b>Ladda nu</b><small>laddar redan</small></button>';
+  else h+='<button class="bl-b pri" onclick="blValt(this,\'nu\')">'
     +'<b>Ladda nu</b><small>direkt</small></button>';
   /* PRISVALET är det enda som ändrar sig av sig själv. Pilen är borttagen i
      v655 — den blå ramen och den blå rubriken räcker för att skilja knappen
@@ -4904,11 +4935,16 @@ function blJust(vad,rikt){
    rutan hängde sig, och kvittensen hinner ändå ritas innan stängningen. */
 function blValt(el,vad,ms){
   try{if(el&&el.classList)el.classList.add('bl-vald');}catch(e){}
+  if(_blMal==='bil'){                       /* v719: bilens laddruta */
+    if(vad==='nu')bilLaddaNu();
+    else bilBoka(vad==='egen'?blEgenMs():ms);
+    return;
+  }
   if(vad==='nu')battStartaNu();
   else if(vad==='egen')battEgenTid();
   else battBokaStart(ms);
 }
-function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=battLaddHTML();}
+function battLaddOm(){var b=$('dlg-body');if(b)b.innerHTML=(_blMal==='bil')?bilLaddPopHTML():battLaddHTML();}
 /* HÄR LÅG FELET: jag använde DLG_OM och openDlg, som hör till Göteborgs
    dashboard. Gottskär öppnar sina rutor med openDetail(), och ett anrop till
    något som inte finns kastade — btnTap fångade det och skrev "fel" på
@@ -5061,15 +5097,13 @@ function battBokaStart(ms){
   toast('Laddning bokad '+battKlAv(ms));
 }
 function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
-function battEgenTid(){
-  if(_blLage==='timer'){
-    battBokaStart(Date.now()+blTimer()*60000);
-    return;
-  }
+function blEgenMs(){
+  if(_blLage==='timer')return Date.now()+blTimer()*60000;
   var t=dayStart()+blTid()*60000;
   if(t<=Date.now())t+=86400000;             /* passerat idag → imorgon */
-  battBokaStart(t);
+  return t;
 }
+function battEgenTid(){battBokaStart(blEgenMs());}
 /* Bevakningen: starta när tiden passerats. En gång per bokning — bokningen tas
    bort så den inte kan lösa ut igen. */
 var _battStartBusy=false;
@@ -5234,13 +5268,13 @@ function renderControls(){
         /* På: säg NÄR den stänger av av sig själv pga stigande pris. Utan en
            kommande uppgång står bara "Laddar max". */
         var avk=battAvstangKl();
-        lbl=avk?('Laddar max · till '+avk):'Laddar max';
+        lbl=avk?('Laddar · till '+avk):'Laddar';   /* v719: "Ladda" i stället för "Ladda max" */
       }else{
         /* Inbokad start syns på knappen, annars vet man inte att den ligger. */
         var bs=battStartAktiv();
         /* Säg vilket läge som valts, inte bara att något är inbokat. Trycker
            man "Lägsta pris" vill man se att det var DET som bokades. */
-        lbl=bs?('Bokad \u00b7 '+battKlAv(bs)):'Ladda max';
+        lbl=bs?('Bokad \u00b7 '+battKlAv(bs)):'Ladda';
         /* Bokat är ett eget läge — varken av eller på. Gult skiljer det från
            grönt (laddar) och orange (väntar på att slå igenom). */
         bokad=!!bs;
@@ -12616,7 +12650,7 @@ function regelHamta(tvinga){
     _regelAt=Date.now();_regelLaddar=false;
     try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
       if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
-    if(_dlgWhich==='cars'){try{bilStyrOm();}catch(e){}}
+    if(_dlgWhich==='cars'||_dlgWhich==='billadd'){try{bilStyrOm();}catch(e){}}
     try{regelRadRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
@@ -12724,7 +12758,7 @@ function regelHTML(){
   regelHamta(false);
   var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
   h+=dRow('Just nu',esc(L.txt)+(L.bedomd?' <small>(bedömt av effekten)</small>':'')
-    +(L.regLadda?' <small>(registret säger 4/3, men Ladda max är inte startat)</small>':''));
+    +(L.regLadda?' <small>(registret säger 4/3, men Ladda är inte startat)</small>':''));
   if(L.varn)h+='<div class="rg-varn">'+icon('warning')+'<span>Läget säger '+(L.lage==='spara'?'spara':'ladda')+', men batteriet '+esc(L.varn)+'.</span></div>';
   if(!R)return h+'<div class="det-note">'+(REGEL_AV?'Hämtar bokningarna…':'Hämtar laddregelns förslag…')+'</div>';
   var steg=[];
@@ -12879,15 +12913,17 @@ function byggBatt(){
       +'i grafen för att läsa av båda vid en viss tidpunkt.'))
     +battGrafHTML('g2-batt')
     +grafTidsval('g2-batt')
+    /* v719: Ladda och Spara direkt under tidsvalet. */
+    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+'</div></div>'))
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
     +dRow('Källa laddnivå',esc(battKallaText('soc')))+dRow('Källa effekt',esc(battKallaText('pow')))
     +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
-    +regelHTML()
-    /* Ladda max bor i batteriets popup när knappavsnittet är gömt (v688).
-       v708: Spara ligger bredvid; utan Ladda max i popupen står den ensam. */
-    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+'</div></div>'));
+    +regelHTML();
+    /* Ladda bor i batteriets popup när knappavsnittet är gömt (v688).
+       v708: Spara ligger bredvid; utan Ladda i popupen står den ensam.
+       v719: båda ligger under tidsvalet, se ovan. */
 }
 var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
@@ -12938,7 +12974,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -12997,7 +13033,7 @@ function openDetailKarna(which){
     _grafByggare['temps']={titel:'Temperaturer',full:function(cid){return multiTempSVG(cid||'temps');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggTemps();};
     body=byggTemps();
-  }else if(which==='battladd'){title='Ladda max';
+  }else if(which==='battladd'){title='Ladda husbatteriet';_blMal='batt';
     /* Rutan ritas om när priserna landar, så prisvalen dyker upp av sig själva. */
     _popupRebuild=battLaddHTML;
     if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
@@ -13075,8 +13111,14 @@ function openDetailKarna(which){
   }else if(which==='cars'){title='Bilar';
     /* Egen byggare, så växlarna kan rita om rutan utan att bygga om allt. */
     _popupRebuild=buildCarsPopup;
-    _bilBokaVy=false;_bilStromUtk=null;try{regelHamta(false);}catch(e){}
+    _bilStromUtk=null;try{regelHamta(false);}catch(e){}
     body=buildCarsPopup();
+  }else if(which==='billadd'){title='Ladda bilen';_blMal='bil';
+    /* v719: bilens laddruta. Ritas om när priserna landar, som husbatteriets. */
+    _popupRebuild=bilLaddPopHTML;_bilStromUtk=null;
+    if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
+    try{regelHamta(false);}catch(e){}
+    body=bilLaddPopHTML();
   }else if(which==='air'){title='Luft i köket';
     body=dRow('CO₂',num(cap(DEV.vader,'measure_co2'),0)+' ppm')+dRow('Temperatur',num(cap(DEV.vader,'measure_temperature'),1)+' °C')+dRow('Luftfukt',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Ljudnivå',num(cap(DEV.vader,'measure_noise'),0)+' dB');
   }else if(which==='sold'){title='Elnät · totalt';
@@ -19910,7 +19952,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v717';
+const APP_VERSION='v719';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
