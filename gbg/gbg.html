@@ -157,7 +157,8 @@ body.mobile .wrap{max-width:540px;padding:2px;
   padding-left:max(2px,env(safe-area-inset-left));
   padding-right:max(2px,env(safe-area-inset-right));
   padding-bottom:max(2px,env(safe-area-inset-bottom))}
-body.mobile .statusbar{padding:10px 12px;padding-top:max(10px,env(safe-area-inset-top))}
+/* v1.74.0: toppraden är borta – första rutan börjar under telefonens statusfält. */
+body.mobile .wrap{padding-top:max(2px,env(safe-area-inset-top))}
 /* Kortens insida, samma tal som Gottskär på telefon. */
 body.mobile .stat,body.mobile .room{padding:12px 11px}
 body.mobile .ctl{padding:12px 6px}
@@ -179,11 +180,9 @@ body.mobile .car{padding:16px}
 .wrap > *:nth-child(4){animation-delay:.12s}.wrap > *:nth-child(5){animation-delay:.16s}
 .wrap > *:nth-child(6){animation-delay:.2s}.wrap > *:nth-child(7){animation-delay:.24s}
 
-/* ===== toppraden =====
-   Samma stil som Gottskär-dashboarden: blåtonade pillerknappar och statusen
-   som ett eget piller sist i raden. Bakgrunden är fast rgba, inte color-mix —
-   samma val som där, så tonen blir densamma i båda teman. */
-.statusbar{padding:var(--pg-gap-y);display:flex;align-items:center;gap:12px}
+/* ===== pillerknappar och status =====
+   Toppraden är borta sedan v1.74.0 (menyraden ligger längst ned, se FLIKRAD
+   sist i stilarna). .en-cmp behålls – husvaktens växlingsknapp bär klassen. */
 .en-top{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden;width:100%}
 .en-cmp{appearance:none;flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;cursor:pointer;
   font-family:var(--sans);border:1px solid rgba(129,161,193,.28);background:rgba(129,161,193,.16);
@@ -193,15 +192,12 @@ body.mobile .car{padding:16px}
 .en-cmp.active{background:var(--blue);border-color:var(--blue);color:#0e1726}
 .en-cmp.active .ic{color:#0e1726}
 .en-cmp-ic{width:14px;height:14px;display:inline-flex}.en-cmp-ic .ic{width:100%;height:100%}
-.en-hem{cursor:pointer}
 /* EFTER .en-cmp med flit: statusen bär båda klasserna och ska ha egen textstil.
    Samma specificitet — den som står sist vinner. Står den före skriver .en-cmp
    över storlek och versaler och pillret ser ut som en knapp till. */
 .en-status{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;
   text-transform:uppercase;letter-spacing:.06em;color:var(--dim);flex:0 0 auto}
 .en-top .en-status{margin-left:auto}
-.en-status-btn{position:relative;border:1px solid rgba(129,161,193,.28);background:rgba(129,161,193,.16);
-  padding:6px 11px;border-radius:999px;gap:6px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:0 0 auto}
 .dot.live{animation:pulse 2.6s ease-out infinite}.dot.stale{background:var(--warm)}.dot.dead{background:var(--hot)}
 .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
@@ -210,30 +206,13 @@ body.mobile .car{padding:16px}
 .rel{color:var(--faint);font-size:11px}.rel.stale{color:var(--warm)}
 .en-status .rel{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(163,190,140,.45)}70%{box-shadow:0 0 0 7px rgba(163,190,140,0)}100%{box-shadow:0 0 0 0 rgba(163,190,140,0)}}
-/* Mobiltoppraden är Gottskärs, tal för tal: 34 px höga piller, huset som enbart
-   ikon och statusen nedbantad till en prick. De tidigare 480/380-reglerna är
-   borta — de krängde egna paddingvärden över just de här. */
 @media (max-width:600px){
-  .statusbar{padding:10px 12px;align-items:center}
-  .statusbar .en-top{flex-wrap:nowrap;overflow:visible;align-items:center;gap:6px;width:100%}
   .en-cmp{flex:0 1 auto;min-width:0;margin-left:0;padding:0 11px;font-size:12px;gap:5px;
     height:34px;box-sizing:border-box;align-items:center;justify-content:center;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .en-cmp-ic{width:15px;height:15px;flex:0 0 auto}
-  /* Huset ensamt: font-size:0 döljer texten, ikonen är en SVG och påverkas inte. */
-  .en-hem{font-size:0;padding:0;gap:0;flex:0 0 auto;width:38px;height:34px;
-    display:inline-flex;align-items:center;justify-content:center}
-  .en-hem .en-cmp-ic{width:18px;height:18px;margin:0}
-  .statusbar .en-status{margin-left:auto;flex:0 0 auto;padding:0;border:0;background:none;
-    width:24px;height:34px;display:inline-flex;align-items:center;justify-content:center}
-  .statusbar .en-status>span:not(.dot){display:none!important}
-  .statusbar .en-status .dot{width:13px;height:13px;border-radius:50%;margin:0;flex:0 0 auto;
-    background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
-  .statusbar .en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
-  .statusbar .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 }
-/* Väder, vind och temperaturer i toppraden. Rutorna för väder och vind är borta;
-   det här är samma uppgifter men på en rad, mellan huset och växlingsknappen.
+/* Väder, vind och temperaturer i menyraden (längst ned sedan v1.74.0).
    Blocket kränger ihop sig i tur och ordning när bredden tryter: först faller
    inne bort, sedan vinden — ute står kvar längst. */
 .en-wx{display:flex;align-items:center;gap:9px;min-width:0;overflow:hidden;
@@ -247,27 +226,6 @@ body.mobile .car{padding:16px}
 .en-wx .inne{color:var(--warm)}
 @media (max-width:430px){.en-wx .wxi-inne{display:none}}
 @media (max-width:360px){.en-wx .wxi-vind{display:none}}
-/* Toppraden ligger kvar vid skroll. .sticky-sentinel är en 1px-rad precis
-   ovanför som talar om när raden faktiskt fastnat — först då får den skugga och
-   raka hörn, annars ligger den och skuggar i vila. Samma lösning som Gottskär. */
-.sticky-sentinel{display:none}
-body.mobile .sticky-sentinel{display:block;height:1px;margin-bottom:-1px}
-body.mobile .statusbar{position:sticky;top:0;z-index:35}
-/* Fastnad ligger raden som ett riktigt apphuvud: raka hörn och bakgrunden ut i
-   skärmkanten. De negativa marginalerna äter upp exakt den kantmarginal .wrap
-   lägger på, även när env() gjort den större än 2px. Innehållet får samtidigt
-   egen inre marginal mot det säkra området, så knapparna aldrig hamnar under en
-   rundad skärmkant fast bakgrunden gör det. */
-body.mobile .statusbar.stuck{
-  border-radius:0;
-  border-left-width:0;border-right-width:0;
-  border-top-color:transparent;
-  margin-left:calc(-1 * max(2px,env(safe-area-inset-left)));
-  margin-right:calc(-1 * max(2px,env(safe-area-inset-right)));
-  padding-left:max(14px,env(safe-area-inset-left));
-  padding-right:max(14px,env(safe-area-inset-right));
-  box-shadow:inset 0 1px 0 var(--panel-inset),0 8px 20px -6px rgba(0,0,0,.45)}
-
 /* ===== sol upp/ner =====
    Remsan från Gottskär-dashboarden: ikon, klockslag, skala med solpricken,
    klockslag, ikon. Ingen tidsresa här — den hör till historikläget som den här
@@ -854,18 +812,56 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
   font-family:var(--sans);font-size:12.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.28);
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
 .toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ===== MENYRADEN LÄNGST NED (v1.74.0) =====
+   Samma rad som Gottskärs flikrad (v675), tal för tal: fast mot skärmens
+   underkant, panelbakgrund med streck ovanför, ikon över etikett, aktiv flik
+   blå. Göms när man skrollar nedåt och kommer tillbaka uppåt eller nära
+   toppen. Här ligger allt som satt i toppraden: Hem, vädret, växlingen till
+   Gottskär (husvakten, bara på https), statusen och – nytt – inställningarna.
+   Under popuperna (50), så de täcker raden. */
+.flikrad{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;
+  background:var(--panel-a);border-top:1px solid var(--line);
+  padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -8px 20px -14px rgba(0,0,0,.35);transition:transform .22s ease}
+.flikrad.dold{transform:translateY(110%)}
+.flikrad .en-top{display:flex;align-items:stretch;gap:0;width:100%;max-width:1180px;margin:0 auto;overflow:visible}
+body.mobile .flikrad .en-top{max-width:540px}
+.flikrad .en-wx{display:contents}
+.flik,.flikrad .wxi,#flikrad .husvakt-knapp{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:50px;height:auto;width:auto;border:0;border-radius:0;background:none;box-shadow:none;
+  color:var(--faint);font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:0;text-transform:none;
+  cursor:pointer;padding:2px 0;margin:0;gap:0;-webkit-tap-highlight-color:transparent;white-space:nowrap;overflow:hidden}
+.flik .ic-slot,.flikrad .wxi .ic-slot{width:22px;height:22px;margin-bottom:3px}
+.flik .ic,.flikrad .wxi .ic{width:100%;height:100%}
+.flik.akt{color:var(--blue)}
+.flik>span:last-child{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+/* Vädret: värdet som etikett, ikonen i sin egen färg. */
+.flikrad .wxi b{font-size:10.5px;font-weight:700;color:var(--ink)}
+.flikrad .wxi{cursor:default}
+/* Statusen: pricken som ikon, texten som etikett. Tiden sedan senaste
+   hämtningen ryms inte och göms. */
+.flikrad .en-status{text-transform:uppercase;letter-spacing:.04em}
+.flikrad .en-status .rel{display:none}
+.flikrad .en-status .dot{width:12px;height:12px;margin:5px 0 8px;border-radius:50%;
+  background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
+.flikrad .en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+.flikrad .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
+/* Husvaktens växlingsknapp: samma flik. Id-väljaren slår husvaktens
+   ".en-top .husvakt-knapp{margin-left:auto!important}", som hör till toppraden. */
+#flikrad .en-top .husvakt-knapp{margin-left:0!important;font-size:10.5px}
+#flikrad .en-status{margin-left:0}
+#flikrad .husvakt-knapp svg{width:22px;height:22px;margin-bottom:3px;fill:currentColor}
+#flikrad .husvakt-knapp::after{content:'Gottskär'}
+/* Innetemperaturen faller bort på smala skärmar, som i toppraden förut. */
+@media (max-width:430px){.flikrad .wxi-inne{display:none}}
+/* Plats för raden under sista rutan, så inget hamnar bakom den. */
+body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
+.toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <section class="panel statusbar">
-    <div class="en-top">
-      <button class="en-cmp en-hem" id="hem-btn" title="Tryck: uppdatera. Håll inne: inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Göteborg</button>
-      <div class="en-wx" id="en-wx"></div>
-      <div class="en-status en-cmp en-status-btn" id="en-status"><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div>
-    </div>
-  </section>
 
   <section class="panel demobar" id="demo-bar" hidden>
     <span class="ic-slot" data-ic="sparkle"></span>
@@ -893,6 +889,17 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
   <div class="foot"><span id="foot-src">–</span><span id="foot-via"></span></div>
 </div>
 
+<!-- v1.74.0: menyraden längst ned, som Gottskärs flikrad. .en-top behålls så
+     husvakten hittar raden och lägger växlingsknappen före statusen. -->
+<nav class="flikrad" id="flikrad" aria-label="Meny">
+  <div class="en-top">
+    <button type="button" class="flik akt" id="hem-btn" aria-current="page" title="Tryck: överst och uppdatera. Håll inne: inställningar"><span class="ic-slot" data-ic="house"></span><span>Hem</span></button>
+    <div class="en-wx" id="en-wx"></div>
+    <div class="en-status flik" id="en-status"><span class="dot live" id="dot"></span><span id="status-text">live</span><span class="rel" id="rel"></span></div>
+    <button type="button" class="flik" id="inst-btn" onclick="openInst()"><span class="ic-slot" data-ic="gear"></span><span>Inställningar</span></button>
+  </div>
+</nav>
+
 <div class="dlg-back" id="dlg-back" onclick="closeDlg(event)">
   <div class="dlg" id="dlg" role="dialog" aria-modal="true">
     <button class="dlg-x" onclick="closeDlg(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button>
@@ -903,7 +910,7 @@ input,textarea,.bk-ta,.setup-i{-webkit-user-select:text;user-select:text;-webkit
 <div class="toast" id="toast"></div>
 
 <script>
-const ICONS={'arrow-left':'<path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"/>','chart-line':'<path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0V156.69l50.34-50.35a8,8,0,0,1,11.32,0L128,132.69,180.69,80H160a8,8,0,0,1,0-16h40a8,8,0,0,1,8,8v40a8,8,0,0,1-16,0V91.31l-58.34,58.35a8,8,0,0,1-11.32,0L96,123.31l-56,56V200H224A8,8,0,0,1,232,208Z"/>','battery-charging':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8Zm48-80v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM138.81,123.79a8,8,0,0,1,.35,7.79l-16,32a8,8,0,0,1-14.32-7.16L119.06,136H100a8,8,0,0,1-7.16-11.58l16-32a8,8,0,1,1,14.32,7.16L112.94,120H132A8,8,0,0,1,138.81,123.79Z"/>','battery-high':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM144,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm-40,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm192,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
+const ICONS={'gear':'<path d="M205.8,109.3 L227.1,114.7 L227.1,141.3 L205.8,146.7 L196.2,169.8 L207.5,188.7 L188.7,207.5 L169.8,196.2 L146.7,205.8 L141.3,227.1 L114.7,227.1 L109.3,205.8 L86.2,196.2 L67.3,207.5 L48.5,188.7 L59.8,169.8 L50.2,146.7 L28.9,141.3 L28.9,114.7 L50.2,109.3 L59.8,86.2 L48.5,67.3 L67.3,48.5 L86.2,59.8 L109.3,50.2 L114.7,28.9 L141.3,28.9 L146.7,50.2 L169.8,59.8 L188.7,48.5 L207.5,67.3 L196.2,86.2 Z" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><circle cx="128" cy="128" r="30" fill="none" stroke="currentColor" stroke-width="16"/>','arrow-left':'<path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z"/>','chart-line':'<path d="M232,208a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V48a8,8,0,0,1,16,0V156.69l50.34-50.35a8,8,0,0,1,11.32,0L128,132.69,180.69,80H160a8,8,0,0,1,0-16h40a8,8,0,0,1,8,8v40a8,8,0,0,1-16,0V91.31l-58.34,58.35a8,8,0,0,1-11.32,0L96,123.31l-56,56V200H224A8,8,0,0,1,232,208Z"/>','battery-charging':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8Zm48-80v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM138.81,123.79a8,8,0,0,1,.35,7.79l-16,32a8,8,0,0,1-14.32-7.16L119.06,136H100a8,8,0,0,1-7.16-11.58l16-32a8,8,0,1,1,14.32,7.16L112.94,120H132A8,8,0,0,1,138.81,123.79Z"/>','battery-high':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM144,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm-40,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Zm192,0v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
 'battery-full':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM184,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM144,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM104,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM256,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
 'battery-medium':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM104,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM256,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
 'battery-low':'<path d="M216,80v96a16,16,0,0,1-16,16H32a16,16,0,0,1-16-16V80A16,16,0,0,1,32,64H200A16,16,0,0,1,216,80Z" opacity="0.2"/><path d="M200,56H32A24,24,0,0,0,8,80v96a24,24,0,0,0,24,24H200a24,24,0,0,0,24-24V80A24,24,0,0,0,200,56Zm8,120a8,8,0,0,1-8,8H32a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H200a8,8,0,0,1,8,8ZM64,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM256,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0Z"/>',
@@ -1001,7 +1008,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.73.0';
+const APP_VERSION = 'v1.74.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1515,29 +1522,21 @@ function applyTheme(){
 }
 const hhmm=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
-/* Markören som avgör när toppraden fastnat. IntersectionObserver i stället för
-   en skrollyssnare: den kostar ingenting mellan lägena och missar inte heller
-   ett läge när sidan hoppar. */
-var _stickyObs=null;
-function stickyBar(){
-  try{
-    var bar=document.querySelector('.statusbar');
-    if(!bar||!window.IntersectionObserver)return;
-    var sen=bar.previousElementSibling;
-    if(!sen||!sen.classList||!sen.classList.contains('sticky-sentinel')){
-      sen=document.createElement('div');
-      sen.className='sticky-sentinel';
-      sen.setAttribute('aria-hidden','true');
-      bar.parentNode.insertBefore(sen,bar);
-    }
-    if(!_stickyObs)_stickyObs=new IntersectionObserver(function(es){
-      for(var i=0;i<es.length;i++){
-        var b=es[i].target.nextElementSibling;
-        if(b&&b.classList)b.classList.toggle('stuck',!es[i].isIntersecting);
-      }
-    },{threshold:0});
-    _stickyObs.observe(sen);
-  }catch(e){}
+/* FLIKRADEN GÖMS NÄR MAN SKROLLAR NEDÅT och kommer tillbaka uppåt eller nära
+   toppen. Små rörelser (under 8 px) räknas inte, så den inte fladdrar. Samma
+   som Gottskärs flikSkroll. (v1.74.0 – ersätter den fastnande toppraden.) */
+var _flikY=0;
+function flikSkroll(){
+  if(window._flikSkrollPa)return;window._flikSkrollPa=true;
+  _flikY=window.scrollY||0;
+  window.addEventListener('scroll',function(){
+    var y=window.scrollY||0,nav=document.getElementById('flikrad');if(!nav)return;
+    if(y<40)nav.classList.remove('dold');
+    else if(y>_flikY+8)nav.classList.add('dold');
+    else if(y<_flikY-8)nav.classList.remove('dold');
+    else return;
+    _flikY=y;
+  },{passive:true});
 }
 
 /* Ett reglage ändrar sig annars av minsta tryck var som helst på skåran, och ett
@@ -4871,7 +4870,7 @@ function start(){
   try{const t=localStorage.getItem('gbgtema_v1');if(t)CONFIG.THEME=t;}catch(e){}
   initIcons();
   applyTheme();
-  stickyBar();
+  flikSkroll();
   /* Reglagen registreras FÖRE alla tidiga returer — de behövs i demoläget och
      på inloggningssidan lika mycket. */
   document.addEventListener('pointerdown',slxNer,true);
@@ -4901,8 +4900,9 @@ function start(){
   setInterval(()=>{fetchSmhi();},5*60000);
   /* Tillbaka i förgrunden: hämta direkt i stället för att vänta ut intervallet. */
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();fetchSmhi();}});
-  /* Huset: kort tryck uppdaterar, långt tryck öppnar inställningarna. Kugghjulet
-     är borta ur toppraden, så det här är enda vägen in dit. */
+  /* Huset: kort tryck går överst och uppdaterar, långt tryck öppnar
+     inställningarna. Sedan v1.74.0 har inställningarna också en egen knapp
+     (kugghjulet) i menyraden. */
   const hb=$('hem-btn');
   if(hb){
     let tid=null,lang=false;
@@ -4915,7 +4915,9 @@ function start(){
     hb.addEventListener('pointerleave',slut);
     hb.addEventListener('pointercancel',slut);
     hb.addEventListener('contextmenu',e=>e.preventDefault());
-    hb.addEventListener('click',()=>{if(lang){lang=false;return;}load();fetchSmhi();toast('Uppdaterar…');});
+    hb.addEventListener('click',()=>{if(lang){lang=false;return;}
+      try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){try{window.scrollTo(0,0);}catch(e2){}}
+      load();fetchSmhi();toast('Uppdaterar…');});
   }
   const db=$('dlg-back');
   if(db){['click','touchstart','wheel','keydown'].forEach(ev=>db.addEventListener(ev,dlgRorelse,{passive:true}));}
