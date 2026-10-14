@@ -3715,15 +3715,35 @@ function battNettoW(){
        laddnivå i minst BATT_HB_MOTS_MS. Vid 500 W borde nivån ändras ungefär
        två procent i timmen. Laddnivåns ändringstid kommer från Insights och
        från det dashboarden själv ser; innan Insights svarat dras ingen slutsats. */
-var BATT_HB_GAMMAL_MS=30*60000, BATT_HB_MOTS_W=500, BATT_HB_MOTS_MS=60*60000, _battLogKand=false;
+/* v720: FEL I v718-REGELN (Markus 2026-10-13 23:05: "0 % men visar 26").
+   Modbus laddnivå har stått på 25,53 % sedan 12/10 ca 19:00 (och på 46,81 %
+   08–16 samma dag) – registret har hängt sig, medan effektregistren lever.
+   Husbatteri har följt batteriet hela tiden. Klockan 23 började nätladdningen
+   (5 kW). Husbatteri visade 0 % och +5000 W, och eftersom nivån inte ändrats
+   på över ett dygn slog motsägelsen till DIREKT – timmen räknades från senaste
+   nivåändringen, inte från när effekten blev stor. Och Modbus, som stått
+   still ännu längre, fick ta över.
+   Nu krävs båda:
+     * Husbatteri har visat ≥ BATT_HB_MOTS_W i minst BATT_HB_MOTS_MS i sträck
+       (räknat från när effekten blev stor, sett av sidan) utan att nivån ändrats.
+     * Modbus laddnivå har SJÄLV ändrats inom samma tid, och senare än
+       Husbatteris. Står båda still finns inget som talar för Modbus.
+   _battLogKand sätts fortfarande av battLoggKoll men avgör inget längre. */
+var BATT_HB_GAMMAL_MS=30*60000, BATT_HB_MOTS_W=500, BATT_HB_MOTS_MS=60*60000, _battLogKand=false, _hbStorT=0;
 function battHbMotsager(){
-  var w=husNettoW();if(w==null||!isFinite(w)||Math.abs(w)<BATT_HB_MOTS_W)return false;
+  var w=husNettoW();
+  if(w==null||!isFinite(w)||Math.abs(w)<BATT_HB_MOTS_W){_hbStorT=0;return false;}
+  var nu=Date.now();if(!_hbStorT)_hbStorT=nu;
   var b=capRaw(BATT_HB,'measure_battery');if(b==null)return false;
-  var obs=(_battSett.hb_soc&&_battSett.hb_soc.t)||0;
-  var ev=_battLogT&&_battLogT.hb&&typeof _battLogT.hb==='object'?(_battLogT.hb.soc||0):0;
-  var t=Math.max(obs,ev);
-  if(!t&&!_battLogKand)return false;     /* okänt är inte detsamma som gammalt */
-  return Date.now()-t>=BATT_HB_MOTS_MS;
+  var lt=_battLogT||{};
+  var hbObs=(_battSett.hb_soc&&_battSett.hb_soc.t)||0;
+  var hbEv=lt.hb&&typeof lt.hb==='object'?(lt.hb.soc||0):0;
+  var hbT=Math.max(hbObs,hbEv);
+  if(nu-Math.max(hbT,_hbStorT)<BATT_HB_MOTS_MS)return false;
+  var mbObs=(_battSett.mb_soc&&_battSett.mb_soc.t)||0;
+  var mbEv=lt.mb&&typeof lt.mb==='object'?(lt.mb.soc||0):0;
+  var mbT=Math.max(mbObs,mbEv);
+  return nu-mbT<BATT_HB_MOTS_MS;          /* ändrad inom timmen = senare än Husbatteri */
 }
 var _battTider={};
 const BATT_HB='331c4824-2fc0-4ebb-90e3-2c6591bba254';
@@ -4002,7 +4022,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
    Definitionen skickas härifrån, för det är dashboarden som vet vilken enhet
    "t_snickarboa" är. Appen sköter bara hämtningen. */
 var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar,'measure_power'],
-  house:[()=>DEV.consume,'measure_power'],batt:[()=>BATT_MB,'measure_battery'],
+  house:[()=>DEV.consume,'measure_power'],batt:[()=>BATT_HB,'measure_battery'],   /* v720: Husbatteri – Modbus nivå hänger sig */
   t_kok:[()=>DEV.vader,'measure_temperature'],
   t_vard:[()=>'1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature'],
   t_ute:[()=>DEV.outdoor,'measure_temperature'],co2:[()=>DEV.vader,'measure_co2'],
@@ -12001,7 +12021,7 @@ const HIST7_VILL={
   solar:  [function(){return DEV.solar;},   ['energy_power','measure_power','watt']],
   house:  [function(){return DEV.consume;}, ['energy_power','measure_power','watt']],
   battpow:[function(){return BATT_MB;}, ['netto']],          /* v701: Modbus, laddning − urladdning */
-  battpct:[function(){return BATT_MB;}, ['measure_battery']]
+  battpct:[function(){return BATT_HB;}, ['measure_battery']]   /* v720: Husbatteri, se battHbMotsager */
 };
 /* findLog tar en lista och tar första loggen som matchar NÅGON av strängarna —
    då avgör loggarnas ordning, inte vår. Här frågar vi en kandidat i taget, så
@@ -19952,7 +19972,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v719';
+const APP_VERSION='v720';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
