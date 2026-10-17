@@ -753,6 +753,24 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   font-variant-numeric:tabular-nums}
 .stat-sub b{font-weight:800}
+/* v721: batteriets bokning/läge som bricka under underraden. */
+.stat-bok{display:inline-flex;align-items:center;gap:4px;max-width:100%;margin-top:4px;padding:2px 7px 2px 5px;
+  border-radius:999px;font-size:var(--tl-sub,10px);font-weight:800;line-height:1.35;white-space:nowrap;
+  overflow:hidden;box-sizing:border-box;align-self:flex-start}
+.stat-bok>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.stat-bok .bok-kort{display:none}
+/* Telefonen: tre rutor i bredd ger ~55 px text – bara ikonen och tiden. */
+body.mobile:not(.kiosk) .stat-bok .bok-lang{display:none}
+body.mobile:not(.kiosk) .stat-bok .bok-kort{display:inline}
+/* …och utan bricka: ikon och tid i färgen, så tiden får plats. */
+body.mobile:not(.kiosk) .stat-bok{background:none;padding:0;gap:3px;margin-top:3px}
+body.mobile:not(.kiosk) .stat-bok>span{overflow:visible;flex:0 0 auto}
+.stat-bok .ic{width:1.15em;height:1.15em;flex:0 0 auto}
+.stat-bok.bok-gul{color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
+.stat-bok.bok-bla{color:var(--blue);background:color-mix(in srgb,var(--blue) 16%,transparent)}
+.stat-bok.bok-gron{color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent)}
+/* I flödesrutornas rutnät (På nu-läget) får brickan en egen rad under underraden. */
+body.panu-pa .fl-tiles>.stat .stat-bok{grid-column:1/-1;grid-row:4;justify-self:start;margin:calc(4px*var(--kk)) 0 0;font-size:calc(10.5px*var(--kk))}
 body.mobile:not(.kiosk) .fl-tiles{--tl-sub:9px}
 .ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
   background:var(--line);pointer-events:none}
@@ -3940,7 +3958,7 @@ function lkConf(power,active,toward,color){return{power:power||0,active:!!active
 function updateFlow(){
   if(!FLOW.built)return;
   const p=PAL[curTheme]||PAL.dark;
-  const solarW=cap(DEV.solar,'measure_power')||0,houseW=cap(DEV.consume,'measure_power'),pulseW=cap(DEV.pulse,'measure_power');
+  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battPct=cap(DEV.battery,'measure_battery'),battW=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   setT('fv-sun',W(solarW));setT('fv-house',houseW==null?'–':W(houseW));
   const importing=pulseW!=null&&pulseW>0,exporting=pulseW!=null&&pulseW<0;
@@ -3987,6 +4005,44 @@ function startFlowAnim(){
 const HKEY='homeyDashHist_v2';let HIST={};
 function loadHist(){try{HIST=JSON.parse(localStorage.getItem(HKEY))||{};}catch(e){HIST={};}}
 function saveHist(){try{localStorage.setItem(HKEY,JSON.stringify(HIST));}catch(e){}}
+/* ===== HUSFÖRBRUKNINGEN (v722) =====
+   SolarEdge-appen uppdaterades 2026-10-16/17. Enheten Förbrukning har nu
+   measure_power.load ("Husförbrukning"), och measure_power är NÄTEFFEKTEN
+   (samma som measure_power.grid: −60 W när measure_power.load var 2 560 W,
+   uppmätt 2026-10-17 08:58). Allt som visade "förbrukning" läste measure_power
+   och visade därmed nätet. Nu läses measure_power.load överallt.
+   Finns inte capabilityn på enheten (äldre app) används measure_power som förut. */
+const HUS_CAP='measure_power.load';
+function husCap(){try{var d=DATA&&DATA[DEV.consume],co=d&&d.capabilitiesObj;
+  if(co&&!(HUS_CAP in co)&&('measure_power' in co))return 'measure_power';}catch(e){}
+  return HUS_CAP;}
+/* HISTORIK ur Insights: Husförbrukningens logg finns bara sedan uppdateringen.
+   Före dess bar den gamla loggen (energy_power, i andra hand measure_power)
+   förbrukningen. Den gamla loggen används bara FÖRE första punkten i den nya –
+   efter uppdateringen kan den visa nätet. Finns den nya loggen men saknar
+   punkter i fönstret visas ingenting hellre än nätet. */
+var HUS_SKARV_MS=10*60000;
+function husSkarva(gamla,nya,harNy){
+  var ok=function(p){return p&&typeof p.t==='number'&&isFinite(p.t)&&typeof p.v==='number'&&isFinite(p.v);};
+  nya=(nya||[]).filter(ok);gamla=(gamla||[]).filter(ok);
+  if(!harNy)return gamla;
+  if(!nya.length)return [];
+  /* Tio minuters marginal före första nya punkten: bytet och loggens första
+     värde behöver inte ha samma tidsstämpel. En negativ förbrukning finns inte
+     – det är i så fall nätet som exporterar, och den punkten tas bort. */
+  var t0=nya[0].t-HUS_SKARV_MS;
+  return gamla.filter(function(p){return p.t<t0&&p.v>=0;}).concat(nya);
+}
+async function husSkarvHist(logs,hamta){
+  var ln=exaktLogg(logs,DEV.consume,[HUS_CAP]),lo=exaktLogg(logs,DEV.consume,['energy_power','measure_power']);
+  var nya=ln?((await hamta(ln))||[]):[],gamla=lo?((await hamta(lo))||[]):[];
+  return husSkarva(gamla,nya,!!ln);
+}
+/* Sidor som var öppna efter uppdateringen spelade in nätet som förbrukning.
+   Den lokala förbrukningsserien töms en gång; Insights fyller i dygnet igen. */
+function husHistRensa(){try{if(localStorage.getItem('husLast_v722'))return false;
+  if(HIST&&HIST.house){delete HIST.house;saveHist();}
+  localStorage.setItem('husLast_v722','1');return true;}catch(e){return false;}}
 /* Slår ihop Insights-datan med det vi redan mätt själva, i stället för att kasta
    den ena. Tidigare vann den serie som hade FLEST punkter (`if(pts.length>...)`),
    och det var i praktiken alltid den lokala – därför försvann allt som mättes
@@ -4002,7 +4058,7 @@ function histMerge(a,b,cut){
   for(var i=0;i<alla.length;i++){
     if(alla[i].t-sen>=110000){ut.push(alla[i]);sen=alla[i].t;}}
   return ut;}
-const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()=>capLive(DEV.solar,'measure_power')],['house',()=>capLive(DEV.consume,'measure_power')],
+const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()=>capLive(DEV.solar,'measure_power')],['house',()=>capLive(DEV.consume,husCap())],
   ['batt',()=>capLive(DEV.battery,'measure_battery')],['t_kok',()=>capLive(DEV.vader,'measure_temperature')],
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
@@ -4022,7 +4078,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
    Definitionen skickas härifrån, för det är dashboarden som vet vilken enhet
    "t_snickarboa" är. Appen sköter bara hämtningen. */
 var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar,'measure_power'],
-  house:[()=>DEV.consume,'measure_power'],batt:[()=>BATT_HB,'measure_battery'],   /* v720: Husbatteri – Modbus nivå hänger sig */
+  house:[()=>DEV.consume,HUS_CAP],batt:[()=>BATT_HB,'measure_battery'],   /* v722: Husförbrukning · v720: Husbatteri – Modbus nivå hänger sig */
   t_kok:[()=>DEV.vader,'measure_temperature'],
   t_vard:[()=>'1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature'],
   t_ute:[()=>DEV.outdoor,'measure_temperature'],co2:[()=>DEV.vader,'measure_co2'],
@@ -4168,6 +4224,8 @@ async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
     t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
   for(const k in want){
+    if(k==='house'){const ph=await husSkarvHist(logs,async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));});
+      if(ph.length)HIST[k]=histMerge(HIST[k],ph,Date.now()-CONFIG.HISTORY_HOURS*3600*1000);continue;}   /* v722 */
     if(k==='battpow'){const pn=await battNettoHist(logs,async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));});
       if(pn.length)HIST[k]=histMerge(HIST[k],pn,Date.now()-CONFIG.HISTORY_HOURS*3600*1000);continue;}
     const lg=SEED_EXAKT[k]?exaktLogg(logs,want[k][0],want[k][1]):findLog(logs,want[k][0],want[k][1]);if(!lg)continue;
@@ -6643,7 +6701,7 @@ function weatherInsightIsAI(){return false;}
 function energyInsight(){return energyInsightHeuristic();}
 function energyInsightIsAI(){return false;}
 function energyInsightHeuristic(){
-  const sol=cap(DEV.solar,'measure_power'),house=cap(DEV.consume,'measure_power'),grid=cap(DEV.pulse,'measure_power'),bpct=cap(DEV.battery,'measure_battery'),bstate=cap(DEV.battery,'battery_charging_state'),plevel=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_level');
+  const sol=cap(DEV.solar,'measure_power'),house=houseNowW(),grid=cap(DEV.pulse,'measure_power'),bpct=cap(DEV.battery,'measure_battery'),bstate=cap(DEV.battery,'battery_charging_state'),plevel=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_level');
   const parts=[];
   if(sol!=null&&house!=null){if(sol>house+300)parts.push('Solöverskott just nu ('+Math.round(sol-house)+' W över förbrukningen).');else if(sol>200&&sol<=house)parts.push('Solen täcker en del av förbrukningen.');}
   if(bstate==='charging'&&bpct!=null)parts.push('Batteriet laddas ('+Math.round(bpct)+' %).');
@@ -11705,7 +11763,7 @@ var LANG_TTL=15*60000;
 var LANG_EFFEKT=['energy_power','measure_power'];
 var LANG_KALLA={
   solar:  function(){return [DEV.solar,LANG_EFFEKT];},
-  house:  function(){return [DEV.consume,LANG_EFFEKT];},
+  house:  function(){return [DEV.consume,['husskarv']];},   /* v722: se husSkarva */
   grid:   function(){return [DEV.pulse,LANG_EFFEKT];},
   battpow:function(){return [BATT_MB,['netto']];},          /* v701: Modbus, laddning − urladdning */
   batt:   function(){return [BATT_MB,['measure_battery']];},
@@ -11790,7 +11848,9 @@ async function langHamta(){
       LANG_AT[k]=Date.now();                    /* även vid fel: inget nytt försök förrän TTL */
       var src=langKalla(k);if(!src)continue;
       var pts;
-      if(src.caps[0]==='netto'){
+      if(src.caps[0]==='husskarv'){
+        pts=await husSkarvHist(_langLogs,async function(lg){var e3=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);return e3.data?parseEntries(e3.data):[];});
+      }else if(src.caps[0]==='netto'){
         pts=await battNettoHist(_langLogs,async function(lg){var e1=await insGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution=last31Days',25000);return e1.data?parseEntries(e1.data):[];});
       }else{
         var lg=exaktLogg(_langLogs,src.dev,src.caps);if(!lg)continue;
@@ -12019,7 +12079,7 @@ var HIST7={}, _hist7At=0, _hist7Laddar=false, _hist7Fel=null, _hist7Info={};
    Listorna är ordnade: första kandidaten som ger en logg med värden vinner. */
 const HIST7_VILL={
   solar:  [function(){return DEV.solar;},   ['energy_power','measure_power','watt']],
-  house:  [function(){return DEV.consume;}, ['energy_power','measure_power','watt']],
+  house:  [function(){return DEV.consume;}, ['husskarv']],   /* v722: se husSkarva */
   battpow:[function(){return BATT_MB;}, ['netto']],          /* v701: Modbus, laddning − urladdning */
   battpct:[function(){return BATT_HB;}, ['measure_battery']]   /* v720: Husbatteri, se battHbMotsager */
 };
@@ -12067,6 +12127,10 @@ async function hist7Hamta(force){
     if(!logs){_hist7Fel='Insights svarade inte'+(lr.fel?(' ('+lr.fel+')'):'');return;}
     var ut={};
     for(var k in HIST7_VILL){
+      if(HIST7_VILL[k][1][0]==='husskarv'){
+        var ph7=await husSkarvHist(logs,async function(lg3){var e4=await insGet('/api/manager/insights/log/'+lg3.uri+'/'+lg3.id+'/entry?resolution=last7Days');return e4.data?parseEntries(e4.data):[];});
+        _hist7Info[k]={id:'energy_power → '+HUS_CAP,n:ph7.length,fel:ph7.length?null:'ingen logg hittad'};
+        if(ph7.length)ut[k]=ph7;continue;}
       if(HIST7_VILL[k][1][0]==='netto'){
         var pn=await battNettoHist(logs,async function(lg2){var e2=await insGet('/api/manager/insights/log/'+lg2.uri+'/'+lg2.id+'/entry?resolution=last7Days');return e2.data?parseEntries(e2.data):[];});
         _hist7Info[k]={id:'batt_charge − batt_discharge',n:pn.length,fel:pn.length?null:'ingen logg hittad'};
@@ -12091,7 +12155,7 @@ async function hist7Hamta(force){
    och exporten använder dem. */
 function buildEnergyPopup(){
   const pw=w=>(w==null?'–':(Math.abs(w)>=1000?num(w/1000,1)+' kW':Math.round(w)+' W'));
-  const house=cap(DEV.consume,'measure_power'),sol=cap(DEV.solar,'measure_power');
+  const house=houseNowW(),sol=cap(DEV.solar,'measure_power');
   const solDay=cap(DEV.solar,'meter_power.day'),solYear=cap(DEV.solar,'meter_power.year');
   const bpct=cap(DEV.battery,'measure_battery'),bpow=cap(DEV.battery,'measure_power'),bstate=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
   const grid=cap(DEV.pulse,'measure_power'),price=elprisNow();
@@ -13026,7 +13090,7 @@ function openDetailKarna(which){
     _grafByggare['g2-batt']={titel:'Husbatteri',full:function(cid){return battGrafHTML(cid||'g2-batt');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
     body=byggBatt();
-  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=cap(DEV.consume,'measure_power'),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
+  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
     const gi=(pw!=null&&pw>0)?pw:0,bi=(bsx==='discharging')?Math.abs(bw):0,si=Math.max(0,(hW||0)-gi-bi);title='Självförsörjning';
     body=dRow('Förbrukning nu',hW==null?'–':W(hW))+dRow('Från sol',W(si))+dRow('Från batteri',W(bi))+dRow('Från nät',W(gi))+dRow('Egen el',(hW?Math.round((si+bi)/hW*100):(pw!=null&&pw<0?100:0))+' %');
   }else if(which==='kopt'){
@@ -13517,7 +13581,7 @@ function visadeRutor(g){var a=gridTiles(g);return (g==='flode')?a.concat(fastaRu
    behövt leverera runt 15 kW, inte 7,6. Rutan visade 18,6 kW medan stapeln
    under (sol + batteri + nät) visade 10,7 — det var skillnaden.
    Mätaren är facit; ingen post läggs till den. */
-function houseNowW(){const base=cap(DEV.consume,'measure_power');return (base==null)?null:base;}
+function houseNowW(){const base=cap(DEV.consume,husCap());return (base==null)?null:base;}   /* v722: Husförbrukning */
 function selfData(){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   const gi=(pw!=null&&pw>0)?pw:0,bi=(bs==='discharging')?Math.abs(bw):0;
   const si=Math.max(0,Math.min(sW,(hW||0)-gi-bi)); /* taket: aldrig mer sol än panelerna ger */
@@ -13728,6 +13792,22 @@ function btPop(){
   var w=document.createElement('div');w.innerHTML=h;
   document.body.appendChild(w.firstChild);}
 
+/* v721: VAD BATTERIET ÄR BOKAT ATT GÖRA – visas som en bricka i batterirutorna.
+   Ordning efter vad som gäller just nu: spara pågår, Ladda pågår, bokad
+   laddstart, bokat spara. null = inget bokat eller påslaget. */
+function battBokning(){
+  try{
+    var nu=Date.now(),R=_regel||{};
+    var sp=battSparaLage();
+    /* kort = mobilens smala ruta: ikonen säger vad, tiden när. */
+    if(sp&&sp.aktiv)return {txt:'Sparar till '+regelKl(sp.till),kort:regelKl(sp.till),cls:'bla',ic:'lock-simple'};
+    if(battLaddLage()===true){var avk=battAvstangKl();return {txt:'Ladda på'+(avk?' till '+avk:''),kort:avk||'på',cls:'gron',ic:'battery-charging'};}
+    var bs=battStartAktiv();
+    if(bs)return {txt:'Laddar '+bilKlText(bs),kort:battKlAv(bs),cls:'gul',ic:'clock'};
+    if(R.spara>nu)return {txt:'Sparar från '+regelKl(R.spara),kort:regelKl(R.spara),cls:'bla',ic:'lock-simple'};
+  }catch(e){}
+  return null;
+}
 function computeMetric(cfg){
   if(!cfg)return{label:'–',icon:'gauge',v:'–',meta:'',det:null};
   if(cfg.type==='sensor'){const v=capMs(cfg.device,cfg.cap),dev=DATA[cfg.device];
@@ -13901,19 +13981,19 @@ function computeMetric(cfg){
       return {label:'Husbatteri \u00b7 niv\u00e5',icon:battIcon(b),icc:battIcc(b,bs),
         v:b==null?'\u2013':Math.round(b)+' <small>%</small>',
         sub:bt||(bs==='charging'?'laddar':bs==='discharging'?'matar ut':'vilar'),
-        meta:bt||'laddniv\u00e5',det:'batt'};}
+        meta:bt||'laddniv\u00e5',det:'batt',bok:battBokning()};}
     case 'battpow':{const pw=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),bb=cap(DEV.battery,'measure_battery');      /* Har ar vardet effekten, och da ar laddnivan det som saknas. */
       return {label:'Batterieffekt',icon:battIcon(bb),icc:battIcc(bb,bs),
         v:pw==null?'\u2013':(bs==='discharging'?'\u2212':'')+W(Math.abs(pw)),
         sub:bb==null?'':Math.round(bb)+' % laddat',
-        meta:bb==null?'':Math.round(bb)+'%',det:'batt'};}
+        meta:bb==null?'':Math.round(bb)+'%',det:'batt',bok:battBokning()};}
     case 'battnow':{const pw=cap(DEV.battery,'measure_power'),b=cap(DEV.battery,'measure_battery'),bs=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
       /* Vardet ar effekten in eller ut, sa under den star LADDNIVAN - det ar
          den man vill se pa avstand, och tiden kvar nar den gar att rakna ut. */
       return {label:'Batteri',icon:bs==='charging'?'battery-charging':battIcon(b),icc:battIcc(b,bs),
         v:pw==null?'–':(bs==='discharging'?'−':'')+W(Math.abs(pw)),
         sub:(b==null?'':Math.round(b)+' %')+(bt?' · '+bt:''),
-        meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt'};}
+        meta:(b==null?'':Math.round(b)+'%')+(bt?' · '+bt:''),det:'batt',bok:battBokning()};}
     case 'batttom':{const S=btSum();
       /* Huvudtalet väljs i inställningarna; det som inte visas som huvudtal
          hamnar i underraden så ingenting går förlorat. */
@@ -14567,7 +14647,7 @@ function predBattPct(h){const cur=capLive(DEV.battery,'measure_battery');if(cur=
   for(let x=nh;x<h;x+=0.25){const net=(predSolarW(x)||0)-avgH;pct+=(net*0.25)/(kwh*1000)*100;pct=Math.max(0,Math.min(100,pct));}
   return Math.round(pct);}
 function histValueAt(hk,T){const a=HIST[hk];if(!a||!a.length)return null;let best=null;for(const p of a){if(p.t<=T+60000)best=p;else break;}if(!best)best=a[0];return best?best.v:null;}
-const TM_HIST=[['solar','measure_power',DEV.solar],['house','measure_power',DEV.consume],['batt','measure_battery',DEV.battery],['battpow','measure_power',DEV.battery],['price','measure_price_total',DEV.tibber],['t_ute','measure_temperature',DEV.outdoor],['t_kok','measure_temperature',DEV.vader],['co2','measure_co2',DEV.vader],['grid','measure_power',DEV.pulse],['pool','measure_temperature',DEV.pooltemp],['hum','measure_humidity',DEV.outdoor],['press','measure_pressure',DEV.vader],['wind','measure_wind_strength',DEV.windMs],['gust','measure_gust_strength',DEV.windMs],['winddir','measure_wind_angle',DEV.windNet],['rain','measure_rain.24h',DEV.rain]];
+const TM_HIST=[['solar','measure_power',DEV.solar],['house',HUS_CAP,DEV.consume],['batt','measure_battery',DEV.battery],['battpow','measure_power',DEV.battery],['price','measure_price_total',DEV.tibber],['t_ute','measure_temperature',DEV.outdoor],['t_kok','measure_temperature',DEV.vader],['co2','measure_co2',DEV.vader],['grid','measure_power',DEV.pulse],['pool','measure_temperature',DEV.pooltemp],['hum','measure_humidity',DEV.outdoor],['press','measure_pressure',DEV.vader],['wind','measure_wind_strength',DEV.windMs],['gust','measure_gust_strength',DEV.windMs],['winddir','measure_wind_angle',DEV.windNet],['rain','measure_rain.24h',DEV.rain]];
 let FORECAST=null,_fcLast=0;
 function smhiUrl(){return 'https://opendata-download-metfcst.smhi.se/api/category/snow1g/version/1/geotype/point/lon/'+(CONFIG.LON||11.93).toFixed(4)+'/lat/'+(CONFIG.LAT||57.43).toFixed(4)+'/data.json';}
 function parseSmhiForecast(j){const ts=j&&j.timeSeries;if(!Array.isArray(ts))return null;const out=[];
@@ -19085,7 +19165,7 @@ function metricNumber(cfg){
   const k=cfg.key;if(k==='self')return selfData().of*100;
   if(k==='seatemp')return (typeof FEED!=='undefined')?FEED.sea:null;
   if(k==='boughtyear')return yearKopt();if(k==='soldyear')return yearSald();
-  const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],solyear:[DEV.solar,'meter_power.year'],house:[DEV.consume,'measure_power'],
+  const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],solyear:[DEV.solar,'meter_power.year'],house:[DEV.consume,husCap()],
     cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.pulse,'measure_power'],gridnow:[DEV.pulse,'measure_power'],
     battnow:[DEV.battery,'measure_power'],battpow:[DEV.battery,'measure_power'],battpct:[DEV.battery,'measure_battery'],
     humidity:[DEV.outdoor,'measure_humidity'],rain:[DEV.rain,'measure_rain.24h'],pressure:[DEV.vader,'measure_pressure'],
@@ -19296,6 +19376,9 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
         /* Med På nu-raden (v689) får rutor utan egen undertext sin
            lägesrad (meta) där — Breveden "värmer mot 15°", disken "klar ~…". */
         +((m.sub||((CFG&&CFG.paNu)&&m.meta))?('<div class="stat-sub">'+(m.sub||m.meta)+'</div>'):'')
+        /* v721: bokning eller pågående läge för batteriet. */
+        +(m.bok?('<div class="stat-bok bok-'+m.bok.cls+'" title="'+esc(m.bok.txt)+'">'+icon(m.bok.ic)
+          +'<span class="bok-lang">'+esc(m.bok.txt)+'</span><span class="bok-kort">'+esc(m.bok.kort||m.bok.txt)+'</span></div>'):'')
         +(trH?('<div class="meta">'+trH+'</div>'):'')+'</div>'+stI
         +(m.mer?'<button type="button" class="tile-mer" aria-label="Fler val" onclick="event.stopPropagation();openDetail(\''+(m.det||'hem')+'\')">⋯</button>':'')+'</div>';
     }});
@@ -19669,7 +19752,7 @@ function teDevChange(){const dv=$('te-dev'),cp=$('te-cap');if(!dv||!cp)return;co
   cp.innerHTML='<option value="">Värde…</option>'+caps.map(c=>'<option value="'+c+'">'+esc(capLabel(c))+'</option>').join('');}
 function tilePrimary(cfg){if(!cfg)return null;
   if(cfg.type==='sensor')return {dev:cfg.device,cap:cfg.cap,kind:'num'};
-  const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],house:[DEV.consume,'measure_power'],
+  const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],house:[DEV.consume,husCap()],
     cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.pulse,'measure_power'],gridnow:[DEV.pulse,'measure_power'],
     sold:[DEV.pulse,'meter_power.exported'],bought:[DEV.pulse,'meter_power.imported'],
     battpct:[DEV.battery,'measure_battery'],battpow:[DEV.battery,'measure_power'],battnow:[DEV.battery,'measure_power'],
@@ -19972,7 +20055,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v720';
+const APP_VERSION='v722';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20098,25 +20181,25 @@ function applyCfg(){
 /* demo-scenarier */
 const SCENARIOS=[
   {name:'Kväll · köper el',patch:{
-    [DEV.solar]:{measure_power:90,'meter_power.day':41.2},[DEV.consume]:{measure_power:2600},
+    [DEV.solar]:{measure_power:90,'meter_power.day':41.2},[DEV.consume]:{'measure_power.load':2600},
     [DEV.pulse]:{measure_power:2300,accumulatedCost:31.4},[DEV.battery]:{measure_power:-1800,battery_charging_state:'discharging',measure_battery:46},
     [DEV.tibber]:{price_level:'VERY_EXPENSIVE',measure_price_total:2.02},[DEV.poolheat]:{onoff:false},[DEV.dish]:{onoff:false}}},
   {name:'Middag · säljer & sol',patch:{
-    [DEV.solar]:{measure_power:5200,'meter_power.day':73.3},[DEV.consume]:{measure_power:780},
+    [DEV.solar]:{measure_power:5200,'meter_power.day':73.3},[DEV.consume]:{'measure_power.load':780},
     [DEV.pulse]:{measure_power:-3100,accumulatedCost:8.1},[DEV.battery]:{measure_power:1700,battery_charging_state:'charging',measure_battery:81},
     [DEV.tibber]:{price_level:'CHEAP',measure_price_total:0.42},[DEV.poolheat]:{onoff:true},[DEV.dish]:{onoff:false}}},
   {name:'Dag · disk + poolvärme',patch:{
-    [DEV.solar]:{measure_power:2600,'meter_power.day':58.0},[DEV.consume]:{measure_power:1850},
+    [DEV.solar]:{measure_power:2600,'meter_power.day':58.0},[DEV.consume]:{'measure_power.load':1850},
     [DEV.pulse]:{measure_power:180,accumulatedCost:15.2},[DEV.battery]:{measure_power:300,battery_charging_state:'charging',measure_battery:67},
     [DEV.tibber]:{price_level:'NORMAL',measure_price_total:0.95},[DEV.poolheat]:{onoff:true},[DEV.dish]:{onoff:true}}},
   {name:'Bil laddar · sol',patch:{
-    [DEV.solar]:{measure_power:6100,'meter_power.day':66.4},[DEV.consume]:{measure_power:8200},
+    [DEV.solar]:{measure_power:6100,'meter_power.day':66.4},[DEV.consume]:{'measure_power.load':8200},
     [DEV.pulse]:{measure_power:-40,accumulatedCost:6.2},[DEV.battery]:{measure_power:900,battery_charging_state:'charging',measure_battery:88},
     [DEV.tibber]:{price_level:'CHEAP',measure_price_total:0.51},[DEV.poolheat]:{onoff:false},[DEV.dish]:{onoff:false},
     [DEV.car2]:{measure_battery:64,range_battery:266,ev_charging_state:'charging',charging_system_status:'CHARGING'},
     '4a9b8a63-22e7-4522-a610-5b212ae9f72c':{onoff:true},[DEV.laddbox]:{measure_power:7400,evcharger_charging:true,evcharger_charging_state:'plugged_in_charging'}}},
   {name:'Natt · lågt batteri',patch:{
-    [DEV.solar]:{measure_power:0,'meter_power.day':38.7},[DEV.consume]:{measure_power:1950},
+    [DEV.solar]:{measure_power:0,'meter_power.day':38.7},[DEV.consume]:{'measure_power.load':1950},
     [DEV.pulse]:{measure_power:2450,accumulatedCost:44.8},[DEV.battery]:{measure_power:-2100,battery_charging_state:'discharging',measure_battery:8},
     [DEV.tibber]:{price_level:'EXPENSIVE',measure_price_total:1.78},[DEV.poolheat]:{onoff:false},[DEV.dish]:{onoff:false}}}
 ];
@@ -20626,7 +20709,7 @@ function render(){
   }}
   renderKsBand();
 
-  const solarW=cap(DEV.solar,'measure_power'),houseW=cap(DEV.consume,'measure_power'),pulseW=cap(DEV.pulse,'measure_power');
+  const solarW=cap(DEV.solar,'measure_power'),houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battW=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),exporting=pulseW!=null&&pulseW<0;
   renderEnergy();
   renderControls();
@@ -21220,7 +21303,7 @@ const DEMO={
 "760b8980-64e5-4321-a03c-8f15cf7864bc":{name:"OCPP Laddbox",class:"evcharger",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:0},"meter_power":{value:1233.79},"evcharger_charging":{value:false},"evcharger_charging_state":{value:"plugged_in"},"ocpp_status":{value:"Finishing"},"measure_temperature":{value:41}}},
 "e8a72bb3-bb7b-4022-b6f3-6981fff72bfe":{name:"Utebelysning",class:"light",zone:"04a44634-aa34-41ed-87c0-d1ab5ce4bedd",capabilitiesObj:{"onoff":{value:false},"dim":{value:0}}},
 "ec4c2247-6ce7-4c32-a7d2-959a246faabf":{name:"Snickarboden",class:"sensor",zone:"3f7e329d-97d7-4be5-83e3-94cc439b2f78",capabilitiesObj:{"measure_battery":{value:49},"measure_temperature":{value:18},"measure_humidity":{value:60.97}}},
-"f01cb4ed-5f43-4e19-84b1-6bcec40e1049":{name:"F\u00f6rbrukning",class:"sensor",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:960},"measure_power.grid":{value:10},"measure_power.solar":{value:2670}}},
+"f01cb4ed-5f43-4e19-84b1-6bcec40e1049":{name:"F\u00f6rbrukning",class:"sensor",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:10},"measure_power.load":{value:960},"measure_power.grid":{value:10},"measure_power.solar":{value:2670}}},
 "f7202538-615e-4e4d-a618-86465aa6b33a":{name:"Badrum",class:"light",zone:"04a44634-aa34-41ed-87c0-d1ab5ce4bedd",capabilitiesObj:{"onoff":{value:true},"dim":{value:0}}},
 "ff4a5d31-1970-4f1e-8e89-d32baed046e8":{name:"Tak",class:"light",zone:"04a44634-aa34-41ed-87c0-d1ab5ce4bedd",capabilitiesObj:{"onoff":{value:false},"dim":{value:0.47}}},
 "e97d77e7-c4e5-407d-8d7c-b03edb95a63e":{name:"Poolv\u00e4rme",class:"socket",zone:"3efd5258-2221-49c2-aa98-e22e8ac8425d",capabilitiesObj:{"onoff":{value:true}}},
@@ -21229,7 +21312,7 @@ const DEMO={
 };
 const DEMO_ZONES={"9919ee1e-ffbc-480b-bc4b-77fb047e9e68":{name:"Hem"},"2ab5a003-0120-4c01-80f2-a237dcf4ba14":{name:"K\u00f6k"},"5a349f9e-a371-44ec-bb9a-fbb8c555f9a3":{name:"Uterum"},"9eb2975d-49ea-4033-8db0-105a3e982117":{name:"Vardagsrum"},"3f7e329d-97d7-4be5-83e3-94cc439b2f78":{name:"Snickarboa"},"ddc3cdaa-8172-4c4a-97c9-22d8ec462972":{name:"Sovrum"},"1815c884-af06-4d53-a2c1-6f4c77e9eb4e":{name:"Kontor"},"31ebbf87-d88a-45d7-989c-c67bd2919d8f":{name:"El"},"a72f1f69-29a1-4ea7-9bc2-0ba940dc5274":{name:"Utomhus"},"04a44634-aa34-41ed-87c0-d1ab5ce4bedd":{name:"Breveden"},"3efd5258-2221-49c2-aa98-e22e8ac8425d":{name:"Poolrum"},"98deb58e-be42-497a-bc32-d0e1ef61b2c1":{name:"G\u00e4strum"},"37782dac-6d40-40a2-a0a4-17a0dd05003a":{name:"K\u00e4llare"},"b044ba53-b4f4-4a2c-b139-6ef1ab37ac64":{name:"Lekrum"},"478cfd92-6475-4214-80d9-27125e39863a":{name:"Hall"}};
 
-initIcons();applyKiosk();loadHist();battPowStad();histEffektStad();
+initIcons();applyKiosk();loadHist();husHistRensa();battPowStad();histEffektStad();
 try{document.addEventListener('fullscreenchange',fsSync);document.addEventListener('webkitfullscreenchange',fsSync);}catch(e){}
 try{if(CFG.autoFull)armAutoFull();}catch(e){}
 try{syncThemeColor();pwaMakeMaskable();stickyBars();applyMobGap();lasPortratt();}catch(e){}
