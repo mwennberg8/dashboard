@@ -759,6 +759,18 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
   overflow:hidden;box-sizing:border-box;align-self:flex-start}
 .stat-bok>span{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .stat-bok .bok-kort{display:none}
+/* v723: suddigt tills första live-svaret. Bara innehållet – flikraden och
+   popuperna rörs inte. Ingen tryckning går igenom medan det är suddigt. */
+.wrap{transition:filter .35s ease,opacity .35s ease}
+body.vantar-live .wrap{filter:blur(5px) saturate(.75);opacity:.7;pointer-events:none}
+#live-vant{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-6px);z-index:46;
+  display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:var(--panel-a);
+  border:1px solid var(--line);box-shadow:0 6px 18px -8px rgba(0,0,0,.45);font-size:12px;font-weight:750;color:var(--dim);
+  opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+body.vantar-live #live-vant{opacity:1;transform:translate(-50%,0)}
+#live-vant .lv-prick{width:8px;height:8px;border-radius:50%;background:var(--warm);animation:lvPuls 1.1s ease-in-out infinite}
+@keyframes lvPuls{0%,100%{opacity:1}50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.wrap,#live-vant{transition:none}#live-vant .lv-prick{animation:none}}
 /* Telefonen: tre rutor i bredd ger ~55 px text – bara ikonen och tiden. */
 body.mobile:not(.kiosk) .stat-bok .bok-lang{display:none}
 body.mobile:not(.kiosk) .stat-bok .bok-kort{display:inline}
@@ -769,8 +781,24 @@ body.mobile:not(.kiosk) .stat-bok>span{overflow:visible;flex:0 0 auto}
 .stat-bok.bok-gul{color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent)}
 .stat-bok.bok-bla{color:var(--blue);background:color-mix(in srgb,var(--blue) 16%,transparent)}
 .stat-bok.bok-gron{color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,transparent)}
-/* I flödesrutornas rutnät (På nu-läget) får brickan en egen rad under underraden. */
-body.panu-pa .fl-tiles>.stat .stat-bok{grid-column:1/-1;grid-row:4;justify-self:start;margin:calc(4px*var(--kk)) 0 0;font-size:calc(10.5px*var(--kk))}
+/* v724: brickan under underraden gjorde raden högre. Nu sitter markeringen
+   under batteriikonen (.stat-bokik) – i ikonens kolumn, absolut placerad, så
+   rutans höjd inte ändras. I flödesrutnätet (På nu-läget) delar ikonen rad med
+   rubriken och värdet ligger direkt under, så där står markeringen i stället
+   sist på rubrikraden. */
+.stat-bok{display:none!important}
+.stat-ic.har-bok{position:relative;overflow:visible}
+.stat-bokik{position:absolute;top:calc(100% + 5px);left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;white-space:nowrap;line-height:1}
+.stat-bokik .ic{width:13px!important;height:13px!important}
+.stat-bokik b{font-size:9.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.stat-bokik.bok-gul{color:var(--gold)}.stat-bokik.bok-bla{color:var(--blue)}.stat-bokik.bok-gron{color:var(--ok)}
+body.panu-pa .fl-tiles>.stat .stat-bokik{display:none}
+body.panu-pa .fl-tiles>.stat .stat-bok{display:inline-flex!important;grid-column:3;grid-row:1;justify-self:end;align-self:center;
+  margin:0 0 0 calc(4px*var(--kk));padding:0;background:none;gap:3px;font-size:calc(10px*var(--kk))}
+body.panu-pa .fl-tiles>.stat .stat-bok .bok-lang{display:none}
+body.panu-pa .fl-tiles>.stat .stat-bok .bok-kort{display:inline}
+body.panu-pa .fl-tiles>.stat .stat-bok>span{overflow:visible;flex:0 0 auto}
 body.mobile:not(.kiosk) .fl-tiles{--tl-sub:9px}
 .ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
   background:var(--line);pointer-events:none}
@@ -19265,10 +19293,15 @@ function tileIkon(cfg,m){
    av bilden i stallet for att bli ett andra objekt langt bort. */
 function tileIkonHTML(cfg,m,cls){
   var t=tileIkon(cfg,m);
-  return '<span class="'+cls+(t.puls?' pulsar':'')+(t.extra?' har-mark':'')+'"'
+  /* v724: batteriets bokning UNDER ikonen – i ikonens egen kolumn, utan att
+     rutan blir högre. Bara ikonen för läget och klockslaget; hela texten i title. */
+  var bok=m&&m.bok?('<span class="stat-bokik bok-'+m.bok.cls+'" title="'+esc(m.bok.txt)+'">'+icon(m.bok.ic)
+    +'<b>'+esc(m.bok.kort||'')+'</b></span>'):'';
+  return '<span class="'+cls+(t.puls?' pulsar':'')+(t.extra?' har-mark':'')+(bok?' har-bok':'')+'"'
     +(m.icc?(' style="color:'+m.icc+'"'):'')+'>'
     +icon(t.icon)
     +(t.extra?('<span class="ik-mark">'+icon(t.extra)+'</span>'):'')
+    +bok
     +'</span>';
 }
 function tileStatus(cfg){
@@ -20055,7 +20088,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v722';
+const APP_VERSION='v724';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21112,6 +21145,37 @@ function credTillCONFIG(){var c=credGet();
   CONFIG.HOMEY_URL=credLan()||credMoln()||'';
   return c;}
 /* Lokalt forst, moln sedan. Hemma vinner LAN pa snabbhet; ute finns bara molnet. */
+/* VÄGVALET PARALLELLT (v723). Förut provades adresserna en i taget: hemifrån
+   fick den lokala adressen hänga i hela tidsgränsen (8 s) innan molnet ens
+   frågades – uppmätt i provmiljön: första live-värdet efter 9,2 s borta, 0,5 s
+   hemma. Nu frågas alla samtidigt. Den högst prioriterade som svarar vinner,
+   men en lägre (molnet) får bara vinna när de högre har fallerat eller inte
+   svarat inom VAG_FORSPRANG efter den. Hemma vinner alltså fortfarande det
+   lokala nätet, och borta blir det molnet så fort det svarar.
+   hamta(base) ska ge enhetslistan eller null. Svarar inget: null. */
+var VAG_FORSPRANG=250;
+function valjVag(lista,hamta){
+  return new Promise(function(klar){
+    if(!lista||!lista.length){klar(null);return;}
+    var svar={},kvar=lista.length,forstaOk=0,klart=false;
+    function avgor(){
+      if(klart)return;
+      for(var i=0;i<lista.length;i++){var b=lista[i],s0=svar[b];
+        if(s0===undefined){                              /* väntar fortfarande */
+          if(forstaOk&&Date.now()-forstaOk>=VAG_FORSPRANG)continue;
+          return;}
+        if(s0){klart=true;klar({base:b,map:s0});return;}
+      }
+      if(kvar===0||forstaOk){klart=true;klar(null);}
+    }
+    lista.forEach(function(b){
+      Promise.resolve().then(function(){return hamta(b);}).then(function(m){return m||null;},function(){return null;})
+        .then(function(m){svar[b]=m;kvar--;
+          if(m&&!forstaOk){forstaOk=Date.now();setTimeout(avgor,VAG_FORSPRANG+5);}
+          avgor();});
+    });
+  });
+}
 function candidates(){
   credTillCONFIG();
   var list=[],lan=credLan(),moln=credMoln();
@@ -21181,6 +21245,35 @@ function cacheVisa(){
   try{render();}catch(e){}
   return true;
 }
+/* ===== SUDDIGT TILLS LIVE (v723) =====
+   Vid öppning visas sparade värden direkt (cachen), men suddiga, tills första
+   färska svaret kommit från Homey. Då skärps sidan. Svarar Homey inte alls
+   skärps den ändå (gul/röd prick säger att värdena är gamla) – och senast efter
+   LIVE_VANTA_MAX, så sidan aldrig fastnar suddig. Samma sak när sidan kommer
+   tillbaka efter mer än LIVE_VANTA_DOLD i bakgrunden. Demoläget och sidan utan
+   inloggning berörs inte. */
+var LIVE_VANTA_MAX=12000,LIVE_VANTA_DOLD=60000,_liveVantaT=null;
+function liveVanta(pa){
+  try{
+    var b=document.body;if(!b||!b.classList)return;
+    if(pa){
+      if(isDemo()||!credFinns())return;
+      b.classList.add('vantar-live');
+      var el=document.getElementById('live-vant');
+      if(!el){el=document.createElement('div');el.id='live-vant';el.setAttribute('role','status');
+        el.innerHTML='<span class="lv-prick"></span><span>Hämtar live\u2026</span>';b.appendChild(el);}
+      clearTimeout(_liveVantaT);_liveVantaT=setTimeout(function(){liveVanta(false);},LIVE_VANTA_MAX);
+    }else{
+      clearTimeout(_liveVantaT);_liveVantaT=null;
+      b.classList.remove('vantar-live');
+    }
+  }catch(e){}
+}
+var _liveDoldSedan=0;
+try{document.addEventListener('visibilitychange',function(){
+  if(document.hidden){_liveDoldSedan=Date.now();return;}
+  if(_liveDoldSedan&&Date.now()-_liveDoldSedan>=LIVE_VANTA_DOLD){liveVanta(true);try{load();}catch(e){}}
+  _liveDoldSedan=0;});}catch(e){}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 async function load(){
   credTillCONFIG();
@@ -21212,14 +21305,12 @@ async function load(){
       if(!map)provaOm=true;                 /* nuvarande väg svarar inte längre */
     }
     if(provaOm){
-      for(const base of candidates()){
-        map=await fetchHomey(base);
-        if(map){
-          if(base!==BASE)_baseByte=Date.now();
-          BASE=base;_baseAt=Date.now();
-          SOURCE='Homey · '+base.replace(/^https?:\/\//,'');
-          break;
-        }
+      var vv=await valjVag(candidates(),fetchHomey);   /* v723: alla vägar samtidigt */
+      if(vv){
+        map=vv.map;
+        if(vv.base!==BASE)_baseByte=Date.now();
+        BASE=vv.base;_baseAt=Date.now();
+        SOURCE='Homey · '+vv.base.replace(/^https?:\/\//,'');
       }
     }
   }
@@ -21235,6 +21326,7 @@ async function load(){
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
   render();tickRel();setT('foot-src',footKalla());footVia();
+  liveVanta(false);   /* v723: färska värden – eller inget svar alls: skärp sidan */
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();prisVarHamta();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
     /* Krönikelistan hämtas HÄR, inte bara när Insikter ritas. Notisknappen sitter
        i toppraden på startsidan, och utan det här stod den tom tills man råkat
@@ -22120,12 +22212,23 @@ try{hallInne($('en-status'),husVaxla,function(){return document.body.classList.c
 try{if(localStorage.getItem('yearhist_v1')==null){yearHistSave(SEED_YEARS.map(function(x){return Object.assign({},x);}));}}catch(e){}
 /* Cachen ritas FÖRE load(), annars hinner nätet ändå bestämma hur länge
    skärmen står tom. */
+try{liveVanta(true);}catch(e){}
 try{cacheVisa();}catch(e){}
 try{fotStartar();}catch(e){}
-load();
-if(typeof bootSync==='function')bootSync();
-if(typeof fetchSmhiForecast==='function'){fetchSmhiForecast();setInterval(fetchSmhiForecast,25*60000);}
-if(typeof refreshFeeds==='function'){refreshFeeds();setInterval(refreshFeeds,30*60000);}
+/* STEG 2 (v723). Första svaret från Homey går före allt annat: synken av
+   layouten (appens backup), SMHI-prognosen och nyhetsflödena startas först när
+   enhetslistan kommit – eller efter STEG2_MAX om den dröjer. Förut gick de
+   iväg samtidigt och konkurrerade om nätet, och hemifrån skickades synken till
+   den lokala adressen eftersom vägen ännu inte var vald. */
+var STEG2_MAX=5000,_steg2Kort=false;
+function steg2(){
+  if(_steg2Kort)return;_steg2Kort=true;
+  if(typeof bootSync==='function')bootSync();
+  if(typeof fetchSmhiForecast==='function'){fetchSmhiForecast();setInterval(fetchSmhiForecast,25*60000);}
+  if(typeof refreshFeeds==='function'){refreshFeeds();setInterval(refreshFeeds,30*60000);}
+}
+var _forstaLoad=load();
+try{Promise.race([_forstaLoad,new Promise(function(r){setTimeout(r,STEG2_MAX);})]).then(steg2,steg2);}catch(e){steg2();}
 (function(){const ds=$('daystrip');if(!ds||!ds.addEventListener)return;let t=null,sx=0,sy=0,moved=false;
   const dn=e=>{if(e.target&&e.target.closest&&e.target.closest('.ds-pm'))return;sx=e.clientX||0;sy=e.clientY||0;moved=false;
     t=setTimeout(()=>{t=null;_suppressClick=true;setTimeout(()=>{_suppressClick=false;},600);if(navigator.vibrate)try{navigator.vibrate(12);}catch(_){}enterTimeMode(_scrubH!=null?_scrubH:nowHour());},450);};
