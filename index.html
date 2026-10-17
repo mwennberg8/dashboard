@@ -5073,6 +5073,8 @@ function battKnappIx(){
 }
 async function battStartaNu(){
   battStartSatt(null);
+  var sparaTill=battSparaTill(Date.now());
+  battStoppSkriv(sparaTill);
   /* STÄNG, VISA VÄNTLÄGET, SKICKA SEDAN.
      battLaddLage() läser två modbus-capabilities som inte uppdateras förrän
      nästa hämtning, så knappen måste visa väntan själv.
@@ -5088,7 +5090,7 @@ async function battStartaNu(){
   if(ix>=0)flashCtl(ix,'Startar\u2026');
   try{
     await homeyTriggerFlow('standard',BATT_FLOW_PA);
-    toast('Startar laddning\u2026');
+    toast('Startar laddning\u2026'+(sparaTill?' Fullt sparas till '+regelKl(sparaTill):''));
     /* Rita om direkt efter svaret också — annars kan en omritning som hann
        emellan ha lämnat knappen utan väntklassen. */
     renderControls();
@@ -5196,6 +5198,8 @@ function battVantaPuls(){
 function battBokaStart(ms){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
   battStartSatt(ms);
+  var sparaTill=battSparaTill(ms);
+  battStoppSkriv(sparaTill);
   /* SAMMA ORDNING SOM "LADDA NU", som bevisligen fungerar: stäng rutan FÖRST,
      rita om sedan. Förut låg closeDetail sist, efter renderControls och
      flashCtl — kastade någon av dem blev rutan stående. Nu kan de inte hindra
@@ -5206,9 +5210,9 @@ function battBokaStart(ms){
   closeDetail();
   try{renderControls();}catch(e){}
   try{var bix=battKnappIx();if(bix>=0)flashCtl(bix,'Bokad \u00b7 '+battKlAv(ms));}catch(e){}
-  toast('Laddning bokad '+battKlAv(ms));
+  toast('Laddning bokad '+battKlAv(ms)+(sparaTill?' \u00b7 fullt sparas till '+regelKl(sparaTill):''));
 }
-function battAvbokaStart(){battStartSatt(null);toast('Avbokad');renderControls();battLaddOm();}
+function battAvbokaStart(){battStartSatt(null);battStoppAvboka();toast('Avbokad');renderControls();battLaddOm();}
 function blEgenMs(){
   if(_blLage==='timer')return Date.now()+blTimer()*60000;
   var t=dayStart()+blTid()*60000;
@@ -5495,8 +5499,11 @@ async function btnTap(i){
         renderControls();
         return;
       }
-      /* Något är igång och trycket är bekräftat: avbryt det. */
+      /* Något är igång och trycket är bekräftat: avbryt det.
+         v728: stoppet följer med – Stoppa ger normal drift direkt, och en
+         avbokad laddning ska inte lämna ett spara efter sig. */
       battStartSatt(null);
+      if(bl2)battStoppSkriv(0);else battStoppAvboka();
       if(bl2){
         battVantaSatt(false);            /* samma skäl som vid start */
         /* Rita om DIREKT. Utan den här raden satte först pulsen klassen, en
@@ -12952,8 +12959,10 @@ function svKlMs(y,m,d,h){
   return vagg-off(ms);
 }
 /* Ren funktion. pts0/pts1 = prisDygn(0)/prisDygn(1) ([[timme, kr], …], timmar
-   eller kvartar). Returnerar {franMs, tillMs, snitt} eller null. */
-function sparaMal(pts0,pts1,nuMs){
+   eller kvartar). Returnerar {franMs, tillMs, snitt} eller null.
+   v728: franMs (valfri) = räkna från en senare tid, t.ex. en bokad laddstart.
+   Dygnen förankras fortfarande i nuMs – pts0 är alltid dagens priser. */
+function sparaMal(pts0,pts1,nuMs,franMs){
   var d0=svDatum(nuMs),m0=svMidnatt(d0.y,d0.m,d0.d),d1=svDatum(m0+36*3600000);
   var tim=[];
   [[pts0,d0],[pts1,d1]].forEach(function(x){
@@ -12962,7 +12971,8 @@ function sparaMal(pts0,pts1,nuMs){
     pts.forEach(function(p){var h=Math.floor(p[0]);if(h<0||h>23||!isFinite(p[1]))return;sum[h]=(sum[h]||0)+p[1];n[h]=(n[h]||0)+1;});
     for(var h=0;h<24;h++)if(n[h]){var t0=svKlMs(d.y,d.m,d.d,h);tim.push({t0:t0,t1:t0+3600000,kr:sum[h]/n[h]});}
   });
-  var fr=tim.filter(function(t){return t.t1>nuMs;});
+  var fr0=(franMs>nuMs)?franMs:nuMs;
+  var fr=tim.filter(function(t){return t.t1>fr0;});
   if(fr.length<2)return null;
   var v=fr.map(function(t){return t.kr;}),lo=Math.min.apply(null,v),hi=Math.max.apply(null,v);
   if(!(hi-lo>0.05))return null;
@@ -12977,8 +12987,40 @@ function sparaMal(pts0,pts1,nuMs){
 /* Pågår eller är spara bokat? Ett stopp framåt utan inbokad laddstart. */
 function battSparaLage(){
   var R=_regel,nu=Date.now();
-  if(R&&R.stopp>nu&&!(R.start>nu))return {aktiv:true,till:R.stopp};
+  /* v728: ett stopp skrivs nu även av Ladda max (spara efter fullt). Medan
+     laddningen pågår är det alltså inte spara – det blir det först när
+     energistyr slagit om vid fullt (battladd_max → 0). */
+  var laddar=false;try{laddar=battMaxMark()===1||battLaddLage()===true;}catch(e){}
+  if(R&&R.stopp>nu&&!(R.start>nu)&&!laddar)return {aktiv:true,till:R.stopp};
   return {aktiv:false};
+}
+/* ===== FULLT BATTERI SPARAS TILL DEN DYRA PERIODEN (v728) =====
+   Ladda max och bokad laddning från dashboarden skriver battladd_stopp =
+   början på nästa dyra period efter laddstarten (samma beräkning som
+   Spara-knappen). energistyr 3.2.0 ser stoppet när batteriet blir fullt och
+   går då i spara i stället för normal drift; stoppet slår om till normal drift
+   när den dyra perioden börjar. 0 = ingen dyr period i sikte → normal drift
+   vid fullt, som förut. */
+function battSparaTill(franMs){
+  try{var m=sparaMal(prisDygn(0),prisDygn(1),Date.now(),franMs);return m?m.franMs:0;}catch(e){return 0;}
+}
+/* Skriver stoppet (och nollar ett gammalt spara) i Homey. Svaret inväntas inte
+   av knapparna; nästa hämtning rättar bilden. */
+function battStoppSkriv(ms){
+  var v=(ms>0)?Number(ms):0;
+  try{_regel=_regel||{};_regel.stopp=v;if(v)_regel.spara=0;}catch(e){}
+  try{
+    return logicList().then(function(list){
+      return logicWrite(list,'battladd_stopp',v).then(function(){return v?logicWrite(list,'battladd_spara',0):null;});
+    }).catch(function(){});
+  }catch(e){return null;}
+}
+/* Avbokas en laddning som inte startat ska dess stopp bort – men inte om
+   batteriet just nu SPARAR: då hör stoppet till sparandet, och utan det skulle
+   inget slå tillbaka till normal drift. */
+function battStoppAvboka(){
+  try{if(regelLage().lage==='spara')return;}catch(e){}
+  battStoppSkriv(0);
 }
 var _sparaArm=0;
 function battSparaKnapp(){
@@ -13829,9 +13871,12 @@ function battBokning(){
     var sp=battSparaLage();
     /* kort = mobilens smala ruta: ikonen säger vad, tiden när. */
     if(sp&&sp.aktiv)return {txt:'Sparar till '+regelKl(sp.till),kort:regelKl(sp.till),cls:'bla',ic:'lock-simple'};
-    if(battLaddLage()===true){var avk=battAvstangKl();return {txt:'Ladda på'+(avk?' till '+avk:''),kort:avk||'på',cls:'gron',ic:'battery-charging'};}
+    if(battLaddLage()===true){var avk=battAvstangKl();
+      /* v728: fullt sparas till den dyra perioden. */
+      if(R.stopp>nu)return {txt:'Ladda på · fullt sparas till '+regelKl(R.stopp),kort:'på',cls:'gron',ic:'battery-charging'};
+      return {txt:'Ladda på'+(avk?' till '+avk:''),kort:avk||'på',cls:'gron',ic:'battery-charging'};}
     var bs=battStartAktiv();
-    if(bs)return {txt:'Laddar '+bilKlText(bs),kort:battKlAv(bs),cls:'gul',ic:'clock'};
+    if(bs)return {txt:'Laddar '+bilKlText(bs)+(R.stopp>bs?' \u00b7 sparas till '+regelKl(R.stopp):''),kort:battKlAv(bs),cls:'gul',ic:'clock'};
     if(R.spara>nu)return {txt:'Sparar från '+regelKl(R.spara),kort:regelKl(R.spara),cls:'bla',ic:'lock-simple'};
   }catch(e){}
   return null;
@@ -19946,7 +19991,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v727';
+const APP_VERSION='v728';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
