@@ -1310,6 +1310,12 @@ body.kiosk.panu-pa .fl-tiles{grid-auto-rows:minmax(0,1fr)!important}
 body.kiosk.panu-pa .fl-tiles>.stat{overflow:hidden}
 body.kiosk.panu-pa .fl-tiles>.stat{align-content:center}
 body.kiosk.panu-pa .panu-c{height:34px;font-size:13.5px;padding:0 14px}
+/* v727: PÅ NU-RADEN TRYCKS INTE IHOP. Avsnittet är en flexkolumn med fast höjd
+   och raden hade min-height:0 och standardkrympning – när utrymmet tröt (två
+   rader brickor, större mått) krympte raden och brickorna ritades UNDER
+   rutorna. Nu behåller raden sin höjd; det är rutorna som får dela på resten,
+   och räcker inte det skalar fitScreen ned hela sidan. */
+body.kiosk.panu-pa .tileswrap>.panu{flex:0 0 auto}
 .hem-pop{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .hem-pop .ctl-row{display:flex;gap:8px}
 /* v719: knapprader i popuper går kant i kant med raderna och graferna, utan
@@ -6584,9 +6590,6 @@ function renderWeather(){const a=$('weather-flow');if(a)a.innerHTML=buildWeather
 const ARROW_COLORS={default:'var(--blue)',red:'var(--hot)',blue:'var(--blue)',cyan:'var(--cyan)',green:'var(--ok)'};
 const ARROW_COLOR_ORDER=['default','red','blue','cyan','green'];
 const ARROW_COLOR_NAMES={default:'Standard',red:'Röd',blue:'Blå',cyan:'Cyan',green:'Grön'};
-const WX_EDIT={strip:{title:'Storlek · Väderremsa',rows:[['Etikett','stripL'],['Värde','stripV'],['Ikon','stripI']]},
-  now:{title:'Väder & vind',rows:[['Ikoner','nowI'],['Värden','nowV'],['Text','nowT'],
-    ['Känns / By','nowKB'],['Vindriktning/temp','nowDir']]}};
 /* ===== Storleksprofiler: mobil och platta har egna storlekar =====
    Allt ligger kvar i samma konfiguration och synkas till Homey som vanligt, men
    mobilens värden sparas under CFG.mob och används bara när dashboarden körs på
@@ -6599,9 +6602,16 @@ function szMobile(){try{var vm=localStorage.getItem('view_mode_v1');
    plattans, så ett mått man inte rört ärvdes från plattan — ställde man om
    spotpriset på plattan flyttade sig telefonens också. En platta och en telefon
    har olika ytor och ska inte påverka varandra alls. */
+/* v727: INGA STORLEKAR PER ENHET LÄNGRE. Mått, höjder och textstorlekar är
+   fasta och samma för alla; kioskläget skalar hela sidan så att den får plats.
+   Gamla sparade värden ligger kvar i CFG men läses aldrig – bara de nycklar som
+   INTE är storlekar släpps igenom (pilfärg, centrering, ändtextens färg). */
+var SZ_BEHALL={wx:['arrowColor','nowCenter'],spot:['endWhite']};
 function szRead(name){
-  if(szMobile())return (CFG.mob&&CFG.mob[name])||{};
-  return CFG[name]||{};}
+  var src=szMobile()?((CFG.mob&&CFG.mob[name])||{}):(CFG[name]||{});
+  var ut={},k=SZ_BEHALL[name]||[];
+  for(var i=0;i<k.length;i++)if(src[k[i]]!==undefined)ut[k[i]]=src[k[i]];
+  return ut;}
 function szWrite(name){
   if(szMobile()){CFG.mob=CFG.mob||{};CFG.mob[name]=CFG.mob[name]||{};return CFG.mob[name];}
   CFG[name]=CFG[name]||{};return CFG[name];}
@@ -6620,36 +6630,24 @@ function shortLab(t){
   if(!szMobile()||t==null)return t;
   var k=(''+t).toLowerCase().trim();
   return TILE_ABBR[k]||t;}
-function szLabel(){return szMobile()?'Gäller mobilen. Plattan har egna storlekar.':'Gäller plattan/datorn. Mobilen har egna storlekar.';}
-function openWxEdit(block){const spec=WX_EDIT[block];if(!spec)return;const wzc=szRead('wx');
+function openWxEdit(block){
+  /* v727: remsan hade bara storlekar – inget kvar att ställa in där. */
+  if(block!=='now'){openSecMove('weather');return;}
+  const wzc=szRead('wx');
   let h='<div class="te">';
-  spec.rows.forEach(r=>{const key=r[1],v=wzc[key]||0;
-    h+='<div class="cfg-row"><span class="cfg-row-l">'+r[0]+'</span><div class="cfg-step"><button class="cfg-pm" onclick="wxStep(\''+key+'\',-1)">−</button><span class="cfg-num" id="wxnum-'+key+'">'+(v>0?'+':'')+v+'</span><button class="cfg-pm" onclick="wxStep(\''+key+'\',1)">+</button></div></div>';});
-  if(block==='now'){const cur=wzc.arrowColor||'default';
+  {const cur=wzc.arrowColor||'default';
     h+='<div class="cfg-row"><span class="cfg-row-l">Pilfärg</span><div class="cfg-step"><button class="cfg-pm" onclick="wxColorStep(-1)">−</button><span class="cfg-num" id="wxcolnum">'+wxColorLabel(cur)+'</span><button class="cfg-pm" onclick="wxColorStep(1)">+</button></div></div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Centrera i rutan</span><div class="cfg-step"><button class="cfg-pm" style="width:auto;padding:0 16px" id="wxcenbtn" onclick="wxToggleCenter()">'+(wzc.nowCenter?'På':'Av')+'</button></div></div>';}
-  h+='<div class="cfg-hint" style="margin-top:8px"><b>'+esc(szLabel())+'</b></div>';
   h+='<div class="te-adv" style="margin-top:12px"><button class="te-use" onclick="wxReset(\''+block+'\')">Nollställ</button></div></div>';
   const dlgn=$('dlg');if(dlgn&&dlgn.classList){dlgn.classList.remove('wide');dlgn.classList.add('edit');}
-  setT('dlg-title',spec.title);setIcon('dlg-ic','gauge');
+  setT('dlg-title','Väder & vind');setIcon('dlg-ic','gauge');
   const bd=$('dlg-body');if(bd)bd.innerHTML=h;
   const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function wxStep(key,d){var b=szWrite('wx');b[key]=Math.max(-6,Math.min(12,(szRead('wx')[key]||0)+d));saveCfg();renderWeather();const n=$('wxnum-'+key);if(n)n.textContent=(b[key]>0?'+':'')+b[key];}
-function wxReset(block){const spec=WX_EDIT[block];if(!spec)return;szClear('wx',spec.rows.map(function(r){return r[1];}));if(block==='now')szClear('wx',['arrowColor','nowCenter']);saveCfg();renderWeather();openWxEdit(block);}
+function wxReset(block){szClear('wx',['arrowColor','nowCenter']);saveCfg();renderWeather();openWxEdit(block);}
 function wxToggleCenter(){var w=szWrite('wx');w.nowCenter=!szRead('wx').nowCenter;saveCfg();renderWeather();const b=$('wxcenbtn');if(b)b.textContent=w.nowCenter?'På':'Av';}
-function openEnergyEdit(){CFG.en=CFG.en||{};
-  const rows=[['Ikon','icon'],['Stora talet','val'],['Text','text']];
-  let h='<div class="te">';
-  rows.forEach(r=>{const key=r[1],v=CFG.en[key]||0;
-    h+='<div class="cfg-row"><span class="cfg-row-l">'+r[0]+'</span><div class="cfg-step"><button class="cfg-pm" onclick="energyStep(\''+key+'\',-1)">−</button><span class="cfg-num" id="ennum-'+key+'">'+(v>0?'+':'')+v+'</span><button class="cfg-pm" onclick="energyStep(\''+key+'\',1)">+</button></div></div>';});
-  h+='<div class="te-adv" style="margin-top:12px"><button class="te-use" onclick="energyReset()">Nollställ</button></div></div>';
-  const dlgn=$('dlg');if(dlgn&&dlgn.classList){dlgn.classList.remove('wide');dlgn.classList.add('edit');}
-  setT('dlg-title','Energi just nu');setIcon('dlg-ic','lightning');
-  const bd=$('dlg-body');if(bd)bd.innerHTML=h;
-  const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function energyStep(key,d){CFG.en=CFG.en||{};CFG.en[key]=Math.max(-6,Math.min(14,(CFG.en[key]||0)+d));saveCfg();applyEnergySize();const n=$('ennum-'+key);if(n)n.textContent=(CFG.en[key]>0?'+':'')+CFG.en[key];}
-function energyReset(){CFG.en={};saveCfg();applyEnergySize();openEnergyEdit();}
-function applyEnergySize(){const e=(CFG&&CFG.en)||{};
+/* v727: CFG.en (storlek på talet och texten) läses inte längre – e är alltid
+   tomt och funktionen nollar bara inline-stilar som en äldre version satt. */
+function applyEnergySize(){const e={};
   const hh=$('house-hero');if(hh&&hh.style){if(e.icon){const z=Math.max(16,28+e.icon*2);hh.style.width=z+'px';hh.style.height=z+'px';}else{hh.style.width='';hh.style.height='';}}
   const setF=(el,base,off,st)=>{if(!el||!el.style)return;el.style.fontSize=off?Math.max(8,Math.round((base+off*st)*10)/10)+'px':'';};
   setF($('en-house'),25,e.val,1.4);
@@ -6674,7 +6672,7 @@ function openCalib(){const dlgw=$('dlg');if(dlgw&&dlgw.classList){dlgw.classList
 function wxColorLabel(k){const c=ARROW_COLORS[k]||'var(--warm)';return '<span style="width:12px;height:12px;border-radius:3px;background:'+c+';display:inline-block;vertical-align:-1px;margin-right:6px"></span>'+(ARROW_COLOR_NAMES[k]||'Standard');}
 function wxColorStep(d){var wb=szWrite('wx');let i=ARROW_COLOR_ORDER.indexOf(szRead('wx').arrowColor||'default');if(i<0)i=0;i=(i+d+ARROW_COLOR_ORDER.length)%ARROW_COLOR_ORDER.length;const k=ARROW_COLOR_ORDER[i];wb.arrowColor=k;saveCfg();renderWeather();const n=$('wxcolnum');if(n)n.innerHTML=wxColorLabel(k);}
 function openReportEdit(){
-  const rows=[['Tid mellan byten','reportSecs'],['Textstorlek','reportTextSize'],['Ikonstorlek','reportIconSize']];
+  const rows=[['Tid mellan byten','reportSecs']];
   let h='<div class="te">';
   rows.forEach(r=>{const key=r[1],v=(CFG[key]!=null?CFG[key]:(key==='reportSecs'?6:0));
     const disp=(key==='reportSecs'?v+' s':(v>0?'+':'')+v);
@@ -12716,15 +12714,17 @@ function popKnappar(dest){
   var h='';for(var r=0;r<ut.length;r+=4)h+='<div class="ctl-row">'+ut.slice(r,r+4).join('')+'</div>';
   return '<div class="controls hem-pop" id="popk-'+dest+'">'+h+'</div>';
 }
-/* v713: knappar läggs till direkt i belysningsrutans popup. "+ Lägg till
-   knapp" skapar en ny knapp (samma som i knappredigeraren) och öppnar
-   redigeraren. Håll in en knapp i popupen för att ändra eller ta bort den.
+/* v713: knappar läggs till direkt i belysningsrutans popup. Håll in en knapp
+   i popupen för att ändra, ta bort eller lägga till ("Lägg till ny knapp" i
+   redigeraren). v725: "+ Lägg till knapp" och hjälptexten visas bara när
+   popupen saknar knappar – annars finns ingen knapp att hålla in.
    En knapp hamnar här så länge den inte hör till en annan ruta (disk, pool,
    Breveden, batteriet) – se knappTill. */
 function hemPopup(){
-  return (popKnappar('hem')||'<div class="viz-empty">Inga knappar ännu.</div>')
-    +'<div class="hem-ny"><button type="button" class="te-alt" onclick="beAdd()">＋ Lägg till knapp</button>'
-    +'<span>Håll in en knapp för att ändra eller ta bort den.</span></div>';
+  var k=popKnappar('hem');
+  if(k)return k;
+  return '<div class="viz-empty">Inga knappar ännu.</div>'
+    +'<div class="hem-ny"><button type="button" class="te-alt" onclick="beAdd()">＋ Lägg till knapp</button></div>';
 }
 
 /* ===== LADDREGELN I BATTERIPOPUPEN =====
@@ -13569,7 +13569,7 @@ function priceColor(frac){
   var t=(b[0]===a[0])?0:(f-a[0])/(b[0]-a[0]);
   var c=[0,1,2].map(function(k){return Math.round(a[1][k]+(b[1][k]-a[1][k])*t);});
   return 'rgb('+c[0]+','+c[1]+','+c[2]+')';}
-function krcSz(cfg){var v=cfg&&cfg.sz;return (v!=null&&isFinite(v))?Math.max(0.7,Math.min(1.6,v)):1;}
+function krcSz(cfg){return 1;}   /* v727: fast textstorlek */
 function gridTiles(g){if(TILESTATE[g])return TILESTATE[g];const G=GRIDS[g];let a=null;const flex=(g==='flode');
   try{const s=localStorage.getItem(G.store);if(s){const p=JSON.parse(s);if(Array.isArray(p)&&p.length>=1){
     if(flex){if(p.length<=12)a=p;}
@@ -14223,7 +14223,10 @@ function yearProd(){try{var c=curYearData();if(c&&c.prod!=null)return c.prod;}ca
 /* ===== v31: hjälpare ===== */
 const SOLPEAK_KWP=19.44;
 function parsePct(s){if(s==null)return null;const m=(''+s).match(/(\d+)/);return m?Math.min(100,+m[1]):null;}
-function parseRemain(s){if(s==null)return null;const p=(''+s).split(':');if(p.length<2)return null;const a=+p[0],b=+p[1];if(!isFinite(a)||!isFinite(b))return null;return a>24?a:(a*60+b);}
+/* v726: Home Connect skickar återstående tid som "minuter:sekunder" ("280:00",
+   "9:00") – se diskMinKvar. Den gamla regeln läste tal ≤ 24 som timmar:minuter,
+   så "9:00" blev 9 h i popupen medan knappen (diskMinKvar) visade 9 min. */
+function parseRemain(s){if(s==null)return null;const m=String(s).match(/^\s*(\d+):(\d+)/);if(!m)return null;return parseInt(m[1],10);}
 function hhmm(d){return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
 function finishTime(min){return hhmm(new Date(Date.now()+min*60000));}
 function fmtHrs(h){if(h==null||!isFinite(h)||h<=0||h>48)return null;const total=Math.round(h*60),hh=Math.floor(total/60),mm=total%60;if(hh<=0)return mm+'m';return hh+'h'+(mm>0?' '+mm+'m':'');}
@@ -19078,7 +19081,7 @@ function valString(){
   return JSON.stringify(o,null,1);}
 function openVal(){
   var h='<div class="te"><div class="te-sec">Mina inst\u00e4llningar</div>'
-    +'<div class="cfg-hint" style="margin-top:0">Layout, ordning, storlekar, knappar och avst\u00e5nd \u2014 allt du st\u00e4llt in f\u00f6r hand p\u00e5 den h\u00e4r enheten. Loggar och m\u00e4tserier \u00e4r inte med. Kopiera och klistra in i chatten s\u00e5 kan de bakas in som standard.</div>'
+    +'<div class="cfg-hint" style="margin-top:0">Layout, ordning och knappar \u2014 allt du st\u00e4llt in f\u00f6r hand p\u00e5 den h\u00e4r enheten. Loggar och m\u00e4tserier \u00e4r inte med. Kopiera och klistra in i chatten s\u00e5 kan de bakas in som standard.</div>'
     +'<textarea id="bk-out" class="bk-ta" readonly onclick="this.select()">'+esc(valString())+'</textarea>'
     +'<div class="te-adv"><button class="te-use" onclick="valCopy()">Kopiera</button></div>'
     +'<div class="cfg-hint" id="bk-status">'+esc(valString().length+' tecken.')+'</div></div>';
@@ -19372,8 +19375,7 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
     const visaIk=(cfg.stik!==false);
     /* Egen storlek på händelseikonen. Ligger i rutans post, alltså i den nyckel
        som redan synkas — ingen ny nyckel att hålla reda på. */
-    const ikSk=(typeof cfg.stikS==='number'&&isFinite(cfg.stikS))
-      ?Math.max(0.6,Math.min(2.2,cfg.stikS)):1;
+    const ikSk=1;   /* v727: fast storlek */
     const st0=fill?(stRa&&stRa.icon?{icon:stRa.icon,glow:stRa.glow}:null):stRa;
     const st=(st0&&!visaIk)?{glow:st0.glow,lvl:st0.lvl}:st0;
     const m=computeMetric(cfg);
@@ -19498,12 +19500,6 @@ function openKrEdit(g,i){
   // styrka
   h+='<div class="te-sec">Styrka <span class="kre-val">'+Math.round(op*100)+' %</span></div>';
   h+='<input class="kre-range" type="range" min="10" max="85" step="5" value="'+Math.round(op*100)+'" oninput="krSet(\''+g+'\','+i+',\'op\',this.value)">';
-  // textstorlek
-  var sz=krcSz(cfg);
-  h+='<div class="te-sec">Textstorlek</div><div class="te-tabs">';
-  [['Liten',0.85],['Normal',1],['Stor',1.25],['Störst',1.5]].forEach(function(o){
-    h+='<button class="te-tab'+(Math.abs(sz-o[1])<0.02?' on':'')+'" onclick="krSet(\''+g+'\','+i+',\'sz\','+o[1]+')">'+o[0]+'</button>';});
-  h+='</div>';
   h+='<div class="cfg-btns" style="margin-top:14px"><button class="te-alt" onclick="krReset(\''+g+'\','+i+')">Återställ</button></div>';
   if(g==='flode'){h+='<div class="te-sec">Lägg till / ta bort</div><div class="te-move"><button onclick="addTile(\''+g+'\','+i+')"'+(arr.length>=12?' disabled':'')+'>+ Ny ruta</button><button class="te-alt" onclick="removeTile(\''+g+'\','+i+')"'+(arr.length<=1?' disabled':'')+'>Ta bort denna</button></div>';}
   h+='</div>';
@@ -19515,27 +19511,20 @@ function krSet(g,i,key,val){
   var arr=gridTiles(g), cfg=arr[i]; if(!cfg)return;
   if(key==='hue')cfg.hue=parseInt(val,10)||0;
   else if(key==='op')cfg.op=Math.max(.1,Math.min(.85,(parseInt(val,10)||42)/100));
-  else if(key==='sz')cfg.sz=Math.max(0.7,Math.min(1.6,parseFloat(val)||1));
   else cfg[key]=val;
   saveGrid(g); renderTiles(g); openKrEdit(g,i);}
 function krReset(g,i){
   var arr=gridTiles(g), cfg=arr[i]; if(!cfg)return;
   delete cfg.col;delete cfg.hue;delete cfg.op;delete cfg.sz;
   saveGrid(g); renderTiles(g); openKrEdit(g,i);}
-/* Hållmeny för spotpris-rutan: justera storlek på siffran, prischippet och skalan. */
+/* Hållmeny för spotpris-rutan. v727: bara färger – storlekarna är fasta. */
 function openSpotEdit(){
   var sp=szRead('spot');
-  var h='<div class="te"><div class="te-sec">Spotpris · storlek</div>';
-  h+=stepRow('Siffra','spnum-num',(sp.num>0?'+':'')+sp.num,'spotSizeNum');
-  h+=stepRow('Slide','spnum-slide',(sp.slide>0?'+':'')+sp.slide,'spotSizeSlide');
-  h+=stepRow('Skala','spnum-scale',(sp.scale>0?'+':'')+sp.scale,'spotSizeScale');
-  h+=stepRow('Rutans höjd','spnum-box',(sp.box>0?'+':'')+(sp.box||0),'spotSizeBox');
-  h+=stepRow('Ändtext storlek','spnum-end',(sp.end>0?'+':'')+(sp.end||0),'spotSizeEnd');
+  var h='<div class="te"><div class="te-sec">Spotpris</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Ändtext färg</span><select class="cfg-sel" onchange="spotEndColor(this.value)"><option value="black"'+(sp.endWhite?'':' selected')+'>Svart</option><option value="white"'+(sp.endWhite?' selected':'')+'>Vit</option></select></div>';
   h+='<div class="te-sec">Färgkalibrering</div><div class="cfg-hint" style="margin-top:0">Skalan går från dygnets lägsta till dygnets högsta pris. Gränserna nedan används bara som reserv om dygnsdata saknas.</div>';
   h+=stepRow('Grönt under','spnum-green',Math.round((CFG.priceGreen!=null?CFG.priceGreen:0.20)*100)+' öre','spotGreen');
   h+=stepRow('Rött minst vid','spnum-red',Math.round((CFG.priceRed!=null?CFG.priceRed:0.80)*100)+' öre','spotRed');
-  h+='<div class="cfg-hint" style="margin-top:8px"><b>'+esc(szLabel())+'</b></div>';
   h+='<div class="cfg-hint" style="margin-top:8px">Elpriset hämtas direkt från Homey (measure_price_total) – samma pris som Homeys energisida, inkl. skatt, moms och avgifter.</div>';
   h+='<div class="cfg-btns" style="margin-top:14px"><button class="te-alt" onclick="spotReset()">Återställ</button></div>';
   h+='</div>';
@@ -19543,15 +19532,7 @@ function openSpotEdit(){
   var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
   setT('dlg-title','Spotpris');setIcon('dlg-ic','tag');
   var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function spotSize(key,d){var b=szWrite('spot');
-  b[key]=Math.max(-6,Math.min(12,(szRead('spot')[key]||0)+d));saveCfg();applyCfg();
-  var n=$('spnum-'+key);if(n)n.textContent=(b[key]>0?'+':'')+b[key];}
-function spotSizeBox(d){spotSize('box',d);}
-function spotSizeEnd(d){spotSize('end',d);}
 function spotEndColor(v){szWrite('spot').endWhite=(v==='white');saveCfg();applyCfg();}
-function spotSizeNum(d){spotSize('num',d);}
-function spotSizeSlide(d){spotSize('slide',d);}
-function spotSizeScale(d){spotSize('scale',d);}
 function spotGreen(d){CFG.priceGreen=Math.max(0,Math.min((CFG.priceRed||0.80)-0.05,(CFG.priceGreen!=null?CFG.priceGreen:0.20)+d*0.05));saveCfg();render();var n=$('spnum-green');if(n)n.textContent=Math.round(CFG.priceGreen*100)+' öre';}
 function spotRed(d){CFG.priceRed=Math.max((CFG.priceGreen||0.20)+0.05,Math.min(3,(CFG.priceRed!=null?CFG.priceRed:0.80)+d*0.05));saveCfg();render();var n=$('spnum-red');if(n)n.textContent=Math.round(CFG.priceRed*100)+' öre';}
 function spotMoms(d){CFG.priceMoms=Math.max(0,Math.min(50,(CFG.priceMoms!=null?CFG.priceMoms:25)+d*5));saveCfg();render();var n=$('spnum-moms');if(n)n.textContent=CFG.priceMoms+' %';}
@@ -19570,7 +19551,7 @@ function spotCalibrate(){
   saveCfg();render();
   var n=$('spnum-pas');if(n)n.textContent=CFG.prisPaslag+' öre';
   if(msg)msg.textContent='Klart – påslag satt till '+CFG.prisPaslag+' öre (spot nu '+Math.round(raw*100)+' öre → '+real+' öre).';}
-function spotReset(){var b=szWrite('spot');b.num=0;b.slide=0;b.scale=0;b.box=0;b.end=0;b.endWhite=false;CFG.priceGreen=0.20;CFG.priceRed=0.80;saveCfg();applyCfg();render();openSpotEdit();}
+function spotReset(){var b=szWrite('spot');b.endWhite=false;CFG.priceGreen=0.20;CFG.priceRed=0.80;saveCfg();applyCfg();render();openSpotEdit();}
 /* Köpt/sålt-slide: denna månad. Spåret delas köpt|sålt vid proportionen; beloppen rider på var sin sida. */
 function renderKsBand(){
   var track=$('ks-track');if(!track)return;
@@ -19585,66 +19566,21 @@ function renderKsBand(){
   if(sc){var sb=sc.querySelector('b');if(sb)sb.textContent=r.st?(kInt(rs)+' kr'):'–';if(sc.style)sc.style.left=Math.max(10,Math.min(90,pk*100+ps*50))+'%';}}
 /* Knapprutans höjd. Knapparna följer med — det är hela poängen: sätter man
    rutan lägre ska knapparna bli lägre, inte bara få mer luft omkring sig. */
-function openKnEdit(){
-  _diN=0;
-  var h='<div class="te"><div class="te-sec">Knapparna</div>';
-  h+=stepRow('Höjd','knnum-h',Math.round(knMatt('h')*100)+' %','knSteg_h');
-  h+=stepRow('Text','knnum-t',Math.round(knMatt('t')*100)+' %','knSteg_t');
-  h+=stepRow('Ikon','knnum-i',Math.round(knMatt('i')*100)+' %','knSteg_i');
-  h+=stepRow('Marginal','knnum-m',Math.round(knMarg()*100)+' %','knMargSteg');
-  h+='<div class="cfg-hint" style="margin-top:6px">Höjden styr knappens storlek. '
-    +'Text och ikon skalas <b>ovanpå</b> höjden, så en lägre rad med större text '
-    +'går att ställa in — de tre måtten är oberoende av varandra. '
-    +'<b>Marginal</b> är luften mellan knapparna och rutans kant.</div>';
-  h+='<div class="te-sec" style="margin-top:14px">Ordning och innehåll</div>';
-  h+='<div class="cfg-hint" style="margin-top:0">Håll inne på en enskild knapp '
-    +'för att byta vad den gör.</div>';
-  h+='</div>';
-  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
-  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
-  setT('dlg-title','Knappar');setIcon('dlg-ic','power');
-  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
 /* Tre oberoende mått: höjd, textstorlek och ikonstorlek. Text och ikon skalas
    OVANPÅ höjden — annars går det inte att ha en låg rad med stor text, vilket
    är precis vad man vill när knapparna ska synas på håll. */
 /* PER ENHETSKLASS via szRead/szWrite, samma mönster som spotpris och köpt/sålt. */
 var KN_STD={h:1,t:1,i:1};
-function knMatt(k){
-  /* EGET fack per klass, inte szRead. szRead lägger plattans värden i botten och
-     mobilens ovanpå — bra för spotpris, där mobilen bara justerar avvikelser,
-     men fel här: ställer man 140 % på plattan ärver telefonen det tills den
-     själv rört reglaget. Knapparna ska vara helt oberoende. */
-  var bok=szMobile()?((CFG.mob&&CFG.mob.kn)||{}):(CFG.kn||{});
-  var v=bok[k];
-  return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.8,v)):(KN_STD[k]||1);}
+/* v727: fasta mått, samma på alla enheter. */
+function knMatt(k){return KN_STD[k]||1;}
 /* Marginalen runt knapprutan. Egen faktor, skild från knapparnas mått: man kan
    vilja ha stora knappar tätt mot kanten, eller små med luft omkring. */
-function knMarg(){
-  var v=szRead('kn').m;
-  return (typeof v==='number'&&isFinite(v))?Math.max(0.2,Math.min(2,v)):1;}
-function knMargSteg(d){
-  var f=Math.max(0.2,Math.min(2,Math.round((knMarg()+d*0.1)*10)/10));
-  var bok=szMobile()?((CFG.mob=CFG.mob||{},CFG.mob.kn=CFG.mob.kn||{})):(CFG.kn=CFG.kn||{});
-  bok.m=f;saveCfg();applyCfg();
-  var n=$('knnum-m');if(n)n.textContent=Math.round(f*100)+' %';}
+function knMarg(){return 1;}
 
 /* Luften kring de lodräta avdelarna. Ett mått för hela dashboarden: väder, vind
    och båda rutraderna. Sparas per enhetstyp som övriga storlekar. */
-function avdPad(){
-  var v=szRead('avd').p;
-  return (typeof v==='number'&&isFinite(v))?Math.max(0,Math.min(40,v)):16;}
-function avdSteg(d){
-  var f=Math.max(0,Math.min(40,avdPad()+d*2));
-  szWrite('avd').p=f;saveCfg();applyCfg();
-  var n=$('cf-avd');if(n)n.textContent=f+' px';}
+function avdPad(){return 16;}
 
-function knSteg(k,d){
-  var f=Math.max(0.6,Math.min(1.8,Math.round((knMatt(k)+d*0.1)*10)/10));
-  szWrite('kn')[k]=f;saveCfg();applyCfg();
-  var n=$('knnum-'+k);if(n)n.textContent=Math.round(f*100)+' %';}
-function knSteg_h(d){knSteg('h',d);}
-function knSteg_t(d){knSteg('t',d);}
-function knSteg_i(d){knSteg('i',d);}
 /* Kvar för bakåtkompatibilitet: en tidigare version sparade CFG.knHojd. */
 /* knMatt ger alltid ett tal, så en reserv här vore onåbar kod. Bakåt-
    kompatibiliteten med CFG.knHojd ligger i stället i knMatt-facket: en gammal
@@ -19652,92 +19588,26 @@ function knSteg_i(d){knSteg('i',d);}
 function knHojd(){return knMatt('h');}
 /* Flyttar CFG.knHojd till plattans fack. Körs en gång; därefter finns nyckeln
    inte kvar och funktionen gör ingenting. */
-function knMigrera(){
-  try{
-    if(typeof CFG.knHojd!=='number')return;
-    CFG.kn=CFG.kn||{};
-    if(typeof CFG.kn.h!=='number')CFG.kn.h=CFG.knHojd;
-    delete CFG.knHojd;
-    saveCfg();
-  }catch(e){}}
 
 /* Rapportrutans höjd. Samma stegknappar som de andra rutorna, plus ett val för
    om den ska svälja överbliven höjd i kioskläget. */
 /* Energi- och väderraden: fast höjd som ställs för hand. Rapporten under tar
    sedan det som blir över, så sidan alltid fyller skärmen. */
-function openEwEdit(){
-  _diN=0;
-  var f=(CFG.ewh!=null?CFG.ewh:1);
-  var h='<div class="te"><div class="te-sec">Energi & väder · höjd</div>';
-  h+=stepRow('Höjd','ewnum-h',Math.round(f*100)+' %','ewHojd');
-  h+='<div class="cfg-hint" style="margin-top:6px">Raden har fast höjd. '
-    +'<b>Rapportrutan</b> under tar det som blir över, så skärmen alltid fylls — '
-    +'krymper du den här blir rapporten högre, och tvärtom.</div>';
-  h+='</div>';
-  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
-  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
-  setT('dlg-title','Energi & väder');setIcon('dlg-ic','sun');
-  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function ewHojd(d){
-  var f=(CFG.ewh!=null?CFG.ewh:1)+d*0.05;
-  f=Math.max(0.5,Math.min(1.8,Math.round(f*100)/100));
-  CFG.ewh=f;saveCfg();applyCfg();
-  var n=$('ewnum-h');if(n)n.textContent=Math.round(f*100)+' %';}
 
-function openRepEdit(){
-  _diN=0;
-  var f=secScaleOf('report');
-  var vaxer=(CFG.repGrow!==false);
-  var h='<div class="te"><div class="te-sec">Rapportrutan</div>';
-  h+=stepRow('Höjd','repnum-h',Math.round(f*100)+' %','repHojd');
-  h+='<div class="cfg-row"><span class="cfg-row-l">Fyll ut nedåt</span><div class="cfg-btns">'
-    +'<button class="cfg-opt'+(vaxer?' on':'')+'" onclick="repGrow(1)">På</button>'
-    +'<button class="cfg-opt'+(vaxer?'':' on')+'" onclick="repGrow(0)">Av</button>'
-    +'</div></div>';
-  h+='<div class="cfg-hint" style="margin-top:6px">Med <b>Fyll ut nedåt</b> tar rapporten '
-    +'upp den höjd som blir över när du krympt spotpris eller köpt/sålt — annars uppstår '
-    +'en lucka mot skärmens underkant i kioskläget.</div>';
-  h+='</div>';
-  var bd=$('dlg-body');if(bd)bd.innerHTML=h;
-  var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
-  setT('dlg-title','Rapport');setIcon('dlg-ic','warning');
-  /* Samma sätt att visa rutan som de andra — openDlg() finns inte. */
-  var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function repHojd(d){
-  secHeightSet('report',d);
-  var n=$('repnum-h');if(n)n.textContent=Math.round(secScaleOf('report')*100)+' %';}
-function repGrow(pa){
-  CFG.repGrow=!!pa;saveCfg();applyCfg();
-  try{openRepEdit();}catch(e){}}
 function openKsEdit(){
-  var sp=szRead('ks'); var per=sp.per||'month';
+  var per=(CFG.ks&&CFG.ks.per)||'month';
   var h='<div class="te"><div class="te-sec">Köpt / sålt · period</div>';
   var pers=[['day','Idag'],['week','Vecka'],['month','Månad'],['year','År']];
   h+='<div class="seg-row">';
   for(var pi=0;pi<pers.length;pi++){h+='<button class="seg-btn'+(per===pers[pi][0]?' on':'')+'" onclick="ksSetPer(\''+pers[pi][0]+'\')">'+pers[pi][1]+'</button>';}
   h+='</div>';
-  h+='<div class="te-sec" style="margin-top:14px">Köpt / sålt · storlek</div>';
-  h+=stepRow('Siffra','ksnum-num',(sp.num>0?'+':'')+sp.num,'ksSizeNum');
-  h+=stepRow('Slide','ksnum-slide',(sp.slide>0?'+':'')+sp.slide,'ksSizeSlide');
-  h+=stepRow('Skala','ksnum-scale',(sp.scale>0?'+':'')+sp.scale,'ksSizeScale');
-  h+=stepRow('Rutans höjd','ksnum-box',(sp.box>0?'+':'')+(sp.box||0),'ksSizeBox');
-  h+='<div class="cfg-hint" style="margin-top:8px"><b>'+esc(szLabel())+'</b></div>';
-  h+='<div class="cfg-btns" style="margin-top:14px"><button class="te-alt" onclick="ksReset()">Återställ</button></div>';
   h+='</div>';
   var body=$('dlg-body');if(body)body.innerHTML=h;
   var dlg=$('dlg');if(dlg&&dlg.classList){dlg.classList.remove('wide');dlg.classList.add('edit');}
   setT('dlg-title','Köpt / sålt');setIcon('dlg-ic','coins');
   var back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
-function ksSize(key,d){var b=szWrite('ks');
-  b[key]=Math.max(-6,Math.min(12,(szRead('ks')[key]||0)+d));saveCfg();applyCfg();
-  var n=$('ksnum-'+key);if(n)n.textContent=(b[key]>0?'+':'')+b[key];}
-function ksSizeBox(d){ksSize('box',d);}
 function ksSetPer(p){if(!CFG.ks)CFG.ks={};CFG.ks.per=p;saveCfg();render();openKsEdit();}
 function ksSetPerDetail(p){if(!CFG.ks)CFG.ks={};CFG.ks.per=p;saveCfg();render();openDetail('kopt');}
-function ksSizeNum(d){ksSize('num',d);}
-function ksSizeSlide(d){ksSize('slide',d);}
-function ksSizeScale(d){ksSize('scale',d);}
-function ksReset(){var b=szWrite('ks');b.num=0;b.slide=0;b.scale=0;b.box=0;saveCfg();applyCfg();openKsEdit();}
 function teGrp(g,i,gr){_teGrp=gr;openTileEdit(g,i);}
 function openTileEdit(g,i){const arr=gridTiles(g),cur=arr[i];
   /* v193: 40 knappar i en klump gick inte att hitta i. Nu grupperat - en grupp i
@@ -19767,12 +19637,7 @@ function openTileEdit(g,i){const arr=gridTiles(g),cur=arr[i];
        produktion, olåst — och det vill man ofta se även med glowet av. */
     +'<button class="te-glow'+(cur.stik!==false?' on':'')+'" onclick="toggleTileStik(\''+g+'\','+i+')">'
     +(cur.stik!==false?'Ikon på':'Ikon av')+'</button>'
-    +(cur.stik!==false
-      ? ('<button class="cfg-pm" onclick="tileStikSize(\''+g+'\','+i+',-1)">−</button>'
-         +'<span class="cfg-num" style="min-width:46px">'
-         +Math.round(((typeof cur.stikS==='number')?cur.stikS:1)*100)+' %</span>'
-         +'<button class="cfg-pm" onclick="tileStikSize(\''+g+'\','+i+',1)">+</button>')
-      : '')+'<button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
+    +'<button class="te-glow gr'+(cur.graph!==false?' on':'')+'" onclick="toggleTileGraph(\''+g+'\','+i+')">'+(cur.graph!==false?'Graf på':'Graf av')+'</button><button class="te-glow'+(cur.trend===true?' on':'')+'" onclick="toggleTileTrend(\''+g+'\','+i+')">'+(cur.trend===true?'Trendpil ▲▼ på':'Trendpil av')+'</button></div>';
   h+='<div class="te-sec">Flytta ruta</div><div class="te-move"><button onclick="moveTile(\''+g+'\','+i+',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+' Upp</button><button onclick="moveTile(\''+g+'\','+i+',1)"'+(i>=arr.length-1?' disabled':'')+'>'+icon('arrow-fat-up','flip')+' Ner</button></div>';
   if(g==='flode'){h+='<div class="te-sec">Lägg till / ta bort</div><div class="te-move"><button onclick="addTile(\''+g+'\','+i+')"'+(arr.length>=12?' disabled':'')+'>+ Ny ruta</button><button class="te-alt" onclick="removeTile(\''+g+'\','+i+')"'+(arr.length<=1?' disabled':'')+'>Ta bort denna</button></div>';}
   h+='</div>';
@@ -19814,13 +19679,6 @@ function toggleTileGlow(g,i){const arr=gridTiles(g);arr[i].glow=(arr[i].glow===f
 /* Indikatorikonen uppe till höger. Sparas i rutans egen post, alltså i
    tiles*-nyckeln som redan synkas till Homey — ingen ny nyckel att hålla reda
    på, och inställningen följer med till de andra enheterna. */
-/* Storleken på händelseikonen, i steg om 10 %. */
-function tileStikSize(g,i,d){
-  const arr=gridTiles(g);
-  const nu=(typeof arr[i].stikS==='number')?arr[i].stikS:1;
-  const f=Math.max(0.6,Math.min(2.2,Math.round((nu+d*0.1)*10)/10));
-  if(Math.abs(f-1)<0.001)delete arr[i].stikS;else arr[i].stikS=f;
-  saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 function toggleTileStik(g,i){
   const arr=gridTiles(g);
   arr[i].stik=(arr[i].stik===false);
@@ -20088,7 +19946,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v724';
+const APP_VERSION='v727';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -20119,7 +19977,7 @@ function scl(v){return (1+(v||0)*0.06).toFixed(3);}
    och sätt resultatet direkt; då finns inget att missförstå. */
 function applyGrpVars(el,pre,grp){
   if(!el||!el.style)return;
-  grp=grp||{};
+  grp={};   /* v727: inga storleksinställningar – alltid grundmåtten */
   ['ic','v','name','desc'].forEach(function(k){
     el.style.setProperty(pre+'-'+k,scl(grp[k]));
   });
@@ -20156,50 +20014,25 @@ function applyCfg(){
   /* Sätts på body, inte på elementen: de ritas om vid varje uppdatering och en
      inline-stil där skulle försvinna var femtonde sekund. */
   try{
-    document.body.style.setProperty('--repgrow',(CFG&&CFG.repGrow===false)?'0':'1');
-    knMigrera();
+    document.body.style.setProperty('--repgrow','1');
     document.body.style.setProperty('--knhojd',String(knHojd()));
     document.body.style.setProperty('--knmarg',String(knMarg()));
     document.body.style.setProperty('--avd-pad',avdPad()+'px');
     document.body.style.setProperty('--kntext',String(knMatt('t')));
     document.body.style.setProperty('--knikon',String(knMatt('i')));
   }catch(e){}
-  try{document.body.style.setProperty('--ewh',String((CFG&&CFG.ewh!=null)?CFG.ewh:1));}catch(e){}const r=document.body;if(!r||!r.style)return;
+  try{document.body.style.setProperty('--ewh','1');}catch(e){}const r=document.body;if(!r||!r.style)return;
   try{applyMobGap();}catch(e){}
-  /* NOLLSTÄLL EN GÅNG. Storleksreglagen gjorde ingenting så länge fasta
-     px-regler låg efter variabelreglerna — och under tiden ställdes de till
-     +5 utan verkan. När överskrivningarna togs bort slog de igenom på en gång
-     och allt blev 30 % större. Rensa till neutralt; därifrån justerar man om. */
-  try{
-    if(!localStorage.getItem('storlek_nollst_v446')){
-      ['ic','v','name','desc'].forEach(function(k){
-        if(CFG.tile)delete CFG.tile[k];
-        if(CFG.chip)delete CFG.chip[k];
-      });
-      localStorage.setItem('storlek_nollst_v446','1');
-      try{saveCfg();}catch(e){}
-    }
-  }catch(e){}
   const ee=$('stats-energy'),we=$('stats-weather'),te=$('stats-flode');
-  applyGrpVars(ee,'--tl',CFG.chip);if(ee&&ee.style)ee.style.setProperty('--tl-gap',(CFG.chip.gap==null?11:CFG.chip.gap)+'px');
-  applyGrpVars(we,'--tl',CFG.chip);if(we&&we.style)we.style.setProperty('--tl-gap',(CFG.chip.gap==null?11:CFG.chip.gap)+'px');
-  applyGrpVars(te,'--tl',CFG.tile);if(te&&te.style)te.style.setProperty('--tl-gap',(CFG.tile.gap==null?14:CFG.tile.gap)+'px');
+  applyGrpVars(ee,'--tl');if(ee&&ee.style)ee.style.setProperty('--tl-gap','11px');
+  applyGrpVars(we,'--tl');if(we&&we.style)we.style.setProperty('--tl-gap','11px');
+  applyGrpVars(te,'--tl');if(te&&te.style)te.style.setProperty('--tl-gap','14px');
   r.style.setProperty('--glowmul',CFG.glowmul);r.style.setProperty('--glowsharp',(CFG.glowsharp==null?0.5:CFG.glowsharp));
   {const pb=$('pband');if(pb&&pb.classList){pb.classList.toggle('hide-spot',CFG.showspot===false);
      /* NOLL = NEUTRALT. Formlerna hade förskjutningar (+5, +8, +10) från när
         bandet såg annorlunda ut, så steg 0 gav faktorerna 1,4, 1,8 och 2,2 —
         aldrig samma storlek som soluppgångsremsan. Nu är 0 exakt 1,0, och
         reglagen finjusterar därifrån. */
-     /* NOLLSTÄLL EN GÅNG. De sparade stegen var inställda för de gamla
-        formlerna med förskjutning — behåller vi dem blir 0 inte neutralt utan
-        bara flyttat. Rensas en gång, sedan gäller användarens nya justeringar. */
-     try{
-       if(!localStorage.getItem('spot_nollst_v436')){
-         szClear('spot',['num','slide','scale','box','end']);
-         localStorage.setItem('spot_nollst_v436','1');
-         saveCfg();
-       }
-     }catch(e){}
      var sp=szRead('spot');if(pb.style){
        pb.style.setProperty('--spnum',(1+(sp.num||0)*0.08).toFixed(3));
        pb.style.setProperty('--spslide',(1+(sp.slide||0)*0.10).toFixed(3));
@@ -20246,23 +20079,14 @@ function applyScenario(n){n=n||0;curScenario=n;CFG.scenario=n;
 /* SAMMA uppmärkning som på startsidan. Förhandsvisningen använde .en-chip, en
    äldre form med ikonen ovanför texten — sedan energi- och väderrutorna flyttade
    in i panelerna är de vanliga .stat med ikonen till vänster. */
-function previewChip(){
-  return '<div class="panel stat'+((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')
-    +((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'')+'">'
-    +'<span class="stat-ic acc-gold">'+icon('sun')+'</span>'
-    +'<div class="stat-txt"><div class="label">Sol nu</div>'
-    +'<div class="v">2,4 <small>kW</small></div><div class="meta">producerar</div></div></div>';}
-function previewTile(){return '<div class="panel stat'+((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'')+'"><span class="stat-ic acc-gold">'+icon('sun')+'</span><div class="stat-txt"><div class="label">Sol idag</div><div class="v">113 <small>kWh</small></div><div class="meta">7935 kWh i år</div></div></div>';}
 function stepRow(lbl,id,val,fn){
   return '<div class="cfg-row"><span class="cfg-row-l">'+lbl+'</span><div class="cfg-step"><button class="cfg-pm" onclick="'+fn+'(-1)">−</button><span class="cfg-num" id="'+id+'">'+val+'</span><button class="cfg-pm" onclick="'+fn+'(1)">+</button></div></div>';}
-function sizeRow(grp,key,lbl){const v=CFG[grp][key];
-  return '<div class="cfg-row"><span class="cfg-row-l">'+lbl+'</span><div class="cfg-step"><button class="cfg-pm" onclick="cfgSize(\''+grp+'\',\''+key+'\',-1)">−</button><span class="cfg-num" id="cfgnum-'+grp+'-'+key+'">'+(v>0?'+':'')+v+'</span><button class="cfg-pm" onclick="cfgSize(\''+grp+'\',\''+key+'\',1)">+</button></div></div>';}
 /* ===== INSTALLNINGAR =====
    v193: en enda lista pa nio sektioner blev for lang for att hitta i. Nu en rot med
    det man faktiskt andrar ofta (tema), och resten i undermenyer. Samma monster som
    openSizeMenu redan anvander: cfg-back-row med "‹ Tillbaka". */
 var _cfgSec=null;
-var CFG_SECS=[['utseende','Utseende','sun-dim','Storlek, layout och färger'],
+var CFG_SECS=[['utseende','Utseende','sun-dim','Layout och färger'],
               ['glow','Glöd','sparkle','Styrka, skärpa och kalibrering'],
               ['skarm','Skärm & läge','moon','Nattklocka, skärmsläckare, kiosk'],
               ['energi','Energi & pris','lightning','Mätning, spotpris och solprognos'],
@@ -20294,23 +20118,14 @@ function openConfig(){
   let h='<div class="cfg">';
   if(_cfgSec==='utseende'){
     h+=cfgBack();
-  h+='<div class="cfg-sec">Storlek & layout</div><div class="cfg-menu">';
-  h+=cfgMi('openSizeMenu(\'chip\')','gauge','Energi- & väderrutor','Storlek på de små rutorna');
-  h+=cfgMi('openSizeMenu(\'tile\')','tag','De sex rutorna','Storlek på flödesrutorna');
-  h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och ändra höjd');
+  h+='<div class="cfg-sec">Layout</div><div class="cfg-menu">';
+  h+=cfgMi('openSecMove(\'energy\')','arrow-fat-up','Ordna avsnitt','Flytta upp/ner och dölj');
   h+=cfgMi('openEnheter()','desktop','Enheter','Vilka som använder dashboarden, och vem de tillhör');
   h+=dRow('Huvudsäkring','<span class="dbtn-row" style="justify-content:flex-end">'
     +'<button class="dbtn" onclick="sakringStep(-1)">–</button>'
     +'<b id="sakr-v" style="min-width:44px;display:inline-block;text-align:center">'+fasSakring()+' A</b>'
     +'<button class="dbtn" onclick="sakringStep(1)">+</button></span>');
-  /* 'sliders' finns inte i ikonuppsättningen — 'gauge' är närmast i betydelse. */
-  h+=cfgMi('openKnEdit()','gauge','Knappraden','Höjd, text, ikon och marginal');
   h+='</div>';
-  h+='<div class="cfg-sec">Avdelare</div>';
-  h+=stepRow('Luft kring avdelare','cf-avd',avdPad()+' px','avdSteg');
-  h+='<div class="cfg-hint">Avståndet mellan innehåll och de lodräta linjerna — '
-    +'i väderrutan mellan Väder och Vind, och mellan rutorna under. Samma mått '
-    +'överallt, så raderna linjerar.</div>';
   h+='<div class="cfg-sec">Köpt/sålt-rutan</div>';
   h+=krcOpRow();
   h+='</div>';
@@ -20340,11 +20155,6 @@ function openConfig(){
   h+='<div class="cfg-sec">Helskärm & app</div><div class="cfg-hint" style="margin-top:0">Dölj Chromes adressfält. Helskärm fungerar direkt; "starta i helskärm" begär det vid första tryck efter start.</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Helskärm</span><button class="te-use" id="fs-btn" onclick="toggleFullscreen()">'+(isFullscreen()?'Avsluta helskärm':'Helskärm nu')+'</button></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Starta i helskärm</span><select class="cfg-sel" onchange="cfgAutoFull(this.value)"><option value="off"'+(CFG.autoFull?'':' selected')+'>Av</option><option value="on"'+(CFG.autoFull?' selected':'')+'>På</option></select></div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Rutavstånd i höjdled</span>'
-    +'<div class="cfg-step"><button class="cfg-pm" id="mobgap-minus" onclick="mobGapStep(-1)"'+(mobGapY()<=MOB_GAP_MIN?' disabled':'')+'>−</button>'
-    +'<span class="cfg-num" id="mobgap-num">'+mobGapY()+' px</span>'
-    +'<button class="cfg-pm" id="mobgap-plus" onclick="mobGapStep(1)"'+(mobGapY()>=MOB_GAP_MAX?' disabled':'')+'>+</button></div></div>';
-  h+='<div class="cfg-hint" style="margin-top:6px">Gäller bara telefonen. Avståndet i sidled följer layouten.</div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Sida vid håll på live</span>'
     +'<input class="cfg-inp" style="width:150px;font-size:11px;text-align:left" type="text" autocomplete="off" '
     +'value="'+esc(extUrl())+'" placeholder="'+esc(EXT_URL_DEF)+'" onchange="cfgExtUrl(this.value)"></div>';
@@ -20523,89 +20333,16 @@ function cfgTheme(t){CFG.theme=t;saveCfg();applyCfg();render();openConfig();}
 function cfgScenario(n){applyScenario(n);saveCfg();render();openConfig();}
 /* Centreringslägena. Sparas i CFG.tile så de följer med i synken, och gäller
    ALLA sex rutorna samtidigt — de ska se likadana ut. */
-function tileMitt(vad){
-  CFG.tile=CFG.tile||{};
-  var k=(vad==='ic')?'icMitt':'alltMitt';
-  CFG.tile[k]=!CFG.tile[k];
-  saveCfg();applyCfg();
-  ['flode','energy','weather'].forEach(function(g){try{renderTiles(g);}catch(e){}});
-  try{openSizeMenu(_sizeSection||'tile');}catch(e){}}
 
-function cfgSize(grp,key,d){CFG[grp][key]=Math.max(-8,Math.min(14,(CFG[grp][key]||0)+d));saveCfg();applyCfg();const n=$('cfgnum-'+grp+'-'+key);if(n)n.textContent=(CFG[grp][key]>0?'+':'')+CFG[grp][key];updatePrev();}
-let _sizeSection=null;
 /* ALLTID --tl. Förhandsvisningen för energi- och väderrutor satte --ch-*, från
    när den använde .en-chip-uppmärkningen. Sedan den bytte till samma .stat som
    startsidan läser den --tl-* — variablerna hamnade alltså på fel namn och
    ingenting hände. Vilken uppsättning VÄRDEN som används styrs av CFG[section],
    inte av prefixet. */
-function prevVars(section){const g=CFG[section],pre='--tl',gapDef=(section==='tile')?14:11;
-  return pre+'-ic:'+scl(g.ic)+';'+pre+'-v:'+scl(g.v)+';'+pre+'-name:'+scl(g.name)+';'+pre+'-desc:'+scl(g.desc)+';'+pre+'-gap:'+(g.gap==null?gapDef:g.gap)+'px';}
-function updatePrev(){if(!_sizeSection)return;const p=$('cfg-prev');if(p&&p.setAttribute)p.setAttribute('style',prevVars(_sizeSection));
-  /* SAMMA pixelberäkning som startsidan. Förhandsvisningen förlitade sig på
-     reserven calc(var*var) medan rutorna fick färdiga px — och när de två vägarna
-     skiljer sig är det bara en tidsfråga innan de visar olika saker. Nu går båda
-     genom applyGrpVars. */
-  try{
-    applyGrpVars(p,'--tl',CFG[_sizeSection]||{});
-    var gapDef=(_sizeSection==='tile')?14:11;
-    var gv=CFG[_sizeSection]&&CFG[_sizeSection].gap;
-    if(p&&p.style)p.style.setProperty('--tl-gap',((gv==null)?gapDef:gv)+'px');
-  }catch(e){}
-  if(typeof setTimeout==='function')setTimeout(function(){try{sizeMatt();}catch(e){}},30);}
-function cfgGap(section,d){const def=(section==='tile')?14:11;CFG[section].gap=Math.max(2,Math.min(30,(CFG[section].gap==null?def:CFG[section].gap)+d*2));saveCfg();applyCfg();const n=$('cfgnum-'+section+'-gap');if(n)n.textContent=CFG[section].gap+' px';updatePrev();}
 function cfgSpot(v){CFG.showspot=(v!=='off');saveCfg();applyCfg();if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
-function openSizeMenu(section){_sizeSection=section;
-  const titles={chip:'Energi- & väderrutor',tile:'De sex rutorna'};
-  const prev=(section==='tile')?previewTile():previewChip();
-  let h='<div class="cfg"><div class="cfg-back-row"><button class="te-alt" onclick="_sizeSection=null;openConfig()">‹ Tillbaka</button></div>';
-  h+='<div class="cfg-sec">'+titles[section]+' · storlek</div>';
-  h+='<div class="cfg-prev'+(section==='chip'?' prev-chip':'')+'" id="cfg-prev" style="'
-    +prevVars(section)+'">'+prev+'</div>';
-  h+=sizeRow(section,'ic','Ikon')+sizeRow(section,'v','Värde')+sizeRow(section,'name','Namn')+sizeRow(section,'desc','Beskrivning');
-  h+='<div class="cfg-sec">Mellanrum ikon/text</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Avstånd</span><div class="cfg-step"><button class="cfg-pm" onclick="cfgGap(\''+section+'\',-1)">−</button><span class="cfg-num" id="cfgnum-'+section+'-gap">'+((CFG[section].gap==null?(section==='tile'?14:11):CFG[section].gap))+' px</span><button class="cfg-pm" onclick="cfgGap(\''+section+'\',1)">+</button></div></div>';
-  /* Centrering, bara för de sex rutorna — chip-raderna är redan centrerade. */
-  /* Knapparna i BÅDA menyerna — samma rutor, samma val. */
-  {
-    h+='<div class="cfg-btns" style="margin-top:6px">'
-      +'<button class="cfg-opt'+((CFG.tile&&CFG.tile.icMitt)?' on':'')+'" onclick="tileMitt(\'ic\')">'
-      +'Centrera ikonen</button>'
-      +'<button class="cfg-opt'+((CFG.tile&&CFG.tile.alltMitt)?' on':'')+'" onclick="tileMitt(\'allt\')">'
-      +'Centrera innehållet</button></div>';
-    h+='<div class="cfg-hint" style="margin-top:6px">Ikonen centreras lodrätt i sin ruta; '
-      +'innehållet centreras som helhet. Båda gäller alla sex rutorna.</div>';
-  }
-  h+='<div class="cfg-hint">Storlekarna gäller alla rutor i det här avsnittet.</div>';
-  /* MÄTNING. Visar vad en riktig ruta på startsidan faktiskt får — inte vad
-     koden tror den satt. Skiljer sig raderna åt är det CSS som blockerar; är de
-     lika men rutan ändå oförändrad sitter felet någon annanstans. */
-  h+='<div class="cfg-sec">Uppmätt</div><div class="cfg-hint" id="sz-matt">–</div>';
-  h+='</div>';
-  const bd=$('dlg-body');if(bd)bd.innerHTML=h;setT('dlg-title',titles[section]);
-  /* Rutan finns först nu i dokumentet — måtten kan inte räknas innan. */
-  try{updatePrev();}catch(e){}
-  try{sizeMatt();}catch(e){}}
 
 /* Läser av verkliga mått från en ruta på startsidan och från förhandsvisningen,
    så skillnaden syns direkt i menyn. */
-function sizeMatt(){
-  var ut=$('sz-matt');if(!ut)return;
-  try{
-    if(typeof getComputedStyle!=='function'){ut.textContent='kan inte mäta';return;}
-    var gid=(_sizeSection==='tile')?'stats-flode':'stats-energy';
-    var g=$(gid), st=g&&g.querySelector?g.querySelector('.stat'):null;
-    var pv=$('cfg-prev'), pst=pv&&pv.querySelector?pv.querySelector('.stat'):null;
-    var las=function(el){
-      if(!el)return '–';
-      var v=el.querySelector('.v'), ic=el.querySelector('.stat-ic');
-      return 'värde '+(v?Math.round(parseFloat(getComputedStyle(v).fontSize)):'?')+' px'
-        +', ikon '+(ic?Math.round(parseFloat(getComputedStyle(ic).width)):'?')+' px';};
-    var bas=st?getComputedStyle(st).getPropertyValue('--tl-v-b'):'';
-    ut.innerHTML='Startsidan: '+las(st)+'<br>Förhandsvisning: '+las(pst)
-      +'<br>Basmått: '+((bas||'').trim()||'saknas')
-      +'<br>Faktor: '+((g&&g.style.getPropertyValue('--tl-v'))||'–')
-      +' · px: '+((g&&g.style.getPropertyValue('--tl-v-px'))||'–');
-  }catch(e){ut.textContent='fel: '+e.message;}}
 function cfgGlow(d){let D=Math.round((CFG.glowmul-1)*100)+d*10;D=Math.max(-100,Math.min(200,D));CFG.glowmul=Math.max(0,Math.round((1+D/100)*100)/100);saveCfg();applyCfg();const n=$('cfgnum-glow');if(n)n.textContent=(D>0?'+':'')+D+'%';}
 function cfgSharp(d){let s=(CFG.glowsharp==null?.75:CFG.glowsharp)+d*0.1;CFG.glowsharp=Math.max(0,Math.min(1,Math.round(s*100)/100));saveCfg();applyCfg();const n=$('cfgnum-sharp');if(n)n.textContent=Math.round(CFG.glowsharp*100)+'%';}
 function cfgNight(d){CFG.night=Math.max(0,Math.min(60,(CFG.night||0)+d*10));saveCfg();render();const n=$('cfgnum-night');if(n)n.textContent=CFG.night+'%';}
@@ -20644,7 +20381,7 @@ function cfgYearVar(v){CFG.yearVar=(v||'').trim();saveCfg();_yearFetch=0;try{yea
 function yhListHtml(){const a=yearHistGet().slice().sort((x,y)=>y.year-x.year);if(!a.length)return '';let h='';a.forEach(function(y){h+='<div class="cfg-row"><span class="cfg-row-l">'+y.year+(y.manual?'':' · auto')+(y.partial?' · delår':'')+'</span><span style="color:var(--dim);font-size:12px">'+Math.round(y.total||0)+' kWh · sol '+Math.round(y.sol||0)+' <button class="cfg-pm" style="margin-left:6px" onclick="yhRemove('+y.year+')">×</button></span></div>';});return h;}
 function yhSave(){const yv=$('yh-year'),tv=$('yh-total'),sv=$('yh-sol');if(!yv)return;const yr=parseInt(yv.value,10),tot=parseFloat(tv.value),sol=parseFloat(sv.value);if(!yr||isNaN(tot))return;yearHistUpsert(yr,tot,isNaN(sol)?0:sol,{manual:true});yv.value='';tv.value='';sv.value='';const l=$('yh-list');if(l)l.innerHTML=yhListHtml();}
 function yhRemove(yr){yearHistRemove(yr);const l=$('yh-list');if(l)l.innerHTML=yhListHtml();}
-function cfgReset(){_sizeSection=null;CFG=baseCfg();if(CFG.sharpV!==2)CFG.sharpV=2;saveCfg();applyCfg();render();openConfig();}
+function cfgReset(){CFG=baseCfg();if(CFG.sharpV!==2)CFG.sharpV=2;saveCfg();applyCfg();render();openConfig();}
 function fmtBand(key,b){if(key==='price')return num(b.lo,2)+'–'+num(b.hi,2)+' kr';return W(b.lo)+'–'+W(b.hi);}
 function learnInfoHTML(){const rows=[['solar','Sol'],['price','Pris'],['battflow','Batteriflöde'],['gridflow','Nätflöde']];let h='<div class="learn-info">';
   rows.forEach(r=>{const b=learnBand(r[0]);h+='<div class="learn-row"><span class="learn-l">'+r[1]+'</span><span class="learn-b">'+fmtBand(r[0],b)+'</span><span class="learn-n">'+(b.learned?('lärt · '+b.n+' mätv.'):('start · '+b.n+'/'+LEARN_MINN))+'</span></div>';});
@@ -20842,7 +20579,7 @@ function renderWarnRow(){const wd=$('warns');if(!wd||!_warnList.length)return;
   const a=_warnList[_warnIdx],c=a[0],ic2=a[1],t=a[2],l=a[3];
   if(wd.classList){wd.classList.toggle('crit',c==='crit');wd.classList.toggle('warnc',c==='warn');wd.classList.toggle('okc',c==='okc');}
   let dots='';if(_warnList.length>1)dots='<span class="wdots">'+_warnList.map((x,i)=>'<i'+(i===_warnIdx?' class="on"':'')+'></i>').join('')+'</span>';
-  const tOff=CFG.reportTextSize||0,iOff=CFG.reportIconSize||0;
+  const tOff=0,iOff=0;   /* v727: storleken är fast */
   const tStyle=tOff?(' style="font-size:'+Math.max(8,12.5+tOff)+'px"'):'';
   const iS=Math.max(10,17+iOff*1.5),iStyle=iOff?(' style="width:'+iS+'px;height:'+iS+'px"'):'';
   wd.innerHTML='<span class="wi"'+iStyle+'>'+icon(ic2)+'</span><span class="wt"'+tStyle+'>'+t+'</span>'+(l?'<span class="lvl">'+l+'</span>':'')+dots;}
@@ -21434,18 +21171,11 @@ if(typeof window!=='undefined'&&window.addEventListener){
 /* Avståndet mellan rutorna på höjden, i px, bara för telefonen. Kolumnavståndet
    lämnas orört – det styrs av layouten och behöver sällan pillas på. */
 var MOB_GAP_MIN=0, MOB_GAP_MAX=24, MOB_GAP_DEF=3;
-function mobGapY(){var v=CFG&&CFG.mobGapY;
-  return (v==null||!isFinite(v))?MOB_GAP_DEF:Math.max(MOB_GAP_MIN,Math.min(MOB_GAP_MAX,v));}
+function mobGapY(){return MOB_GAP_DEF;}   /* v727: fast */
 function applyMobGap(){try{
   var r=document.documentElement;if(!r||!r.style)return;
   r.style.setProperty('--mob-gap-y',mobGapY()+'px');
 }catch(e){}}
-function mobGapStep(d){
-  var v=Math.max(MOB_GAP_MIN,Math.min(MOB_GAP_MAX,mobGapY()+d));
-  CFG.mobGapY=v;saveCfg();applyMobGap();
-  var el=document.getElementById('mobgap-num');if(el)el.textContent=v+' px';
-  var m=document.getElementById('mobgap-minus');if(m)m.disabled=(v<=MOB_GAP_MIN);
-  var p=document.getElementById('mobgap-plus');if(p)p.disabled=(v>=MOB_GAP_MAX);}
 /* ===== Extern sida i platt-läget =====
    Håll inne live-indikatorn så öppnas vinkällaren i en ram ovanpå dashboarden.
    En ram, inte en vanlig länk: navigerar man bort tappar dashboarden allt sitt
@@ -21856,7 +21586,9 @@ function secScaleMigrera(){
     localStorage.setItem('secScaleBas_v1','2');
   }catch(e){}
 }
-function secScaleOf(sec){const s=secScaleGet();const v=s[sec];return (typeof v==='number'&&isFinite(v))?Math.max(0.6,Math.min(1.6,v)):1;}
+/* v727: avsnittens höjd ställs inte längre per enhet – alltid 100 %. Grundzoomen
+   per läge (secZoomBas) gäller som förut. */
+function secScaleOf(sec){return 1;}
 function applySecScale(){const view=$('view-flode');if(!view||!view.querySelector)return;
   /* HORNRADIEN SKA VARA SIG LIK. Hojden sätts med CSS zoom, och zoom skalar
      ALLT - text, luft och hörn. Ett avsnitt på 160 % fick därför 42 px hörn
@@ -21893,17 +21625,6 @@ function applySecScale(){const view=$('view-flode');if(!view||!view.querySelecto
   if(typeof setTimeout==='function')setTimeout(fitScreen,40);}
 /* Räkningen skild från omritningen. Förut ritade den ALLTID om "Ordna avsnitt",
    vilket slog sönder varje annan dialog som ville använda samma stegknappar. */
-function secHeightSet(sec,dir){
-  const s=secScaleGet();
-  let f=secScaleOf(sec)+dir*0.1;
-  f=Math.max(0.6,Math.min(1.6,Math.round(f*10)/10));
-  if(Math.abs(f-1)<0.001)delete s[sec];else s[sec]=f;
-  const alla=secScaleAlla();
-  alla[secKlass()]=s;
-  try{localStorage.setItem('secScale_v1',JSON.stringify(alla));}catch(e){}
-  applySecScale();
-  return f;}
-function secHeight(sec,dir){secHeightSet(sec,dir);openSecMove(sec);}
 /* Energipanelen och väderrutan lika höga. Innehållet är olika — energi har en
    rad staplar, vädret tre rader — så CSS kan inte räkna ut det. Mät i stället
    och sätt min-height på den kortare. Nollställs först, annars växer den bara
@@ -22010,13 +21731,12 @@ function secMove(sec,dir){const o=secOrderGet(),top=secTopp(o),i=top.indexOf(sec
    Ett avsnitt utan namn kan inte presenteras för en människa. */
 function openSecMove(sel){const alla=secOrderGet().filter(function(x){return !!SECMETA[x];});
   const o=secTopp(alla);
-  let h='<div class="te"><div class="cfg-hint" style="margin-top:0">Listan följer startsidan uppifrån och ned. ▲▼ flyttar avsnittet. −/+ ändrar dess höjd (innehållet skalar med). Indragna rader ligger inuti avsnittet ovanför och följer med när det flyttas. Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
+  let h='<div class="te"><div class="cfg-hint" style="margin-top:0">Listan följer startsidan uppifrån och ned. ▲▼ flyttar avsnittet. Indragna rader ligger inuti avsnittet ovanför och följer med när det flyttas. Håll inne ett avsnitt på skärmen för att öppna listan.</div><div class="secmv">';
   /* Statusraden (Hem, Insikter …) ligger alltid överst och kan inte döljas —
      den bär inställningarna. Den står med för att listan ska se ut som sidan. */
   h+='<div class="secmv-row fast"><span class="secmv-n">Statusrad</span><span class="secmv-fast">alltid överst</span></div>';
-  o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;const pct=Math.round(secScaleOf(sec)*100);
+  o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;
     h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
-    +'<span class="secmv-h"><button onclick="secHeight(\''+sec+'\',-1)"'+(pct<=60?' disabled':'')+'>−</button><span class="secmv-hv">'+pct+'%</span><button onclick="secHeight(\''+sec+'\',1)"'+(pct>=160?' disabled':'')+'>+</button></span>'
     +'<span class="secmv-btns">'
     /* Text i stället för ikon: uppsättningen saknar öga, och en lånad ikon som
        betyder något annat är sämre än ett ord som säger vad knappen gör. */
@@ -22024,10 +21744,9 @@ function openSecMove(sel){const alla=secOrderGet().filter(function(x){return !!S
     +(secDold(sec)?'Visa avsnittet':'Dölj avsnittet')+'">'+(secDold(sec)?'Visa':'Dölj')+'</button>'
     +'<button onclick="secMove(\''+sec+'\',-1)"'+(i<=0?' disabled':'')+'>'+icon('arrow-fat-up')+'</button>'
     +'<button onclick="secMove(\''+sec+'\',1)"'+(i>=o.length-1?' disabled':'')+'>'+icon('arrow-fat-up','flip')+'</button></span></div>';
-    /* Inbäddade avsnitt under sin förälder: höjd och Dölj/Visa, ingen flytt. */
-    alla.forEach(function(ch){if(SEC_INNE[ch]!==sec)return;const pc=Math.round(secScaleOf(ch)*100);
+    /* Inbäddade avsnitt under sin förälder: Dölj/Visa, ingen flytt. */
+    alla.forEach(function(ch){if(SEC_INNE[ch]!==sec)return;
       h+='<div class="secmv-row inne'+(ch===sel?' sel':'')+(secDold(ch)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[ch])+'</span>'
-      +'<span class="secmv-h"><button onclick="secHeight(\''+ch+'\',-1)"'+(pc<=60?' disabled':'')+'>−</button><span class="secmv-hv">'+pc+'%</span><button onclick="secHeight(\''+ch+'\',1)"'+(pc>=160?' disabled':'')+'>+</button></span>'
       +'<span class="secmv-btns"><button class="secmv-oga'+(secDold(ch)?' av':'')+'" onclick="secDoldTog(\''+ch+'\')" title="'
       +(secDold(ch)?'Visa avsnittet':'Dölj avsnittet')+'">'+(secDold(ch)?'Visa':'Dölj')+'</button></span></div>';});});
   h+='</div><div class="te-adv"><button class="te-use" onclick="closeDetail()">Klar</button><button class="te-alt" onclick="secReset()">Återställ</button></div></div>';
@@ -22103,14 +21822,10 @@ function pbandTap(){if(_suppressClick){_suppressClick=false;return;}_priceDay=0;
     t=setTimeout(()=>{t=null;_suppressClick=true;
       if(typeof setTimeout==='function')setTimeout(()=>{_suppressClick=false;},700);
       if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
-      /* Spotpris och köpt/sålt har egna storleksrutor. Håller man inne DÄR vill
-         man justera just den rutan — inte flytta hela avsnittet. "Ordna avsnitt"
-         nås i stället via Hem-knappens inställningar, där den hör hemma. */
+      /* Spotpris (färger) och köpt/sålt (period) har egna rutor. Allt annat
+         öppnar Ordna avsnitt – storleksmenyerna finns inte längre (v727). */
       if(sec==='spot'){openSpotEdit();return;}
       if(sec==='kopt-salt'){openKsEdit();return;}
-      if(sec==='report'){openRepEdit();return;}
-      if(sec==='buttons'){openKnEdit();return;}
-      if(sec==='energy'||sec==='weather'){openEwEdit();return;}
       openSecMove(sec);},600);};
   const cancel=()=>{if(t){clearTimeout(t);t=null;}};
   view.addEventListener('pointerdown',dn);view.addEventListener('pointerup',cancel);view.addEventListener('pointermove',cancel);view.addEventListener('pointerleave',cancel);view.addEventListener('pointercancel',cancel);})();
@@ -22156,7 +21871,7 @@ lpAttach($('weather-flow'));lpAttach($('controls'));
 (function(){const ep=document.querySelector('.enpanel');if(!ep||!ep.addEventListener)return;let t=null,sx=0,sy=0;
   const dn=e=>{const tt=e.target&&e.target.closest&&e.target.closest('[data-wxedit="energy"]');if(!tt)return;if(e.target.closest&&(e.target.closest('[data-slot]')||e.target.closest('#house-hero')))return;
     const p=(e.touches&&e.touches[0])||e;sx=p.clientX||0;sy=p.clientY||0;clearTimeout(t);
-    t=setTimeout(()=>{t=null;_suppressClick=true;setTimeout(()=>{_suppressClick=false;},700);if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}openEnergyEdit();},550);};
+    t=setTimeout(()=>{t=null;_suppressClick=true;setTimeout(()=>{_suppressClick=false;},700);if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}openSecMove('energy');},550);};
   const mv=e=>{if(!t)return;const p=(e.touches&&e.touches[0])||e;if(Math.abs((p.clientX||0)-sx)>10||Math.abs((p.clientY||0)-sy)>10){clearTimeout(t);t=null;}};
   const up=()=>{if(t){clearTimeout(t);t=null;}};
   ep.addEventListener('pointerdown',dn);ep.addEventListener('pointermove',mv);ep.addEventListener('pointerup',up);ep.addEventListener('pointerleave',up);ep.addEventListener('pointercancel',up);})();
