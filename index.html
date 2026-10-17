@@ -2579,7 +2579,10 @@ body.kiosk #view-flode>[data-sec="buttons"] .ctl{height:auto}
 body.mobile .pn-tiles,body:not(.kiosk) .pn-tiles,
 body.mobile .cfg-prev.prev-chip,body:not(.kiosk) .cfg-prev.prev-chip{--tl-v-b:19px;--tl-ic-b:20px;
   --tl-name-b:9.5px;--tl-desc-b:9.5px}
-.kiosk .pn-tiles,.kiosk .cfg-prev.prev-chip{--tl-v-b:19px;--tl-ic-b:22px;--tl-name-b:9.5px;--tl-desc-b:9px}
+/* v730: platta i liggande (varken kiosk eller mobil) — gott om bredd, 23 px.
+   v729:s 19 px ovan gällde av misstag även här (body:not(.kiosk)). Kiosk: 22 px. */
+body:not(.kiosk):not(.mobile) .pn-tiles,body:not(.kiosk):not(.mobile) .cfg-prev.prev-chip{--tl-v-b:23px}
+.kiosk .pn-tiles,.kiosk .cfg-prev.prev-chip{--tl-v-b:22px;--tl-ic-b:22px;--tl-name-b:9.5px;--tl-desc-b:9px}
 /* Rubriken får plats: något glesare teckenavstånd kostar mer än det smakar när
    kolumnen är smal. */
 .pn-tiles .label{letter-spacing:.02em}
@@ -6518,8 +6521,8 @@ function buildWeatherHTML(){
   const wz=szRead('wx'),SZ=(b,o,s)=>Math.max(6,Math.round((b+(o||0)*s)*10)/10);
   const zSL=SZ(8.5,wz.stripL,0.8),zSV=SZ(15,wz.stripV,1),zSI=SZ(11,wz.stripI,1);
   const nI=wz.nowI||0,nV=wz.nowV||0,nT=wz.nowT||0;
-  /* v729: temperatur och vind 29 → 24 px på mobilen (Markus). Plattan oförändrad. */
-  const zWicon=Math.max(20,46+nI*2),zArrow=Math.max(18,40+nI*2),zNum=Math.max(14,Math.round(((szMobile()?24:29)+nV*1.6)*10)/10),zNsub=Math.max(8,Math.round((11.5+nT*0.8)*10)/10),zKB=Math.max(8,Math.round((12.5+(wz.nowKB||0)*0.8)*10)/10),zBes=zKB,
+  /* v729/v730: temperatur och vind – se wxNumBas. */
+  const zWicon=Math.max(20,46+nI*2),zArrow=Math.max(18,40+nI*2),zNum=Math.max(14,Math.round((wxNumBas()+nV*1.6)*10)/10),zNsub=Math.max(8,Math.round((11.5+nT*0.8)*10)/10),zKB=Math.max(8,Math.round((12.5+(wz.nowKB||0)*0.8)*10)/10),zBes=zKB,
     zDir=Math.max(9,Math.round((15+(wz.nowDir||0)*1)*10)/10),zArrColor=ARROW_COLORS[wz.arrowColor||'default']||'var(--blue)';
   const ex=tempExtremes(tOut);
   /* Max vind/by på remsan = högsta de senaste tre timmarna, samma som popupens
@@ -6616,6 +6619,12 @@ function szMobile(){try{var vm=localStorage.getItem('view_mode_v1');
    Gamla sparade värden ligger kvar i CFG men läses aldrig – bara de nycklar som
    INTE är storlekar släpps igenom (pilfärg, centrering, ändtextens färg). */
 var SZ_BEHALL={wx:['arrowColor','nowCenter'],spot:['endWhite']};
+/* v730: grundstorlek för väderns temperatur och vind (förut 29 px överallt).
+   Mobil 24, kiosk (platta stående) 25, platta liggande 26. */
+function wxNumBas(){
+  if(szMobile())return 24;
+  try{if(document.body&&document.body.classList.contains('kiosk'))return 25;}catch(e){}
+  return 26;}
 function szRead(name){
   var src=szMobile()?((CFG.mob&&CFG.mob[name])||{}):(CFG[name]||{});
   var ut={},k=SZ_BEHALL[name]||[];
@@ -19993,7 +20002,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v729';
+const APP_VERSION='v730';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
