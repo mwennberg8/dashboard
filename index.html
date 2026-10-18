@@ -20706,7 +20706,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v744';
+const APP_VERSION='v745';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -22544,7 +22544,7 @@ function openSecMove(sel){const alla=secOrderGet().filter(function(x){return !!S
   /* Statusraden (Hem, Insikter …) ligger alltid överst och kan inte döljas —
      den bär inställningarna. Den står med för att listan ska se ut som sidan. */
   h+='<div class="secmv-row fast"><span class="secmv-n">Statusrad</span><span class="secmv-fast">alltid överst</span></div>';
-  o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;
+  o.forEach((sec,i)=>{if(sec==='rum'&&!rumAvsnittPa())return;
     if(sec==='weather'&&wxRubrik())return;   /* v734: vädret står i energirubriken */
     h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
     +'<span class="secmv-btns">'
@@ -23553,13 +23553,21 @@ function rumPopupUppdatera(){
    om rutan var femtonde sekund och läget måste överleva det, men nästa gång
    dashboarden öppnas ska de fyra vanliga stå framme igen. */
 let _rumUtfallt=false;
+/* Väggplattan känns igen på IS_SAMSUNG_TABLET (Samsung, plattläge, fysisk
+   plattskärm). Plattramen på telefonen (v737, ?ram=1 i en iframe) ska se ut som
+   väggplattan och räknas därför likadant. */
+function arVaggplattaVy(){
+  if(IS_SAMSUNG_TABLET)return true;
+  try{return window.self!==window.top&&/[?&]ram=1(&|$)/.test(location.search||'');}catch(e){return false;}}
+function rumAvsnittPa(){return !arVaggplattaVy();}
 function rumVisaMer(){_rumUtfallt=!_rumUtfallt;renderRooms();}
 function renderRooms(){
   const el=$('rooms'),sec=$('rooms-sec'),mer=$('rooms-mer');
   if(!el||!sec)return;
-  /* Bara på mobil. På plattan hänger dashboarden på väggen — där är det inte
-     styrningen man vill ha, och rutorna skulle bara stjäla höjd. */
-  if(!MOBILE){sec.hidden=true;el.innerHTML='';if(mer)mer.innerHTML='';return;}
+  /* v745: överallt UTOM på väggplattan (och i plattläget på telefonen, som
+     visar väggplattan). Förut bara i mobilläget – en surfplatta i soffan fick
+     aldrig rummen. */
+  if(!rumAvsnittPa()){sec.hidden=true;el.innerHTML='';if(mer)mer.innerHTML='';return;}
   const zs=rumsZoner();
   sec.hidden=!zs.length;
   el.innerHTML=zs.map(z=>{
@@ -23601,7 +23609,7 @@ function rumRita(){renderRooms();try{vanorUppdatera();}catch(e){}
   /* v740: renderRooms ritar inga rum på plattan och kom därför aldrig till
      rumPopupUppdatera – en rumsrutas popup (Uterum, Snickarboa, Poolrum) visade
      den gamla knappen tills nästa hämtning. */
-  if(!MOBILE){try{rumPopupUppdatera();}catch(e){}}}
+  if(!rumAvsnittPa()){try{rumPopupUppdatera();}catch(e){}}}
 
 /* ===== TV:N =====
    v713: den dynamiska TV-rutan överst är borta. TV:n är en vanlig ruta
