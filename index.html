@@ -793,12 +793,12 @@ body.mobile:not(.kiosk) .stat-bok>span{overflow:visible;flex:0 0 auto}
 .stat-bokik .ic{width:13px!important;height:13px!important}
 .stat-bokik b{font-size:9.5px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 .stat-bokik.bok-gul{color:var(--gold)}.stat-bokik.bok-bla{color:var(--blue)}.stat-bokik.bok-gron{color:var(--ok)}
-body.panu-pa .fl-tiles>.stat .stat-bokik{display:none}
-body.panu-pa .fl-tiles>.stat .stat-bok{display:inline-flex!important;grid-column:3;grid-row:1;justify-self:end;align-self:center;
+body.panu-pa .fl-tiles>.stat .stat-bokik,body.panu-pa #stats-energy>.stat .stat-bokik{display:none}
+body.panu-pa .fl-tiles>.stat .stat-bok,body.panu-pa #stats-energy>.stat .stat-bok{display:inline-flex!important;grid-column:3;grid-row:1;justify-self:end;align-self:center;
   margin:0 0 0 calc(4px*var(--kk));padding:0;background:none;gap:3px;font-size:calc(10px*var(--kk))}
-body.panu-pa .fl-tiles>.stat .stat-bok .bok-lang{display:none}
-body.panu-pa .fl-tiles>.stat .stat-bok .bok-kort{display:inline}
-body.panu-pa .fl-tiles>.stat .stat-bok>span{overflow:visible;flex:0 0 auto}
+body.panu-pa .fl-tiles>.stat .stat-bok .bok-lang,body.panu-pa #stats-energy>.stat .stat-bok .bok-lang{display:none}
+body.panu-pa .fl-tiles>.stat .stat-bok .bok-kort,body.panu-pa #stats-energy>.stat .stat-bok .bok-kort{display:inline}
+body.panu-pa .fl-tiles>.stat .stat-bok>span,body.panu-pa #stats-energy>.stat .stat-bok>span{overflow:visible;flex:0 0 auto}
 body.mobile:not(.kiosk) .fl-tiles{--tl-sub:9px}
 .ctl-prog{position:absolute;left:12px;right:12px;bottom:7px;height:3px;border-radius:2px;
   background:var(--line);pointer-events:none}
@@ -1050,6 +1050,32 @@ body.mobile .en-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .wx-click{cursor:pointer;border-radius:14px;transition:.16s;margin:-4px;padding:4px}.wx-click:hover{background:var(--inset)}
 /* ---- omdesignat väderkort (v81) ---- */
 .wx2{position:relative;display:flex;align-items:stretch;gap:0}
+/* v731: kompakt väderrad på startsidan */
+.wxr{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;margin:-4px;padding:4px}
+.wxr-nu{display:flex;align-items:center;gap:8px;flex:0 1 auto;min-width:0}
+/* Platta/kiosk: lägst/högst exakt mitt i raden. Mobilen har inte bredden – där
+   står den mitt emellan väder och vind (space-between ovan). */
+.kiosk .wxr,body:not(.kiosk):not(.mobile) .wxr{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px}
+.kiosk .wxr-vind,body:not(.kiosk):not(.mobile) .wxr-vind{justify-self:end}
+.wxr-ic{flex:0 0 auto;display:inline-flex;color:var(--gold)}.wxr-ic .ic{width:100%;height:100%}
+.wxr-v{font-size:var(--wxr-z,22px);font-weight:770;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wxr-v small{font-size:.5em;font-weight:600;color:var(--dim);letter-spacing:0;margin-left:.15em}
+.wxr-txt{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+/* Beskrivningen får två rader ("Växlande / molnighet") hellre än att kapas. */
+.wxr-sit{font-size:12.5px;font-weight:650;color:var(--ink);white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.18}
+.wxr-sm{font-size:11px;font-weight:600;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wxr-mitt{display:flex;flex-direction:column;gap:2px;flex:0 0 auto;padding:0 10px;border-left:1px solid var(--line);border-right:1px solid var(--line)}
+.kiosk .wxr-mitt,body:not(.kiosk):not(.mobile) .wxr-mitt{padding:0 16px}
+.wxr-hl{display:flex;align-items:center;gap:3px;font-size:13px;font-weight:720;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wxr-hl.down{color:var(--blue)}.wxr-hl.up{color:var(--hot)}
+.wxr-hl-ic{width:11px;height:11px;display:inline-flex}.wxr-hl-ic .ic{width:100%;height:100%}
+.wxr-vind{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+.wxr-vind .wx-arrow{transition:transform .3s}
+/* Remsan är borta från startsidan; linjen efter raden gav dubbelrand mot solremsans egen (#sol-del). */
+#weather-flow+.pn-del{display:none}
+.kiosk .wxr-sit,body:not(.kiosk):not(.mobile) .wxr-sit{font-size:13.5px}
+.kiosk .wxr-sm,body:not(.kiosk):not(.mobile) .wxr-sm{font-size:12px}
+.kiosk .wxr-hl,body:not(.kiosk):not(.mobile) .wxr-hl{font-size:14.5px}
 .wx2-now,.wx2-wind{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:12px;padding:2px}
 
 .wx2-wind{padding-left:var(--avd-pad)}
@@ -1261,12 +1287,12 @@ body.kiosk .regelrad button{height:34px;font-size:13px}
 /* ⋯ i belysningsrutans nedre hörn: Auto, Skivspelare och resten. Nere i
    stället för uppe, så rubriken "BELYSNING" får plats på en smal telefon;
    lägesraden slutar före knappen. */
-body.panu-pa .fl-tiles>.stat.har-mer .stat-sub{padding-right:calc(30px*var(--kk))!important}
+body.panu-pa .fl-tiles>.stat.har-mer .stat-sub,body.panu-pa #stats-energy>.stat.har-mer .stat-sub{padding-right:calc(30px*var(--kk))!important}
 .tile-mer{display:none}
 /* v713: lägg till knapp i belysningspopupen */
 .hem-ny{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px}
 .hem-ny span{font-size:11.5px;color:var(--faint)}
-body.panu-pa .fl-tiles>.stat .tile-mer{display:flex;position:absolute;bottom:calc(7px*var(--kk));right:calc(7px*var(--kk));
+body.panu-pa .fl-tiles>.stat .tile-mer,body.panu-pa #stats-energy>.stat .tile-mer{display:flex;position:absolute;bottom:calc(7px*var(--kk));right:calc(7px*var(--kk));
   width:calc(26px*var(--kk));height:calc(22px*var(--kk));align-items:center;justify-content:center;border-radius:999px;
   border:1px solid var(--line);background:var(--panel-a);color:var(--dim);font:inherit;font-size:calc(14px*var(--kk));
   font-weight:800;line-height:1;padding:0;cursor:pointer;grid-column:auto}
@@ -1274,31 +1300,31 @@ body.panu-pa .fl-tiles>.stat .tile-mer{display:flex;position:absolute;bottom:cal
    över hela bredden under. .stat-txt får display:contents så dess rader blir
    rutnätets egna — då linjerar ikonen med rubriken och värdet med kortets
    vänsterkant, utan absoluta positioner som inte följer med skalan. */
-body.panu-pa .fl-tiles>.stat{display:grid!important;grid-template-columns:calc(16px*var(--kk)) minmax(0,1fr);
+body.panu-pa .fl-tiles>.stat,body.panu-pa #stats-energy>.stat{display:grid!important;grid-template-columns:calc(16px*var(--kk)) minmax(0,1fr);
   column-gap:calc(6px*var(--kk));row-gap:0;align-content:start;justify-items:stretch;align-items:center!important;
   position:relative;min-width:0;min-height:0;height:auto!important;width:auto!important;margin:0!important;
   background:var(--panel-b)!important;border:1px solid var(--line)!important;border-radius:calc(14px*var(--kk))!important;
   padding:calc(10px*var(--kk))!important;box-shadow:none!important;text-align:left!important}
-body.panu-pa .fl-tiles>.stat::before,body.panu-pa .fl-tiles>.stat::after{display:none!important;content:none!important}
-body.panu-pa .fl-tiles>.stat>*{grid-column:1/-1}
-body.panu-pa .fl-tiles>.stat .stat-ic{position:relative!important;grid-column:1;grid-row:1;
+body.panu-pa .fl-tiles>.stat::before,body.panu-pa .fl-tiles>.stat::after,body.panu-pa #stats-energy>.stat::before,body.panu-pa #stats-energy>.stat::after{display:none!important;content:none!important}
+body.panu-pa .fl-tiles>.stat>*,body.panu-pa #stats-energy>.stat>*{grid-column:1/-1}
+body.panu-pa .fl-tiles>.stat .stat-ic,body.panu-pa #stats-energy>.stat .stat-ic{position:relative!important;grid-column:1;grid-row:1;
   width:calc(16px*var(--kk))!important;height:calc(16px*var(--kk))!important;margin:0!important;align-self:center!important;
   display:flex;align-items:center;justify-content:center;transform:none}
-body.panu-pa .fl-tiles>.stat .stat-ic svg{width:100%;height:100%}
+body.panu-pa .fl-tiles>.stat .stat-ic svg,body.panu-pa #stats-energy>.stat .stat-ic svg{width:100%;height:100%}
 /* Bilens markering (inkopplad, laddar) hör till ikonen — nere till höger om
    den, i ikonens skala. Förut hamnade den i kortets nedre hörn. */
-body.panu-pa .fl-tiles>.stat .stat-ic .ik-mark{right:calc(-6px*var(--kk));bottom:calc(-5px*var(--kk));
+body.panu-pa .fl-tiles>.stat .stat-ic .ik-mark,body.panu-pa #stats-energy>.stat .stat-ic .ik-mark{right:calc(-6px*var(--kk));bottom:calc(-5px*var(--kk));
   width:calc(11px*var(--kk));height:calc(11px*var(--kk))}
-body.panu-pa .fl-tiles>.stat .stat-txt{display:contents!important}
-body.panu-pa .fl-tiles>.stat .label{grid-column:2;grid-row:1;padding:0!important;font-size:calc(10px*var(--kk))!important;font-weight:800!important;
+body.panu-pa .fl-tiles>.stat .stat-txt,body.panu-pa #stats-energy>.stat .stat-txt{display:contents!important}
+body.panu-pa .fl-tiles>.stat .label,body.panu-pa #stats-energy>.stat .label{grid-column:2;grid-row:1;padding:0!important;font-size:calc(10px*var(--kk))!important;font-weight:800!important;
   letter-spacing:.07em;text-transform:uppercase;color:var(--faint)!important;line-height:calc(16px*var(--kk))!important;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0!important;text-align:left!important}
-body.panu-pa .fl-tiles>.stat .v{grid-column:1/-1;grid-row:2;font-size:calc(22px*var(--kk))!important;font-weight:800!important;line-height:1.1!important;
+body.panu-pa .fl-tiles>.stat .v,body.panu-pa #stats-energy>.stat .v{grid-column:1/-1;grid-row:2;font-size:calc(22px*var(--kk))!important;font-weight:800!important;line-height:1.1!important;
   margin:calc(6px*var(--kk)) 0 0!important;white-space:nowrap;overflow:hidden;text-align:left!important}
-body.panu-pa .fl-tiles>.stat .v small{font-size:calc(12px*var(--kk))!important;font-weight:700;color:var(--dim);margin-left:2px}
-body.panu-pa .fl-tiles>.stat .stat-sub{grid-column:1/-1;grid-row:3;font-size:calc(11.5px*var(--kk))!important;line-height:1.3;color:var(--dim)!important;
+body.panu-pa .fl-tiles>.stat .v small,body.panu-pa #stats-energy>.stat .v small{font-size:calc(12px*var(--kk))!important;font-weight:700;color:var(--dim);margin-left:2px}
+body.panu-pa .fl-tiles>.stat .stat-sub,body.panu-pa #stats-energy>.stat .stat-sub{grid-column:1/-1;grid-row:3;font-size:calc(11.5px*var(--kk))!important;line-height:1.3;color:var(--dim)!important;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:calc(3px*var(--kk)) 0 0!important;text-align:left!important}
-body.panu-pa .fl-tiles>.stat .meta{display:none!important}
+body.panu-pa .fl-tiles>.stat .meta,body.panu-pa #stats-energy>.stat .meta{display:none!important}
 /* (v693: ingen grön ton för aktiva rutor — glöden är borttagen.) */
 /* Väggplattan: samma kort, större skala. Raderna fyller höjden, innehållet
    centreras i höjdled. */
@@ -1307,8 +1333,33 @@ body.panu-pa .fl-tiles>.stat .meta{display:none!important}
    avsnittet (uppmätt i Chromium 800×1280). Raderna får krympa (minmax 0) och
    korten klipper hellre än att tränga ut rapporten. */
 body.kiosk.panu-pa .fl-tiles{grid-auto-rows:minmax(0,1fr)!important}
-body.kiosk.panu-pa .fl-tiles>.stat{overflow:hidden}
-body.kiosk.panu-pa .fl-tiles>.stat{align-content:center}
+body.kiosk.panu-pa .fl-tiles>.stat,body.kiosk.panu-pa #stats-energy>.stat{overflow:hidden}
+body.kiosk.panu-pa .fl-tiles>.stat,body.kiosk.panu-pa #stats-energy>.stat{align-content:center}
+/* v733: SOL NU, BATTERI OCH ELNÄT SOM KORT – samma stil som de sex rutorna
+   (reglerna ovan gäller båda). Tre lika breda kort med samma mellanrum, och
+   kanterna i linje med korten nedanför: panelens egen kantluft dras av så att
+   kortet hamnar 8 px (× --kk) från panelkanten, precis som i rutavsnittet.
+   Raderna är så höga som innehållet – de fyller inte höjden som de sex gör på
+   väggplattan. --kk-z sätts av applySecScale: rutavsnittets zoom delat med
+   energipanelens, så att korten blir lika stora på skärmen trots att
+   avsnitten har olika grundzoom (väggplattan 1,2 mot 1,25). */
+body.panu-pa #stats-energy{--kk:var(--kk-z,1);display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  grid-auto-rows:auto!important;gap:calc(8px*var(--kk))!important;column-gap:calc(8px*var(--kk))!important;row-gap:calc(8px*var(--kk))!important;
+  padding:0!important;margin:calc(10px*var(--kk)) calc(8px*var(--kk) - clamp(16px,2vw,21px)) 0!important}
+body.kiosk.panu-pa #stats-energy{--kk:calc(1.05*var(--kk-z,1));margin:calc(10px*var(--kk)) calc(8px*var(--kk) - 13px) 0!important}
+/* Avdelarna runt korten behövs inte – kortens kanter avgränsar redan. Den
+   undre låg dessutom precis på kortens nederkant. */
+body.panu-pa #en-del,body.panu-pa #stats-energy~#sp-del{display:none!important}
+/* Bokningen (lås + tid) står sist på rubrikraden i en egen kolumn. Kolumnen
+   måste vara EXPLICIT – annars räknas "1/-1" bara över ikon och rubrik, och
+   värdet och underraden klipptes vid brickans vänsterkant ("−…"). */
+body.panu-pa .fl-tiles>.stat.har-bokrad,body.panu-pa #stats-energy>.stat.har-bokrad{
+  grid-template-columns:calc(16px*var(--kk)) minmax(0,1fr) auto}
+/* Telefonen: kortet är ~100 px brett – rubrik, lås och klockslag får inte plats
+   (rubriken blev "BA…"). Bara låset där; klockslaget finns i rutans popup och
+   i hovringstexten. */
+body.mobile:not(.kiosk).panu-pa .fl-tiles>.stat .stat-bok .bok-kort,
+body.mobile:not(.kiosk).panu-pa #stats-energy>.stat .stat-bok .bok-kort{display:none}
 body.kiosk.panu-pa .panu-c{height:34px;font-size:13.5px;padding:0 14px}
 /* v727: PÅ NU-RADEN TRYCKS INTE IHOP. Avsnittet är en flexkolumn med fast höjd
    och raden hade min-height:0 och standardkrympning – när utrymmet tröt (två
@@ -3453,7 +3504,7 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
         <!-- Rutorna INUTI panelen, avdelade med en hårfin linje. Två separata
              kort med samma ämne läses som två saker; en ruta med en avdelare
              läses som en. -->
-        <div class="pn-del"></div>
+        <div class="pn-del" id="en-del"></div>
         <div class="grid stats st3 en-stats pn-tiles" id="stats-energy" data-grid="energy"></div>
         <!-- Laddregelns förslag (v696): syns bara när det finns ett att ta
              ställning till. -->
@@ -6584,7 +6635,44 @@ function buildWeatherHTML(){
   h+=wcell('wind','Max by',(wx.g==null?'–':num(wx.g,0)),'',null,'',false);
   h+='</div>';
   return h;}
-function renderWeather(){const a=$('weather-flow');if(a)a.innerHTML=buildWeatherHTML();renderTiles('weather');
+/* v731: KOMPAKT VÄDERRAD PÅ STARTSIDAN (Markus val "A · en rad").
+   Väder · lägst/högst i mitten · vind längst till höger. Temperatur och vind i
+   samma storlek. Hela raden öppnar Väder-sidan, som har kvar det fulla kortet
+   (buildWeatherHTML, orört). Solremsan under ligger kvar som förut.
+   OBS: buildWeatherHTML kör windExtremes/tempExtremes, som håller dygnsminnet
+   för Max vind/by och Lägst/Högst. Startsidan anropar den inte längre, så det
+   görs här – annars uppdateras minnet bara när Väder-sidan är öppen. */
+function wxrNumBas(){
+  if(szMobile())return 22;
+  try{if(document.body&&document.body.classList.contains('kiosk'))return 24;}catch(e){}
+  return 26;}
+function buildWeatherCompactHTML(){
+  const sit=cap(DEV.smhi,'measure_weather_situation_cp');
+  const tOut=cap(DEV.outdoor,'measure_temperature'),feels=cap(DEV.smhi,'air_temperature_feels_like_cp');
+  const wspd=vindMs(),wgust=byMs();
+  let wdir=cap(DEV.windNet,'measure_wind_angle');if(wdir==null)wdir=cap(DEV.smhi,'measure_wind_direction_cp');
+  windExtremes(wspd,wgust);
+  const ex=tempExtremes(tOut);
+  const wz=szRead('wx'),arrC=ARROW_COLORS[wz.arrowColor||'default']||'var(--blue)';
+  const z=wxrNumBas(),zi=Math.round(z*1.1),za=Math.round(z*0.8);
+  const dirTxt=windDirTxt(wdir)||'';
+  const by=(wgust!=null?'by '+num(wgust,0):'')+(wgust!=null&&dirTxt?' · ':'')+dirTxt;
+  const hl=(v,up)=>'<span class="wxr-hl '+(up?'up':'down')+'"><span class="wxr-hl-ic"'+(up?'':' style="transform:rotate(180deg)"')+'>'+icon('arrow-fat-up')+'</span>'+(v==null?'–':num(v,1)+'°')+'</span>';
+  let h='<div class="wxr wx-click" data-wxedit="now" onclick="openVader()" style="--wxr-z:'+z+'px">';
+  h+='<div class="wxr-nu"><span class="wxr-ic" style="width:'+zi+'px;height:'+zi+'px">'+icon(wxIcon(sit))+'</span>'
+    +'<span class="wxr-v">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'
+    +'<span class="wxr-txt"><span class="wxr-sit">'+esc(sit||'Väder')+'</span>'
+    +(feels!=null?'<span class="wxr-sm">känns '+num(feels,0)+'°</span>':'')+'</span></div>';
+  h+='<div class="wxr-mitt">'+hl(ex.min,false)+hl(ex.max,true)+'</div>';
+  h+='<div class="wxr-vind">'+windArrow(wdir,za,arrC)
+    +'<span class="wxr-txt"><span class="wxr-v">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span>'
+    +(by?'<span class="wxr-sm">'+esc(by)+'</span>':'')+'</span></div>';
+  h+='</div>';
+  return h;}
+function renderWeather(){const a=$('weather-flow');if(a)a.innerHTML=buildWeatherCompactHTML();renderTiles('weather');
+  /* v731: startsidan har ingen remsa längre (Inne, Uterum, Lägst … finns på
+     Väder-sidan). Töm platsen om en äldre remsa ligger kvar. */
+  try{var pl0=$('wx-strip-plats');if(pl0&&pl0.firstChild&&!(a&&a.querySelector('.wx2-strip')))pl0.innerHTML='';}catch(e){}
   /* Flytta remsan sist i panelen, under rutorna. Den byggs i samma html som
      resten — att bygga den separat hade betytt två ställen att hålla i takt. */
   try{
@@ -13630,7 +13718,14 @@ function gridTiles(g){if(TILESTATE[g])return TILESTATE[g];const G=GRIDS[g];let a
     else if(p.length===G.def.length)a=p;}}}catch(e){}
   if(!a&&g==='flode'){try{const old=localStorage.getItem('tilesFlode_v4')||localStorage.getItem('tilesFlode_v3');if(old){let p=JSON.parse(old);if(Array.isArray(p)){let out=p.map(t=>(t&&t.type==='computed'&&t.key==='cars')?{type:'computed',key:'car1'}:t);if(out.length>=1){a=out;localStorage.setItem(G.store,JSON.stringify(out));}}}}catch(e){}}
   if(!a)a=G.def.map(x=>Object.assign({},x));TILESTATE[g]=a;return a;}
-function saveGrid(g){try{localStorage.setItem(GRIDS[g].store,JSON.stringify(TILESTATE[g]));}catch(e){}}
+/* v732: RUTÄNDRINGAR SKICKAS TILL HOMEY DIREKT, som knappar och avsnittsordning.
+   Förut sparades de bara lokalt (localStorage) och nådde Homey först vid
+   dygnsbackupen – eller aldrig, på en enhet som inte är huvudenhet. Under tiden
+   låg den gamla layouten kvar i kopian, och nästa hämtning (en annan enhet som
+   sparade, dygnshämtningen, en omstart) lade tillbaka den: "efter ett tag
+   återgår det". syncPushSoon väntar 3 s, så flera ändringar blir en skrivning. */
+function saveGrid(g){try{localStorage.setItem(GRIDS[g].store,JSON.stringify(TILESTATE[g]));}catch(e){}
+  try{syncPushSoon();}catch(e){}}
 /* FASTA RUTOR MED PÅ NU (v695). Breveden, Diskmaskin och Belysning bär
    knapparna när knappavsnittet är gömt, så de får inte kunna försvinna. I
    v691–v694 skrevs de EN gång in i rutlayouten — och layouten synkas mellan
@@ -13648,6 +13743,20 @@ function fastaRutor(arr){
   return ut;
 }
 function visadeRutor(g){var a=gridTiles(g);return (g==='flode')?a.concat(fastaRutor(a)):a;}
+/* v732: HÅLL INNE PÅ EN FAST RUTA (Breveden, Diskmaskin, Belysning). De låg
+   utanför layouten och långtrycket var avstängt för dem, så de gick varken att
+   flytta, byta eller ta bort. Nu flyttas ALLA fasta rutor in i layouten i den
+   ordning de syns (så ingenting byter plats på skärmen), och redigeraren öppnas
+   för den man höll på. Därefter är de vanliga rutor – men tas en av dem bort
+   lämnas en dold markör kvar (se removeTile), annars lade fastaRutor tillbaka den. */
+function fastaTillLayout(g,slot){
+  if(g!=='flode')return;
+  var arr=gridTiles(g),f=fastaRutor(arr),bas=arr.length,mal=slot-bas;
+  if(mal<0||mal>=f.length)return;
+  if(bas+f.length>12){openTileEdit(g,Math.min(slot,arr.length-1));return;}
+  f.forEach(function(t){arr.push({type:'computed',key:t.key,glow:false});});
+  saveGrid(g);renderTiles(g);
+  openTileEdit(g,bas+mal);}
 
 /* HUSETS FÖRBRUKNING JUST NU.
    Laddboxens effekt ADDERADES förut ovanpå förbrukningsmätaren. Det dubbel-
@@ -19409,11 +19518,16 @@ function tileStatus(cfg){
   return genericGlow(cfg);
 }
 const GLOWVAR={gold:'gold',green:'ok',cyan:'cyan',warm:'warm',hot:'hot',blue:'blue',violet:'violet',solar:'solar'};
+/* v733: effekt ("90 W", "−1.8 kW") får enheten i <small> precis som kWh, kr
+   och °C i de andra korten. Text som redan har märkning rörs inte. */
+function enhetLiten(v){var t=String(v==null?'':v);
+  return /^[^<]*\d (k?W|MW)$/.test(t)?t.replace(/ (k?W|MW)$/,' <small>$1</small>'):t;}
 function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wrap)return;
   /* Måtten räknas om efter ritningen — rutorna finns inte att mäta på innan. */
   if(typeof setTimeout==='function')setTimeout(storlekOm,0);
   const arr=visadeRutor(g);let h='';const chip=(G.style==='chip');
   arr.forEach((cfg,i)=>{
+    if(cfg&&cfg.dold)return;                 /* v732: borttagen fast ruta */
     if(cfg&&cfg.type==='computed'&&(cfg.key==='krcmp'||cfg.key==='krcmp2')){h+=krcHTML(g,i,cfg);return;}
     const fill=tileFill(cfg,g);
     /* Bilrutan får FYLL istället för glow - laddnivån fyller brickan i rött->grönt. */
@@ -19457,7 +19571,7 @@ function renderTiles(g){const G=GRIDS[g];if(!G)return;const wrap=$(G.el);if(!wra
       const stI='';
       /* Centreringslägena gäller alla sex rutorna samtidigt. */
       var mitt=((CFG.tile&&CFG.tile.icMitt)?' ic-mitt':'')+((CFG.tile&&CFG.tile.alltMitt)?' allt-mitt':'');
-      h+='<div class="panel stat clickable'+(m.mer?' har-mer':'')+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+m.v+'</div>'
+      h+='<div class="panel stat clickable'+(m.mer?' har-mer':'')+(m.bok?' har-bokrad':'')+(glow?' is-on':'')+(fill?' has-fill':'')+mitt+'" data-slot="'+i+'"'+sty+' onclick="tileTap(\''+g+'\','+i+')">'+fillH+tileIkonHTML(cfg,m,'stat-ic '+accFor(m.icon))+'<div class="stat-txt"><div class="label">'+esc(shortLab(m.label))+'</div><div class="v">'+enhetLiten(m.v)+'</div>'
         /* UNDERRADEN kom tillbaka i v556, men bara dar den tillfor nagot.
            Den gamla meta-texten upprepade ofta rubriken med andra ord och togs
            bort i v545. Nu ar det ett eget falt, sub, som bara nagra rutor
@@ -19481,7 +19595,7 @@ function lpDown(e){const tile=e.target.closest&&e.target.closest('[data-slot]'),
   _lp.fired=false;_lp.kind=tile?'tile':'btn';
   if(tile){const ge=tile.closest&&tile.closest('[data-grid]');_lp.grid=ge?ge.getAttribute('data-grid'):'';_lp.slot=+t.dataset.slot;}else{_lp.grid='';_lp.slot=+t.dataset.bi;}
   const p=(e.touches&&e.touches[0])||e;_lp.x=p.clientX;_lp.y=p.clientY;
-  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=visadeRutor(_lp.grid)[_lp.slot];if(_c&&_c.fast){return;}if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
+  clearTimeout(_lp.timer);_lp.timer=setTimeout(()=>{_lp.fired=true;if(navigator.vibrate)try{navigator.vibrate(15);}catch(e2){}if(_lp.kind==='tile'){var _c=visadeRutor(_lp.grid)[_lp.slot];if(_c&&_c.fast){fastaTillLayout(_lp.grid,_lp.slot);return;}if(_c&&_c.type==='computed'&&(_c.key==='krcmp'||_c.key==='krcmp2'))openKrEdit(_lp.grid,_lp.slot);else openTileEdit(_lp.grid,_lp.slot);}else openBtnEdit(_lp.slot);},550);}
 function lpMove(e){if(!_lp.timer)return;const p=(e.touches&&e.touches[0])||e;if(Math.abs(p.clientX-_lp.x)>10||Math.abs(p.clientY-_lp.y)>10){clearTimeout(_lp.timer);_lp.timer=null;}}
 function lpUp(){clearTimeout(_lp.timer);_lp.timer=null;}
 let _tapCfg=null;
@@ -19730,7 +19844,14 @@ function teUse(g,i){const dv=$('te-dev'),cp=$('te-cap');if(!dv||!cp||!dv.value||
   saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 function moveTile(g,i,d){const arr=gridTiles(g),j=i+d;if(j<0||j>=arr.length)return;const t=arr[i];arr[i]=arr[j];arr[j]=t;saveGrid(g);renderTiles(g);openTileEdit(g,j);}
 function addTile(g,i){const arr=gridTiles(g);if(arr.length>=12)return;arr.splice(i+1,0,{type:'computed',key:'house'});saveGrid(g);renderTiles(g);if(typeof setTimeout==='function')setTimeout(fitScreen,40);openTileEdit(g,i+1);}
-function removeTile(g,i){const arr=gridTiles(g);if(arr.length<=1)return;arr.splice(i,1);saveGrid(g);renderTiles(g);if(typeof setTimeout==='function')setTimeout(fitScreen,40);closeDetail();}
+function removeTile(g,i){const arr=gridTiles(g);if(arr.length<=1)return;
+  /* v732: Breveden, Diskmaskin och Belysning läggs annars tillbaka av fastaRutor.
+     En dold markör i layouten säger att du tagit bort den med flit. Lägg till den
+     igen via katalogen (Hus) om du ångrar dig. */
+  const t0=arr[i];
+  if(g==='flode'&&t0&&t0.type==='computed'&&['breveden','dish','hem'].indexOf(t0.key)>=0
+     &&!arr.some(function(x,j){return j!==i&&x&&x.type==='computed'&&x.key===t0.key&&x.dold;}))arr[i]={type:'computed',key:t0.key,dold:true};
+  else arr.splice(i,1);saveGrid(g);renderTiles(g);if(typeof setTimeout==='function')setTimeout(fitScreen,40);closeDetail();}
 function toggleTileGlow(g,i){const arr=gridTiles(g);arr[i].glow=(arr[i].glow===false);if(arr[i].glow)delete arr[i].glow;saveGrid(g);renderTiles(g);openTileEdit(g,i);}
 /* Indikatorikonen uppe till höger. Sparas i rutans egen post, alltså i
    tiles*-nyckeln som redan synkas till Homey — ingen ny nyckel att hålla reda
@@ -20002,7 +20123,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v730';
+const APP_VERSION='v733';
 const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21659,6 +21780,10 @@ function applySecScale(){const view=$('view-flode');if(!view||!view.querySelecto
     el.style.zoom=platt?'':String(f);
     if(platt)el.style.removeProperty('--r');
     else el.style.setProperty('--r',(R_BAS/f).toFixed(2)+'px');});
+  /* v733: energikorten lika stora som de sex rutorna på skärmen. */
+  try{const ge=$('stats-energy');
+    if(ge&&ge.style){const zt=secScaleOf('tiles')*secZoomBas('tiles'),ze=secScaleOf('energy')*secZoomBas('energy');
+      ge.style.setProperty('--kk-z',(ze>0?zt/ze:1).toFixed(4));}}catch(e){}
   /* Spotbandet ligger INUTI energipanelen och ärver därför energins zoom. Det
      gjorde att bandet skalades två gånger på väggplattan — en gång av energin
      och en gång av sin egen inställning — och blev större än soluppgången.
