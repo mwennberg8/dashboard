@@ -13923,6 +13923,7 @@ function gridTiles(g){if(TILESTATE[g])return TILESTATE[g];const G=GRIDS[g];let a
    sparade, dygnshämtningen, en omstart) lade tillbaka den: "efter ett tag
    återgår det". syncPushSoon väntar 3 s, så flera ändringar blir en skrivning. */
 function saveGrid(g){try{localStorage.setItem(GRIDS[g].store,JSON.stringify(TILESTATE[g]));}catch(e){}
+  if(DELADE_KEYS.indexOf(GRIDS[g].store)>=0)deladAndrad();   /* v738: de sex rutorna delas */
   try{syncPushSoon();}catch(e){}}
 /* FASTA RUTOR MED PÅ NU (v695). Breveden, Diskmaskin och Belysning bär
    knapparna när knappavsnittet är gömt, så de får inte kunna försvinna. I
@@ -18235,8 +18236,102 @@ const LAYOUT_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','tilesFlode_v5','tilesEne
    Bakatkompatibelt: finns bara den gamla osuffixade nyckeln lases den, sa
    ingen forlorar sin layout vid uppgraderingen. */
 function syncKey(k){
+  if(DELADE_KEYS.indexOf(k)>=0)return k+'__delad';
   return (LAYOUT_KEYS.indexOf(k)>=0)?(k+'__'+secKlass()):k;
 }
+/* ===== v738: DE SEX RUTORNA ÄR GEMENSAMMA FÖR ALLA ENHETER =====
+   Rutorna (tilesFlode_v5) låg i varje enhetstyps eget fack, så väggplattan
+   och telefonen hade var sin uppsättning. Nu ligger de i ETT fack,
+   tilesFlode_v5__delad, som alla läser och skriver: samma rutor, samma ordning
+   och samma inställningar per ruta (de ligger i rutobjekten).
+
+   Facket har en egen stämpel (deladts) – när rutorna senast ÄNDRADES, inte när
+   kopian skrevs. En enhet läser facket bara om stämpeln är nyare än den egna,
+   och skriver det bara när rutorna ändrats lokalt sedan senaste sparningen
+   (delad_smutsig). Väggplattan, som sparar ofta, skriver alltså aldrig tillbaka
+   en gammal uppsättning över en ny från telefonen.
+
+   Övergången: finns inget delat fack än läses telefonens fack
+   (tilesFlode_v5__telefon) – det är telefonens rutor som gäller. Telefonen
+   publicerar dessutom sina rutor till det delade facket första gången v738 körs.
+
+   Fortfarande per enhet: de fasta rutorna (Breveden, Diskmaskin, Belysning)
+   läggs till sist på en enhet som har knappar för dem och inte redan har rutan –
+   se fastaRutor. Håller man inne på en sådan blir den en vanlig, delad ruta. */
+const DELADE_KEYS=['tilesFlode_v5'];
+const DELAD_TS_KEY='deladts';                 /* i kopian */
+const DELAD_LOKAL='delad_ts_v1', DELAD_SMUTS='delad_smutsig_v1', DELAD_INIT='delad_init_v1';
+function deladTs(){var v=0;try{v=parseInt(localStorage.getItem(DELAD_LOKAL)||'0',10)||0;}catch(e){}return v;}
+function deladSmutsig(){try{return localStorage.getItem(DELAD_SMUTS)==='1';}catch(e){return false;}}
+function deladAndrad(){try{localStorage.setItem(DELAD_LOKAL,String(Date.now()));localStorage.setItem(DELAD_SMUTS,'1');}catch(e){}}
+/* Ska det delade facket med i den här skrivningen? Bara med en lokal ändring. */
+function deladSkriv(obj){
+  if(!deladSmutsig())return false;
+  var med=0;
+  DELADE_KEYS.forEach(function(k){var v=null;try{v=localStorage.getItem(k);}catch(e){}
+    /* Aldrig ändrade rutor finns inte lokalt – då är det standardrutorna som
+       syns, och det är dem som ska delas. */
+    if(v==null&&k===GRIDS.flode.store){try{v=JSON.stringify(gridTiles('flode'));}catch(e){}}
+    if(v!=null){obj[k+'__delad']=v;med++;}});
+  if(!med)return false;                      /* ingen stämpel utan rutor */
+  obj[DELAD_TS_KEY]=String(deladTs()||Date.now());
+  return true;}
+function deladSkrivet(){try{localStorage.removeItem(DELAD_SMUTS);localStorage.setItem(DELAD_INIT,'1');}catch(e){}}
+/* Väljer vad som ska läsas för en delad nyckel ur en kopia.
+   har(nyckel) → finns i kopian; ts = kopians deladts (0 om den saknas).
+   Svar: {kalla, ts} eller {hopp:'orsak'}. */
+function deladVal(k,har,ts){
+  if(deladSmutsig())return {hopp:'osparad ändring av rutorna här'};
+  if(har(k+'__delad')){
+    if(ts&&ts>deladTs())return {kalla:k+'__delad',ts:ts};
+    return {hopp:'det delade facket är inte nyare'};}
+  /* Inget delat fack ännu: telefonens rutor gäller – så länge den här enheten
+     inte redan fått en delad uppsättning. */
+  if(!deladTs()&&har(k+'__telefon'))return {kalla:k+'__telefon',ts:0};
+  return {hopp:'inget delat fack i kopian'};}
+/* RUTORNA DIREKT FRÅN APPEN, högst en gång i minuten. syncFersk läser
+   variabelkopian, och den skrivs alltid hel av den som sparar sist – sparar
+   väggplattan strax efter telefonen har variabelkopian plattans äldre rutor
+   igen. Appens kopia skrivs per nyckel och behåller telefonens, så den frågas
+   här: först bara stämpeln (ett litet anrop), rutorna bara om den är nyare. */
+var _deladAppAt=0;
+async function deladFranApp(){
+  if(Date.now()-_deladAppAt<60000)return false;
+  _deladAppAt=Date.now();
+  if(!appKan()||deladSmutsig())return false;
+  var ts=0;try{ts=parseInt(await appGet('/backup?key='+encodeURIComponent(DELAD_TS_KEY)),10)||0;}catch(e){return false;}
+  if(!ts||ts<=deladTs())return false;
+  var andrat=false;
+  for(var i=0;i<DELADE_KEYS.length;i++){
+    var k=DELADE_KEYS[i],v=null;
+    try{v=await appGet('/backup?key='+encodeURIComponent(k+'__delad'));}catch(e){}
+    if(v!=null&&typeof v!=='string'){try{v=JSON.stringify(v);}catch(e){v=null;}}
+    if(!v||!v.length)continue;
+    if(deladSmutsig())return false;              /* ändrades medan vi hämtade */
+    var fore=null;try{fore=localStorage.getItem(k);}catch(e){}
+    if(fore!==v){
+      /* Kroken på localStorage.setItem stämplar varje skrivning av rutorna som
+         en LOKAL ändring. Det här är ingen – återställ stämpeln efteråt, annars
+         vägrar nästa läsning ("lokala ändringar är nyare än kopian"). */
+      var andr0=null;try{andr0=localStorage.getItem(ANDRAD_TS);}catch(e){}
+      localStorage.setItem(k,v);andrat=true;
+      try{if(andr0==null)localStorage.removeItem(ANDRAD_TS);else localStorage.setItem(ANDRAD_TS,andr0);}catch(e){}}
+  }
+  try{localStorage.setItem(DELAD_LOKAL,String(ts));}catch(e){}
+  if(andrat){
+    try{Object.keys(TILESTATE).forEach(function(x){delete TILESTATE[x];});}catch(e){}
+    try{ritaOmSakert();}catch(e){}
+    loggSkriv('läste rutorna från appen',{ts:ts});
+  }
+  return andrat;}
+/* Telefonen publicerar sina rutor en gång, när v738 körs första gången. */
+function deladStart(){
+  try{
+    if(localStorage.getItem(DELAD_INIT))return;
+    if(secKlass()!=='telefon')return;
+    deladAndrad();
+    try{syncPushSoon();}catch(e){}
+  }catch(e){}}
 /* Innehaller kopian fack alls? Ar den skriven av v577 eller senare finns minst
    en nyckel med suffix. */
 /* ===== LASPROTOKOLL =====
@@ -18534,6 +18629,7 @@ async function backupTick(){
        ingenting ändrats. */
     try{enhTick();}catch(e){}
     try{await syncFersk();}catch(e){}
+    try{await deladFranApp();}catch(e){}
     /* Inte huvudenhet: läs, skriv aldrig. */
     if(!arHuvud()){
       /* Läs i stället. En enhet som aldrig hämtar visar sin egen gamla
@@ -18822,8 +18918,10 @@ async function appBackupSpara(manuell){
     try{v=localStorage.getItem(k);}catch(e){}
     /* Layoutnycklar lagras under sitt eget fack sa att den andra enhetstypens
        layout star kvar orord i kopian. */
+    if(DELADE_KEYS.indexOf(k)>=0)continue;      /* v738: se deladSkriv */
     if(v!=null)obj[syncKey(k)]=v;
   }
+  var deladMed=deladSkriv(obj);
   /* Nar DET HAR facket senast skrevs. */
   obj[layoutTsKey()]=String(Date.now());
   if(!Object.keys(obj).length)return null;
@@ -18851,6 +18949,7 @@ async function appBackupSpara(manuell){
   var j=await r.json();
   if(j&&j.result)j=j.result;
   egetTsSatt(Date.now());
+  if(deladMed)deladSkrivet();
   loggSkriv(manuell?'manuell sparning':'automatisk sparning',
     {nycklar:Object.keys(obj).length,tecken:JSON.stringify(obj).length});
   return j;}
@@ -18904,10 +19003,24 @@ async function appBackupLas(){
   /* Las var lokal nyckel ur SITT fack. Kopian innehaller nu bade
      buttons_v1__telefon och buttons_v1__platta; den har enheten ska bara se
      sin egen. Gamla osuffixade nycklar lases som reserv. */
+  var dTs=0;
+  try{if(DELAD_TS_KEY in lista.nycklar)dTs=parseInt(await appGet('/backup?key='+encodeURIComponent(DELAD_TS_KEY)),10)||0;}catch(e){}
   for(var ki=0;ki<SYNC_KEYS.length;ki++){
     var k=SYNC_KEYS[ki];
     var sk=syncKey(k);
     var finns=null;
+    if(DELADE_KEYS.indexOf(k)>=0){
+      /* v738: eget beslut, oberoende av layoutHoppa – se deladVal. */
+      var dv=deladVal(k,function(x){return x in lista.nycklar;},dTs);
+      var foreD=null;try{foreD=localStorage.getItem(k);}catch(e){}
+      if(!dv.kalla){lasProtRad(k,'-',foreD,null,dv.hopp);continue;}
+      try{
+        var vd=await appGet('/backup?key='+encodeURIComponent(dv.kalla));
+        if(vd!=null&&typeof vd!=='string'){try{vd=JSON.stringify(vd);}catch(e){vd='';}}
+        if(vd&&vd.length){lasProtRad(k,dv.kalla,foreD,vd,'');localStorage.setItem(k,vd);n++;
+          if(dv.ts)try{localStorage.setItem(DELAD_LOKAL,String(dv.ts));}catch(e){}}
+      }catch(e){_appLasSist.fel.push(k);}
+      continue;}
     if(sk in lista.nycklar)finns=sk;
     else if(sk===k&&(k in lista.nycklar))finns=k;
     else if(!nyttFormat&&(k in lista.nycklar))finns=k;   /* bara pa en gammal kopia */
@@ -18943,6 +19056,7 @@ async function appBackupLas(){
   }
   _appLasSist.las=n;
   lasProtSlut();
+  if(n>0){try{Object.keys(TILESTATE).forEach(function(x){delete TILESTATE[x];});}catch(e){}}
   if(n>0){
     egetTsSatt(Date.now());
     /* Nu är lokalt och fjärran samma sak. Skrivningarna ovan har satt
@@ -18964,7 +19078,13 @@ async function saveToHomey(){
      återställdes från Homey – det var därför antalet klara dygn nollställdes. */
   const DROPPABLE=['shmap_v2','health_v2','pressLog_v1','zpress_v1','tempEx_v1','windEx_v1','plog_v1','snow_v1','shcost_v1','emix_v1','recs_v1','hin_v1','days_v1'];
   /* Layoutnycklar lagras under sitt eget fack, som i appens backup. */
-  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;const v=localStorage.getItem(k);if(v!=null)o[syncKey(k)]=v;});
+  /* v738: variabelkopian skrivs alltid hel (den andra enhetstypens fack
+     följer inte med), så det delade facket och dess stämpel följer alltid med –
+     läsaren tar det bara om stämpeln är nyare. */
+  function build(skip){const o={};SYNC_KEYS.forEach(k=>{if(skip&&skip.indexOf(k)>=0)return;
+      if(DELADE_KEYS.indexOf(k)>=0&&!deladTs())return;   /* aldrig delat härifrån: inget att säga */
+      const v=localStorage.getItem(k);if(v!=null)o[syncKey(k)]=v;});
+    if(deladTs())o[DELAD_TS_KEY]=String(deladTs());
     o[layoutTsKey()]=String(Date.now());return o;}
   let skip=[],obj=build(skip),str=JSON.stringify(obj),dropped=[];
   while(str.length>MAXCHUNKS*SYNC_CHUNK && DROPPABLE.length>skip.length){
@@ -18985,6 +19105,7 @@ async function saveToHomey(){
     await logicWrite(list,nm,chunks[i]);wrote++;}
   await logicWrite(list,SV,JSON.stringify(meta));
   meta.wrote=wrote;
+  if(deladTs())deladSkrivet();   /* v738: det delade facket gick med */
   _syncMeta=meta;return meta;}
 /* HÖJDERNA LIGGER I FACK per enhetstyp, men i EN nyckel. Hämtades den rakt av
    skrev den andra enhetens kopia över ens eget fack: telefonen pushar sin bild
@@ -19216,6 +19337,13 @@ async function fetchFromHomey(){
   var vHoppa=!!(vFackTs&&vAndrad&&vAndrad>vFackTs+2000);
   SYNC_KEYS.forEach(k=>{
     var fore=null;try{fore=localStorage.getItem(k);}catch(e){}
+    if(DELADE_KEYS.indexOf(k)>=0){
+      var dv=deladVal(k,function(x){return obj[x]!=null;},parseInt(obj[DELAD_TS_KEY],10)||0);
+      if(!dv.kalla){lasProtRad(k,'-',fore,null,dv.hopp);return;}
+      var vd=obj[dv.kalla];if(typeof vd!=='string'){try{vd=JSON.stringify(vd);}catch(e){vd='';}}
+      if(vd&&vd.length){lasProtRad(k,dv.kalla,fore,vd,'');try{localStorage.setItem(k,vd);}catch(e){}
+        if(dv.ts)try{localStorage.setItem(DELAD_LOKAL,String(dv.ts));}catch(e){}}
+      return;}
     if(vHoppa&&LAYOUT_KEYS.indexOf(k)>=0){
       lasProtRad(k,'-',fore,null,'lokala ändringar är nyare än facket');return;}
     var v=syncPlock(obj,k);
@@ -19231,6 +19359,7 @@ async function fetchFromHomey(){
   applySecOrder();render();_syncMeta=meta;return {applied:true,meta:meta};}
 async function bootSync(){
   try{secScaleMigrera();}catch(e){}
+  try{deladStart();}catch(e){}
   try{huvudAuto();}catch(e){}
   /* Breveden hämtas en gång vid öppning så kortet har ett värde direkt. */
   try{brvHamta();}catch(e){}
@@ -20411,7 +20540,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v737';
+const APP_VERSION='v738';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
