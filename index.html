@@ -3940,6 +3940,18 @@ var ZK={
 ZK.poolrum={zon:'3efd5258-2221-49c2-aa98-e22e8ac8425d',sensor:function(){return DEV.poolrum;},lab:'Poolrum',ic:'swimming-pool',
   ser:{p:'pool',t:'t_poolrum',h:'h_poolrum',s:'k:seatemp'},ordning:['p','t','h','s'],ser0:'p',serLab:{t:['Rumstemperatur','Rum']},
   gr:{tLagLarm:3,tLagVarn:8,tHogVarn:32,tHogLarm:38,hHog:75,hLag:null}};
+/* v750: VARDAGSRUMMET. Rutan visar INNE-MEDLET (vardagsrum + kök, samma
+   indoorAvgTemp som Inomhus-rutan: rörelsesensorn "Vardagsrum" och
+   Netatmo-stationen "Väderstation" i köket). Varningarna kommer ur
+   vardagsrummets egen sensor (temperatur, batteri) – den har ingen fukt- eller
+   CO₂-mätare. Kurvorna: medlet, vardagsrummet, köket. Gränserna är mina val för
+   ett uppvärmt bostadsrum: kallt ≤ 17 °C, mycket kallt ≤ 12 °C, varmt ≥ 26 °C,
+   mycket varmt ≥ 30 °C. */
+ZK.vardagsrum={zon:'9eb2975d-49ea-4033-8db0-105a3e982117',sensor:function(){return DEV.vard;},lab:'Vardagsrum',ic:'couch',
+  ser:{m:function(c){return indoorAvgSeries(c);},t:'t_vard',k:'t_kok'},ordning:['m','t','k'],ser0:'m',
+  serLab:{t:['Vardagsrum','Rummet']},   /* "Vardagsrum" klipptes i chippet */
+  nu:{m:function(){return indoorAvgTemp();},k:function(){return cap(DEV.vader,'measure_temperature');}},
+  gr:{tLagLarm:12,tLagVarn:17,tHogVarn:26,tHogLarm:30,hHog:null,hLag:null,tLagLarmTxt:'mycket kallt'}};
 var ZK_CO2_VARN=1000,ZK_CO2_LARM=1400,ZK_BATT=15;
 
 let DATA={},ZONES={},SOURCE='demo',seeded=false,zonesDone=false,BASE='',_gid=0,lastUpdate=0,curTheme='',lastInsight=0,_refreshTimer=null,_suppressClick=false,_online=false;
@@ -5006,6 +5018,10 @@ function battKl(min){
 /* När ladda-max ska stängas av, som HH:MM — eller null om ingen uppgång väntar
    eller läget inte är på. */
 function battAvstangKl(){
+  /* v749: automatiken är avstängd (BATT_AUTO_AV) – då stänger ingenting av vid
+     prisuppgången, och en tid här vore påhittad. Den trängde dessutom undan
+     "fullt sparas till …" i På nu och batterirutan. */
+  if(typeof BATT_AUTO_AV!=='undefined'&&BATT_AUTO_AV)return null;
   if(battLaddLage()!==true)return null;
   var u=battPrisUppgang();
   return u?battKl(u.avMin):null;
@@ -13014,11 +13030,18 @@ function paNuLista(){
     try{bs0=battStartAktiv();}catch(e){}
     var sparTill=(sp0&&sp0.aktiv&&sp0.till)?(' till '+regelKl(sp0.till)):'';
     var laddTill='';
+    /* v749: Ladda på = markören eller knappens läge, inte bara registret. Precis
+       efter start står Modbus ofta still → läget "oklart", och då föll brickan
+       till knappens "Laddar max" utan stopptid. */
+    var laddPa=false;try{laddPa=battMaxMark()===1||battLaddLage()===true;}catch(e){}
+    var fulltTxt=(Rb.stopp>nuB)?(' · fullt sparas till '+regelKl(Rb.stopp)):'';
     if(L0&&L0.lage==='ladda'){var avk0=null;try{avk0=battAvstangKl();}catch(e){}
-      laddTill=avk0?(' till '+avk0):(Rb.stopp>nuB?(' · sparas till '+regelKl(Rb.stopp)):'');}
+      laddTill=avk0?(' till '+avk0):fulltTxt;}
+    if(laddPa&&L0&&(L0.lage==='oklart'||L0.lage==null)&&!L0.varn)lagg('Laddar max'+fulltTxt,'batt');
     if(L0&&L0.lage&&L0.lage!=='normal'){
-      if(L0.varn)lagg((L0.lage==='spara'?'Sparar':'Laddar max')+sparTill+' – men '+L0.varn,'batt',false,true);
+      if(L0.varn)lagg((L0.lage==='spara'?'Sparar'+sparTill:'Laddar max'+laddTill)+' – men '+L0.varn,'batt',false,true);
       else if(L0.lage==='fullt')lagg('Batteriet fullt'+(Rb.stopp>nuB?(' · sparas till '+regelKl(Rb.stopp)):''),'batt');
+      /* v749: "oklart" med Ladda på har redan fått sin bricka ovan. */
       else if(L0.lage==='ladda')lagg('Laddar max'+laddTill,'batt');
       else if(L0.lage==='spara')lagg('Batteriet sparar'+sparTill,'batt');}
     /* Bokat men inte påbörjat: före "styrs – egenförbrukning", som inte säger
@@ -13048,7 +13071,7 @@ function paNuLista(){
     if(!b||!btnState(b))return;
     var l=String(b.label||'').trim();
     var dst=knappTill(b);
-    if(dst==='batt')lagg('Laddar max','batt');
+    if(dst==='batt')lagg('Laddar max'+((_regel&&_regel.stopp>Date.now())?' · fullt sparas till '+regelKl(_regel.stopp):''),'batt');
     else if(dst==='breveden')lagg('Breveden','breveden');
     else if(dst==='dish')lagg('Disk bokad','dish',true);
     else if(dst==='pool')lagg('Poolvärme','pool');
@@ -13260,7 +13283,10 @@ function regelHTML(){
   var steg=[];
   if(R.start>nu)steg.push(['Laddar från',R.start]);
   if(R.spara>nu)steg.push(['Sparar från',R.spara]);
-  if(R.stopp>nu)steg.push(['Normal drift',R.stopp]);
+  /* v749: med Ladda på betyder stoppet "spara när fullt, normal drift från
+     stopptiden" – "Normal drift 06:00" såg ut som att inget spara var bokat. */
+  var lp=false;try{lp=battMaxMark()===1||battLaddLage()===true||R.start>nu;}catch(e){}
+  if(R.stopp>nu)steg.push([lp?'Fullt sparas till':'Normal drift',R.stopp]);
   steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
   var p=R.forslag,knappar='';
   if(REGEL_AV){
@@ -13505,7 +13531,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -13681,7 +13707,7 @@ function openDetailKarna(which){
       +dRow('Vardagsrum',tv==null?'–':num(tv,1)+' °C')
       +dRow('Kök',tk==null?'–':num(tk,1)+' °C')
       +dRow('Uterum',(function(){const u=cap(DEV.uterum,'measure_temperature');return u==null?'–':num(u,1)+' °C';})());
-  }else if(which==='uterum'||which==='snickarboa'||which==='poolrum'){title=ZK[which].lab;
+  }else if(which==='uterum'||which==='snickarboa'||which==='poolrum'||which==='vardagsrum'){title=ZK[which].lab;
     /* v736: rumsrutans popup – graf, läget nu och rummets enheter. Ritas om vid
        varje hämtning (_popupRebuild) och när en enhet växlas (rumPopupUppdatera). */
     _popupRebuild=function(){return zkPopHTML(which);};_popupRebuild._zk=true;
@@ -14614,6 +14640,19 @@ function computeMetric(cfg){
         v:pt==null?'–':num(pt,1)+' <small>°C</small>',
         sub:wp?('<span class="zk-'+wp.niva+'">'+esc(wp.kort)+'</span>'):esc(subP),
         meta:wp?wp.txt:subP,det:'poolrum',varn:wp,varms:varmsP};}
+    case 'vardagsrum':{
+      /* v750: värdet är inne-medlet; under det rummen var för sig – eller
+         vardagsrumssensorns varning (temperatur, batteri). */
+      var Zv=ZK.vardagsrum,vv=zkVarden('vardagsrum'),wv=zkVarningar('vardagsrum')[0]||null,mv=indoorAvgTemp(),
+          kv=cap(DEV.vader,'measure_temperature'),dv=[];
+      /* Kort – "vard 25,3° · kök 25,9°" klipptes på telefonen. Första talet är
+         rutans eget rum. */
+      if(vv.t!=null)dv.push(num(vv.t,1));
+      if(kv!=null)dv.push('kök '+num(kv,1));
+      return {label:Zv.lab,icon:Zv.ic,icc:wv?(wv.niva==='larm'?'var(--hot)':'var(--warm)'):'',
+        v:mv==null?'–':num(mv,1)+' <small>°C</small>',
+        sub:wv?('<span class="zk-'+wv.niva+'">'+esc(wv.kort)+'</span>'):esc(dv.join(' · ')),
+        meta:wv?wv.txt:('medel inne · '+(dv.join(' · ')||'temperatur')),det:'vardagsrum',varn:wv};}
     case 'uterum': case 'snickarboa':{
       /* v736: rumsrutan. Värdet är temperaturen; under den fukt och CO₂ – eller
          den allvarligaste varningen, med ikonen i varningens färg. */
@@ -14652,7 +14691,7 @@ const CAT=[
   {type:'computed',key:'breveden',g:'Hus'},{type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
   {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
   {type:'computed',key:'tv',g:'Hus'},
-  {type:'computed',key:'uterum',g:'Hus'},{type:'computed',key:'snickarboa',g:'Hus'},{type:'computed',key:'poolrum',g:'Hus'},
+  {type:'computed',key:'uterum',g:'Hus'},{type:'computed',key:'snickarboa',g:'Hus'},{type:'computed',key:'poolrum',g:'Hus'},{type:'computed',key:'vardagsrum',g:'Hus'},
   {type:'computed',key:'gridnow',g:'Nät'},
   {type:'sensor',g:'Hus',device:DEV.pooltemp,cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_temperature',label:'Utetemp',icon:'thermometer-simple',unit:'°C',dec:1},
@@ -15416,7 +15455,7 @@ function zkVarningar(k){
   if(v.t!=null&&isFinite(v.t)){
     if(v.t>=g.tHogLarm)ut.push({niva:'larm',txt:'Mycket varmt – '+num(v.t,1)+' °C',kort:'mycket varmt'});
     else if(v.t>=g.tHogVarn)ut.push({niva:'varn',txt:'Varmt – '+num(v.t,1)+' °C',kort:'varmt'});
-    else if(v.t<=g.tLagLarm)ut.push({niva:'larm',txt:'Frostrisk – '+num(v.t,1)+' °C',kort:'frostrisk'});
+    else if(v.t<=g.tLagLarm)ut.push({niva:'larm',txt:(g.tLagLarmTxt?(g.tLagLarmTxt.charAt(0).toUpperCase()+g.tLagLarmTxt.slice(1)):'Frostrisk')+' – '+num(v.t,1)+' °C',kort:g.tLagLarmTxt||'frostrisk'});
     else if(v.t<=g.tLagVarn)ut.push({niva:'varn',txt:'Kallt – '+num(v.t,1)+' °C',kort:'kallt'});}
   if(v.c!=null&&isFinite(v.c)){
     if(v.c>=ZK_CO2_LARM)ut.push({niva:'larm',txt:'Dålig luft – '+Math.round(v.c)+' ppm CO₂, vädra',kort:'vädra'});
@@ -15429,7 +15468,8 @@ function zkVarningar(k){
   return ut;}
 /* kort: chipsens etikett. Fullt namn klipptes till "Tempe…" på mobil (25 % bredd). */
 var ZK_SER={t:{lab:'Temperatur',kort:'Temp',u:'°C',col:'warm',dec:1},h:{lab:'Luftfuktighet',kort:'Fukt',u:'%',col:'cyan',dec:0},c:{lab:'CO₂',kort:'CO₂ ppm',u:'ppm',col:'green',dec:0},
-  p:{lab:'Poolvattnet',kort:'Pool',u:'°C',col:'cyan',dec:1},s:{lab:'Badtemp havet',kort:'Hav',u:'°C',col:'blue',dec:1}};
+  p:{lab:'Poolvattnet',kort:'Pool',u:'°C',col:'cyan',dec:1},s:{lab:'Badtemp havet',kort:'Hav',u:'°C',col:'blue',dec:1},
+  m:{lab:'Medel inne',kort:'Medel',u:'°C',col:'warm',dec:1},k:{lab:'Kök',kort:'Kök',u:'°C',col:'gold',dec:1}};
 /* Rummets egna namn på en serie (poolrummets "t" är rummet, inte vattnet). */
 function zkSerDef(Z,x){var S=Object.assign({},ZK_SER[x]);
   if(Z.serLab&&Z.serLab[x]){S.lab=Z.serLab[x][0];S.kort=Z.serLab[x][1];}
@@ -15440,8 +15480,10 @@ function zkSerDef(Z,x){var S=Object.assign({},ZK_SER[x]);
 function zkSerie(Z,x,cid){
   if(x==='s'){var e=null;try{e=learnGet()['k:seatemp'];}catch(er){}
     return (e&&e.s)?e.s.map(function(q){return {t:q[0],v:q[1]};}):[];}
+  if(typeof Z.ser[x]==='function')return Z.ser[x](cid);   /* v750: sammanvägd serie */
   return histV(Z.ser[x],cid);}
 function zkSerieNu(k,x,v){
+  if(ZK[k]&&ZK[k].nu&&ZK[k].nu[x])return ZK[k].nu[x]();
   if(x==='p')return cap(DEV.pooltemp,'measure_temperature');
   if(x==='s')return (typeof FEED!=='undefined')?FEED.sea:null;
   return x==='t'?v.t:x==='h'?v.h:v.c;}
@@ -15472,7 +15514,7 @@ function zkPopHTML(k){
     h+='<div class="tg-leg">'+nyck.map(function(x){var SS=zkSerDef(Z,x),vv=zkSerieNu(k,x,v);
       return '<button class="tg-chip'+(x===val?' on':'')+'" onclick="zkVal(\''+k+'\',\''+x+'\')">'
         +'<span class="tg-top"><span class="tg-dot" style="background:'+(P[SS.col]||P.blue)+'"></span><span class="tg-l">'+SS.kort+'</span></span>'
-        +'<b class="tg-v">'+(vv==null||!isFinite(vv)?'–':num(vv,SS.dec)+'<span class="tg-u">'+((x==='t'||x==='p'||x==='s')?'°':x==='c'?'':SS.u)+'</span>')+'</b></button>';}).join('')+'</div>';}
+        +'<b class="tg-v">'+(vv==null||!isFinite(vv)?'–':num(vv,SS.dec)+'<span class="tg-u">'+(SS.u==='°C'?'°':x==='c'?'':SS.u)+'</span>')+'</b></button>';}).join('')+'</div>';}
   h+=dSec('Nu');
   if(Z.ser.p){
     /* v740: poolvattnet först – samma rader som Pool-popupen. */
@@ -15484,9 +15526,15 @@ function zkPopHTML(k){
     if(rt!=null&&rt>=0.05&&pv!=null){var nd=Math.floor(pv)+1,hr=(nd-pv)/rt;
       if(hr>0&&hr<24)h+=dRow('Når '+nd+'°','ca '+hhmm(new Date(Date.now()+hr*3600000)));}
     h+=dSec('Rummet');}
-  h+=dRow(Z.ser.p?'Rumstemperatur':'Temperatur',v.t==null?'–':num(v.t,1)+' °C');
+  if(Z.ser.m){
+    /* v750: medlet först, sedan rummen var för sig. */
+    var mv=Z.nu.m(),kv=Z.nu.k();
+    h+=dRow('Medel inne',mv==null?'–':num(mv,1)+' °C');
+    h+=dRow('Vardagsrum',v.t==null?'–':num(v.t,1)+' °C');
+    h+=dRow('Kök',kv==null?'–':num(kv,1)+' °C');}
+  else h+=dRow(Z.ser.p?'Rumstemperatur':'Temperatur',v.t==null?'–':num(v.t,1)+' °C');
   var dd=histTodayDelta(Z.ser.t);
-  if(dd&&dd.n>=3&&dd.min!=null)h+=dRow('Lägst / högst idag',num(dd.min,1)+' – '+num(dd.max,1)+' °C');
+  if(dd&&dd.n>=3&&dd.min!=null)h+=dRow(Z.ser.m?'Vardagsrum lägst / högst':'Lägst / högst idag',num(dd.min,1)+' – '+num(dd.max,1)+' °C');
   if(v.h!=null)h+=dRow('Luftfuktighet',Math.round(v.h)+' %'+(sensorOmdome('measure_humidity',v.h)?' · '+sensorOmdome('measure_humidity',v.h):''));
   if(v.c!=null)h+=dRow('CO₂',Math.round(v.c)+' ppm · '+sensorOmdome('measure_co2',v.c));
   if(v.b!=null)h+=dRow('Sensorns batteri',Math.round(v.b)+' %');
@@ -20062,7 +20110,7 @@ function tileIkon(cfg,m){
       else{var Bv=brvState();if(Bv&&Bv.aktiv&&!brvGammal(Bv)){extra=(Bv.lage==='cool')?'snowflake':'flame';puls=true;}}}catch(e){}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
     if(varms())extra='flame';
-  }else if(k==='uterum'||k==='snickarboa'){
+  }else if(k==='uterum'||k==='snickarboa'||k==='vardagsrum'){
     /* v736: varning i ikonens hörn; larm pulsar. */
     if(m&&m.varn){extra='warning';puls=(m.varn.niva==='larm');}
   }else if(k==='poolrum'){
@@ -20767,7 +20815,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v748';
+const APP_VERSION='v750';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
