@@ -1415,6 +1415,32 @@ body.kiosk .en-hero-a>.en-spot>.en-self,body.kiosk .en-hero-a>.en-spot>.verdict{
 body.topp-flyttad .en-hogra .en-notis{height:30px;box-sizing:border-box;padding:6px 10px;border-radius:999px;
   font-size:11.5px;line-height:1;gap:5px;margin:0;flex:0 0 auto;min-width:0}
 body.topp-flyttad .en-hogra .en-notis .en-cmp-ic{width:14px;height:14px}
+/* v734: VÄDRET I RUBRIKEN – bricka i samma höjd och form som notisklockan. */
+.en-wx{display:none}
+body.wx-rubrik .en-wxrad .en-wx{display:inline-flex;align-items:center;gap:5px;height:30px;box-sizing:border-box;
+  padding:0 10px 0 8px;border-radius:999px;margin:0;flex:0 0 auto;min-width:0;white-space:nowrap;cursor:pointer;
+  font:inherit;font-size:15px;font-weight:800;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.en-wx .en-wx-ic{display:inline-flex;width:18px;height:18px;color:var(--gold);flex:0 0 auto}
+.en-wx .en-wx-ic svg{width:100%;height:100%}
+.en-wx .en-wx-v{font-size:11px;font-weight:700;color:var(--dim);margin-left:1px}
+body.kiosk.wx-rubrik .en-wxrad .en-wx{height:32px;font-size:16px}
+body.wx-rubrik #view-flode>[data-sec="weather"]{display:none!important}
+.en-wxrad{display:none}
+body.wx-rubrik .en-wxrad{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
+body.wx-rubrik .en-wxrad .en-wx{display:inline-flex}
+/* v735: soluppgång och solnedgång i samma bricka. */
+.en-sol{gap:8px!important}
+.en-sol .sol-r{display:inline-flex;align-items:center;gap:4px}
+.en-sol .en-wx-t{font-size:14px}
+.en-sol .en-wx-ic{width:16px;height:16px}
+.en-sol .sol-r.ned .en-wx-ic{color:var(--violet,#b48ead)}
+/* Stegen när raden blir trång (wxRubrikPassa). */
+.en-wxrad.st1 .en-sol{flex-direction:column;align-items:flex-start;justify-content:center;gap:1px!important;padding:0 8px 0 7px}
+.en-wxrad.st1 .en-sol .en-wx-t{font-size:11px}
+.en-wxrad.st1 .en-sol .en-wx-ic{width:11px;height:11px}
+.en-wxrad.st1 .en-sol .sol-r{gap:3px;line-height:1}
+.en-wxrad.st2 .en-wx-v{display:none}
+.en-wxrad.st3 #en-wx .en-wx-ic{display:none}
 .en-hogra .en-status{flex:0 0 auto;padding:0;border:0;background:none;width:18px;height:30px;margin:0;
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .en-hogra .en-status>button,.en-hogra .en-status>span:not(.dot){display:none!important}
@@ -6669,7 +6695,60 @@ function buildWeatherCompactHTML(){
     +(by?'<span class="wxr-sm">'+esc(by)+'</span>':'')+'</span></div>';
   h+='</div>';
   return h;}
+/* v734: VÄDRET I ENERGIRUBRIKEN (Markus val "5"). Ikon, temperatur och vind
+   som en bricka bredvid notisklockan. Tryck öppnar Väder-sidan. Väderkortet på
+   startsidan döljs då, och solremsan flyttar in i energipanelen (solIn).
+   Väderraden byggs ändå (dold) – den håller dygnsminnet för lägst/högst och
+   max vind, som Väder-sidan visar. */
+function wxRubrik(){return !(CFG&&CFG.wxRubrik===false);}
+function buildWxChipHTML(){
+  const sit=cap(DEV.smhi,'measure_weather_situation_cp'),tOut=cap(DEV.outdoor,'measure_temperature'),wspd=vindMs();
+  return '<span class="en-wx-ic">'+icon(wxIcon(sit))+'</span><span class="en-wx-t">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'
+    +(wspd==null?'':'<small class="en-wx-v">'+num(wspd,1)+' m/s</small>');}
+/* Soluppgång och solnedgång i dag – samma beräkning som solremsan. Webbläsaren
+   har svensk lokaltid (det här är dashboarden, inte HomeyScript). */
+function wxSolTider(){
+  try{var nu=new Date(),sc=solar(nu,CONFIG.LAT,CONFIG.LON,-nu.getTimezoneOffset());
+    return {upp:sc.sunrise!=null?hm(sc.sunrise):'–',ned:sc.sunset!=null?hm(sc.sunset):'–'};}
+  catch(e){return {upp:'–',ned:'–'};}}
+function wxRubrikRita(){
+  var pa=wxRubrik();
+  try{document.body.classList.toggle('wx-rubrik',pa);}catch(e){}
+  var h=$('en-hogra');if(!h||!h.querySelector)return;
+  var g=$('en-wxrad');
+  if(!pa){if(g&&g.parentNode)g.parentNode.removeChild(g);return;}
+  if(!g){g=document.createElement('span');g.id='en-wxrad';g.className='en-wxrad';}
+  /* v735: alltid på notisklockans rad, först i gruppen. */
+  if(g.parentNode!==h||h.firstChild!==g)h.insertBefore(g,h.firstChild);
+  var st=wxSolTider();
+  var nyt='<button type="button" class="en-cmp en-wx" id="en-wx" onclick="openVader()" title="Väder i detalj">'+buildWxChipHTML()+'</button>'
+    /* v735: upp och ned i SAMMA bricka. */
+    +'<button type="button" class="en-cmp en-wx en-sol" id="en-sol" onclick="openVader()" title="Soluppgång och solnedgång">'
+    +'<span class="sol-r"><span class="en-wx-ic">'+icon('sun-horizon')+'</span><span class="en-wx-t">'+st.upp+'</span></span>'
+    +'<span class="sol-r ned"><span class="en-wx-ic">'+icon('moon')+'</span><span class="en-wx-t">'+st.ned+'</span></span></button>';
+  if(g.innerHTML!==nyt)g.innerHTML=nyt;
+  wxRubrikPassa();}
+/* v735: FÅ PLATS PÅ EN RAD. Rubrikraden har talet till vänster och brickorna,
+   klockan och pricken till höger. Räcker inte bredden (telefon, 360–412 px)
+   krymps brickorna stegvis i stället för att gruppen bryts till en ny rad:
+   1) soltiderna staplas i två rader, 2) vinden i väderbrickan tas bort,
+   3) väderikonen tas bort. Mäts efter ritningen; jsdom har ingen layout och
+   lämnar steg 0. */
+var WX_STEG=['', 'st1', 'st1 st2', 'st1 st2 st3'];
+function wxRubrikPassa(){
+  try{
+    var g=$('en-wxrad'),h=$('en-hogra');if(!g||!h||!h.getBoundingClientRect)return;
+    var hero=h.parentNode,main=hero&&hero.querySelector?hero.querySelector('.en-hero-main'):null;if(!main)return;
+    var bryts=function(){var a=main.getBoundingClientRect(),b=h.getBoundingClientRect(),c=hero.getBoundingClientRect();
+      if(!a.height||!b.height)return false;
+      return b.top>a.top+a.height*0.5||b.right>c.right+1||b.left<a.right+4;};
+    for(var i=0;i<WX_STEG.length;i++){
+      g.classList.remove('st1','st2','st3');
+      if(WX_STEG[i])WX_STEG[i].split(' ').forEach(function(k){g.classList.add(k);});
+      if(!bryts())break;}
+  }catch(e){}}
 function renderWeather(){const a=$('weather-flow');if(a)a.innerHTML=buildWeatherCompactHTML();renderTiles('weather');
+  try{wxRubrikRita();}catch(e){}
   /* v731: startsidan har ingen remsa längre (Inne, Uterum, Lägst … finns på
      Väder-sidan). Töm platsen om en äldre remsa ligger kvar. */
   try{var pl0=$('wx-strip-plats');if(pl0&&pl0.firstChild&&!(a&&a.querySelector('.wx2-strip')))pl0.innerHTML='';}catch(e){}
@@ -20123,8 +20202,8 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v733';
-const CFG_DEF={paNu:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
+const APP_VERSION='v735';
+const CFG_DEF={paNu:true,wxRubrik:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
      "orört". En ny enhet ska se ut som den inarbetade från början. */
@@ -20489,6 +20568,8 @@ function openConfig(){
   /* v691: På nu-raden och knapparna i rutornas popuper. Av = knappavsnittet
      som förut. */
   h+='<div class="cfg-row"><span class="cfg-row-l">På nu-raden (knappar i rutornas popuper)</span><select class="cfg-sel" onchange="cfgPaNu(this.value)"><option value="on"'+(CFG.paNu!==false?' selected':'')+'>På</option><option value="off"'+(CFG.paNu===false?' selected':'')+'>Av – knappavsnittet</option></select></div>';
+  /* v734: vädret på startsidan – i energirubriken eller som eget kort. */
+  h+='<div class="cfg-row"><span class="cfg-row-l">Vädret på startsidan</span><select class="cfg-sel" onchange="cfgWxRubrik(this.value)"><option value="on"'+(CFG.wxRubrik!==false?' selected':'')+'>I rubriken</option><option value="off"'+(CFG.wxRubrik===false?' selected':'')+'>Eget kort</option></select></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Auto-uppdatera vid ny fil</span><select class="cfg-sel" onchange="cfgAutoReload(this.value)"><option value="on"'+(CFG.autoreload!==false?' selected':'')+'>På</option><option value="off"'+(CFG.autoreload===false?' selected':'')+'>Av</option></select></div>';
   /* v195: Nattdampning, Batteri kWh och arshistoriken lag under "Uppdatering" - de
      hamnade dar av misstag nar menyn delades upp i v193. Flyttade till ratt sidor. */
@@ -20528,6 +20609,7 @@ function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick(
 function nclockOffLabel(){const m=(CFG&&CFG.nclockOffset)||0;if(m===0)return 'vid solnedgång';return (m>0?'+':'−')+Math.abs(m)+' min';}
 function cfgNclockOff(d){CFG.nclockOffset=Math.max(-120,Math.min(120,((CFG.nclockOffset||0)+d*15)));saveCfg();const n=$('cfgnum-nclockoff');if(n)n.textContent=nclockOffLabel();render();}
 function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
+function cfgWxRubrik(v){CFG.wxRubrik=(v!=='off');saveCfg();try{renderWeather();applySecOrder();}catch(e){}}
 function cfgPaNu(v){CFG.paNu=(v!=='off');saveCfg();try{rutorPaNu();}catch(e){}try{renderTiles('flode');renderControls();render();}catch(e){}}
 /* RUTORNA FÖR KNAPPARNAS POPUPER (v691), en gång. Med På nu-raden ligger
    knapparna i rutornas popuper — då måste rutorna finnas. Saknas Breveden,
@@ -21861,6 +21943,8 @@ function spotIn(){
    väderrutan i stället för som ett eget kort. */
 function solIn(){
   try{
+    /* v734: med vädret i rubriken ligger remsan kvar i det dolda väderkortet –
+       soluppgång och solnedgång står som brickor i energirubriken i stället. */
     var ds=$('daystrip'), plats=$('sol-plats'), del=$('sol-del');
     if(!ds||!plats)return;
     if(ds.parentElement!==plats)plats.appendChild(ds);
@@ -21917,6 +22001,7 @@ function openSecMove(sel){const alla=secOrderGet().filter(function(x){return !!S
      den bär inställningarna. Den står med för att listan ska se ut som sidan. */
   h+='<div class="secmv-row fast"><span class="secmv-n">Statusrad</span><span class="secmv-fast">alltid överst</span></div>';
   o.forEach((sec,i)=>{if(sec==='rum'&&!MOBILE)return;
+    if(sec==='weather'&&wxRubrik())return;   /* v734: vädret står i energirubriken */
     h+='<div class="secmv-row'+(sec===sel?' sel':'')+(secDold(sec)?' dold':'')+'"><span class="secmv-n">'+esc(SECMETA[sec]||sec)+'</span>'
     +'<span class="secmv-btns">'
     /* Text i stället för ikon: uppsättningen saknar öga, och en lånad ikon som
@@ -22137,6 +22222,9 @@ try{Promise.race([_forstaLoad,new Promise(function(r){setTimeout(r,STEG2_MAX);})
     to=setTimeout(()=>{if(held)iv=setInterval(()=>scrubBy(dir*0.1),120);},380);});
   b.addEventListener('pointerup',stop);b.addEventListener('pointerleave',stop);b.addEventListener('pointercancel',stop);});})();
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',applyKiosk);
+/* v735: väderbrickorna mäts om när bredden ändras och när typsnittet laddats. */
+if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',function(){try{setTimeout(wxRubrikPassa,60);}catch(e){}});
+try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){try{wxRubrikPassa();}catch(e){}});}catch(e){}
 if(typeof window!=='undefined'&&window.visualViewport&&window.visualViewport.addEventListener)window.visualViewport.addEventListener('resize',function(){try{fitScreen();}catch(e){}});
 _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);setInterval(tickRel,1000);
 /* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
