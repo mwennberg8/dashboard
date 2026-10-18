@@ -13148,6 +13148,21 @@ function hemPopup(){
 var REGEL_AV=true, BATT_AUTO_AV=true;
 var REGEL_VARS=['battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
+/* v751: SENAST KÄNDA BOKNINGEN SPARAS LOKALT. Utan den var _regel tom efter
+   varje omladdning (ny fil, plattan som väcks) tills Logic svarat – och svarar
+   Homey trögt står det då bara "Laddar max" i På nu, fast stoppet ligger kvar
+   i Homey (2026-10-18 23:14: stopp 06:00 orört, Homeys moln-API svarade inte).
+   Tiderna är absoluta, så en sparad bokning blir aldrig fel klockslag; den
+   ersätts vid första lyckade hämtningen. Äldre än 12 h används inte. */
+var REGEL_LS='regel_v1',REGEL_LS_MAX=12*3600000;
+function regelSpara(R){try{localStorage.setItem(REGEL_LS,JSON.stringify({start:R.start||0,spara:R.spara||0,stopp:R.stopp||0,
+  max:(R.max==null?null:R.max),bilBokad:R.bilBokad||0,bilStrom:R.bilStrom||0,at:Date.now()}));}catch(e){}}
+function regelLasLokal(){
+  try{var o=JSON.parse(localStorage.getItem(REGEL_LS)||'null');
+    if(!o||!(Date.now()-Number(o.at)<REGEL_LS_MAX))return null;
+    return {forslag:null,start:Number(o.start)||0,spara:Number(o.spara)||0,stopp:Number(o.stopp)||0,lista:null,bil:'',
+      bilBokad:Number(o.bilBokad)||0,bilStrom:Number(o.bilStrom)||0,max:(o.max==null?null:Number(o.max)),lokal:true};}catch(e){return null;}}
+try{_regel=regelLasLokal();}catch(e){}
 function regelHamta(tvinga){
   if(_regelLaddar)return;
   if(!tvinga&&Date.now()-_regelAt<30000)return;
@@ -13165,12 +13180,16 @@ function regelHamta(tvinga){
       /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
       max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max)};
     try{if(_regel.max!=null)localStorage.setItem('battMax_v1',String(_regel.max));}catch(e){}
+    regelSpara(_regel);
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
     try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
       if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
     if(_dlgWhich==='cars'||_dlgWhich==='billadd'){try{bilStyrOm();}catch(e){}}
     try{regelRadRita();}catch(e){}
+    /* v751: På nu ritas om direkt när bokningarna kommit, inte först vid nästa
+       uppdatering 15 s senare. */
+    try{paNuRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
     else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
@@ -20815,7 +20834,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v750';
+const APP_VERSION='v751';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
