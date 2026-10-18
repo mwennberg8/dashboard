@@ -3492,6 +3492,15 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .setup-b:disabled{opacity:.6}
 .setup-m{font-size:12px;line-height:1.5;margin-top:12px;min-height:18px}
 .setup-m.ok{color:var(--ok)}.setup-m.fel{color:var(--hot)}
+/* v743: raden överst när Homeyn inte har dashboardens enheter. Under
+   anslutningsrutan (setup-bak), över allt annat. */
+.fel-homey{position:fixed;left:8px;right:8px;top:max(8px,env(safe-area-inset-top));z-index:2500;
+  background:var(--panel-a);background:color-mix(in srgb,var(--hot) 16%,var(--panel-a));
+  border:1px solid var(--hot);border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.45;color:var(--ink);
+  box-shadow:0 10px 28px -14px rgba(0,0,0,.5)}
+.fel-homey code{font-size:12px;opacity:.85}
+.fel-homey button{display:block;margin-top:8px;border:0;border-radius:10px;padding:8px 12px;font:inherit;font-weight:800;
+  background:var(--hot);color:#fff;cursor:pointer}
 .sync-note{position:fixed;left:50%;bottom:22px;transform:translate(-50%,14px);z-index:9999;
   padding:10px 16px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--ink);
   font-family:var(--sans);font-size:12.5px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.28);
@@ -3809,6 +3818,28 @@ const ICONS={
    dörr. Ritad i samma tvåtonsstil som Phosphor-ikonerna. */
 'stuga':'<path d="M40,116 L128,44 L216,116 V212 H40 Z" opacity="0.2"/><path d="M24,124 L128,40 L232,124" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="M168,74 V48 H196 V96" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,112 V212 H208 V112" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M48,150 H104 M152,150 H208 M48,182 H104 M152,182 H208" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" opacity="0.7"/><path d="M104,212 V148 H152 V212" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/>',
 'house-line':'<path d="M216,116.69V216H152V152H104v64H40V116.69l82.34-82.35a8,8,0,0,1,11.32,0Z" opacity="0.2"/><path d="M240,208H224V136l2.34,2.34A8,8,0,0,0,237.66,127L139.31,28.68a16,16,0,0,0-22.62,0L18.34,127a8,8,0,0,0,11.32,11.31L32,136v72H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM48,120l80-80,80,80v88H160V152a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v56H48Zm96,88H112V160h32Z"/>',
+/* v742: hus, stugor och trädgård ur Phosphor (duotone, MIT – samma källa som övriga). */
+'house-simple':'<path d="M216,120v96H40V120a8,8,0,0,1,2.34-5.66l80-80a8,8,0,0,1,11.32,0l80,80A8,8,0,0,1,216,120Z" opacity="0.2"/><path d="M219.31,108.68l-80-80a16,16,0,0,0-22.62,0l-80,80A15.87,15.87,0,0,0,32,120v96a8,8,0,0,0,8,8H216a8,8,0,0,0,8-8V120A15.87,15.87,0,0,0,219.31,108.68ZM208,208H48V120l80-80,80,80Z"/>',
+'barn':'<path d="M184,120v80H72V120Z" opacity="0.2"/><path d="M240,192h-8V130.57l1.49,2.08a8,8,0,1,0,13-9.3l-40-56a8,8,0,0,0-2-1.94L137,18.77l-.1-.07a16,16,0,0,0-17.76,0l-.1.07L51.45,65.42a8,8,0,0,0-2,1.94l-40,56a8,8,0,1,0,13,9.3L24,130.57V192H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM40,108.17,61.7,77.79,128,32l66.3,45.78L216,108.17V192H192V120a8,8,0,0,0-8-8H72a8,8,0,0,0-8,8v72H40Zm88,42L97,128H159Zm48-14.62v48.91L141.76,160ZM114.24,160,80,184.46V135.55ZM128,169.83,159,192H97ZM104,88a8,8,0,0,1,8-8h32a8,8,0,1,1,0,16H112A8,8,0,0,1,104,88Z"/>',
+'warehouse':'<path d="M184,128v64H72V128Z" opacity="0.2"/><path d="M240,184h-8V57.9l9.67-2.08a8,8,0,1,0-3.35-15.64l-224,48A8,8,0,0,0,16,104a8.16,8.16,0,0,0,1.69-.18L24,102.47V184H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM40,99,216,61.33V184H192V128a8,8,0,0,0-8-8H72a8,8,0,0,0-8,8v56H40Zm136,53H80V136h96ZM80,168h96v16H80Z"/>',
+'building':'<path d="M200,24V232H152V184H104v48H56V24Z" opacity="0.2"/><path d="M232,224H208V32h8a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16h8V224H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM64,32H192V224H160V184a8,8,0,0,0-8-8H104a8,8,0,0,0-8,8v40H64Zm80,192H112V192h32ZM88,64a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H96A8,8,0,0,1,88,64Zm48,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H144A8,8,0,0,1,136,64ZM88,104a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H96A8,8,0,0,1,88,104Zm48,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H144A8,8,0,0,1,136,104ZM88,144a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H96A8,8,0,0,1,88,144Zm48,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H144A8,8,0,0,1,136,144Z"/>',
+'building-apartment':'<path d="M224,72V216H144V168H112v48H32V104H80V40h96V72Z" opacity="0.2"/><path d="M240,208h-8V72a8,8,0,0,0-8-8H184V40a8,8,0,0,0-8-8H80a8,8,0,0,0-8,8V96H32a8,8,0,0,0-8,8V208H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM40,112H80a8,8,0,0,0,8-8V48h80V72a8,8,0,0,0,8,8h40V208H152V168a8,8,0,0,0-8-8H112a8,8,0,0,0-8,8v40H40Zm96,96H120V176h16ZM112,72a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H120A8,8,0,0,1,112,72Zm0,32a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H120A8,8,0,0,1,112,104Zm56,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H176A8,8,0,0,1,168,104ZM88,136a8,8,0,0,1-8,8H64a8,8,0,0,1,0-16H80A8,8,0,0,1,88,136Zm0,32a8,8,0,0,1-8,8H64a8,8,0,0,1,0-16H80A8,8,0,0,1,88,168Zm24-32a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H120A8,8,0,0,1,112,136Zm56,0a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H176A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1,8-8h16a8,8,0,0,1,0,16H176A8,8,0,0,1,168,168Z"/>',
+'farm':'<path d="M223.85,216H24V120a257,257,0,0,1,56.2,6.21l-.2-.07V80l64-48,64,48v41.11a254.67,254.67,0,0,0-40,7V96H120v42.61l0,0,0,0A256.79,256.79,0,0,1,223.85,216Z" opacity="0.2"/><path d="M232,160a8,8,0,0,0,0-16,232.2,232.2,0,0,0-65.8,9.47q-9-5.78-18.46-10.78A246.3,246.3,0,0,1,232,128a8,8,0,0,0,0-16c-5.36,0-10.69.18-16,.49V80a8,8,0,0,0-3.2-6.4l-64-48a8,8,0,0,0-9.6,0l-64,48A8,8,0,0,0,72,80v36.37A266.33,266.33,0,0,0,24,112a8,8,0,0,0,0,16,247,247,0,0,1,193.61,93,8,8,0,1,0,12.48-10q-7.59-9.5-15.94-18.14c5.92-.57,11.89-.86,17.85-.86a8,8,0,0,0,0-16,201.53,201.53,0,0,0-32.59,2.65q-7.75-6.92-16-13.16A216.51,216.51,0,0,1,232,160ZM128,133.24V104h32v17.94a262.48,262.48,0,0,0-31.93,11.33ZM88,84l56-42,56,42v29.93q-12.12,1.45-24,4V96a8,8,0,0,0-8-8H120a8,8,0,0,0-8,8v31q-11.79-4.15-24-7.18Zm48.83,136.43a8,8,0,0,1-11.09,2.23A183.15,183.15,0,0,0,24,192a8,8,0,0,1,0-16,199.11,199.11,0,0,1,110.6,33.34A8,8,0,0,1,136.83,220.43Zm49.54-10.14a8,8,0,1,1-11.2,11.42A214.81,214.81,0,0,0,24,160a8,8,0,0,1,0-16A230.69,230.69,0,0,1,186.37,210.29Z"/>',
+'tent':'<path d="M136,192H8L72,48Z" opacity="0.2"/><path d="M255.31,188.75l-64-144A8,8,0,0,0,184,40H72a8,8,0,0,0-7.27,4.69.21.21,0,0,0,0,.06l0,.12,0,0L.69,188.75A8,8,0,0,0,8,200H248a8,8,0,0,0,7.31-11.25ZM64,184H20.31L64,85.7Zm16,0V85.7L123.69,184Zm61.2,0L84.31,56H178.8l56.89,128Z"/>',
+'tipi':'<path d="M184.32,216H71.68L128,128Z" opacity="0.2"/><path d="M238.74,211.69,137.5,53.5l21.24-33.19a8,8,0,0,0-13.48-8.62L128,38.66l-17.26-27a8,8,0,1,0-13.48,8.62L118.5,53.5,17.26,211.69A8,8,0,0,0,24,224H232a8,8,0,0,0,6.74-12.31ZM86.3,208,128,142.84,169.7,208Zm102.4,0-54-84.31a8,8,0,0,0-13.48,0L67.3,208H38.62L128,68.34,217.38,208Z"/>',
+'lighthouse':'<path d="M181.61,112H74.39L80,56h96ZM192,215.24,187.23,168H68.77L64,215.24A8,8,0,0,0,72,224H184A8,8,0,0,0,192,215.24Z" opacity="0.2"/><path d="M208,80a8,8,0,0,0-8,8v16H188.85L184,55.2A8,8,0,0,0,181.32,50L138.44,11.88l-.2-.17a16,16,0,0,0-20.48,0l-.2.17L74.68,50A8,8,0,0,0,72,55.2L67.15,104H56V88a8,8,0,0,0-16,0v24a8,8,0,0,0,8,8H65.54l-9.47,94.48A16,16,0,0,0,72,232H184a16,16,0,0,0,15.92-17.56L190.46,120H208a8,8,0,0,0,8-8V88A8,8,0,0,0,208,80ZM128,24l27,24H101ZM87.24,64h81.52l4,40H136V88a8,8,0,0,0-16,0v16H83.23ZM72,216l4-40H180l4,40Zm106.39-56H77.61l4-40h92.76Z"/>',
+'castle-turret':'<path d="M208,48V92.69a8,8,0,0,1-2.34,5.65L192,112V224H152V168a24,24,0,0,0-48,0v56H64V112L50.34,98.34A8,8,0,0,1,48,92.69V48a8,8,0,0,1,8-8H80V72h32V40h32V72h32V40h24A8,8,0,0,1,208,48Z" opacity="0.2"/><path d="M216,216H200V115.31L211.31,104A15.86,15.86,0,0,0,216,92.69V48a16,16,0,0,0-16-16H176a8,8,0,0,0-8,8V64H152V40a8,8,0,0,0-8-8H112a8,8,0,0,0-8,8V64H88V40a8,8,0,0,0-8-8H56A16,16,0,0,0,40,48V92.69A15.86,15.86,0,0,0,44.69,104L56,115.31V216H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16ZM69.66,106.34,56,92.69V48H72V72a8,8,0,0,0,8,8h32a8,8,0,0,0,8-8V48h16V72a8,8,0,0,0,8,8h32a8,8,0,0,0,8-8V48h16V92.69l-13.66,13.65A8,8,0,0,0,184,112V216H160V168a32,32,0,0,0-64,0v48H72V112A8,8,0,0,0,69.66,106.34ZM144,216H112V168a16,16,0,0,1,32,0Z"/>',
+'park':'<path d="M224,160H160L192,32Z" opacity="0.2"/><path d="M232,192H200V168h24a8,8,0,0,0,7.76-9.94l-32-128a8,8,0,0,0-15.52,0l-32,128A8,8,0,0,0,160,168h24v24H120V176h8a8,8,0,0,0,0-16h-8V144h8a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16h8v16H40a8,8,0,0,0,0,16h8v16H24a8,8,0,0,0,0,16H232a8,8,0,0,0,0-16ZM192,65l21.75,87h-43.5ZM64,144h40v16H64Zm0,32h40v16H64Zm52-80A28,28,0,1,0,88,68,28,28,0,0,0,116,96Zm0-40a12,12,0,1,1-12,12A12,12,0,0,1,116,56Z"/>',
+'tree-evergreen':'<path d="M32,192l56-72H48L128,16l80,104H168l56,72Z" opacity="0.2"/><path d="M230.31,187.09,184.36,128H208a8,8,0,0,0,6.34-12.88l-80-104a8,8,0,0,0-12.68,0l-80,104A8,8,0,0,0,48,128H71.64L25.69,187.09A8,8,0,0,0,32,200h88v40a8,8,0,0,0,16,0V200h88a8,8,0,0,0,6.31-12.91ZM48.36,184l46-59.09A8,8,0,0,0,88,112H64.25L128,29.12,191.75,112H168a8,8,0,0,0-6.31,12.91L207.64,184Z"/>',
+'plant':'<path d="M138.54,149.46C106.62,96.25,149.18,43.05,239.63,48.37,245,138.82,191.75,181.39,138.54,149.46ZM16.26,88.26c-3.8,64.61,34.21,95,72.21,72.21C111.27,122.47,80.87,84.46,16.26,88.26Z" opacity="0.2"/><path d="M247.63,47.89a8,8,0,0,0-7.52-7.52c-51.76-3-93.32,12.74-111.18,42.22-11.8,19.48-11.78,43.16-.16,65.74a71.37,71.37,0,0,0-14.17,26.95L98.33,159c7.82-16.33,7.52-33.36-1-47.49C84.09,89.73,53.62,78,15.79,80.27a8,8,0,0,0-7.52,7.52c-2.23,37.83,9.46,68.3,31.25,81.5A45.82,45.82,0,0,0,63.44,176,54.58,54.58,0,0,0,87,170.33l25,25V224a8,8,0,0,0,16,0V194.51a55.61,55.61,0,0,1,12.27-35,73.91,73.91,0,0,0,33.31,8.4,60.9,60.9,0,0,0,31.83-8.86C234.89,141.21,250.67,99.65,247.63,47.89ZM86.06,146.74l-24.41-24.4a8,8,0,0,0-11.31,11.31l24.41,24.41c-9.61,3.18-18.93,2.39-26.94-2.46C32.47,146.31,23.79,124.32,24,96c28.31-.25,50.31,8.47,59.6,23.81C88.45,127.82,89.24,137.14,86.06,146.74Zm111.06-1.36c-13.4,8.11-29.15,8.73-45.15,2l53.69-53.7a8,8,0,0,0-11.31-11.32L140.65,136c-6.76-16-6.15-31.76,2-45.15,13.94-23,47-35.8,89.33-34.83C232.94,98.34,220.14,131.44,197.12,145.38Z"/>',
+'potted-plant':'<path d="M184,152l-14.61,65.74a8,8,0,0,1-7.81,6.26H94.42a8,8,0,0,1-7.81-6.26L72,152Z" opacity="0.2"/><path d="M200,144h-76.7l2.35-2.35h0l20.06-20.06a59.55,59.55,0,0,0,26.1,6.36,49.56,49.56,0,0,0,25.89-7.22c23.72-14.36,36.43-47.6,34-88.92a8,8,0,0,0-7.52-7.52c-41.32-2.42-74.56,10.28-88.93,34-9.35,15.45-9.59,34.11-.86,52L120,124.68l-12.21-12.21c6-13.25,5.57-27-1.39-38.48C95.53,56,70.6,46.4,39.73,48.22a8,8,0,0,0-7.51,7.51C30.4,86.6,40,111.52,58,122.4A38.22,38.22,0,0,0,78,128a45,45,0,0,0,18.52-4.19L108.69,136l-8,8H56a8,8,0,0,0,0,16h9.59L78.8,219.47A15.89,15.89,0,0,0,94.42,232h67.17a15.91,15.91,0,0,0,15.62-12.53L190.42,160H200a8,8,0,0,0,0-16ZM149,66.58c10.46-17.26,35.23-27,67-26.57.41,31.81-9.31,56.58-26.57,67-11.51,7-25.4,6.54-39.28-1.18C142.42,92,142,78.09,149,66.58ZM92.11,108.11c-9.2,4.92-18.31,5.15-25.83.6C54.78,101.74,48.15,85.31,48,64c21.31.15,37.75,6.78,44.71,18.28C97.27,89.8,97,98.91,92.11,108.11ZM161.59,216H94.42L82,160H174Z"/>',
+'armchair':'<path d="M240,128a32,32,0,0,1-32,32v40a8,8,0,0,1-8,8H56a8,8,0,0,1-8-8V160a32,32,0,0,1,0-64V72A32,32,0,0,1,80,40h96a32,32,0,0,1,32,32V96A32,32,0,0,1,240,128Z" opacity="0.2"/><path d="M216,88.8V72a40,40,0,0,0-40-40H80A40,40,0,0,0,40,72V88.8a40,40,0,0,0,0,78.4V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V167.2a40,40,0,0,0,0-78.4ZM80,48h96a24,24,0,0,1,24,24V88.8A40.07,40.07,0,0,0,168,128H88A40.07,40.07,0,0,0,56,88.8V72A24,24,0,0,1,80,48ZM208.39,152H208a8,8,0,0,0-8,8v40H56V160a8,8,0,0,0-8-8h-.39A24,24,0,1,1,72,128v40a8,8,0,0,0,16,0V144h80v24a8,8,0,0,0,16,0V128a24,24,0,1,1,24.39,24Z"/>',
+'flower-tulip':'<path d="M169.23,66v0A80,80,0,0,0,128,136,80,80,0,0,0,86.77,66v0C100,38,128,24,128,24S156,38,169.23,66Z" opacity="0.2"/><path d="M208,48a87.48,87.48,0,0,0-35.36,7.43c-15.1-25.37-39.92-38-41.06-38.59a8,8,0,0,0-7.16,0c-1.14.58-26,13.22-41.06,38.59A87.48,87.48,0,0,0,48,48a8,8,0,0,0-8,8V96a88.11,88.11,0,0,0,80,87.63v35.43L83.58,200.84a8,8,0,1,0-7.16,14.32l48,24a8,8,0,0,0,7.16,0l48-24a8,8,0,0,0-7.16-14.32L136,219.06V183.63A88.11,88.11,0,0,0,216,96V56A8,8,0,0,0,208,48ZM128,33.21c6.65,4.08,21.08,14.19,30.64,30A88.46,88.46,0,0,0,128,99.36,88.4,88.4,0,0,0,97.36,63.19C106.93,47.4,121.35,37.29,128,33.21ZM56,96V64.44A72.1,72.1,0,0,1,120,136v31.56A72.1,72.1,0,0,1,56,96Zm144,0a72.1,72.1,0,0,1-64,71.56V136a72.1,72.1,0,0,1,64-71.56Z"/>',
+'campfire':'<path d="M180,108a52,52,0,0,1-52,52,24,24,0,0,0,24-24c0-24-24-40-24-40s-24,16-24,40a24,24,0,0,0,24,24,52,52,0,0,1-52-52c0-44,52-76,52-76S180,64,180,108Z" opacity="0.2"/><path d="M128,168a60.07,60.07,0,0,0,60-60c0-47.92-53.53-81.41-55.81-82.81a8,8,0,0,0-8.38,0A156,156,0,0,0,96.24,48C77.77,67.13,68,87.9,68,108A60.07,60.07,0,0,0,128,168Zm-16-32c0-13.57,10-24.46,16-29.79,6,5.33,16,16.22,16,29.79a16,16,0,0,1-32,0Zm16-94.34C139.74,50,172,76,172,108a43.83,43.83,0,0,1-12.09,30.24c.05-.74.09-1.49.09-2.24,0-28-26.44-45.91-27.56-46.66a8,8,0,0,0-8.88,0C122.44,90.09,96,108,96,136c0,.75,0,1.5.09,2.24A43.83,43.83,0,0,1,84,108C84,76,116.27,50,128,41.66Zm95.62,184.76a8,8,0,0,1-10.05,5.2L128,204.39,42.43,231.62a8,8,0,1,1-4.85-15.25l64-20.37-64-20.38a8,8,0,1,1,4.85-15.24L128,187.6l85.57-27.22a8,8,0,1,1,4.85,15.24l-64,20.38,64,20.37A8,8,0,0,1,223.62,226.42Z"/>',
+'island':'<path d="M32,140a20,20,0,1,1,20,20A20,20,0,0,1,32,140Zm96,52c-64,0-104,32-104,32H232S192,192,128,192Z" opacity="0.2"/><path d="M238.25,229A8,8,0,0,1,227,230.25c-.37-.3-38.82-30.25-99-30.25S29.36,230,29,230.26a8,8,0,0,1-10-12.51c1.63-1.3,38.52-30.26,98.29-33.45A119.94,119.94,0,0,1,114,146.37c1.74-21.71,10.92-50.63,43-72.48a66.19,66.19,0,0,0-15-1.87l-1.67,0c-19,.62-30.94,11.71-36.5,33.92A8,8,0,0,1,96,112a7.64,7.64,0,0,1-1.94-.24,8,8,0,0,1-5.82-9.7c9.25-36.95,33.11-45.42,51.5-46a81.48,81.48,0,0,1,21.68,2.45c-3.83-6.33-9.43-12.93-17.21-16.25-10-4.24-22.17-2.39-36.31,5.51a8,8,0,0,1-7.8-14c18.74-10.45,35.72-12.54,50.48-6.2,12.49,5.36,20.73,15.78,25.87,25,6.18-9.64,13.88-16.17,22.39-18.94,11.86-3.87,24.64-.72,38,9.37a8,8,0,0,1-9.64,12.76c-8.91-6.73-16.77-9.06-23.35-6.93-7.29,2.35-12.87,10-16.37,16.61A70.46,70.46,0,0,1,208,73.07c14.61,8.35,32,26.05,32,62.94a8,8,0,0,1-16,0c0-23.46-8.07-40-24-49a50.49,50.49,0,0,0-5.75-2.8,55.64,55.64,0,0,1,5.06,33.06,59.41,59.41,0,0,1-8.86,23.41,8,8,0,0,1-13.09-9.2c.74-1.09,16.33-24.38-3.26-49.37-27,15.21-41.89,37.25-44.16,65.59a104.27,104.27,0,0,0,3.83,36.44c62.65,1.81,101.52,32.33,103.2,33.66A8,8,0,0,1,238.25,229ZM24,140a28,28,0,1,1,28,28A28,28,0,0,1,24,140Zm16,0a12,12,0,1,0,12-12A12,12,0,0,0,40,140Z"/>',
+'mountains':'<path d="M144,52a20,20,0,1,1,20,20A20,20,0,0,1,144,52Zm49.44,55.92a8,8,0,0,0-13.77,0l-33,55.75-21-35.67H50.35L8,200H248Z" opacity="0.2"/><path d="M164,80a28,28,0,1,0-28-28A28,28,0,0,0,164,80Zm0-40a12,12,0,1,1-12,12A12,12,0,0,1,164,40Zm90.88,155.92-54.56-92.08A15.87,15.87,0,0,0,186.55,96h0a15.85,15.85,0,0,0-13.76,7.84L146.63,148l-44.84-76.1a16,16,0,0,0-27.58,0L1.11,195.94A8,8,0,0,0,8,208H248a8,8,0,0,0,6.88-12.08ZM88,80l23.57,40H64.43ZM22,192l33-56h66l33,56Zm150.57,0-16.66-28.28L186.55,112,234,192Z"/>',
+/* v742: uterum – hus med glasveranda, egen ritning i Phosphors stil (Phosphor har ingen). */
+'uterum':'<path d="M104,104l120,40v72H104Z" opacity="0.2"/><path d="M24,216V104L72,56l48,48" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/><path d="M104,216V104l120,40v72" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M144,118V216M184,131V216M104,172H224" fill="none" stroke="currentColor" stroke-width="10"/><path d="M16,216H240" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round"/>',
 /* v739: lavalampa – egen ritning i Phosphors stil (16 px linje, 20 % fyllnad); Phosphor har ingen. */
 'lava-lamp':'<path d="M108,48C101,88,80,116,80,148c0,13,8,22,16,28h64c8-6,16-15,16-28,0-32-21-60-28-100Z" opacity="0.2"/><path d="M108,48C101,88,80,116,80,148c0,13,8,22,16,28h64c8-6,16-15,16-28,0-32-21-60-28-100Z" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M104,24h48l4,24H100Z" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><path d="M96,176L76,232H180L160,176" fill="none" stroke="currentColor" stroke-width="16" stroke-linejoin="round"/><circle cx="126" cy="146" r="16"/><circle cx="116" cy="98" r="9"/><circle cx="142" cy="120" r="7"/>',
 'lightbulb-off':'<path d="M176,232a8,8,0,0,1-8,8H88a8,8,0,0,1,0-16h80A8,8,0,0,1,176,232Zm37.66-6.34a8,8,0,0,1-11.32,11.32L177.36,212H96a16,16,0,0,1-16-16v-6a16,16,0,0,0-6.23-12.66A87.59,87.59,0,0,1,40,104.49a88.6,88.6,0,0,1,3.68-25.11L18.34,53.66A8,8,0,0,1,29.66,42.34ZM97.09,133.41a71.86,71.86,0,0,1-9.19-30.36,8,8,0,0,0-16,.9,87.66,87.66,0,0,0,10.9,36.44ZM96,192h65.36L67.57,98.21A71.6,71.6,0,0,0,73.77,160,32,32,0,0,1,80,178.66Zm119.66-30.79A87.55,87.55,0,0,0,216,104,88,88,0,0,0,80.77,29.9a8,8,0,1,0,9,13.23A72,72,0,0,1,200,104a71.65,71.65,0,0,1-27.53,56.65,32.06,32.06,0,0,0-8.62,10.1,8,8,0,0,0,13.94,7.84,16.1,16.1,0,0,1,4.28-5A87.24,87.24,0,0,0,195.66,161.21Z"/>','lightning':'<path d="M96,240l16-80L48,136,160,16,144,96l64,24Z" opacity="0.2"/><path d="M215.79,118.17a8,8,0,0,0-5-5.66L153.18,90.9l14.66-73.33a8,8,0,0,0-13.69-7l-112,120a8,8,0,0,0,3,13l57.63,21.61L88.16,238.43a8,8,0,0,0,13.69,7l112-120A8,8,0,0,0,215.79,118.17ZM109.37,214l10.47-52.38a8,8,0,0,0-5-9.06L62,132.71l84.62-90.66L136.16,94.43a8,8,0,0,0,5,9.06l52.8,19.8Z"/>','moon':'<path d="M227.89,147.89A96,96,0,1,1,108.11,28.11,96.09,96.09,0,0,0,227.89,147.89Z" opacity="0.2"/><path d="M233.54,142.23a8,8,0,0,0-8-2,88.08,88.08,0,0,1-109.8-109.8,8,8,0,0,0-10-10,104.84,104.84,0,0,0-52.91,37A104,104,0,0,0,136,224a103.09,103.09,0,0,0,62.52-20.88,104.84,104.84,0,0,0,37-52.91A8,8,0,0,0,233.54,142.23ZM188.9,190.34A88,88,0,0,1,65.66,67.11a89,89,0,0,1,31.4-26A106,106,0,0,0,96,56,104.11,104.11,0,0,0,200,160a106,106,0,0,0,14.92-1.06A89,89,0,0,1,188.9,190.34Z"/>','plug':'<path d="M212,132l-58.63,58.63a32,32,0,0,1-45.25,0L65.37,147.88a32,32,0,0,1,0-45.25L124,44Z" opacity="0.2"/><path d="M237.66,66.34a8,8,0,0,0-11.32,0L192,100.69,155.31,64l34.35-34.34a8,8,0,1,0-11.32-11.32L144,52.69,117.66,26.34a8,8,0,0,0-11.32,11.32L112.69,44l-53,53a40,40,0,0,0,0,56.57l15.71,15.71L26.34,218.34a8,8,0,0,0,11.32,11.32l49.09-49.09,15.71,15.71a40,40,0,0,0,56.57,0l53-53,6.34,6.35a8,8,0,0,0,11.32-11.32L203.31,112l34.35-34.34A8,8,0,0,0,237.66,66.34ZM147.72,185a24,24,0,0,1-33.95,0L71,142.23a24,24,0,0,1,0-33.95l53-53L200.69,132Z"/>','sparkle':'<path d="M194.82,151.43l-55.09,20.3-20.3,55.09a7.92,7.92,0,0,1-14.86,0l-20.3-55.09-55.09-20.3a7.92,7.92,0,0,1,0-14.86l55.09-20.3,20.3-55.09a7.92,7.92,0,0,1,14.86,0l20.3,55.09,55.09,20.3A7.92,7.92,0,0,1,194.82,151.43Z" opacity="0.2"/><path d="M197.58,129.06,146,110l-19-51.62a15.92,15.92,0,0,0-29.88,0L78,110l-51.62,19a15.92,15.92,0,0,0,0,29.88L78,178l19,51.62a15.92,15.92,0,0,0,29.88,0L146,178l51.62-19a15.92,15.92,0,0,0,0-29.88ZM137,164.22a8,8,0,0,0-4.74,4.74L112,223.85,91.78,169A8,8,0,0,0,87,164.22L32.15,144,87,123.78A8,8,0,0,0,91.78,119L112,64.15,132.22,119a8,8,0,0,0,4.74,4.74L191.85,144ZM144,40a8,8,0,0,1,8-8h16V16a8,8,0,0,1,16,0V32h16a8,8,0,0,1,0,16H184V64a8,8,0,0,1-16,0V48H152A8,8,0,0,1,144,40ZM248,88a8,8,0,0,1-8,8h-8v8a8,8,0,0,1-16,0V96h-8a8,8,0,0,1,0-16h8V72a8,8,0,0,1,16,0v8h8A8,8,0,0,1,248,88Z"/>','sun-dim':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V32a8,8,0,0,1,16,0v8a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-8-8A8,8,0,0,0,50.34,61.66Zm0,116.68-8,8a8,8,0,0,0,11.32,11.32l8-8a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l8-8a8,8,0,0,0-11.32-11.32l-8,8A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l8,8a8,8,0,0,0,11.32-11.32ZM40,120H32a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Zm88,88a8,8,0,0,0-8,8v8a8,8,0,0,0,16,0v-8A8,8,0,0,0,128,208Zm96-88h-8a8,8,0,0,0,0,16h8a8,8,0,0,0,0-16Z"/>','sun-horizon':'<path d="M192,144a64.33,64.33,0,0,1-2,16H66a64,64,0,1,1,126-16Z" opacity="0.2"/><path d="M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z"/>','sun':'<path d="M184,128a56,56,0,1,1-56-56A56,56,0,0,1,184,128Z" opacity="0.2"/><path d="M120,40V16a8,8,0,0,1,16,0V40a8,8,0,0,1-16,0Zm72,88a64,64,0,1,1-64-64A64.07,64.07,0,0,1,192,128Zm-16,0a48,48,0,1,0-48,48A48.05,48.05,0,0,0,176,128ZM58.34,69.66A8,8,0,0,0,69.66,58.34l-16-16A8,8,0,0,0,42.34,53.66Zm0,116.68-16,16a8,8,0,0,0,11.32,11.32l16-16a8,8,0,0,0-11.32-11.32ZM192,72a8,8,0,0,0,5.66-2.34l16-16a8,8,0,0,0-11.32-11.32l-16,16A8,8,0,0,0,192,72Zm5.66,114.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32-11.32ZM48,128a8,8,0,0,0-8-8H16a8,8,0,0,0,0,16H40A8,8,0,0,0,48,128Zm80,80a8,8,0,0,0-8,8v24a8,8,0,0,0,16,0V216A8,8,0,0,0,128,208Zm112-88H216a8,8,0,0,0,0,16h24a8,8,0,0,0,0-16Z"/>','swimming-pool':'<path d="M224,168v40c-24,0-24,16-48,16s-24-16-48-16-24,16-48,16-24-16-48-16V168c24,0,24,16,48,16s24-16,48-16,24,16,48,16S200,168,224,168Z" opacity="0.2"/><path d="M88,149.39a8,8,0,0,0,8-8V128h64v15.29a8,8,0,0,0,16,0V32a8,8,0,0,0-16,0V48H96V32a8,8,0,0,0-16,0V141.39A8,8,0,0,0,88,149.39ZM96,112V96h64v16Zm64-48V80H96V64ZM24,168a8,8,0,0,1,8-8c14.42,0,22.19,5.18,28.44,9.34C66,173.06,70.42,176,80,176s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34a8,8,0,0,1,0,16c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,178.94,137.57,176,128,176s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,178.94,41.58,176,32,176A8,8,0,0,1,24,168Zm208,40a8,8,0,0,1-8,8c-9.58,0-14,2.94-19.56,6.66-6.25,4.16-14,9.34-28.44,9.34s-22.2-5.18-28.44-9.34C142,218.94,137.57,216,128,216s-14,2.94-19.56,6.66c-6.24,4.16-14,9.34-28.43,9.34s-22.19-5.18-28.44-9.34C46,218.94,41.58,216,32,216a8,8,0,0,1,0-16c14.42,0,22.19,5.18,28.44,9.34C66,213.06,70.42,216,80,216s14-2.94,19.56-6.66c6.24-4.16,14-9.34,28.43-9.34s22.2,5.18,28.44,9.34c5.58,3.72,10,6.66,19.57,6.66s14-2.94,19.56-6.66c6.25-4.16,14-9.34,28.44-9.34A8,8,0,0,1,232,208Z"/>','tag':'<path d="M237.66,153,153,237.66a8,8,0,0,1-11.31,0L42.34,138.34A8,8,0,0,1,40,132.69V40h92.69a8,8,0,0,1,5.65,2.34l99.32,99.32A8,8,0,0,1,237.66,153Z" opacity="0.2"/><path d="M243.31,136,144,36.69A15.86,15.86,0,0,0,132.69,32H40a8,8,0,0,0-8,8v92.69A15.86,15.86,0,0,0,36.69,144L136,243.31a16,16,0,0,0,22.63,0l84.68-84.68a16,16,0,0,0,0-22.63Zm-96,96L48,132.69V48h84.69L232,147.31ZM96,84A12,12,0,1,1,84,72,12,12,0,0,1,96,84Z"/>','thermometer-simple':'<path d="M160,138V48a32,32,0,0,0-64,0v90a56,56,0,1,0,64,0Zm-32,70a24,24,0,1,1,24-24A24,24,0,0,1,128,208Z" opacity="0.2"/><path d="M136,153V88a8,8,0,0,0-16,0v65a32,32,0,1,0,16,0Zm-8,47a16,16,0,1,1,16-16A16,16,0,0,1,128,200Zm40-66V48a40,40,0,0,0-80,0v86a64,64,0,1,0,80,0Zm-40,98a48,48,0,0,1-27.42-87.4A8,8,0,0,0,104,138V48a24,24,0,0,1,48,0v90a8,8,0,0,0,3.42,6.56A48,48,0,0,1,128,232Z"/>','umbrella':'<path d="M128,32S88,64,88,136H32a8,8,0,0,1-8-8.71A104.21,104.21,0,0,1,128,32Zm104,95.29A104.21,104.21,0,0,0,128,32s40,32,40,104h56A8,8,0,0,0,232,127.29Z" opacity="0.2"/><path d="M240,126.63A112.44,112.44,0,0,0,51.75,53.75a111.56,111.56,0,0,0-35.7,72.88A16,16,0,0,0,32,144h88v56a32,32,0,0,0,64,0,8,8,0,0,0-16,0,16,16,0,0,1-32,0V144h88a16,16,0,0,0,16-17.37ZM32,128l0,0a96.15,96.15,0,0,1,76.2-85.89C96.48,58,81.85,86.11,80.17,128Zm64.15,0c1.39-30.77,10.53-52.81,18.3-66.24A106.44,106.44,0,0,1,128,43.16a106.31,106.31,0,0,1,13.52,18.6C154.8,84.7,159,109.28,159.82,128Zm79.65,0c-1.68-41.89-16.31-70-28-85.94A96.07,96.07,0,0,1,224,128Z"/>','warning':'<path d="M215.46,216H40.54C27.92,216,20,202.79,26.13,192.09L113.59,40.22c6.3-11,22.52-11,28.82,0l87.46,151.87C236,202.79,228.08,216,215.46,216Z" opacity="0.2"/><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/>','wind':'<path d="M120,96a24,24,0,1,1,24-24A24,24,0,0,1,120,96Zm88-16a24,24,0,1,0,24,24A24,24,0,0,0,208,80Zm-56,80a24,24,0,1,0,24,24A24,24,0,0,0,152,160Z" opacity="0.2"/><path d="M184,184a32,32,0,0,1-32,32c-13.7,0-26.95-8.93-31.5-21.22a8,8,0,0,1,15-5.56C137.74,195.27,145,200,152,200a16,16,0,0,0,0-32H40a8,8,0,0,1,0-16H152A32,32,0,0,1,184,184Zm-64-80a32,32,0,0,0,0-64c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C105.74,60.73,113,56,120,56a16,16,0,0,1,0,32H24a8,8,0,0,0,0,16Zm88-32c-13.7,0-26.95,8.93-31.5,21.22a8,8,0,0,0,15,5.56C193.74,92.73,201,88,208,88a16,16,0,0,1,0,32H32a8,8,0,0,0,0,16H208a32,32,0,0,0,0-64Z"/>'};
@@ -3884,7 +3915,7 @@ const DEV={tibber:'291ba3e3-c5e2-4542-bad8-a67a5ecc8611',solar:'b47e45d7-9485-4e
        riktvärde, samma som omdömet i övriga rutor), dålig ≥ 1400 ppm.
      Sensorns batteri ≤ 15 %. */
 var ZK={
-  uterum:{zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',sensor:function(){return DEV.uterum;},lab:'Uterum',ic:'sun-horizon',
+  uterum:{zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',sensor:function(){return DEV.uterum;},lab:'Uterum',ic:'uterum',
     ser:{t:'t_uterum',h:'h_uterum',c:'co2_uterum'},
     gr:{tLagLarm:2,tLagVarn:5,tHogVarn:30,tHogLarm:35,hHog:75,hLag:25}},
   snickarboa:{zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',sensor:function(){return DEV.snickarboa;},lab:'Snickarboa',ic:'hammer',
@@ -13441,7 +13472,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'sun-horizon',snickarboa:'hammer',poolrum:'swimming-pool',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -13651,7 +13682,7 @@ function openDetailKarna(which){
      v597, och brickans generella histSVG lade en andra graf ovanpå den — två
      bilder av samma batteri i samma ruta, med olika fönster och olika skala.
      Samma skäl som 'grid' redan står här av. */
-  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'&&which!=='wind'&&which!=='pool'&&which!=='seatemp'&&which!=='temps'){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
+  if(tcfg&&tcfg.graph!==false&&which!=='cost'&&which!=='sun'&&which!=='forecast'&&which!=='grid'&&which!=='batt'&&which!=='wind'&&which!=='pool'&&which!=='seatemp'&&which!=='temps'&&!(typeof ZK!=='undefined'&&ZK[which])){const gv=metricVizHTML(tcfg);if(gv)body=metricVizIsBars(tcfg)?(body+gv):(gv+body);}
   setT('dlg-title',title);setIcon('dlg-ic',icn);const bd=$('dlg-body');if(bd)bd.innerHTML=body;
   const back=$('dlg-back');if(back&&back.classList)back.classList.add('open');dlgTop();}
 function closeDetail(e){if(e){const t=e.target,onX=t&&t.closest&&t.closest('.dlg-x'),onBack=t&&t.classList&&t.classList.contains('dlg-back');if(!onX&&!onBack)return;}
@@ -14471,10 +14502,9 @@ function computeMetric(cfg){
         const mal=N.mal!=null?' mot '+num(N.mal,0)+'°':'';
         if(N.arbetar){
           iccol=(N.lage==='cool')?'var(--cyan)':(N.lage==='heat')?'var(--warm)':'var(--gold)';
-          const lg=(N.lage==='cool')?'kyler':(N.lage==='heat')?'värmer':'igång';
           const sed=(B&&B.aktiv&&!gammal&&B.start)?brvSedan(B.start):null;
-          meta=lg+mal+(sed?' · '+sed:'');
-        }else if(N.pa)meta='på · vilar'+mal;
+          meta=brvLageText(N)+(sed?' · '+sed:'');
+        }else if(N.pa)meta='på · vilar'+(N.mal!=null?' · '+num(N.mal,0)+'°':'');   /* v742: inte "vilar mot" */
         else if(B&&!gammal&&B.nastaLage==='cool')meta='av · skulle kyla';
         else if(B&&!gammal&&B.nastaLage==='heat')meta='av · skulle värma';
         else meta='av';
@@ -14574,7 +14604,7 @@ const CAT=[
 ];  /* v193: sensorraden "Regn 24h" borttagen - identisk med computed 'rain', samma
        data och samma etikett. Det var en akta dubblett. */
 function sameCfg(a,b){if(!a||!b||a.type!==b.type)return false;return a.type==='computed'?a.key===b.key:(a.device===b.device&&a.cap===b.cap);}
-function accFor(ic){return {sun:'acc-gold',leaf:'acc-green',coins:'acc-warm',tag:'acc-warm','swimming-pool':'acc-cyan',lightning:'acc-blue','car-profile':'acc-violet','battery-high':'acc-green','battery-charging':'acc-green',wind:'acc-green','thermometer-simple':'acc-warm','drop-half-bottom':'acc-cyan','cloud-rain':'acc-blue',waves:'acc-cyan',house:'acc-warm',gauge:'acc-blue','sun-horizon':'acc-gold',hammer:'acc-warm'}[ic]||'acc-blue';}
+function accFor(ic){return {sun:'acc-gold',leaf:'acc-green',coins:'acc-warm',tag:'acc-warm','swimming-pool':'acc-cyan',lightning:'acc-blue','car-profile':'acc-violet','battery-high':'acc-green','battery-charging':'acc-green',wind:'acc-green','thermometer-simple':'acc-warm','drop-half-bottom':'acc-cyan','cloud-rain':'acc-blue',waves:'acc-cyan',house:'acc-warm',gauge:'acc-blue','sun-horizon':'acc-gold',uterum:'acc-gold',hammer:'acc-warm'}[ic]||'acc-blue';}
 
 /* ===== självlärande glow-nivåer (percentiler ur din egen historik) ===== */
 const LEARN_KEYS={
@@ -17160,6 +17190,16 @@ function brvNu(){
   if(lage!=='cool'&&lage!=='heat'&&t!=null&&mal!=null)lage=(t>mal)?'cool':(t<mal?'heat':lage);
   return {temp:(t!=null&&isFinite(t))?t:null,pa:pa,arbetar:arbetar,lage:lage,mal:(mal!=null&&isFinite(mal))?mal:null};
 }
+/* v741: TEXTEN FÅR ALDRIG MOTSÄGA BÖRVÄRDET. "värmer mot 16°" stod när rummet
+   var 17°: värmepumpen arbetar för att HÅLLA 16 efter sin egen givare, som
+   rapporterar i halva grader och ofta ligger under rumsvärdet som visas.
+   Nu: "värmer mot X" bara när rummet är under X, "kyler mot X" bara när det är
+   över X – annars "håller X°". Utan rumstemperatur sägs ingen riktning mot X. */
+function brvLageText(N){
+  var t=N.temp,m=N.mal,M=(m!=null)?num(m,0)+'°':'';
+  if(N.lage==='heat'){if(t==null||m==null)return 'värmer';return (t<m)?('värmer mot '+M):('håller '+M);}
+  if(N.lage==='cool'){if(t==null||m==null)return 'kyler';return (t>m)?('kyler mot '+M):('håller '+M);}
+  return (m!=null)?('håller '+M):'igång';}
 /* Äldre än 45 minuter räknas som osäkert — Homey uppdaterar var 15:e minut. */
 function brvGammal(B){
   if(!B)return true;
@@ -18816,6 +18856,14 @@ function bkpStatus(){const o=bkpGet();
 /* Skickar ändringar till Homey direkt i stället för att vänta på dygnsbackupen.
    Fördröjt några sekunder så att flera snabba ändringar blir en enda skrivning. */
 var _pushT=null,_pushBusy=false;
+/* v744: omförsök efter ett tappat anrop. true = ett nytt försök är bokat. */
+var _pushForsok=0,PUSH_FORSOK_MAX=5;
+function pushIgen(orsak){
+  if(_pushForsok>=PUSH_FORSOK_MAX){_pushForsok=0;return false;}
+  _pushForsok++;
+  syncNote('Sparade inte än – '+orsak+'. Försöker igen om en minut ('+_pushForsok+'/'+PUSH_FORSOK_MAX+')');
+  setTimeout(function(){try{syncPushSoon();}catch(e){}},60000);
+  return true;}
 function syncPushSoon(){try{
   if(CFG.sync===false)return;
   if(!CONFIG.TOKEN||CONFIG.TOKEN.indexOf('DIN_API')>=0)return;
@@ -18834,8 +18882,12 @@ function syncPushSoon(){try{
        några sekunder senare, tyst. */
     agareFarSkriva(false).then(function(far){
       if(!far.ok){_pushBusy=false;
-        syncNote('Sparade inte – '+((far.agare&&far.agare.namn)?(far.agare.namn+' äger kopian'):(far.orsak||'kunde inte kontrollera ägaren')));
         loggSkriv('push-avstod',{orsak:(far.agare&&far.agare.namn)||far.orsak||''});
+        /* v744: en annan enhet som äger kopian är ett beslut – då avstår vi.
+           Allt annat är ett tappat anrop: försök igen om en minut, högst fem
+           gånger. Förut låg ändringen kvar osparad tills man ändrade något mer. */
+        if(!far.agare&&pushIgen(far.orsak||'kunde inte kontrollera ägaren'))return;
+        syncNote('Sparade inte – '+((far.agare&&far.agare.namn)?(far.agare.namn+' äger kopian'):(far.orsak||'kunde inte kontrollera ägaren')));
         return;}
     /* APPEN FORST, precis som dygnsbackupen gor. Den har vagen skrev bara till
        logikvariablerna medan bootSync laser APPENS backup i forsta hand - en
@@ -18859,8 +18911,11 @@ function syncPushSoon(){try{
       try{var b=bkpGet();b.len=len;b.llen=llen;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
       try{egetTsSatt(Date.now());}catch(e){}
       loggSkriv('push',{tecken:len});
+      _pushForsok=0;
       syncNote('Sparat till Homey');},
-      function(){_pushBusy=false;});
+      function(e){_pushBusy=false;
+        if(!pushIgen('skrivningen misslyckades'+((e&&e.message)?(': '+e.message):'')))
+          syncNote('Sparade inte – skrivningen misslyckades');});
     });},3000);
 }catch(e){}}
 /* ===== Backup till v2-appen =====
@@ -18963,6 +19018,9 @@ function agareLas(o){
     if(raa==null)return null;
     return (typeof raa==='string')?JSON.parse(raa):raa;
   }catch(e){return null;}}
+async function appGetIgen(vag){
+  try{return await appGet(vag);}
+  catch(e){await new Promise(function(r){setTimeout(r,1500);});return await appGet(vag);}}
 /* Får DEN HÄR enheten skriva över det som ligger i Homey? */
 async function agareFarSkriva(manuell){
   if(manuell)return {ok:true};              /* ett tryck är alltid ett beslut */
@@ -18974,10 +19032,12 @@ async function agareFarSkriva(manuell){
      fram ändå. */
   try{
     if(!appKan())return {ok:true};          /* ingen app-väg alls: gamla vägen gäller */
-    var lista=await appGet('/backup');
+    /* v744: ETT omförsök per anrop. Ett enda tappat anrop (moln­vägen som
+       tar för lång tid, ett byte mellan lokalt och moln) stoppade sparningen. */
+    var lista=await appGetIgen('/backup');
     if(!lista||!lista.nycklar)return {ok:false,orsak:'inget svar om vem som äger kopian'};
     if(!(AGARE_KEY in lista.nycklar))return {ok:true};   /* ingen har gjort anspråk */
-    var a=agareLas({_agare_v1:await appGet('/backup?key='+encodeURIComponent(AGARE_KEY))});
+    var a=agareLas({_agare_v1:await appGetIgen('/backup?key='+encodeURIComponent(AGARE_KEY))});
     if(!a)return {ok:false,orsak:'ägarstämpeln gick inte att läsa'};
     if(!a.manuell)return {ok:true};
     if(a.id===enhetsId())return {ok:true};
@@ -20400,12 +20460,14 @@ function inferBtnIcon(devId){const d=DATA[devId];const c=d&&(d.class||d.type);
 /* ===== Ikoner att välja bland, grupperade efter vad man har hemma ===== */
 var BTN_ICONS=[
  ['Belysning',['lightbulb','lightbulb-off','lightbulb-filament','lamp','lamp-pendant','lava-lamp','sun','sun-dim','moon','sparkle']],
- ['Klimat & luft',['snowflake','fan','wind','thermometer','thermometer-hot','thermometer-cold','flame','fire','drop','waves','leaf']],
+ ['Klimat & luft',['snowflake','fan','wind','thermometer','thermometer-hot','thermometer-cold','flame','fire','drop','waves']],
  ['Kök & tvätt',['fork-knife','coffee','cooking-pot','oven','washing-machine','trash']],
  ['Media & teknik',['television','speaker-high','speaker-none','music-note','game-controller','desktop','laptop','printer','wifi-high','robot']],
  ['Dörrar & säkerhet',['door','door-open','garage','lock','lock-open','lock-simple','shield-check','bell','camera','alarm','key']],
  ['El, sol & bil',['plug','plugs','power','lightning','battery-high','solar-panel','car','car-profile','charging-station']],
- ['Rum & övrigt',['house','house-line','buildings','bed','couch','stairs','elevator','shower','bathtub','toilet','swimming-pool','timer','clock','tree','flower','umbrella','wrench','hammer','fire-extinguisher','gauge']]
+ ['Hus & stugor',['house','house-line','house-simple','stuga','uterum','barn','warehouse','building','building-apartment','buildings','farm','tent','tipi','lighthouse','castle-turret']],
+ ['Trädgård & natur',['tree','tree-evergreen','plant','potted-plant','flower','flower-tulip','leaf','park','campfire','island','mountains']],
+ ['Rum & övrigt',['bed','couch','armchair','stairs','elevator','shower','bathtub','toilet','swimming-pool','timer','clock','umbrella','wrench','hammer','fire-extinguisher','gauge']]
 ];
 /* Rutornas ikoner: knapparnas grupper plus det rutorna oftast visar. */
 var TILE_ICONS=[['Energi & väder',['sun','sun-horizon','solar-panel','lightning','plug','battery-high','battery-charging','charging-station','coins','tag','leaf','gauge','thermometer-simple','drop-half-bottom','cloud-rain','wind','waves','swimming-pool','car-profile','car']]]
@@ -20644,7 +20706,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v740';
+const APP_VERSION='v744';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21472,6 +21534,30 @@ function setupVisa(){
     var e=document.getElementById(id);
     if(e)e.addEventListener('keydown',function(ev){if(ev.key==='Enter')setupProva();});
   });}
+/* ===== v743: FEL HOMEY =====
+   En ny platta visade bara 0 och streck, med standardlayouten. Det är exakt
+   vad som händer när anslutningen fungerar (grön punkt, LIVE) men Homeyn den
+   pratar med inte har den här dashboardens enheter – t.ex. ett annat Homey-ID
+   med en token som hör till det. Ingenting sa det. Nu jämförs nyckelenheterna
+   mot det som kom tillbaka; saknas de flesta visas en rad överst med vilket
+   Homey-ID som används och en knapp till anslutningsrutan. */
+var NYCKEL_ENH=function(){return [DEV.solar,DEV.tibber,DEV.pulse,DEV.battery,DEV.consume,DEV.outdoor,DEV.pooltemp,DEV.car2];};
+function felHomeyRakna(karta){
+  var ids=NYCKEL_ENH(),har=0;
+  ids.forEach(function(id){if(karta&&karta[id])har++;});
+  return {har:har,av:ids.length,totalt:karta?Object.keys(karta).length:0};}
+function felHomeyKoll(){
+  if(typeof isDemo==='function'&&isDemo())return;
+  var r=felHomeyRakna(DATA),b=document.getElementById('fel-homey');
+  var fel=(r.totalt>0&&r.har<=1);
+  if(!fel){if(b&&b.parentNode)b.parentNode.removeChild(b);return;}
+  if(b)return;
+  var c=credGet();
+  b=document.createElement('div');b.id='fel-homey';b.className='fel-homey';
+  b.innerHTML='<b>Fel Homey?</b> Ansluten till <code>'+esc(c.homeyId||'?')+'</code>, men den har inte den här '
+    +'dashboardens enheter ('+r.har+' av '+r.av+' hittades bland '+r.totalt+'). Därför står det 0 och streck.'
+    +'<button type="button" onclick="setupVisa()">Ändra anslutning</button>';
+  document.body.appendChild(b);}
 function setupDolj(){
   var e=document.getElementById('setup-bak');
   if(e&&e.parentNode)e.parentNode.removeChild(e);}
@@ -21572,6 +21658,22 @@ async function setupProva(){
     sag('Kom inte fram.<br>'+esc(fel.join('<br>')).replace(/&lt;br&gt;/g,'<br>')
       +'<br><br>Kontrollera id och token. Ar bada ratt men molnet inte svarar kan Homey vara offline.',true);
     return;}
+  /* v743: rätt Homey? Anslutningen kan lyckas mot en Homey som inte har
+     dashboardens enheter – då blev allt 0 och streck utan förklaring. */
+  if(!setupProva._anda){
+    var rk=null;
+    try{var t2=withTimeout(12000);
+      var r2=await fetch(lyckad+'/api/manager/devices/device/',{headers:{Authorization:'Bearer '+tok},cache:'no-store',signal:t2.signal});
+      t2.clear();if(r2.ok)rk=felHomeyRakna(await r2.json());}catch(e){}
+    if(rk&&rk.har<=1){
+      sag('Ansluten, men den här Homeyn har inte dashboardens enheter ('+rk.har+' av '+rk.av
+        +' hittades bland '+rk.totalt+'). Är det rätt Homey-ID?'
+        +'<br><button type="button" class="setup-b setup-demo" id="su-anda" style="margin-top:8px">Anslut ändå</button>',true);
+      var an=document.getElementById('su-anda');
+      if(an)an.addEventListener('click',function(){setupProva._anda=true;setupProva();});
+      return;}
+  }
+  setupProva._anda=false;
   credSet({token:tok,homeyId:id,lan:lan});
   credTillCONFIG();
   sag('Ansluten via '+esc(lyckad.replace(/^https?:\/\//,''))+'. Laser in…');
@@ -21752,7 +21854,7 @@ async function load(){
       }
     }
   }
-  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}try{if(!_battLogAt)battLoggKoll(true);}catch(e1){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();}
+  if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}try{if(!_battLogAt)battLoggKoll(true);}catch(e1){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();try{felHomeyKoll();}catch(e){}}
   else if(VISAR_CACHE){
     /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
        besked: det står redan siffror där, och de är gamla — vilket är precis
@@ -22884,7 +22986,7 @@ const rSort=(a,b)=>rNamn(a).localeCompare(rNamn(b),'sv');
    "Utomhus " har ett efterföljande blanksteg i Homey — därför trim(). */
 const RUM_IC={'kök':'fork-knife','vardagsrum':'couch','sovrum':'bed','kontor':'desktop',
   'hall':'door','gästrum':'bed','lekrum':'game-controller','källare':'stairs',
-  'poolrum':'swimming-pool','uterum':'sun-horizon','breveden':'stuga',
+  'poolrum':'swimming-pool','uterum':'uterum','breveden':'stuga',
   'snickarboa':'hammer','utomhus':'tree','el':'lightning','hus':'house'};
 function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
 
