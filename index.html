@@ -92,6 +92,73 @@ window.pwaTryFileManifest=function(){try{
 }catch(e){}};
 window.pwaTryFileManifest();
 </script>
+<script>
+/* ===== v737: PLATTLÄGET PÅ TELEFONEN = VÄGGPLATTAN I MINIATYR =====
+   Förut räknade "Visa som: Platta" på telefonen fram en egen layoutbredd med
+   telefonens proportioner (fitScreen, tabprev). Resultatet var en platta – men
+   inte väggplattan: annan bredd, annan höjd, och telefonens mediafrågor och vh
+   gällde fortfarande.
+
+   Nu laddas dashboarden i en iframe som är EXAKT lika stor som väggplattans
+   fönster (CSS-px) och skalas ned som en bild till telefonens skärm. Inne i
+   ramen är fönstret alltså väggplattans: samma bredd, höjd, mediafrågor och
+   kioskberäkningar. Måtten kommer från enhetslistan (enheter_v1, fältet vy) som
+   väggplattan själv skriver och som synkas via Homey. Saknas de – väggplattan
+   har inte kört v737 ännu – används 800×1280.
+
+   Värdsidan kör inget av dashboarden: <plaintext> får parsern att läsa resten
+   av filen som ren text, så inga fler skript körs här. Ramen själv känns igen på
+   window.self!==window.top och ?ram=1. */
+(function(){try{
+  if(window.self!==window.top)return;
+  var q=location.search||'';
+  if(/[?&]ram=1(&|$)/.test(q))return;
+  var vm=null;try{vm=localStorage.getItem('view_mode_v1');}catch(e){}
+  var platta=(vm==='tablet')||(vm!=='phone'&&q.indexOf('mode=tablet')>=0);
+  var w0=window.innerWidth||9999,h0=window.innerHeight||9999;
+  if(!platta||Math.min(w0,h0)>=600)return;
+  var W=0,H=0,kalla='standard';
+  try{var o=JSON.parse(localStorage.getItem('enheter_v1')||'{}'),b=null;
+    for(var id in o){var e=o[id];if(e&&e.vagg&&e.vy&&(!b||(e.sist||0)>(b.sist||0)))b=e;}
+    var m=b?/^(\d+)\D+(\d+)$/.exec(String(b.vy)):null;
+    if(m){W=+m[1];H=+m[2];kalla='väggplattan';}
+  }catch(e){}
+  if(!(Math.min(W,H)>=600)){W=800;H=1280;kalla='standard';}
+  window.__plattRam={W:W,H:H,kalla:kalla};
+  var src=location.href.replace(/#.*$/,'');
+  src+=(src.indexOf('?')>=0?'&':'?')+'ram=1'+(location.hash||'');
+  window.plattRamPassa=function(){try{
+    var f=document.getElementById('platt-ram');if(!f)return;
+    var vw=window.innerWidth||W,vh=window.innerHeight||H;
+    var sc=Math.min(vw/W,vh/H);
+    f.style.transform='translate('+((vw-W*sc)/2).toFixed(1)+'px,'+((vh-H*sc)/2).toFixed(1)+'px) scale('+sc.toFixed(5)+')';
+    window.__plattRam.sc=sc;
+  }catch(e){}};
+  /* Kanterna runt ramen får dashboardens egen bakgrund (följer temat), så
+     telefonen ser ut som plattan och inte som en film med svarta band. */
+  window.plattRamFarg=function(){try{
+    var f=document.getElementById('platt-ram'),d=f&&f.contentDocument;if(!d||!d.body)return;
+    var c=getComputedStyle(d.body).backgroundColor;
+    if(c&&c!=='rgba(0, 0, 0, 0)'){document.body.style.background=c;f.style.background=c;}
+    /* Statusraden (theme-color) likaså – ramen håller sin egen i takt med temat. */
+    var mi=d.querySelector('meta[name="theme-color"]'),mu=document.querySelector('meta[name="theme-color"]');
+    if(mi&&mu&&mi.content&&mu.content!==mi.content)mu.content=mi.content;
+  }catch(e){}};
+  /* Temat sätts en stund efter load – läs om strax efter, sedan var 30:e s. */
+  window.plattRamLaddad=function(){window.plattRamFarg();setTimeout(window.plattRamFarg,1500);setTimeout(window.plattRamFarg,5000);};
+  setInterval(window.plattRamFarg,30000);
+  window.addEventListener('resize',window.plattRamPassa);
+  window.addEventListener('orientationchange',function(){setTimeout(window.plattRamPassa,250);});
+  document.addEventListener('DOMContentLoaded',window.plattRamPassa);
+  document.write('<style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;'
+    +'overscroll-behavior:none;background:#000}'
+    +'#platt-ram{position:fixed;left:0;top:0;border:0;display:block;transform-origin:0 0;background:#000}</style>'
+    +'<iframe id="platt-ram" title="Dashboard som väggplattan" width="'+W+'" height="'+H+'"'
+    +' style="width:'+W+'px;height:'+H+'px" allow="fullscreen; geolocation; clipboard-write; screen-wake-lock"'
+    +' onload="window.plattRamLaddad()" src="'+src.replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'"></iframe>'
+    +'<script>window.plattRamPassa()<\/script><plaintext style="display:none">');
+}catch(e){}})();
+</script>
 <!-- Ikoner: Phosphor Icons (duotone), MIT License, Copyright (c) 2020-2024 Phosphor Icons. https://phosphoricons.com -->
 <style>
 :root{
@@ -1428,6 +1495,15 @@ body.wx-rubrik #view-flode>[data-sec="weather"]{display:none!important}
 .en-wxrad{display:none}
 body.wx-rubrik .en-wxrad{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
 body.wx-rubrik .en-wxrad .en-wx{display:inline-flex}
+/* v736: rumsrutorna – varningstext i rutan och varningsrader i popupen. */
+.stat-sub .zk-varn{color:var(--warm);font-weight:800}
+.stat-sub .zk-larm{color:var(--hot);font-weight:850}
+.zk-varnlista{display:flex;flex-direction:column;gap:6px;margin:2px 0 10px}
+.zk-varnrad{display:flex;gap:8px;align-items:center;padding:8px 11px;border-radius:12px;font-size:13px;font-weight:800;line-height:1.3;
+  color:var(--ink);background:color-mix(in srgb,var(--warm) 13%,transparent);border:1px solid color-mix(in srgb,var(--warm) 40%,transparent)}
+.zk-varnrad.larm{background:color-mix(in srgb,var(--hot) 13%,transparent);border-color:color-mix(in srgb,var(--hot) 45%,transparent)}
+.zk-varnrad .ic{width:18px;height:18px;flex:0 0 auto;color:var(--warm)}
+.zk-varnrad.larm .ic{color:var(--hot)}
 /* v735: soluppgång och solnedgång i samma bricka. */
 .en-sol{gap:8px!important}
 .en-sol .sol-r{display:inline-flex;align-items:center;gap:4px}
@@ -3788,6 +3864,27 @@ const DEV={tibber:'291ba3e3-c5e2-4542-bad8-a67a5ecc8611',solar:'b47e45d7-9485-4e
   poolrum:'261bb3cf-1d26-4aba-8f36-f5858b40cc20',kallare:'cca5669a-e0d0-4d34-ad92-dbccb16abad2',
   snickarboa:'ec4c2247-6ce7-4c32-a7d2-959a246faabf',attefall:'26fb1e7c-ffaf-4892-b5c5-dc53cf7eaa0e'};
 
+/* ===== RUMSRUTOR: UTERUM OCH SNICKARBOA (v736) =====
+   Rutor att välja i katalogen (gruppen Hus). Rutan visar temperaturen; under
+   den fukt och CO₂, eller en varning. Popupen har graf (temperatur, fukt, CO₂),
+   läget nu och styrning av rummets enheter (allt med på/av i zonen).
+   GRÄNSERNA ÄR MINA VAL, inte uppmätta – säg till om de ska flyttas:
+     Uterum (inglasat): kallt ≤ 5 °C, frostrisk ≤ 2 °C, varmt ≥ 30 °C, mycket
+       varmt ≥ 35 °C, fuktigt ≥ 75 %, torrt ≤ 25 %.
+     Snickarboa (oisolerad verkstad): kallt ≤ 2 °C, frostrisk ≤ 0 °C, varmt
+       ≥ 30 °C, fuktigt ≥ 85 % (rost/mögel).
+     CO₂ (bara uterummet har mätare): tung luft ≥ 1000 ppm (Folkhälsomyndighetens
+       riktvärde, samma som omdömet i övriga rutor), dålig ≥ 1400 ppm.
+     Sensorns batteri ≤ 15 %. */
+var ZK={
+  uterum:{zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',sensor:function(){return DEV.uterum;},lab:'Uterum',ic:'sun-horizon',
+    ser:{t:'t_uterum',h:'h_uterum',c:'co2_uterum'},
+    gr:{tLagLarm:2,tLagVarn:5,tHogVarn:30,tHogLarm:35,hHog:75,hLag:25}},
+  snickarboa:{zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',sensor:function(){return DEV.snickarboa;},lab:'Snickarboa',ic:'hammer',
+    ser:{t:'t_snickarboa',h:'h_snickarboa'},
+    gr:{tLagLarm:0,tLagVarn:2,tHogVarn:30,tHogLarm:35,hHog:85,hLag:null}}};
+var ZK_CO2_VARN=1000,ZK_CO2_LARM=1400,ZK_BATT=15;
+
 let DATA={},ZONES={},SOURCE='demo',seeded=false,zonesDone=false,BASE='',_gid=0,lastUpdate=0,curTheme='',lastInsight=0,_refreshTimer=null,_suppressClick=false,_online=false;
 const $=id=>document.getElementById(id);
 let _timeActive=false,_timeMap=null,_timeInfo=null;
@@ -4178,6 +4275,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
   ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
+  ['h_uterum',()=>capLive(DEV.uterum,'measure_humidity')],['co2_uterum',()=>capLive(DEV.uterum,'measure_co2')],['h_snickarboa',()=>capLive(DEV.snickarboa,'measure_humidity')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
   ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')],
   /* Batteriets celltemperatur från modbus. Utetemperaturen samlades redan in
@@ -4207,6 +4305,9 @@ var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar
   t_kallare:[()=>DEV.kallare,'measure_temperature'],
   t_snickarboa:[()=>DEV.snickarboa,'measure_temperature'],
   t_breveden:[()=>DEV.attefall,'measure_temperature'],
+  /* v736: rumsrutornas fukt och CO₂. */
+  h_uterum:[()=>DEV.uterum,'measure_humidity'],co2_uterum:[()=>DEV.uterum,'measure_co2'],
+  h_snickarboa:[()=>DEV.snickarboa,'measure_humidity'],
   /* BATTERITEMPERATUREN SAKNADES HÄR. Den spelades bara in medan sidan var
      öppen (TRACK), så kurvan hade hål överallt där ingen tittat — därför
      syntes den delvis i vissa fönster och inte alls i andra. Med här fyller
@@ -4337,6 +4438,7 @@ async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
+    h_uterum:[DEV.uterum,['measure_humidity']],co2_uterum:[DEV.uterum,['measure_co2']],h_snickarboa:[DEV.snickarboa,['measure_humidity']],
     t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
   for(const k in want){
     if(k==='house'){const ph=await husSkarvHist(logs,async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));});
@@ -5652,13 +5754,20 @@ function flashCtl(i,msg,err){const el=$('controls');if(!el||!el.querySelectorAll
 /* ---- kiosk (kompakt helskärm i stående läge) ---- */
 const MOBILE=(function(){try{var vm=null;try{vm=localStorage.getItem('view_mode_v1');}catch(e){}if(vm==='phone')return true;if(vm==='tablet')return false;var q=(typeof location!=='undefined'&&location.search)||'';if(q.indexOf('mode=mobile')>=0)return true;if(q.indexOf('mode=tablet')>=0)return false;var w=(typeof window!=='undefined'&&window.innerWidth)||9999,h=(typeof window!=='undefined'&&window.innerHeight)||9999;return Math.min(w,h)<600;}catch(e){return false;}})(); // manuell override (view_mode_v1) > ?mode= > auto (kort sida <600px = telefon)
 const PHYS_PHONE=(function(){try{var w=(typeof window!=='undefined'&&window.innerWidth)||9999,h=(typeof window!=='undefined'&&window.innerHeight)||9999;return Math.min(w,h)<600;}catch(e){return false;}})(); // fysiskt telefonstor skärm, oavsett override
-function setViewMode(m){try{localStorage.setItem('view_mode_v1',m);}catch(e){}try{location.reload();}catch(e){}}
+function setViewMode(m){try{localStorage.setItem('view_mode_v1',m);}catch(e){}
+  /* v737: i plattramen på telefonen är dashboarden en iframe – det är
+     värdsidan som avgör ram eller inte, så det är den som ska laddas om. */
+  try{(window.top&&window.top!==window?window.top:window).location.reload();}catch(e){try{location.reload();}catch(e2){}}}
 const SYNC_OWN=MOBILE?'dash_mobile':'dashboard_state';   // enhetens egen slot
 const SYNC_SHARED='dashboard_state';                      // delad slot (alla enheter)
 /* Delad layout (standard PÅ): telefon och platta läser/skriver samma slot, så en
    ändring på telefonen når plattan. Stäng av för separata layouter per enhet. */
 function syncVar(){return (CFG&&CFG.shareLayout===false)?SYNC_OWN:SYNC_SHARED;}
-const IS_SAMSUNG_TABLET=(function(){try{var ua=(typeof navigator!=='undefined'&&navigator.userAgent)||'';return (/samsung|SM-[A-Z]/i.test(ua))&&!MOBILE;}catch(e){return false;}})(); // bara Samsung-väggplattan
+const IS_SAMSUNG_TABLET=(function(){try{var ua=(typeof navigator!=='undefined'&&navigator.userAgent)||'';var sk=(typeof screen!=='undefined'&&screen.width&&screen.height)?Math.min(screen.width,screen.height):9999;
+  /* v737: + fysisk skärm. En Samsung-TELEFON i plattläget (MOBILE=false) räknades
+     annars som väggplattan – och i plattramen skulle den rapportera ramens mått
+     som väggplattans. screen.* är den riktiga skärmen även inne i en iframe. */
+  return (/samsung|SM-[A-Z]/i.test(ua))&&!MOBILE&&sk>=600;}catch(e){return false;}})(); // bara Samsung-väggplattan
 const IDLE_CLOSE_MS=IS_SAMSUNG_TABLET?45000:0; // auto-stäng popup: 45s på Samsung-plattan, av (0) på övriga enheter
 function applyKiosk(){
   if(!document.body||!document.body.classList)return;
@@ -6567,6 +6676,8 @@ function gridPowerSVG(pts,cid){
    oförändrat — vädergraferna anropar utan, och de ska inte ändras.
    h är höjden; utelämnad ger den gamla 74. */
 function ptsLineSVG(pts,colKey,unit,id,h,titel){const now=Date.now();
+  /* ppm och % ritas utan decimal – "838,1 ppm" är falsk precision (v736). */
+  const _dc=(unit==='ppm'||unit==='%')?0:1;
   if(id)_grafByggare[id]={titel:titel||'Historik',
     full:function(c){return ptsLineSVG(pts,colKey,unit,c||id,h,titel);}};
   if(!pts||pts.length<3)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
@@ -6585,8 +6696,8 @@ function ptsLineSVG(pts,colKey,unit,id,h,titel){const now=Date.now();
   const u=unit||'°C';
   let svgm='<svg viewBox="0 0 '+W2+' '+H2+'" preserveAspectRatio="none"><defs>'+g.def+'</defs>'+nollLinje(nollY(Y,ylo,yhi),pad,W2-pad)+'<path d="'+area+'" fill="url(#'+g.id+')"/><path d="'+line+'" fill="none" stroke="'+col+'"'+GRAF_LINJE+'/></svg>';
   svgm=avlLager(id||('pts-'+colKey+'-'+u),svgm,{W:W2,H:H2,X:X,
-    ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,1)+' '+u;}}]});
-  return '<div class="viz">'+svgm+'<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo,1)+'–'+num(yhi,1)+' '+u+'</div></div>';}
+    ser:[{namn:'',farg:col,pts:seg,Y:Y,fmt:function(v){return num(v,_dc)+' '+u;}}]});
+  return '<div class="viz">'+svgm+'<div class="viz-cap">senaste '+spannTxt(tr)+' · '+num(ylo,_dc)+'–'+num(yhi,_dc)+' '+u+'</div></div>';}
 function buildWeatherHTML(){
   const sit=cap(DEV.smhi,'measure_weather_situation_cp');
   const tOut=cap(DEV.outdoor,'measure_temperature'),feels=cap(DEV.smhi,'air_temperature_feels_like_cp');
@@ -6700,7 +6811,12 @@ function buildWeatherCompactHTML(){
    startsidan döljs då, och solremsan flyttar in i energipanelen (solIn).
    Väderraden byggs ändå (dold) – den håller dygnsminnet för lägst/högst och
    max vind, som Väder-sidan visar. */
-function wxRubrik(){return !(CFG&&CFG.wxRubrik===false);}
+/* v737: PER ENHETSKLASS. Telefonen har vädret i rubriken som standard,
+   plattorna (väggplattan och andra) det gamla väderkortet – på den större
+   skärmen ryms det och passar bättre. Två nycklar så att ett val på telefonen
+   inte flyttar plattans väder, och tvärtom. szMobile() följer "Visa som". */
+function wxRubrik(){if(!CFG)return szMobile();
+  return szMobile()?(CFG.wxRubrik!==false):(CFG.wxRubrikPl===true);}
 function buildWxChipHTML(){
   const sit=cap(DEV.smhi,'measure_weather_situation_cp'),tOut=cap(DEV.outdoor,'measure_temperature'),wspd=vindMs();
   return '<span class="en-wx-ic">'+icon(wxIcon(sit))+'</span><span class="en-wx-t">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'
@@ -11996,6 +12112,9 @@ var LANG_KALLA={
   t_kallare:  function(){return [DEV.kallare,['measure_temperature']];},
   t_snickarboa:function(){return [DEV.snickarboa,['measure_temperature']];},
   t_breveden: function(){return [DEV.attefall,['measure_temperature']];},
+  h_uterum:   function(){return [DEV.uterum,['measure_humidity']];},
+  co2_uterum: function(){return [DEV.uterum,['measure_co2']];},
+  h_snickarboa:function(){return [DEV.snickarboa,['measure_humidity']];},
   t_batt:     function(){return [BATT_MODBUS,['measure_temperature.battery']];},
   /* Brickornas inlärda serier (histSVG). Flödena är belopp, som när de lärs. */
   gridflow:function(){return [DEV.pulse,LANG_EFFEKT,Math.abs];},
@@ -13306,7 +13425,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'sun',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'sun-horizon',snickarboa:'hammer',temps:'house',breveden:'snowflake'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -13503,12 +13622,12 @@ function openDetailKarna(which){
       +dRow('Vardagsrum',tv==null?'–':num(tv,1)+' °C')
       +dRow('Kök',tk==null?'–':num(tk,1)+' °C')
       +dRow('Uterum',(function(){const u=cap(DEV.uterum,'measure_temperature');return u==null?'–':num(u,1)+' °C';})());
-  }else if(which==='uterum'){title='Uterum';
-    const u=cap(DEV.uterum,'measure_temperature'),uh=cap(DEV.uterum,'measure_humidity'),uc=cap(DEV.uterum,'measure_co2');
-    body=ptsLineSVG(histV('t_uterum','uterum'),'cyan','°C','uterum',HIST_H,'Uterum')+grafTidsval('uterum')
-      +dRow('Temperatur',u==null?'–':num(u,1)+' °C')
-      +(uh!=null?dRow('Luftfuktighet',Math.round(uh)+' %'):'')
-      +(uc!=null?dRow('CO₂',Math.round(uc)+' ppm'):'');
+  }else if(which==='uterum'||which==='snickarboa'){title=ZK[which].lab;
+    /* v736: rumsrutans popup – graf, läget nu och rummets enheter. Ritas om vid
+       varje hämtning (_popupRebuild) och när en enhet växlas (rumPopupUppdatera). */
+    _popupRebuild=function(){return zkPopHTML(which);};_popupRebuild._zk=true;
+    _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=zkPopHTML(which);};
+    body=zkPopHTML(which);
   /* 'temprange' (Utomhustemperatur) borttagen i v654 — den visade samma serie
      som Ute-zonen i temperaturrutan, plus dygnets högsta och lägsta som nu
      står i raderna där. */
@@ -14391,6 +14510,16 @@ function computeMetric(cfg){
       else meta=pa?'tänt':'släckt';
       return {label:'Belysning',icon:'lightbulb',icc:pa?'var(--gold)':'var(--faint)',v:pa?'Tänt':'Släckt',
         meta:meta,det:'hem',on:pa,mer:true,tryck:'ljus'};}
+    case 'uterum': case 'snickarboa':{
+      /* v736: rumsrutan. Värdet är temperaturen; under den fukt och CO₂ – eller
+         den allvarligaste varningen, med ikonen i varningens färg. */
+      var Zk=ZK[cfg.key],vk=zkVarden(cfg.key),wk=zkVarningar(cfg.key)[0]||null,dk=[];
+      if(vk.h!=null)dk.push(Math.round(vk.h)+' %');
+      if(vk.c!=null)dk.push(Math.round(vk.c)+' ppm');
+      return {label:Zk.lab,icon:Zk.ic,icc:wk?(wk.niva==='larm'?'var(--hot)':'var(--warm)'):'',
+        v:vk.t==null?'–':num(vk.t,1)+' <small>°C</small>',
+        sub:wk?('<span class="zk-'+wk.niva+'">'+esc(wk.kort)+'</span>'):(dk.join(' · ')),
+        meta:wk?wk.txt:(dk.join(' · ')||'temperatur'),det:cfg.key,varn:wk};}
     case 'tv':{
       /* v713: TV-rutan. På när TV:n eller Google TV är på; appen som körs under.
          Id:na skrivs ut här – TV_DEV och GTV_DEV deklareras längre ner i
@@ -14419,6 +14548,7 @@ const CAT=[
   {type:'computed',key:'breveden',g:'Hus'},{type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
   {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
   {type:'computed',key:'tv',g:'Hus'},
+  {type:'computed',key:'uterum',g:'Hus'},{type:'computed',key:'snickarboa',g:'Hus'},
   {type:'computed',key:'gridnow',g:'Nät'},
   {type:'sensor',g:'Hus',device:DEV.pooltemp,cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_temperature',label:'Utetemp',icon:'thermometer-simple',unit:'°C',dec:1},
@@ -14429,7 +14559,7 @@ const CAT=[
 ];  /* v193: sensorraden "Regn 24h" borttagen - identisk med computed 'rain', samma
        data och samma etikett. Det var en akta dubblett. */
 function sameCfg(a,b){if(!a||!b||a.type!==b.type)return false;return a.type==='computed'?a.key===b.key:(a.device===b.device&&a.cap===b.cap);}
-function accFor(ic){return {sun:'acc-gold',leaf:'acc-green',coins:'acc-warm',tag:'acc-warm','swimming-pool':'acc-cyan',lightning:'acc-blue','car-profile':'acc-violet','battery-high':'acc-green','battery-charging':'acc-green',wind:'acc-green','thermometer-simple':'acc-warm','drop-half-bottom':'acc-cyan','cloud-rain':'acc-blue',waves:'acc-cyan',house:'acc-warm',gauge:'acc-blue'}[ic]||'acc-blue';}
+function accFor(ic){return {sun:'acc-gold',leaf:'acc-green',coins:'acc-warm',tag:'acc-warm','swimming-pool':'acc-cyan',lightning:'acc-blue','car-profile':'acc-violet','battery-high':'acc-green','battery-charging':'acc-green',wind:'acc-green','thermometer-simple':'acc-warm','drop-half-bottom':'acc-cyan','cloud-rain':'acc-blue',waves:'acc-cyan',house:'acc-warm',gauge:'acc-blue','sun-horizon':'acc-gold',hammer:'acc-warm'}[ic]||'acc-blue';}
 
 /* ===== självlärande glow-nivåer (percentiler ur din egen historik) ===== */
 const LEARN_KEYS={
@@ -15173,6 +15303,69 @@ function updateScrub(){const ds=$('daystrip'),mn=$('ds-minus'),pl=$('ds-plus'),t
   if(tm){if(on){const d=new Date(_timeInfo.T),hh=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);tm.innerHTML='<span class="ds-time-ic">'+icon(_timeInfo.future?'trend-up':'clock-counter-clockwise')+'</span>'+(_timeInfo.future?'Prognos ':'Historik ')+hh;tm.style.display='flex';}else{tm.style.display='none';tm.innerHTML='';}}}
 /* Ett ord om vardet, inte en upprepning av det. Tom strang nar capabilityn
    inte har nagon vedertagen skala - da ar det arligare att inte saga nagot. */
+/* ===== RUMSRUTORNA (v736) – värden, varningar och popup ===== */
+function zkVarden(k){var id=ZK[k].sensor();
+  return {t:cap(id,'measure_temperature'),h:cap(id,'measure_humidity'),c:cap(id,'measure_co2'),b:cap(id,'measure_battery')};}
+/* Varningar, mest allvarlig först: {niva:'larm'|'varn', txt (popupen), kort (rutan)}. */
+function zkVarningar(k){
+  var Z=ZK[k],g=Z.gr,v=zkVarden(k),ut=[];
+  if(v.t!=null&&isFinite(v.t)){
+    if(v.t>=g.tHogLarm)ut.push({niva:'larm',txt:'Mycket varmt – '+num(v.t,1)+' °C',kort:'mycket varmt'});
+    else if(v.t>=g.tHogVarn)ut.push({niva:'varn',txt:'Varmt – '+num(v.t,1)+' °C',kort:'varmt'});
+    else if(v.t<=g.tLagLarm)ut.push({niva:'larm',txt:'Frostrisk – '+num(v.t,1)+' °C',kort:'frostrisk'});
+    else if(v.t<=g.tLagVarn)ut.push({niva:'varn',txt:'Kallt – '+num(v.t,1)+' °C',kort:'kallt'});}
+  if(v.c!=null&&isFinite(v.c)){
+    if(v.c>=ZK_CO2_LARM)ut.push({niva:'larm',txt:'Dålig luft – '+Math.round(v.c)+' ppm CO₂, vädra',kort:'vädra'});
+    else if(v.c>=ZK_CO2_VARN)ut.push({niva:'varn',txt:'Tung luft – '+Math.round(v.c)+' ppm CO₂',kort:'tung luft'});}
+  if(v.h!=null&&isFinite(v.h)){
+    if(g.hHog!=null&&v.h>=g.hHog)ut.push({niva:'varn',txt:'Fuktigt – '+Math.round(v.h)+' % luftfuktighet',kort:'fuktigt'});
+    else if(g.hLag!=null&&v.h<=g.hLag)ut.push({niva:'varn',txt:'Torrt – '+Math.round(v.h)+' % luftfuktighet',kort:'torrt'});}
+  if(v.b!=null&&isFinite(v.b)&&v.b<=ZK_BATT)ut.push({niva:'varn',txt:'Sensorns batteri '+Math.round(v.b)+' % – byt snart',kort:'byt batteri'});
+  ut.sort(function(a,b){return (a.niva==='larm'?0:1)-(b.niva==='larm'?0:1);});
+  return ut;}
+/* kort: chipsens etikett. Fullt namn klipptes till "Tempe…" på mobil (25 % bredd). */
+var ZK_SER={t:{lab:'Temperatur',kort:'Temp',u:'°C',col:'warm',dec:1},h:{lab:'Luftfuktighet',kort:'Fukt',u:'%',col:'cyan',dec:0},c:{lab:'CO₂',kort:'CO₂ ppm',u:'ppm',col:'green',dec:0}};
+var _zkSer={};      /* vald serie i grafen per rum – 't', 'h' eller 'c' */
+function zkVal(k,s){_zkSer[k]=s;var b=$('dlg-body');if(b)b.innerHTML=zkPopHTML(k);}
+/* Lampor: samma regler som rumsvyn, men även de som rumsvyn döljer (Föröver,
+   Styrbord) – här är det hela rummet som ska gå att styra. */
+function zkArLampa(d){return !!(RUM_LAMPA[d.id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');}
+function zkUttagRad(d){
+  var pa=capOf(d,'onoff')===true,w=rHar(d,'measure_power')?capOf(d,'measure_power'):null;
+  return '<div class="dv-row'+(pa?' on':'')+'">'
+    +'<span class="dv-ic">'+icon('plug')+'</span>'
+    +'<span class="dv-n">'+esc(rNamn(d))+((pa&&w!=null&&isFinite(w))?('<small>'+W(w)+'</small>'):(pa?'':'<small>av</small>'))+'</span>'
+    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';}
+function zkPopHTML(k){
+  var Z=ZK[k];if(!Z)return '';
+  var v=zkVarden(k),w=zkVarningar(k),cid='zk_'+k,P=PAL[curTheme]||PAL.dark;
+  var val=(_zkSer[k]&&Z.ser[_zkSer[k]])?_zkSer[k]:'t',S=ZK_SER[val];
+  var h='';
+  if(w.length)h+='<div class="zk-varnlista">'+w.map(function(x){
+    return '<div class="zk-varnrad '+x.niva+'">'+icon('warning')+'<span>'+esc(x.txt)+'</span></div>';}).join('')+'</div>';
+  h+=grafRubrik(cid,S.lab,infoBlock('zkgraf',
+      'Välj kurva med knapparna under grafen. Dra i grafen för att läsa av vid en viss tidpunkt.'))
+    +ptsLineSVG(histV(Z.ser[val],cid),S.col,S.u,cid,HIST_H,Z.lab+' · '+S.lab)
+    +grafTidsval(cid);
+  var nyck=['t','h','c'].filter(function(x){return !!Z.ser[x];});
+  if(nyck.length>1){
+    h+='<div class="tg-leg">'+nyck.map(function(x){var SS=ZK_SER[x],vv=(x==='t')?v.t:(x==='h')?v.h:v.c;
+      return '<button class="tg-chip'+(x===val?' on':'')+'" onclick="zkVal(\''+k+'\',\''+x+'\')">'
+        +'<span class="tg-top"><span class="tg-dot" style="background:'+(P[SS.col]||P.blue)+'"></span><span class="tg-l">'+SS.kort+'</span></span>'
+        +'<b class="tg-v">'+(vv==null||!isFinite(vv)?'–':num(vv,SS.dec)+'<span class="tg-u">'+(x==='t'?'°':x==='c'?'':SS.u)+'</span>')+'</b></button>';}).join('')+'</div>';}
+  h+=dSec('Nu');
+  h+=dRow('Temperatur',v.t==null?'–':num(v.t,1)+' °C');
+  var dd=histTodayDelta(Z.ser.t);
+  if(dd&&dd.n>=3&&dd.min!=null)h+=dRow('Lägst / högst idag',num(dd.min,1)+' – '+num(dd.max,1)+' °C');
+  if(v.h!=null)h+=dRow('Luftfuktighet',Math.round(v.h)+' %'+(sensorOmdome('measure_humidity',v.h)?' · '+sensorOmdome('measure_humidity',v.h):''));
+  if(v.c!=null)h+=dRow('CO₂',Math.round(v.c)+' ppm · '+sensorOmdome('measure_co2',v.c));
+  if(v.b!=null)h+=dRow('Sensorns batteri',Math.round(v.b)+' %');
+  var ens=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(rSort);
+  var pa=ens.filter(function(d){return capOf(d,'onoff')===true;}).length;
+  h+=dSec(ens.length?('Enheter ('+pa+' av '+ens.length+' på)'):'Enheter');
+  h+=ens.length?ens.map(function(d){return zkArLampa(d)?devRad(d):zkUttagRad(d);}).join('')
+    :'<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
+  return h;}
 function sensorOmdome(c,v){
   if(v==null||!isFinite(v))return '';
   if(c==='measure_co2')return v<600?'frisk luft':v<800?'bra':v<1000?'godtagbart':v<1400?'tungt':'vädra';
@@ -18850,6 +19043,15 @@ function enhSkarm(){
     +'×'+(window.screen&&window.screen.height?window.screen.height:window.innerHeight);}
   catch(e){return '?';}
 }
+function enhVy(gml){
+  try{
+    if(window.self!==window.top)return gml||'';
+    var ae=document.activeElement;
+    if(ae&&/^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName||''))return gml||'';
+    var w=Math.round(window.innerWidth||0),h=Math.round(window.innerHeight||0);
+    return (w>0&&h>0)?(w+'×'+h):(gml||'');
+  }catch(e){return gml||'';}
+}
 /* Skrivs vid varje synkvarv. Bara den egna posten rors. */
 function enhTick(){
   try{
@@ -18861,6 +19063,10 @@ function enhTick(){
       klass:secKlass(),
       modell:enhModell(),
       skarm:enhSkarm(),
+      /* v737: fönstrets mått (CSS-px) – det plattramen på telefonen återskapar.
+         Bara från toppfönstret, och inte medan tangentbordet kan vara uppe. */
+      vy:enhVy(f.vy),
+      vagg:IS_SAMSUNG_TABLET?1:0,
       ver:APP_VERSION,
       forst:f.forst||Date.now(),
       sist:Date.now()
@@ -19533,6 +19739,9 @@ function tileIkon(cfg,m){
       else{var Bv=brvState();if(Bv&&Bv.aktiv&&!brvGammal(Bv)){extra=(Bv.lage==='cool')?'snowflake':'flame';puls=true;}}}catch(e){}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
     if(varms())extra='flame';
+  }else if(k==='uterum'||k==='snickarboa'){
+    /* v736: varning i ikonens hörn; larm pulsar. */
+    if(m&&m.varn){extra='warning';puls=(m.varn.niva==='larm');}
   }
   return {icon:ic,puls:puls,extra:extra};
 }
@@ -20202,8 +20411,8 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v735';
-const CFG_DEF={paNu:true,wxRubrik:true,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
+const APP_VERSION='v737';
+const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
      "orört". En ny enhet ska se ut som den inarbetade från början. */
@@ -20569,7 +20778,7 @@ function openConfig(){
      som förut. */
   h+='<div class="cfg-row"><span class="cfg-row-l">På nu-raden (knappar i rutornas popuper)</span><select class="cfg-sel" onchange="cfgPaNu(this.value)"><option value="on"'+(CFG.paNu!==false?' selected':'')+'>På</option><option value="off"'+(CFG.paNu===false?' selected':'')+'>Av – knappavsnittet</option></select></div>';
   /* v734: vädret på startsidan – i energirubriken eller som eget kort. */
-  h+='<div class="cfg-row"><span class="cfg-row-l">Vädret på startsidan</span><select class="cfg-sel" onchange="cfgWxRubrik(this.value)"><option value="on"'+(CFG.wxRubrik!==false?' selected':'')+'>I rubriken</option><option value="off"'+(CFG.wxRubrik===false?' selected':'')+'>Eget kort</option></select></div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Vädret på startsidan</span><select class="cfg-sel" onchange="cfgWxRubrik(this.value)"><option value="on"'+(wxRubrik()?' selected':'')+'>I rubriken</option><option value="off"'+(!wxRubrik()?' selected':'')+'>Eget kort</option></select></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Auto-uppdatera vid ny fil</span><select class="cfg-sel" onchange="cfgAutoReload(this.value)"><option value="on"'+(CFG.autoreload!==false?' selected':'')+'>På</option><option value="off"'+(CFG.autoreload===false?' selected':'')+'>Av</option></select></div>';
   /* v195: Nattdampning, Batteri kWh och arshistoriken lag under "Uppdatering" - de
      hamnade dar av misstag nar menyn delades upp i v193. Flyttade till ratt sidor. */
@@ -20609,7 +20818,7 @@ function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick(
 function nclockOffLabel(){const m=(CFG&&CFG.nclockOffset)||0;if(m===0)return 'vid solnedgång';return (m>0?'+':'−')+Math.abs(m)+' min';}
 function cfgNclockOff(d){CFG.nclockOffset=Math.max(-120,Math.min(120,((CFG.nclockOffset||0)+d*15)));saveCfg();const n=$('cfgnum-nclockoff');if(n)n.textContent=nclockOffLabel();render();}
 function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
-function cfgWxRubrik(v){CFG.wxRubrik=(v!=='off');saveCfg();try{renderWeather();applySecOrder();}catch(e){}}
+function cfgWxRubrik(v){if(szMobile())CFG.wxRubrik=(v!=='off');else CFG.wxRubrikPl=(v!=='off');saveCfg();try{renderWeather();applySecOrder();}catch(e){}}
 function cfgPaNu(v){CFG.paNu=(v!=='off');saveCfg();try{rutorPaNu();}catch(e){}try{renderTiles('flode');renderControls();render();}catch(e){}}
 /* RUTORNA FÖR KNAPPARNAS POPUPER (v691), en gång. Med På nu-raden ligger
    knapparna i rutornas popuper — då måste rutorna finnas. Saknas Breveden,
@@ -23002,7 +23211,8 @@ function openRum(zid){
    _popupRebuild pekar på rumHTML enbart medan rutan är öppen; closeDetail
    nollställer den. */
 function rumPopupUppdatera(){
-  try{if(_popupRebuild===rumHTML){const b=$('dlg-body');if(b)b.innerHTML=rumHTML();}}catch(e){}
+  try{if(_popupRebuild===rumHTML){const b=$('dlg-body');if(b)b.innerHTML=rumHTML();}
+    else if(_popupRebuild&&_popupRebuild._zk){const b=$('dlg-body');if(b)b.innerHTML=_popupRebuild();}}catch(e){}
 }
 /* Utfällt eller inte. Ligger i minnet och inte i localStorage: render() ritar
    om rutan var femtonde sekund och läget måste överleva det, men nästa gång
