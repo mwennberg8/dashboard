@@ -2579,6 +2579,13 @@ body.kiosk{--ds-sun:17px}
 /* ===== KIOSK: lås ramen till skärmen ===== */
 body.kiosk{height:100vh;height:100svh;overflow:hidden;padding:9px 14px}
 body.tabprev{padding:0;overflow:hidden}
+/* v746: andra plattor än väggplattan skrollar (se applyKiosk). Ramen är minst
+   en skärm hög – får allt plats ser sidan ut precis som förut – men växer med
+   innehållet i stället för att trycka ihop det. */
+body.kiosk.rull{height:auto;min-height:100vh;min-height:100svh;overflow:visible}
+.kiosk.rull .wrap{height:auto;min-height:calc(100vh - 18px);min-height:calc(100svh - 18px)}
+body.kiosk.rull .flikrad{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom,0px));z-index:40;
+  box-shadow:0 8px 24px -10px rgba(0,0,0,.35)}
 .kiosk .wrap{height:100%;display:flex;flex-direction:column}
 .kiosk .topbar{flex:0 0 auto;margin-bottom:7px}
 .kiosk .statusbar{padding:var(--pg-gap-y)}
@@ -5835,7 +5842,14 @@ function applyKiosk(){
   try{if(PHYS_PHONE){tabprev=true;on=true;document.body.classList.add('kiosk');}
   }catch(e){}
   document.body.classList.toggle('tabprev',tabprev);
-  try{const r=document.documentElement;if(r&&r.style)r.style.overflow=on?'hidden':'';}catch(e){}
+  /* v746: SKROLL PÅ ANDRA PLATTOR. Kioskramen låser höjden till skärmen och
+     krymper avsnitten tills allt får plats – rätt på väggplattan, men på en
+     platta med rumsavsnittet (v745) rann de sex rutorna in under rummen. Andra
+     plattor än väggplattan (och plattramen, som visar väggplattan) får samma
+     utseende men skrollar när innehållet är högre än skärmen. */
+  const rull=on&&!tabprev&&!arVaggplattaVy();
+  document.body.classList.toggle('rull',rull);
+  try{const r=document.documentElement;if(r&&r.style)r.style.overflow=(on&&!rull)?'hidden':'';}catch(e){}
   /* v680: samma startsida som mobilen — flikrad i stället för toppraden. */
   try{flikradBygg();}catch(e){}
   if(typeof setTimeout==='function')setTimeout(fitScreen,40);
@@ -20706,7 +20720,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v745';
+const APP_VERSION='v746';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21393,6 +21407,9 @@ function fitScreen(){try{
     return;
   }
   wr.style.transform='';wr.style.transformOrigin='';wr.style.width='';wr.style.height='';wr.style.margin='';wr.style.zoom='';
+  /* v746: skrollande platta – ingen nedskalning, sidan får vara högre än skärmen. */
+  if(document.body.classList.contains('rull')){_kzoom='';
+    try{document.documentElement.style.overflow='';document.body.style.overflow='';}catch(e){}return;}
   /* RATTAT v179: startsidan zoomas ned for att fa plats pa hojden i kioskslage. Jamfor och
      insikter returnerade har med zoom rensad, alltso skala 1 - och blev breda an startsidan
      med precis den faktorn. De arver nu startsidans zoom. */
