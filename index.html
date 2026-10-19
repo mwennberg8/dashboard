@@ -1322,7 +1322,13 @@ body.panu-pa .fl-tiles{display:grid!important;grid-template-columns:repeat(3,min
   grid-auto-rows:1fr!important;gap:calc(8px*var(--kk))!important;padding:calc(8px*var(--kk))!important}
 /* På nu-raden (v692): jämnt avstånd åt alla håll — samma 8 px som mellan
    korten, både mellan brickorna och ned till korten. */
-body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important}
+body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important;
+  /* v754: samma tre kolumner som rutorna – se paNuKolumner. */
+  display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-flow:row}
+body.panu-pa .panu-c{justify-content:center;min-width:0;overflow:hidden;text-overflow:ellipsis}
+/* Telefonen: kolumnen är bara ~125 px – mindre sidoluft i chipset gör att
+   korta texter ("Breveden värmer") ryms i EN kolumn, så raderna inte blir fler. */
+body.mobile.panu-pa:not(.kiosk) .panu-c{padding:0 6px}
 body.panu-pa .panu-c{margin:0!important}
 body.panu-pa .panu.panu-tomt{display:none!important}
 /* LADDREGELNS RAD (v696) under Sol nu / Batteri / Elnät. Ikon, en kort
@@ -13143,6 +13149,29 @@ function paNuRita(){
      densamma som under dem (rutnätets egen kantluft). */
   el.innerHTML=L.length?L.map(function(x){return '<button type="button" class="panu-c'+(x.gul?' gul':'')+(x.varn?' varn':'')+'" onclick="openDetail(\''+x.pop+'\')">'+(x.varn?icon('warning'):'')+esc(x.txt)+'</button>';}).join(''):'';
   el.classList.toggle('panu-tomt',!L.length);
+  try{paNuKolumner(el);}catch(e){}
+}
+/* v754: CHIPSEN I RUTORNAS KOLUMNER (Markus: kanterna ska linjera lodrätt med
+   de sex rutorna). Raden är ett rutnät med samma tre kolumner och samma
+   mellanrum som rutorna. Varje chip tar så många kolumner som texten kräver
+   (1–3); får nästa chip inte plats på raden fylls det föregående ut till
+   kanten, och sista chipet fyller sin rad. Då står varje kant – ytterkanter och
+   skarvar – rakt ovanför en rutkant. Mäter bara med layout (inte i jsdom). */
+function paNuKolumner(el){
+  var ch=[].slice.call(el.children);if(!ch.length)return;
+  var cs=getComputedStyle(el),W=el.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0);
+  var gap=parseFloat(cs.columnGap)||0,K=3,kol=(W-gap*(K-1))/K;
+  var behov=ch.map(function(c){
+    if(!(kol>0))return 1;
+    c.style.gridColumn='';c.style.width='max-content';var w=c.getBoundingClientRect().width;c.style.width='';
+    for(var n=1;n<K;n++)if(n*kol+(n-1)*gap>=w-0.5)return n;
+    return K;});
+  var pos=0,sp=behov.slice();
+  for(var i=0;i<ch.length;i++){
+    if(pos+sp[i]>K){if(i>0)sp[i-1]+=K-pos;pos=0;}
+    pos+=sp[i];if(pos===K)pos=0;}
+  if(pos>0)sp[ch.length-1]+=K-pos;
+  ch.forEach(function(c,i){c.style.gridColumn='span '+sp[i];});
 }
 /* VARJE KNAPP I SIN RUTAS POPUP (v690). Knappen som hör till en ruta ligger
    i den rutans popup: boka disk i diskmaskinens, poolvärmen i poolens, ladda
@@ -20897,7 +20926,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v754';
+const APP_VERSION='v755';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21538,7 +21567,8 @@ function renderWarnRow(){const wd=$('warns');if(!wd||!_warnList.length)return;
   const iS=Math.max(10,17+iOff*1.5),iStyle=iOff?(' style="width:'+iS+'px;height:'+iS+'px"'):'';
   wd.innerHTML='<span class="wi"'+iStyle+'>'+icon(ic2)+'</span><span class="wt"'+tStyle+'>'+t+'</span>'+(l?'<span class="lvl">'+l+'</span>':'')+dots;}
 var _tpDW=0, _tpSC=0, _kzoom='';   /* startsidans layoutbredd och skala - jamfor/insikter arver dem */
-function fitScreen(){try{
+function fitScreen(){try{var _pn=document.getElementById('panu');if(_pn&&_pn.children.length)paNuKolumner(_pn);}catch(e){}
+try{
   if(!document.body||!document.body.classList)return;
   const wr=document.querySelector('.wrap');if(!wr||!wr.style)return;
   const kiosk=document.body.classList.contains('kiosk');
