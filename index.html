@@ -13154,9 +13154,9 @@ function paNuRita(){
 /* v754: CHIPSEN I RUTORNAS KOLUMNER (Markus: kanterna ska linjera lodrätt med
    de sex rutorna). Raden är ett rutnät med samma tre kolumner och samma
    mellanrum som rutorna. Varje chip tar så många kolumner som texten kräver
-   (1–3); får nästa chip inte plats på raden fylls det föregående ut till
-   kanten, och sista chipet fyller sin rad. Då står varje kant – ytterkanter och
-   skarvar – rakt ovanför en rutkant. Mäter bara med layout (inte i jsdom). */
+   (1–3) och står därmed i kant med rutorna. v756: raden fylls INTE ut till
+   högerkanten (Markus) – får nästa chip inte plats går det ned på nästa rad
+   och det blir tomt till höger. Mäter bara med layout (inte i jsdom). */
 function paNuKolumner(el){
   var ch=[].slice.call(el.children);if(!ch.length)return;
   var cs=getComputedStyle(el),W=el.clientWidth-(parseFloat(cs.paddingLeft)||0)-(parseFloat(cs.paddingRight)||0);
@@ -13166,12 +13166,7 @@ function paNuKolumner(el){
     c.style.gridColumn='';c.style.width='max-content';var w=c.getBoundingClientRect().width;c.style.width='';
     for(var n=1;n<K;n++)if(n*kol+(n-1)*gap>=w-0.5)return n;
     return K;});
-  var pos=0,sp=behov.slice();
-  for(var i=0;i<ch.length;i++){
-    if(pos+sp[i]>K){if(i>0)sp[i-1]+=K-pos;pos=0;}
-    pos+=sp[i];if(pos===K)pos=0;}
-  if(pos>0)sp[ch.length-1]+=K-pos;
-  ch.forEach(function(c,i){c.style.gridColumn='span '+sp[i];});
+  ch.forEach(function(c,i){c.style.gridColumn='span '+behov[i];});
 }
 /* VARJE KNAPP I SIN RUTAS POPUP (v690). Knappen som hör till en ruta ligger
    i den rutans popup: boka disk i diskmaskinens, poolvärmen i poolens, ladda
@@ -20926,7 +20921,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v755';
+const APP_VERSION='v756';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
