@@ -13154,20 +13154,24 @@ var _regel=null,_regelAt=0,_regelLaddar=false;
    i Homey (2026-10-18 23:14: stopp 06:00 orört, Homeys moln-API svarade inte).
    Tiderna är absoluta, så en sparad bokning blir aldrig fel klockslag; den
    ersätts vid första lyckade hämtningen. Äldre än 12 h används inte. */
-var REGEL_LS='regel_v1',REGEL_LS_MAX=12*3600000;
+var REGEL_LS='regel_v1',REGEL_LS_MAX=12*3600000,BATT_MAX_LS_MS=10*60000;
 function regelSpara(R){try{localStorage.setItem(REGEL_LS,JSON.stringify({start:R.start||0,spara:R.spara||0,stopp:R.stopp||0,
   max:(R.max==null?null:R.max),bilBokad:R.bilBokad||0,bilStrom:R.bilStrom||0,at:Date.now()}));}catch(e){}}
 function regelLasLokal(){
   try{var o=JSON.parse(localStorage.getItem(REGEL_LS)||'null');
     if(!o||!(Date.now()-Number(o.at)<REGEL_LS_MAX))return null;
     return {forslag:null,start:Number(o.start)||0,spara:Number(o.spara)||0,stopp:Number(o.stopp)||0,lista:null,bil:'',
-      bilBokad:Number(o.bilBokad)||0,bilStrom:Number(o.bilStrom)||0,max:(o.max==null?null:Number(o.max)),lokal:true};}catch(e){return null;}}
+      bilBokad:Number(o.bilBokad)||0,bilStrom:Number(o.bilStrom)||0,
+      /* v752: läget sparas inte över omladdningen – bara klockslagen. Färskt
+         läge kommer ur battMax_v1 (högst 10 min) eller registret. */
+      max:null,lokal:true};}catch(e){return null;}}
 try{_regel=regelLasLokal();}catch(e){}
+var _regelP=null;
 function regelHamta(tvinga){
-  if(_regelLaddar)return;
-  if(!tvinga&&Date.now()-_regelAt<30000)return;
+  if(_regelLaddar)return _regelP;
+  if(!tvinga&&Date.now()-_regelAt<30000)return null;
   _regelLaddar=true;
-  Promise.resolve().then(logicList).then(function(list){
+  return _regelP=Promise.resolve().then(logicList).then(function(list){
     var r={};
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
@@ -13178,8 +13182,8 @@ function regelHamta(tvinga){
       /* v705: bilens bokade start (ms) och laddström (A). Verkställs av energistyr 2.3.0. */
       bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0,
       /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
-      max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max)};
-    try{if(_regel.max!=null)localStorage.setItem('battMax_v1',String(_regel.max));}catch(e){}
+      max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max),at:Date.now()};
+    try{if(_regel.max!=null)localStorage.setItem('battMax_v1',JSON.stringify({v:_regel.max,at:Date.now()}));}catch(e){}
     regelSpara(_regel);
   }).catch(function(){}).then(function(){
     _regelAt=Date.now();_regelLaddar=false;
@@ -13250,8 +13254,16 @@ function battModbusFarsk(){try{cap(DEV.battery,'measure_battery');cap(DEV.batter
    laddade ur 4 kW till huset. Innan variablerna hämtats används senast kända
    värde (localStorage); saknas variabeln helt gäller registret som förut. */
 function battMaxMark(){
-  try{if(_regel&&_regel.max!=null&&isFinite(_regel.max))return _regel.max===1?1:0;}catch(e){}
-  try{var v=localStorage.getItem('battMax_v1');if(v==='1')return 1;if(v==='0')return 0;}catch(e){}
+  /* v752: även minnets läge åldras – en sida som legat i bakgrunden över natten
+     har kvar kvällens max. Hämtat för mer än BATT_MAX_LS_MS sedan gäller inte. */
+  try{if(_regel&&_regel.max!=null&&isFinite(_regel.max)&&!(_regel.at&&Date.now()-_regel.at>=BATT_MAX_LS_MS))return _regel.max===1?1:0;}catch(e){}
+  /* v752: bara en FÄRSK sparad markör (BATT_MAX_LS_MS). Ett läge blir gammalt
+     på ett sätt som ett klockslag inte blir: 2026-10-19 07:32 stod det "Laddar
+     max" efter natten, fast Ladda max slagit av 02:37 – markören var från
+     kvällen innan. Äldre värden, och det gamla formatet utan tid, gäller inte;
+     då avgör registret tills variablerna hämtats. */
+  try{var o=JSON.parse(localStorage.getItem('battMax_v1')||'null');
+    if(o&&typeof o==='object'&&Date.now()-Number(o.at)<BATT_MAX_LS_MS){if(Number(o.v)===1)return 1;if(Number(o.v)===0)return 0;}}catch(e){}
   return null;
 }
 function battNatLaddar(w){
@@ -20834,7 +20846,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v751';
+const APP_VERSION='v752';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21923,6 +21935,7 @@ function cacheVisa(){
    LIVE_VANTA_MAX, så sidan aldrig fastnar suddig. Samma sak när sidan kommer
    tillbaka efter mer än LIVE_VANTA_DOLD i bakgrunden. Demoläget och sidan utan
    inloggning berörs inte. */
+var REGEL_VANTA_MS=2500;
 var LIVE_VANTA_MAX=12000,LIVE_VANTA_DOLD=60000,_liveVantaT=null;
 function liveVanta(pa){
   try{
@@ -21996,6 +22009,12 @@ async function load(){
   else{_online=false;const wasLive=(SOURCE.indexOf('Homey')===0||SOURCE==='lokal data.json')&&Object.keys(DATA).length>0;
     if(wasLive){setStatus('dead','Offline');}
     else{if(Object.keys(DATA).length===0)applyScenario(curScenario);if(Object.keys(ZONES).length===0)ZONES=DEMO_ZONES;SOURCE='demo-data';setStatus('dead','Offline');}}
+  /* v752: BOKNINGARNA I SAMMA VÄNTAN. Är sidan suddig (öppning, eller tillbaka
+     efter mer än en minut) hämtas Logic-variablerna innan den skärps, så att På
+     nu och batteriet inte först visar ett gammalt läge. Ett enda anrop efter
+     enheterna; högst REGEL_VANTA_MS extra, sedan skärps sidan ändå. */
+  if(map&&BASE&&document.body&&document.body.classList&&document.body.classList.contains('vantar-live')){
+    try{var _rp=regelHamta(true);if(_rp)await Promise.race([_rp,new Promise(function(r){setTimeout(r,REGEL_VANTA_MS);})]);}catch(e){}}
   render();tickRel();setT('foot-src',footKalla());footVia();
   liveVanta(false);   /* v723: färska värden – eller inget svar alls: skärp sidan */
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();prisVarHamta();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
