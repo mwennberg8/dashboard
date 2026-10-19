@@ -174,7 +174,7 @@ window.pwaTryFileManifest();
   --ins-grad:linear-gradient(120deg,rgba(180,142,173,.16),rgba(136,192,208,.08)); --ins-border:rgba(180,142,173,.30);
   --blob-a:rgba(180,142,173,.16); --blob-b:rgba(129,161,193,.14); --blob-c:rgba(163,190,140,.12); --blob-d:rgba(208,135,112,.10);
   /* accenter (Nord) */
-  --ok:#a3be8c; --ok-deep:#8fbcbb; --warm:#d08770; --hot:#bf616a; --gold:#ebcb8b; --cyan:#88c0d0; --blue:#81a1c1; --violet:#b48ead;
+  --ok:#a3be8c; --ok-deep:#8fbcbb; --warm:#d08770; --hot:#bf616a; --gold:#ebcb8b; --cyan:#88c0d0; --blue:#81a1c1; --violet:#b48ead; --brown:#b08a68;
   --ok-t:#a3be8c; --warm-t:#d08770; --hot-t:#bf616a;
   /* väder & vatten */
   --temp:#e0a17a; --rain:#5e81ac; --wind:#88c0d0; --water:#8fd1cf; --press:#7392c4;
@@ -194,7 +194,7 @@ window.pwaTryFileManifest();
   --ins-grad:linear-gradient(120deg,rgba(151,123,171,.12),rgba(77,151,162,.08)); --ins-border:rgba(151,123,171,.28);
   --blob-a:rgba(151,123,171,.09); --blob-b:rgba(89,128,171,.08); --blob-c:rgba(122,154,92,.08); --blob-d:rgba(207,117,81,.06);
   /* accenter (Nord Light) */
-  --ok:#7a9a5c; --ok-deep:#4d97a2; --warm:#cf7551; --hot:#c24b54; --gold:#ca9a3e; --cyan:#4d97a2; --blue:#5980ab; --violet:#977bab;
+  --ok:#7a9a5c; --ok-deep:#4d97a2; --warm:#cf7551; --hot:#c24b54; --gold:#ca9a3e; --cyan:#4d97a2; --blue:#5980ab; --violet:#977bab; --brown:#8a6442;
   --ok-t:#5f7f47; --warm-t:#b85f3e; --hot-t:#a5333e;
   /* väder & vatten */
   --temp:#cf7551; --rain:#4a6aa0; --wind:#4d97a2; --water:#4a9a90; --press:#5470aa;
@@ -560,7 +560,31 @@ body.mobile .pband-slim{padding:12px 16px}
 .wx2-hl.down{color:var(--blue)}.wx2-hl.up{color:var(--hot)}
 .wx2-hl-ic{width:.72em;height:.72em;display:inline-flex;margin-right:3px}.wx2-hl-ic .ic{width:100%;height:100%}
 /* v748: rutorna under väderkortet – samma kort som startsidans sex rutor. */
-.wx2-rutor{--kk:1;margin-top:calc(10px*var(--kk));grid-template-columns:repeat(3,minmax(0,1fr))}
+/* v753: rutorna går ut till kortets kant, så att avståndet mellan rutorna och
+   kanten blir detsamma som på startsidan (rutnätets egna 8 px). Kortets
+   padding är clamp(16px,2vw,21px) – samma uttryck här, negativt. */
+.wx2-rutor{--kk:1;--wxk:clamp(16px,2vw,21px);grid-template-columns:repeat(3,minmax(0,1fr))}
+/* Id + klass: .fl-tiles{margin:0} längre ner har samma specificitet som en
+   ensam klass och vann annars. */
+#stats-vader.wx2-rutor{margin:calc(10px*var(--kk)) calc(-1*var(--wxk)) calc(-1*var(--wxk))!important}
+/* v753: VÄDER OCH VIND SOM TVÅ LIKA HALVOR. Samma uppbyggnad på båda sidor,
+   innehållet mitt i sin halva, en linje emellan. Specifikt (.wx2.wxv) så att
+   äldre regler för .wx2-now/.wx2-wind (padding mot avdelaren, centrering-
+   läget) inte rubbar symmetrin. */
+.wx2.wxv{display:flex;align-items:center}
+.wx2.wxv .wxv-halva{flex:1 1 0!important;min-width:0;display:flex;align-items:center;justify-content:center!important;
+  gap:10px!important;padding:2px 4px!important;margin:0!important}
+.wx2.wxv .wx2-now-txt,.wx2.wxv .wx2-wind-txt{flex:0 1 auto!important;min-width:0;text-align:left}
+.wx2.wxv .wx2-line{flex-wrap:nowrap;align-items:center;min-height:36px}   /* samma höjd på båda sidor – raderna under linjerar */
+.wx2.wxv .wx2-sub,.wx2.wxv .wx2-by{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+.wx2.wxv .wx2-arrow{flex:0 0 auto}
+.wxv-linje{flex:0 0 1px;align-self:stretch;margin:6px 0;background:var(--line)}
+/* Lägst/högst: en liten stapel tätt intill temperaturen. */
+.wx2-hlk{display:inline-flex;flex-direction:column;justify-content:center;gap:2px;margin-left:8px!important;
+  font-size:12.5px;font-weight:780;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap;
+  border-radius:8px;padding:2px 4px!important;margin-top:0!important;margin-bottom:0!important;margin-right:0!important}
+.wx2-hlk .wx2-hl{display:inline-flex;align-items:center}
+.kiosk .wx2-hlk,body:not(.kiosk):not(.mobile) .wx2-hlk{font-size:14px}
 .wx2-mv .tr-pil{font-size:.66em;margin-left:4px;font-style:normal;color:var(--dim)}
 #stats-weather[hidden]{display:none!important}
 /* Smalare än så får väder och vind gå före. */
@@ -6807,37 +6831,28 @@ function buildWeatherHTML(){
   let wsub2='';if(wgust!=null)wsub2=stor(gustDesc(wgust));else if(wspd!=null)wsub2=stor(windDesc(wspd,wgust));
   /* v748: Max vind/by stod i remsan, som är borta – högsta byn (3 h) här. */
   if(wx.g!=null)wsub2+=(wsub2?' · ':'')+'max '+num(wx.g,0);
-  let h='<div class="wx2 wx2-harmitt'+(wz.nowCenter?' wx2-center':'')+'" data-wxedit="now">';
-  h+='<div class="wx2-now wx-click" onclick="openVader()"><span class="wx2-ic" style="width:'+zWicon+'px;height:'+zWicon+'px">'+icon(wxIcon(sit))+'</span>'
-    +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span></div>'
-    /* "Känns 17°" på EGEN rad, som "By 6 m/s · N" på vindsidan. Förut satt den
-       på samma rad som temperaturen och de två kolumnerna läste olika. */
-    +(feels!=null?('<div class="wx2-by" style="font-size:'+zKB+'px">Känns'
-      +'<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span></div>'):'')
-    +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(sit||'Väder')+'</div></div></div>';
-  /* MITTKOLUMN: fukt, tryck och regn som en mittkolumn mellan väder och vind.
-     Första försöket var slarvigt: .wx2-div ligger absolut placerad på left:50%,
-     så två av dem hamnade ovanpå varandra mitt i den nya kolumnen — därav den
-     ensamma linjen på fel ställe i skärmdumpen. Här bär kolumnen sina egna
-     kantlinjer i stället, och den gamla avdelaren stängs av.
-     Etiketterna står högerställda i en egen kolumn så värdena hamnar på en rak
-     lodrät linje — det var det som såg hackigt ut. */
-  /* v748: MITTKOLUMNEN ÄR DYGNETS LÄGSTA OCH HÖGSTA (Markus val). Fukt, tryck
-     och regn flyttade till egna rutor under, i startsidans stil. Två korta
-     rader i stället för tre långa – väder och vind får mer plats på var sin sida. */
-  /* Bara pil och färg (blå ned, röd upp) – etiketterna "Lägst/Högst" togs bort
-     så att väder och vind får mer plats (Markus). Texten finns som title. */
-  const hlr=(lab,v,up)=>'<div class="wx2-m" title="'+lab+' idag"><span class="wx2-mv wx2-hl '+(up?'up':'down')+'">'
+  /* v753: TVÅ LIKA HALVOR (Markus): väder till vänster, vind till höger, en
+     linje emellan. Båda halvorna har samma uppbyggnad – ikon i samma storlek,
+     stort tal, en stark rad (Känns / By · riktning), en dämpad rad – och
+     innehållet står mitt i sin halva. Dygnets lägsta och högsta sitter nu
+     IHOP MED VÄDRET, som en liten stapel direkt efter temperaturen (bara pil
+     och färg, blå ned, röd upp), i stället för i en egen mittkolumn. */
+  const zIk=Math.max(zWicon,zArrow);
+  const hlr=(lab,v,up)=>'<span class="wx2-hl '+(up?'up':'down')+'" title="'+lab+' idag">'
     +'<span class="wx2-hl-ic"'+(up?'':' style="transform:rotate(180deg)"')+'>'+icon('arrow-fat-up')+'</span>'
-    +(v==null?'–':num(v,1)+'°')+'</span></div>';
-  h+='<div class="wx2-mitt wx2-mitt-hl wx-click" onclick="openDetail(\'temps\')">'+hlr('Lägst',ex.min,false)+hlr('Högst',ex.max,true)+'</div>';
-  h+='<div class="wx2-wind wx-click" onclick="openVader()">'+windArrow(wdir,zArrow,zArrColor)
+    +(v==null?'–':num(v,1)+'°')+'</span>';
+  let h='<div class="wx2 wxv" data-wxedit="now">';
+  h+='<div class="wx2-now wxv-halva wx-click" onclick="openVader()"><span class="wx2-ic" style="width:'+zIk+'px;height:'+zIk+'px">'+icon(wxIcon(sit))+'</span>'
+    +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNum+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'
+    +'<span class="wx2-hlk wx-click" onclick="event.stopPropagation();openDetail(\'temps\')">'+hlr('Högst',ex.max,true)+hlr('Lägst',ex.min,false)+'</span></div>'
+    +'<div class="wx2-by" style="font-size:'+zKB+'px">'+(feels!=null?('Känns<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span>'):'&nbsp;')+'</div>'
+    +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(sit||'Väder')+'</div></div></div>';
+  h+='<span class="wxv-linje" aria-hidden="true"></span>';
+  h+='<div class="wx2-wind wxv-halva wx-click" onclick="openVader()">'+windArrow(wdir,zIk,zArrColor)
     +'<div class="wx2-wind-txt"><div class="wx2-line"><span class="wx2-wv" style="font-size:'+zNum+'px">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span></div>'
-    /* Byvind och riktning på samma rad, riktningen EFTER pricken. */
-    +(wBy||wdir_txt?('<div class="wx2-by" style="font-size:'+zKB+'px">'+esc(wBy)
-      +(wBy&&wdir_txt?'<span class="wx2-pt">·</span>':'')/* Riktningsbokstaven i samma storlek som "känns 17°" — båda är det lilla
-        talet bredvid huvudvärdet och ska väga lika. */
-      +(wdir_txt?'<span class="wx2-dir" style="font-size:'+zDir+'px">'+wdir_txt+'</span>':'')+'</div>'):'')
+    +'<div class="wx2-by" style="font-size:'+zKB+'px">'+(wBy||wdir_txt?(esc(wBy)
+      +(wBy&&wdir_txt?'<span class="wx2-pt">·</span>':'')
+      +(wdir_txt?'<span class="wx2-dir" style="font-size:'+zDir+'px">'+wdir_txt+'</span>':'')):'&nbsp;')+'</div>'
     +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(wsub2)+'</div></div></div>';
   h+='</div>';
   const wcell=(det,label,val,cls,ic,clr,flip)=>'<div class="wx2-cell" onclick="openDetail(\''+det+'\')"><span class="wx2-cl" style="font-size:'+zSL+'px">'+label+'</span><span class="wx2-cv'+(cls?' '+cls:'')+'" style="font-size:'+zSV+'px">'+(ic?'<span class="wx2-ci" style="width:'+zSI+'px;height:'+zSI+'px;color:'+clr+(flip?';transform:rotate(180deg)':'')+'">'+icon(ic)+'</span>':'')+val+'</span></div>';
@@ -14548,8 +14563,9 @@ function computeMetric(cfg){
       /* mm ar redan skriven for att komplettera huvudtalet - "pagar nu",
          "tomt 2h 15m", "aldrig sett". Den hor hemma under vardet; att den bara
          gick till popupen var ett forbiseende nar underraden byggdes om. */
+      /* v753: ikonen alltid röd (Markus val) – rutan handlar om tomt batteri. */
       return {label:'Tomt',icon:'battery-low',
-        icc:S.pagar?'var(--hot)':'var(--faint)',
+        icc:'var(--hot)',
         v:vv,sub:mm,meta:mm,det:'batttom'};}
     case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');
       /* Overbelastad fas syns i rutan, inte bara i popupen: det ar da man vill
@@ -14612,12 +14628,14 @@ function computeMetric(cfg){
       const B=brvState(),N=brvNu();
       const gammal=brvGammal(B);
       const vantar=(_brvVanta&&Date.now()-_brvVanta<12000);
-      let ic='stuga',iccol='var(--dim)',meta,on=false,dim=false,temp=null;
+      /* v753: ikonen grön (Markus val). Att den värmer eller kyler syns på
+         lågan/snöflingan i ikonens hörn och i lägesraden. Grå bara när läget
+         är okänt. */
+      let ic='stuga',iccol='var(--ok)',meta,on=false,dim=false,temp=null;
       if(N){
         temp=N.temp;on=N.arbetar;
         const mal=N.mal!=null?' mot '+num(N.mal,0)+'°':'';
         if(N.arbetar){
-          iccol=(N.lage==='cool')?'var(--cyan)':(N.lage==='heat')?'var(--warm)':'var(--gold)';
           const sed=(B&&B.aktiv&&!gammal&&B.start)?brvSedan(B.start):null;
           meta=brvLageText(N)+(sed?' · '+sed:'');
         }else if(N.pa)meta='på · vilar'+(N.mal!=null?' · '+num(N.mal,0)+'°':'');   /* v742: inte "vilar mot" */
@@ -14628,7 +14646,6 @@ function computeMetric(cfg){
         /* Enheten saknas i datan: som före v702, ur skriptets variabel. */
         const okand=!B||B.nastaLage==='okand'||gammal;
         temp=(B&&B.inne!=null)?B.inne:null;on=!!(B&&B.aktiv&&!gammal);dim=okand;
-        if(on)iccol=(B.lage==='cool')?'var(--cyan)':(B.lage==='heat')?'var(--warm)':'var(--gold)';
         if(okand)iccol='var(--faint)';
         meta=gammal?'gammalt värde':(!B?'ingen kontakt':(B.aktiv?'igång':'av'));
       }
@@ -14702,7 +14719,8 @@ function computeMetric(cfg){
           gOn=cap('e6c96e95-05ec-48ca-a92a-e29b22cd0014','onoff')===true,app='';
       try{if(gOn)app=gtvNuApp();}catch(e){}
       var paTv=tvOn||gOn;
-      return {label:'TV',icon:'television',icc:paTv?'var(--blue)':'var(--faint)',v:paTv?'På':'Av',
+      /* v753: brun (Markus val); avstängd samma bruna, nedtonad. */
+      return {label:'TV',icon:'television',icc:paTv?'var(--brown)':'color-mix(in srgb,var(--brown) 72%,transparent)',v:paTv?'På':'Av',
         meta:paTv?(app||'på'):'avstängd',det:'tv',on:paTv};}
     case 'dish':{const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
       return {label:'Diskmaskin',icon:'fork-knife',v:on?(pr!=null?pr+' <small>%</small>':'På'):'Av',meta:on?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):'avstängd',det:'dish'};}
@@ -20846,7 +20864,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v752';
+const APP_VERSION='v753';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
