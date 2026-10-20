@@ -1849,6 +1849,20 @@ body.mobile #rum-toast,body.mobile .sync-note{bottom:calc(78px + env(safe-area-i
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .kr-x{font-size:10px;color:var(--dim);line-height:1.25;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* v758: POPUPERNAS DATARADER SOM RUTOR. Raderna (dRow) byggs som förut och görs
+   om till rutor av drRutor() när de hamnar i en popup. Rutnätet har sex kolumner:
+   en ruta tar 2 (tre per rad), 3 (två per rad) eller 6 (ensam), så att varje rad
+   går jämnt ut. Fördelningen görs i drFordela(). */
+.dr-grid{display:grid;gap:6px;margin:6px 0 10px;grid-auto-rows:auto}
+.kr-grid.dr-grid,.krpop .kr-grid.dr-grid{grid-template-columns:repeat(6,minmax(0,1fr))}
+.dr-grid>.kr-c{grid-column:span 3;height:auto;min-height:52px;padding:7px 9px}
+.dr-grid .kr-l{font-size:8.5px}
+.dr-grid .kr-v{font-size:14px}
+.dr-grid .kr-x{font-size:9.5px}
+.dr-grid .kr-x .ic{width:11px;height:11px;vertical-align:-1px;margin-right:2px}
+.dr-grid .kr-l .di-q{margin-left:3px}
+.dr-grid>.kr-c.dr-t{cursor:pointer}
+.dr-grid>.kr-c.pa{border-color:rgba(163,190,140,.45)}
 .kr-jmf{font-size:11.5px;color:var(--dim);margin-top:10px;line-height:1.7}
 .kr-j{white-space:nowrap;margin-right:6px}
 .kr-t{font-size:13.5px;line-height:1.65;margin-top:12px;padding-top:12px;
@@ -4150,12 +4164,6 @@ async function battLoggKoll(tvinga){
       var efter=_battKalla&&_battKalla.soc&&_battKalla.soc.src;if(fore!==efter&&typeof render==='function')render();}catch(e){}
   }catch(e){}finally{_battLogKor=false;}
 }
-/* "Modbus · ändrad 10:27" – för batteripopupen. */
-function battKallaText(kind){
-  const k=_battKalla[kind];if(!k)return '–';
-  let t='';try{if(k.t>0)t=' · ändrad '+hhmm(new Date(k.t));}catch(e){}   /* webbläsarens lokala tid, som resten av dashboarden */
-  return (k.src==='hb'?'SolarEdge (Husbatteri)':'Modbus')+t;
-}
 function battMb(c){
   if(c==='measure_battery')return battVal('soc');
   if(c==='measure_power'||c==='energy_power'||c==='battery_charging_state'){
@@ -4598,14 +4606,21 @@ function addRow(p,ic,acc,k,sub,v){p.insertAdjacentHTML('beforeend','<div class="
 /* ---- styrning (skriver till Homey) ---- */
 let armed={i:-1,t:0};
 /* Bilrutans innehåll. Bruten ut ur openDetail så växlarna kan rita om den. */
+/* v758: EN RUTA PER BIL – laddnivå och räckvidd. Platsen visas inte. Är bilen
+   inkopplad får rutan grön ram och raden "inkopplad"; laddar den står "laddar"
+   och effekten. Laddboxraden är borta: laddar en bil syns effekten i dess ruta,
+   och laddar något annat står det i Gäst-rutan. */
 function buildCarsPopup(){
-  const fmtCar=id=>{const b=cap(id,'measure_battery'),r=cap(id,'range_battery'),loc=cap(id,'location_human'),nm=(DATA[id]&&DATA[id].name)||'Bil';
-    return dRow(nm,(b==null?'–':Math.round(b)+' %')+(r?' · '+Math.round(r)+' km':''))+dRow(nm+' plats',esc(loc||'–'))+dRow(nm+' status',carStatusSv(id))+(carCharging(id)&&chargerW()!=null?dRow(nm+' laddeffekt',W(chargerW())):'');};
   const _bw=chargerW(),_bon=(cap(DEV.laddbox,'evcharger_charging')===true)||(_bw!=null&&_bw>50);
+  const bil=id=>{const b=cap(id,'measure_battery'),r=cap(id,'range_battery'),nm=(DATA[id]&&DATA[id].name)||'Bil';
+    const ch=carCharging(id),pl=carPlugged(id);
+    const ind=ch?(icon('lightning')+'laddar'+(_bw!=null&&_bw>50?' · '+W(_bw):'')):(pl?(icon('plug')+'inkopplad'):'');
+    return '<div class="drow" data-ik="car-profile" data-ikf="'+(pl?'var(--ok)':'var(--blue)')+'"'+(pl?' data-kl="pa"':'')+'>'
+      +'<span class="dk">'+esc(nm)+'</span><span class="dv">'+(b==null?'–':Math.round(b)+' %')+(r?' · '+Math.round(r)+' km':'')+'</span>'
+      +(ind?'<span class="dx" style="color:var(--ok)">'+ind+'</span>':'')+'</div>';};
   const _known=carCharging(DEV.car2)||carCharging(DEV.car)||carPlugged(DEV.car2)||carPlugged(DEV.car);
-  return (DATA[DEV.car2]?fmtCar(DEV.car2):'')+(DATA[DEV.car]?fmtCar(DEV.car):'')
+  return (DATA[DEV.car2]?bil(DEV.car2):'')+(DATA[DEV.car]?bil(DEV.car):'')
     +(_bon&&!_known?dRow('Gäst','laddar'+(_bw!=null?' · '+W(_bw):'')):'')
-    +(_bw!=null?dRow('Laddbox',W(_bw)+(_bon?' · laddar':'')):'')
     +'<div class="dsec">Styr</div>'+bilStyrHTML();
 }
 
@@ -7135,6 +7150,131 @@ function buildForecastHTML(){
 
 /* ---- detalj-popup ---- */
 function dRow(k,v){return '<div class="drow"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
+
+/* ===== v758: DATARADER SOM RUTOR =====
+   Alla popuper bygger sina värden med dRow() – en rad med etikett och värde. Här
+   görs raderna om till rutor i samma stil som Batteriet tomt, utan att de ett
+   tjugotal byggarna behöver skrivas om. En MutationObserver på popupens kropp
+   fångar varje ny rad, oavsett vilken av de många omritningsvägarna som satte
+   innehållet. Observerns anrop körs innan webbläsaren ritar, så raderna syns aldrig.
+
+   Etikett och värde FLYTTAS in i rutan (inte kopieras), så element med id i ett
+   värde behåller sin identitet för den kod som uppdaterar dem.
+
+   En rad kan styra sin ruta med attribut:
+     data-ik   ikonnamn (annars väljs ikon efter etiketten, DR_IK)
+     data-ikf  ikonfärg
+     data-kl   extra klass på rutan (t.ex. "pa" = grön ram)
+   och ett tredje barn .dx blir rutans underrad.
+   Rader utan värde (bara en etikett, t.ex. "Vad visar siffrorna? i") förblir rader. */
+var DR_IK=[
+  [/plats/i,'house','var(--faint)'],
+  [/temp|värme|grader|ute \(/i,'thermometer','var(--hot)'],
+  [/fukt/i,'drop','var(--blue)'],
+  [/pris|kostnad|kr\b|öre|sålt|köpt|sparat|tjänat/i,'coins','var(--gold)'],
+  [/laddniv|batteri|soc/i,'battery-medium','var(--ok)'],
+  [/kapacitet/i,'battery-full','var(--ok)'],
+  [/räcker|kvar|fulladdat|timmar/i,'timer','var(--gold)'],
+  [/fläkt/i,'fan','var(--blue)'],
+  [/co2|luft/i,'leaf','var(--ok)'],
+  [/vind|by\b|byar/i,'wind','var(--blue)'],
+  [/pool/i,'swimming-pool','var(--blue)'],
+  [/ändrad|senast|uppdater/i,'clock','var(--faint)'],
+  [/effekt|produktion|möjligt|prestanda|förbrukning/i,'lightning','var(--gold)'],
+  [/idag|i dag|igår/i,'clock','var(--faint)'],
+  [/månad|år\b|i år|total|summa|vecka/i,'chart-line','var(--blue)'],
+  [/räckvidd|mätar|km/i,'car-profile','var(--blue)']];
+function drIkon(t){for(var i=0;i<DR_IK.length;i++)if(DR_IK[i][0].test(t))return DR_IK[i];return [null,'gauge','var(--blue)'];}
+
+function drRuta(el){
+  var k=el.children[0],v=el.children[1],dx=el.querySelector(':scope>.dx');
+  if(!k||!v||v===dx)return null;
+  var q=k.querySelector('.di-q'),kt=(k.textContent||'');
+  if(q)kt=kt.slice(0,kt.length-(q.textContent||'').length);
+  var ik=drIkon(kt.trim());
+  var c=document.createElement('div');
+  c.className='kr-c'+(el.classList.contains('drow-t')?' dr-t':'')+(el.getAttribute('data-kl')?' '+el.getAttribute('data-kl'):'');
+  if(el.getAttribute('onclick'))c.setAttribute('onclick',el.getAttribute('onclick'));
+  c.innerHTML='<span class="kr-ic" style="color:'+(el.getAttribute('data-ikf')||ik[2])+'">'
+    +icon(el.getAttribute('data-ik')||ik[1])+'</span><span class="kr-tx"><span class="kr-l"></span><span class="kr-v"></span></span>';
+  var l=c.querySelector('.kr-l'),vv=c.querySelector('.kr-v'),tx=c.querySelector('.kr-tx');
+  while(k.firstChild)l.appendChild(k.firstChild);
+  while(v.firstChild)vv.appendChild(v.firstChild);
+  if(dx){var x=document.createElement('span');x.className='kr-x';if(dx.getAttribute('style'))x.setAttribute('style',dx.getAttribute('style'));
+    while(dx.firstChild)x.appendChild(dx.firstChild);tx.appendChild(x);}
+  return c;
+}
+
+/* Gör om alla rader under rot. Följd av rader blir ETT rutnät; en info-ruta
+   (.drow-info) som hör till en rad flyttas till efter rutnätet. */
+function drRutor(rot){
+  if(!rot||!rot.querySelectorAll)return;
+  var rader=rot.querySelectorAll('.drow');if(!rader.length){drFordelaAlla(rot);return;}
+  var foraldrar=[];
+  for(var i=0;i<rader.length;i++){var p=rader[i].parentNode;if(p&&foraldrar.indexOf(p)<0)foraldrar.push(p);}
+  foraldrar.forEach(function(par){
+    var barn=Array.prototype.slice.call(par.children),grid=null,info=[];
+    var stang=function(){if(grid){for(var j=info.length-1;j>=0;j--)grid.parentNode.insertBefore(info[j],grid.nextSibling);}grid=null;info=[];};
+    barn.forEach(function(el){
+      if(el.classList.contains('drow')){
+        var c=drRuta(el);
+        if(!c){stang();return;}
+        if(!grid){grid=document.createElement('div');grid.className='kr-grid dr-grid';par.insertBefore(grid,el);}
+        grid.appendChild(c);par.removeChild(el);
+      }else if(el.classList.contains('drow-info')&&grid){info.push(el);}
+      else stang();
+    });
+    stang();
+  });
+  drFordelaAlla(rot);
+}
+
+/* RADFÖRDELNING. Får texten inte plats i halv bredd står rutan ensam och läggs
+   sist i sitt rutnät, så att resten kan gå ihop i par. Är resten udda blir tre
+   rutor som får plats i en tredjedel en trea; annars står den sista ensam.
+   Utan layout (jsdom, dold popup) mäts allt som att det får plats. */
+function drPassar(t,sp){
+  t.style.gridColumn='span '+sp;
+  var e=t.querySelectorAll('.kr-v,.kr-l,.kr-x');
+  for(var i=0;i<e.length;i++)if(e[i].scrollWidth>e[i].clientWidth+1)return false;
+  return true;}
+function drDela(seg){
+  var m=seg.length,i;if(!m)return;
+  if(m===1){seg[0].style.gridColumn='span 6';return;}
+  for(i=0;i<m;i++)seg[i].style.gridColumn='span 3';
+  if(m%2===0)return;
+  for(i=0;i+3<=m;i+=2){
+    if(drPassar(seg[i],2)&&drPassar(seg[i+1],2)&&drPassar(seg[i+2],2)){
+      for(var j=0;j<m;j++)seg[j].style.gridColumn=(j>=i&&j<i+3)?'span 2':'span 3';return;}
+    seg[i].style.gridColumn=seg[i+1].style.gridColumn=seg[i+2].style.gridColumn='span 3';
+  }
+  seg[m-1].style.gridColumn='span 6';}
+function drFordela(g){
+  if(!g.classList.contains('dr-grid'))g.classList.add('dr-grid');
+  var t=Array.prototype.slice.call(g.children),hel=[],ovr=[];
+  t.forEach(function(x){(drPassar(x,3)?ovr:hel).push(x);});
+  drDela(ovr);
+  hel.forEach(function(x){x.style.gridColumn='span 6';g.appendChild(x);});}
+function drFordelaAlla(rot){
+  if(!rot||!rot.querySelectorAll)return;
+  var g=rot.querySelectorAll('.dr-grid'+(rot.id==='krpop'||(rot.closest&&rot.closest('#krpop'))?',.kr-grid':''));
+  for(var i=0;i<g.length;i++){try{drFordela(g[i]);}catch(e){}}}
+
+(function drStart(){try{
+  if(typeof MutationObserver==='undefined')return;
+  var kor=false;
+  var ob=new MutationObserver(function(){if(kor)return;kor=true;
+    try{drRutor(document.getElementById('dlg-body'));}catch(e){}finally{ob.takeRecords();kor=false;}});
+  var b=document.getElementById('dlg-body');
+  if(b)ob.observe(b,{childList:true,subtree:true});
+  /* Batteriet tomt och de andra krpop-rutorna läggs direkt i body. */
+  new MutationObserver(function(ms){for(var i=0;i<ms.length;i++)for(var j=0;j<ms[i].addedNodes.length;j++){
+    var n=ms[i].addedNodes[j];if(n&&n.id==='krpop'){try{drRutor(n);}catch(e){}}}})
+    .observe(document.body,{childList:true});
+  /* Ny bredd (vridning, fönster): fördela om, rutorna finns redan. */
+  var rt=null;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){
+    try{drFordelaAlla(document.getElementById('dlg-body'));drFordelaAlla(document.getElementById('krpop'));}catch(e){}},150);});
+}catch(e){}})();
 let _popupRebuild=null,_energyAlt=false,_energyOpen=false;
 
 
@@ -13575,8 +13715,6 @@ function byggBatt(){
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
-    +dRow('Källa laddnivå',esc(battKallaText('soc')))+dRow('Källa effekt',esc(battKallaText('pow')))
-    +dRow('Kapacitet (inställd)',((CFG&&CFG.battkwh)||10)+' kWh')
     +regelHTML();
     /* Ladda bor i batteriets popup när knappavsnittet är gömt (v688).
        v708: Spara ligger bredvid; utan Ladda i popupen står den ensam.
@@ -20918,7 +21056,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v757';
+const APP_VERSION='v758';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
