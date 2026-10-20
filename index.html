@@ -1645,9 +1645,11 @@ body.mobile #rum-toast,body.mobile .sync-note{bottom:calc(78px + env(safe-area-i
 .dlg-body .fas-b i{display:block;height:100%;border-radius:3px;transition:width .5s ease}
 .dlg-body .fas-v{font-size:12px;font-weight:750;font-variant-numeric:tabular-nums;
   width:52px;text-align:right;flex:0 0 auto}
-.dlg-body .fas-t{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.45}
 .dlg-body .dsec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);padding:13px 0 3px;border-bottom:1px solid var(--line)}
+/* v759: info-texten i en avsnittsrubrik ärvde rubrikens versaler, spärrning och
+   fetstil – grafernas förklaringar stod i versaler när man öppnade dem. */
+.dlg-body .dsec .drow-info{text-transform:none;letter-spacing:0;font-weight:500;padding:6px 0 4px}
 .dlg-body .dsec-x{text-transform:none;font-style:normal;letter-spacing:0;opacity:.7;font-weight:700}
 .eff-top{display:flex;align-items:center;gap:10px;margin:10px 0 8px}
 .eff-sel{flex:0 0 auto;width:auto;min-width:96px}
@@ -6709,11 +6711,14 @@ function fasHTML(){
       +'<span class="fas-v" style="color:'+(k>=0.75?fasFarg(k):'var(--dim)')+'">'
       +(v==null?'–':num(v,1)+' A')+'</span></div>';
   }
-  var v=fasVarst();
-  h+='<div class="fas-t">Huvudsäkring '+sak+' A · högsta fasen '
-    +(v?('L'+v.fas+' på '+Math.round(v.kvot*100)+' %'):'okänd')
-    +'. Ändra säkringen i inställningarna om talet är fel.</div>';
   return h;
+}
+/* v759: förklaringen under faserna ligger i en info-knapp vid rubriken. */
+function fasInfo(){
+  var v=fasVarst();
+  return 'Huvudsäkring '+fasSakring()+' A · högsta fasen '
+    +(v?('L'+v.fas+' på '+Math.round(v.kvot*100)+' %'):'okänd')
+    +'. Ändra säkringen i inställningarna om talet är fel.';
 }
 function gridPowerSVG(pts,cid){
   cid=cid||'grid';
@@ -7171,6 +7176,7 @@ var DR_IK=[
   [/plats/i,'house','var(--faint)'],
   [/temp|värme|grader|ute \(/i,'thermometer','var(--hot)'],
   [/fukt/i,'drop','var(--blue)'],
+  [/totalt/i,'chart-line','var(--blue)'],
   [/pris|kostnad|kr\b|öre|sålt|köpt|sparat|tjänat/i,'coins','var(--gold)'],
   [/laddniv|batteri|soc/i,'battery-medium','var(--ok)'],
   [/kapacitet/i,'battery-full','var(--ok)'],
@@ -12873,7 +12879,7 @@ function byggGrid(){
       +'effekten vid en viss tidpunkt.'))
     +gridPowerSVG(histV('grid','grid'),'grid')
     +grafTidsval('grid')
-    +dSec('Belastning per fas')+fasHTML()+dSec('Elnät')
+    +'<div class="dsec">Belastning per fas'+infoBlock('fas',fasInfo())+'</div>'+fasHTML()+dSec('Elnät')
     +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
 }
 /* ===== SAMMA MÖNSTER FÖR VÄDER-, POOL- OCH BADGRAFERNA =====
@@ -21056,7 +21062,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v758';
+const APP_VERSION='v759';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
