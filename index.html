@@ -248,11 +248,11 @@ body.kiosk{--pg-gap:7px}
 /* Grundtillståndet är GULT. Grönt betyder färska värden från Homey och måste
    förtjänas av klassen live — tidigare var grönt grundfärgen, så punkten lyste
    grönt från första bildrutan oavsett vad som visades. */
-.dot{width:8px;height:8px;border-radius:50%;background:var(--warm);flex:0 0 auto}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:0 0 auto}
 .dot.live{background:var(--ok)}
-.dot.live{animation:pulse 2.6s ease-out infinite}.dot.stale{background:var(--warm)}.dot.dead{background:var(--hot)}
+.dot.live{animation:pulse 2.6s ease-out infinite}.dot.stale{background:var(--gold)}.dot.dead{background:var(--hot)}
 /* Gul utan puls: skärmen visar sparad data medan Homey svarar. */
-.dot.cache{background:var(--warm)}
+.dot.cache{background:var(--gold)}
 .rel{color:var(--faint);font-size:11.5px}.rel.stale{color:var(--warm)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(166,227,161,.45)}70%{box-shadow:0 0 0 7px rgba(166,227,161,0)}100%{box-shadow:0 0 0 0 rgba(166,227,161,0)}}
 
@@ -1555,7 +1555,7 @@ body.wx-rubrik .en-wxrad .en-wx{display:inline-flex}
   display:inline-flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .en-hogra .en-status>button,.en-hogra .en-status>span:not(.dot){display:none!important}
 .en-hogra .en-status .dot{width:12px;height:12px;border-radius:50%;margin:0;flex:0 0 auto;
-  background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+  background:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
 .en-hogra .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
 .en-hogra .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
@@ -2323,7 +2323,7 @@ body{--solar:#ffc21f;--glowmul:1}
 .en-cmp.active .ic{color:#0e1726}
 .en-status .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
 .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
-.en-status .dot.cache{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+.en-status .dot.cache{background:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
 .en-status .dot.dead,.en-status .dot.stale{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 .en-status .dot.dead~#status-text,.en-status .dot.stale~#status-text{color:var(--hot)}
 .en-status .rel{font-size:10px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--faint)}
@@ -2613,8 +2613,8 @@ body.kiosk{--ds-sun:17px}
 .en-chip-s .tr{font-size:9px;margin-left:4px;vertical-align:1px}
 .tr{font-weight:800}.tr.up{color:var(--warm)}.tr.down{color:var(--blue)}
 .stat .meta .tr.up{color:var(--ok)}.stat .meta .tr.down{color:var(--blue)}
-.en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
-.en-status .dot.stale~#status-text{color:var(--warm)}
+.en-status .dot.stale{background:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
+.en-status .dot.stale~#status-text{color:var(--gold)}
 .cfg-step{display:flex;align-items:center;gap:10px;margin-left:auto;flex:0 0 auto}
 .cfg-pm{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--inset);color:var(--ink);font-size:19px;font-weight:700;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cfg-pm:active{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -3007,9 +3007,9 @@ html,body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;us
      topprad, hur rätt logiken än var. Grundfärgen är nu gul; grönt kräver
      klassen live, precis som överallt annars. */
   body:not(.kiosk) .statusbar .en-status .dot{width:13px;height:13px;border-radius:50%;margin:0;flex:0 0 auto;
-    background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+    background:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
   body:not(.kiosk) .statusbar .en-status .dot.live{background:var(--ok);box-shadow:0 0 0 3px color-mix(in srgb,var(--ok) 22%,transparent)}
-  body:not(.kiosk) .statusbar .en-status .dot.stale{background:var(--warm);box-shadow:0 0 0 3px color-mix(in srgb,var(--warm) 22%,transparent)}
+  body:not(.kiosk) .statusbar .en-status .dot.stale{background:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 22%,transparent)}
   body:not(.kiosk) .statusbar .en-status .dot.dead{background:var(--hot);box-shadow:0 0 0 3px color-mix(in srgb,var(--hot) 22%,transparent)}
 
   /* Statusrutorna (Sol/Batteri/Elnät + luft/regn m.fl.): stående layout, inget kapat */
@@ -21080,7 +21080,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v760';
+const APP_VERSION='v761';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -22194,13 +22194,22 @@ try{document.addEventListener('visibilitychange',function(){
   if(_liveDoldSedan&&Date.now()-_liveDoldSedan>=LIVE_VANTA_DOLD){liveVanta(true);try{load();}catch(e){}}
   _liveDoldSedan=0;});}catch(e){}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
+function statusLive(){const d=$('dot');return !!(d&&d.classList&&d.classList.contains('live'));}
+/* Hur länge en grön punkt tål uteblivna svar: tre uppdateringar à 15 s. */
+var LIVE_TAPP_MS=45000;
 async function load(){
   credTillCONFIG();
   /* GUL MEDAN DET LADDAS. Regeln är: rött = ingen kontakt, gult = sparad data
      eller hämtning pågår, grönt = färska värden från Homey. Utan det här stod
      punkten kvar på grönt medan hämtningen pågick och ljög i några sekunder. */
+  /* v761: BARA NÄR DEN INTE REDAN ÄR GRÖN. Förut slog punkten om till gult vid
+     VARJE uppdatering, var 15:e sekund, så länge anropet pågick – och "gult" var
+     --warm, en orange som på skärmen ser röd ut. Det var blinkningen. En grön
+     punkt får vara grön medan nästa hämtning pågår; värdena den står för är
+     högst en uppdatering gamla. */
+  var _start=Date.now();
   try{
-    if(!isDemo()&&credFinns())
+    if(!isDemo()&&credFinns()&&!statusLive())
       setStatus('cache',VISAR_CACHE?('Sparat '+hhmm(new Date(lastUpdate||Date.now()))):'Hämtar…');
   }catch(e){}
   let map=null;const notConf=!credFinns();
@@ -22234,6 +22243,14 @@ async function load(){
     }
   }
   if(map){DATA=map;VISAR_CACHE=false;setStatus('live','LIVE');cacheSpara(map);lastUpdate=Date.now();_online=true;recordHist();yearBaseUpdate();learnTick();priceLogTick();dayLogTick();recsTick();try{vanTick();}catch(e0){}try{if(!_battLogAt)battLoggKoll(true);}catch(e1){}shmTick();try{progLogTick();}catch(e){}hltTick();shCostTick();snowTick();zamTick();monTick();backupTick();try{felHomeyKoll();}catch(e){}}
+  /* v761: ETT MISSAT ANROP ÄR INTE OFFLINE. Ett anrop som går i tidsgräns (8 s,
+     vanligast via molnet) gjorde punkten röd i 15 s tills nästa lyckades. Nu
+     står den kvar på grönt så länge senaste lyckade hämtning är yngre än
+     LIVE_TAPP_MS – rött först när flera anrop i rad uteblivit. En hämtning som
+     startade före den senaste lyckade får heller inte måla över den. */
+  else if(statusLive()&&lastUpdate&&(Date.now()-lastUpdate<LIVE_TAPP_MS||lastUpdate>=_start)){
+    /* står kvar på grönt */
+  }
   else if(VISAR_CACHE){
     /* Nätet svarade inte, men skärmen visar sparad data. Då är "Offline" fel
        besked: det står redan siffror där, och de är gamla — vilket är precis
