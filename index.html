@@ -8418,7 +8418,7 @@ function buildInsState(){
   S.carSoc=cap(DEV.car,'measure_battery'); if(S.carSoc==null)S.carSoc=cap(DEV.car2,'measure_battery');
   /* markis + disk */
   S.awning=cap(DEV.awning,'windowcoverings_state');
-  S.dish=cap(DEV.dish,'onoff');
+  S.dish=(typeof diskLage==='function')?(diskLage()==='kor'):cap(DEV.dish,'onoff');
   /* batteri-uthållighet */
   S.battKwh=(S.battSoc==null?null:Math.round(S.battSoc/100*9.8*10)/10);
   S.battHours=(S.battKwh!=null&&S.powerKw!=null&&S.powerKw>0.2)?Math.round(S.battKwh/S.powerKw*10)/10:null;
@@ -13884,9 +13884,9 @@ function openDetailKarna(which){
     /* (v692) Belysningsrutans ⋯ öppnar den här: Auto, Skivspelare och Tänd. */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=hemPopup();};
     body=hemPopup();
-  }else if(which==='dish'){title='Diskmaskin';const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
-    const bar=(on&&pr!=null)?('<div class="pbar"><i style="width:'+pr+'%"></i></div>'):'';
-    body=dRow('Status',on?'kör':'avstängd')+(pr!=null&&on?dRow('Klart',pr+' %'):'')+(on&&rem!=null&&rem>0?dRow('Tid kvar','~'+(rem>=60?Math.floor(rem/60)+' h '+(rem%60)+' min':rem+' min'))+dRow('Klar ca',finishTime(rem)):'')+bar
+  }else if(which==='dish'){title='Diskmaskin';const lg=diskLage(),kor=(lg==='kor'),pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
+    const bar=(kor&&pr!=null)?('<div class="pbar"><i style="width:'+pr+'%"></i></div>'):'';
+    body=dRow('Status',kor?'diskar':(lg==='redo'?'går inte':'avstängd'))+(pr!=null&&kor?dRow('Klart',pr+' %'):'')+(kor&&rem!=null&&rem>0?dRow('Tid kvar','~'+(rem>=60?Math.floor(rem/60)+' h '+(rem%60)+' min':rem+' min'))+dRow('Klar ca',finishTime(rem)):'')+bar
       +((CFG&&CFG.paNu)?popKnappar('dish'):'');
   }else if(which==='cars'){title='Bilar';
     /* Egen byggare, så växlarna kan rita om rutan utan att bygga om allt. */
@@ -14920,8 +14920,11 @@ function computeMetric(cfg){
       /* v753: brun (Markus val); avstängd samma bruna, nedtonad. */
       return {label:'TV',icon:'television',icc:paTv?'var(--brown)':'color-mix(in srgb,var(--brown) 72%,transparent)',v:paTv?'På':'Av',
         meta:paTv?(app||'på'):'avstängd',det:'tv',on:paTv};}
-    case 'dish':{const on=cap(DEV.dish,'onoff')===true,pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
-      return {label:'Diskmaskin',icon:'fork-knife',v:on?(pr!=null?pr+' <small>%</small>':'På'):'Av',meta:on?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):'avstängd',det:'dish'};}
+    case 'dish':{const lg=diskLage(),pr=parsePct(cap(DEV.dish,'bshc_string.progress')),rem=parseRemain(cap(DEV.dish,'bshc_string.remaining_time'));
+      const bok=(lg!=='kor'&&typeof diskBokad==='function'&&diskBokad())?('bokad '+diskNar()):'';
+      return {label:'Diskmaskin',icon:'fork-knife',
+        v:lg==='kor'?(pr!=null&&pr>0?pr+' <small>%</small>':'Går'):(lg==='redo'?'Redo':'Av'),
+        meta:lg==='kor'?(rem!=null&&rem>0?'klar ~'+finishTime(rem):'diskar'):(bok||(lg==='redo'?'går inte':'avstängd')),det:'dish'};}
   }
   return {label:'–',icon:'gauge',v:'–',meta:'',det:null};
 }
@@ -17465,6 +17468,21 @@ function diskKor(){
   var o=diskObsLas();
   if(!o.t){var p=diskProc();if(p!=null&&p>0&&p<100)return true;}
   return !!o.kor;
+}
+/* v760: ETT LÄGE FÖR ALLA VISNINGAR. Rutan, popupen, glöden och enhetslistan
+   läste bara onoff – och maskinen står på dygnet runt med "0 %" och "280:00",
+   så allt sade "kör" och visade ett klockslag för klar även när den stod still.
+   Knappen och På nu använde redan diskKor(). Nu gör alla det.
+     'av'   onoff = false
+     'redo' på, men går inte (står i vila med sitt förvalda program)
+     'kor'  går – framsteg och tid kvar visas bara då
+   diskObs() körs här också: förut kördes den bara när knapparna ritades. */
+function diskLage(){
+  /* Inte i historikläget: då svarar cap() med gamla värden, och observationen
+     av hur talen rör sig skulle skrivas över med dem. */
+  if(typeof _timeActive==='undefined'||!_timeActive){try{diskObs();}catch(e){}}
+  if(cap(DISK_DEV,'onoff')!==true)return 'av';
+  return diskKor()?'kor':'redo';
 }
 function diskKl(){
   var b=_disk;
@@ -20393,7 +20411,7 @@ function tileStatus(cfg){
     if(k==='humidity'){const hh=cap(DEV.outdoor,'measure_humidity');if(hh==null)return null;if(hh>=92||hh<=18)return{glow:'hot',icon:'warning'};if(hh>=85||hh<=25)return{glow:'warm'};return null;}
     if(k==='pressure'){const pr=cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),tr=pressureTrend(pr);if(tr>0)return{glow:'warm'};if(tr<0)return{glow:'blue'};return null;}
     if(k==='poolheat'||k==='poolrum'){const ph=cap(DEV.poolheat,'onoff');return(ph==='on'||ph===true)?{glow:'warm',icon:'flame'}:null;}
-    if(k==='dish'){if(cap(DEV.dish,'onoff')!==true)return null;const pr=parsePct(cap(DEV.dish,'bshc_string.progress'));return{glow:'cyan',lvl:pr!=null?Math.max(.25,.25+.75*pr/100):.5};}
+    if(k==='dish'){if(diskLage()!=='kor')return null;const pr=parsePct(cap(DEV.dish,'bshc_string.progress'));return{glow:'cyan',lvl:pr!=null?Math.max(.25,.25+.75*pr/100):.5};}
     if(k==='cars'||k==='car1'||k==='car2'){const ids=k==='cars'?[DEV.car,DEV.car2]:[k==='car1'?DEV.car:DEV.car2];let charging=false,unlocked=false,known=false;
       ids.forEach(id=>{if(!DATA[id])return;const st=cap(id,'ev_charging_state'),lk=cap(id,'locked');if(st!=null||lk!=null)known=true;
         if(carCharging(id))charging=true;if(lk===false)unlocked=true;});
@@ -21062,7 +21080,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v759';
+const APP_VERSION='v760';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -21662,7 +21680,7 @@ function render(){
     {const _bw=chargerW(),_bon=(cap(DEV.laddbox,'evcharger_charging')===true)||(_bw!=null&&_bw>50);
      const _known=carCharging(DEV.car2)||carCharging(DEV.car)||carPlugged(DEV.car2)||carPlugged(DEV.car);
      if(_bon&&!_known)addRow(sl,'lightning','acc-blue','Gäst','laddbox','<span class="chip on">laddar'+(_bw!=null?' '+W(_bw):'')+'</span>');}
-    const dOn=cap(DEV.dish,'onoff'),dProg=cap(DEV.dish,'bshc_string.progress');addRow(sl,'fork-knife','acc-cyan','Diskmaskin','',dOn?'<span class="chip on">igång</span> '+(dProg||''):'<span class="chip off">av</span>');
+    const dLg=diskLage(),dProg=cap(DEV.dish,'bshc_string.progress');addRow(sl,'fork-knife','acc-cyan','Diskmaskin','',dLg==='kor'?'<span class="chip on">diskar</span> '+(dProg||''):'<span class="chip off">'+(dLg==='redo'?'går inte':'av')+'</span>');
     const aw=cap(DEV.awning,'windowcoverings_state'),awMap={up:'indragen',down:'utfälld',idle:'stilla'};addRow(sl,'umbrella','acc-warm','Markis','','<span class="chip '+(aw==='down'?'on':'off')+'">'+(awMap[aw]||aw||'–')+'</span>');
     const ws=vindMs(),gs=byMs(),wh=(ws>8||gs>11);addRow(sl,'wind','acc-cyan','Vind','by '+(gs==null?'–':num(gs,1))+' m/s','<span class="'+(wh?'chip warn':'')+'">'+(ws==null?'–':num(ws,1))+' m/s</span>');
     const r24=cap(DEV.rain,'measure_rain.24h'),sit=cap(DEV.smhi,'measure_weather_situation_cp');addRow(sl,'cloud-sun','acc-gold','Väder','regn 24h '+(r24==null?'–':num(r24,1))+' mm',esc(sit||'–'));
