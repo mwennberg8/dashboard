@@ -3784,6 +3784,8 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 
 <script>
 const ICONS={
+  /* v762: växla hus – samma pilar som husvaktens knapp i Göteborgsfilen. */
+  'arrows-left-right':'<path d="M213.66,181.66l-32,32a8,8,0,0,1-11.32-11.32L188.69,184H48a8,8,0,0,1,0-16H188.69l-18.35-18.34a8,8,0,0,1,11.32-11.32l32,32A8,8,0,0,1,213.66,181.66Zm-139.32-64a8,8,0,0,0,11.32-11.32L67.31,88H208a8,8,0,0,0,0-16H67.31L85.66,53.66A8,8,0,0,0,74.34,42.34l-32,32a8,8,0,0,0,0,11.32Z"/>',
   /* Snurrikon för väntläget. Namnet fanns bara i en sträng längre ner i
      filen, inte i den här tabellen — icon('arrows-clockwise') gav därför tom
      text och knappen stod utan ikon medan den väntade. */
@@ -14013,6 +14015,31 @@ function showView(tab){if(!tab)return;
 /* Flikraden i mobilläget. Samma funktioner som toppradens knappar. */
 var FLIKAR=[['flode','house','Hem','goHome()'],['insikter','sparkle','Insikter','openInsikter()'],
   ['jamfor','chart-line','Jämför','openCompare()'],['vader','cloud-sun','Väder','openVader()']];
+/* v762: GÖTEBORG LÄNGST TILL HÖGER – BARA PÅ MARKUS PIXEL.
+   Chrome döljer modellen i userAgent sedan version 110 ("Android 10; K"), så
+   modellen frågas efter via userAgentData (kräver https, vilket GitHub Pages
+   har). Svaret kommer asynkront: det sparas i PIXEL_KEY så knappen finns direkt
+   vid nästa start, och menyn byggs om när svaret kommer första gången.
+   Pixel Tablet räknas inte. Tvinga med ?gbgknapp=1 eller ?gbgknapp=0. */
+var PIXEL_KEY='gbgknapp_v1';
+function gbgKnappSyns(){
+  try{var v=localStorage.getItem(PIXEL_KEY);if(v==='1')return true;if(v==='0')return false;}catch(e){}
+  try{var ua=String(navigator.userAgent||'');if(/Pixel(?! ?Tablet)/i.test(ua)&&!/Tablet/i.test(ua))return true;}catch(e){}
+  return false;}
+function arPixelModell(m){return /Pixel/i.test(String(m||''))&&!/Tablet/i.test(String(m||''));}
+function gbgKnappKoll(){try{
+  var q=(location.search||'').match(/[?&]gbgknapp=([01])/);
+  if(q){localStorage.setItem(PIXEL_KEY,q[1]);return;}
+  if(localStorage.getItem(PIXEL_KEY)!=null)return;
+  var uad=navigator.userAgentData;
+  if(!uad||typeof uad.getHighEntropyValues!=='function'){localStorage.setItem(PIXEL_KEY,gbgKnappSyns()?'1':'0');return;}
+  uad.getHighEntropyValues(['model']).then(function(r){
+    var ja=arPixelModell(r&&r.model);
+    try{localStorage.setItem(PIXEL_KEY,ja?'1':'0');}catch(e){}
+    if(ja){try{flikradBygg();}catch(e){}}
+  }).catch(function(){});
+}catch(e){}}
+try{gbgKnappKoll();}catch(e){}
 function flikradBygg(){
   if(!document.body)return;
   var mob=document.body.classList.contains('mobile');
@@ -14028,7 +14055,9 @@ function flikradBygg(){
      bakom den. */
   var hem=mob?document.body:(document.querySelector('.wrap')||document.body);
   if(nav.parentElement!==hem)hem.appendChild(nav);
-  nav.innerHTML=FLIKAR.map(function(f){return '<button type="button" class="flik" data-flik="'+f[0]+'" onclick="'+f[3]+'">'
+  var flikar=FLIKAR.slice();
+  if(gbgKnappSyns())flikar.push(['gbg','arrows-left-right','Göteborg','husVaxla()']);
+  nav.innerHTML=flikar.map(function(f){return '<button type="button" class="flik" data-flik="'+f[0]+'" onclick="'+f[3]+'">'
     +icon(f[1])+'<span>'+f[2]+'</span></button>';}).join('');
   hallInne(nav.querySelector('[data-flik="flode"]'),function(){openConfig();});
   flikradAktiv();
@@ -21080,7 +21109,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v761';
+const APP_VERSION='v762';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
