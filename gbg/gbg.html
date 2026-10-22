@@ -1023,7 +1023,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.76.0';
+const APP_VERSION = 'v1.77.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1892,13 +1892,38 @@ function innetemp(){
    clim_done så att påminnelsen inte frågar igen samma dag. Skapat 2026-10-22. */
 const KLIMAT_FLOW='c0342f83-6ca4-499f-9c69-9fba6b81425c';
 const KLIMAT_FLOW_GAMMAL='be57e57c-d63b-4c1c-9af1-68521a8a90fc';
+/* v1.77.0: TVÅ TRYCK. Det gamla flödet frågade via push innan bilen startades –
+   det var bekräftelsen. Det nya startar direkt, så spärren ligger i knappen i
+   stället: bekr:true som standard, och sparade klimatknappar får den EN gång
+   (KLIMAT_BEKR_KEY). Stänger du av den i knappens meny efteråt får det vara så. */
+const KLIMAT_BEKR_KEY='gbgknappar_klimatbekr_v1';
+/* v1.77.0: PÅ/AV. C40 rapporterar ingen klimatstatus (bara lås, räckvidd och
+   laddläge), så läget kan inte läsas av från bilen. Start- och stoppflödet
+   skriver i stället Logic-variabeln klimat_bil: starttiden i ms, eller 0 när det
+   stoppats. Knappen visar "på" tills KLIMAT_MS gått – ungefär så länge en
+   förkonditionering pågår, samma som Gottskär – eller tills den stoppas.
+   Variabeln delas av alla skärmar. En start via påminnelsens push syns inte. */
+const KLIMAT_FLOW_AV='5976a8ca-d848-4261-b812-3d04a90dbfb0';
+const KLIMAT_VAR='klimat_bil';
+const KLIMAT_MS=30*60000;
+var KLIMAT_AT=0;
+function klimatPa(){return KLIMAT_AT>0&&Date.now()-KLIMAT_AT<KLIMAT_MS;}
+function klimatMinKvar(){return Math.max(1,Math.ceil((KLIMAT_AT+KLIMAT_MS-Date.now())/60000));}
+function arKlimatKn(b){return !!(b&&b.typ==='flow'&&b.flow===KLIMAT_FLOW);}
+/* Startar eller stoppar efter läget, och skriver läget direkt (variabeln läses
+   om inom en minut). */
+async function klimatVaxla(){
+  const pa=klimatPa();
+  await startaFlow('standard',pa?KLIMAT_FLOW_AV:KLIMAT_FLOW);
+  KLIMAT_AT=pa?0:Date.now();
+  return !pa;}
 const KNAPPAR_DEF=[
   {l:'Auto',      ic:'toggle-right', typ:'dev',  id:DEV.auto,     cap:'onoff'},
   {l:'Läggdags',  ic:'moon',         typ:'dev',  id:DEV.laggdags, cap:'onoff'},
   {l:'Släck allt',ic:'lightbulb-off',typ:'allt'},
   {l:'Fläkt',     ic:'fan',          typ:'dev',  id:DEV.flakt,    cap:'onoff'},
   {l:'Luftrenare',ic:'wind',         typ:'dev',  id:DEV.luftren,  cap:'onoff'},
-  {l:'Klimat bil',ic:'car',          typ:'flow', flow:KLIMAT_FLOW, ftyp:'standard'},
+  {l:'Klimat bil',ic:'car',          typ:'flow', flow:KLIMAT_FLOW, ftyp:'standard', bekr:true},
 ];
 const KN_KEY='gbgknappar_v1';
 /* Bekräftelse med två tryck, som på Gottskär, men PER KNAPP: kryssrutan sitter
@@ -1966,6 +1991,12 @@ function knByteNamn(lista){
   lista.forEach(b=>{
     if(b&&b.typ==='flow'&&b.flow===KLIMAT_FLOW_GAMMAL){b.flow=KLIMAT_FLOW;b.ftyp='standard';andrat=true;}
   });
+  /* v1.77.0: bekräftelse på klimatknappen, en gång. */
+  let bekrGjord=false;try{bekrGjord=localStorage.getItem(KLIMAT_BEKR_KEY)==='1';}catch(e){}
+  if(!bekrGjord){
+    lista.forEach(b=>{if(b&&b.typ==='flow'&&b.flow===KLIMAT_FLOW&&!b.bekr){b.bekr=true;andrat=true;}});
+    try{localStorage.setItem(KLIMAT_BEKR_KEY,'1');}catch(e){}
+  }
   lista.forEach(b=>{
     KN_NAMNBYTEN.forEach(x=>{
       if(b&&b.typ===x.typ&&b.vilka===x.vilka&&b.l===x.fran){b.l=x.till;andrat=true;}
@@ -2000,6 +2031,7 @@ function knLadda(){
   try{
     const g={};KN_NYA.forEach(x=>{g[x.mark]=true;});
     localStorage.setItem(KN_NYA_KEY,JSON.stringify(g));
+    localStorage.setItem(KLIMAT_BEKR_KEY,'1');   /* standarden har redan bekr */
   }catch(e){}
   return d;
 }
@@ -2277,6 +2309,7 @@ function knappPa(b){
   if(b.typ==='dev')return cap(b.id,b.cap)===true;
   if(b.typ==='allt')return alltTakPa();
   if(b.typ==='lamp')return lampPa(b.vilka);
+  if(arKlimatKn(b))return klimatPa();
   return false;}
 function renderControls(){
   const el=$('controls');if(!el)return;
@@ -2296,7 +2329,8 @@ function renderControls(){
          först valde gör det inte, och en okänd ikon ritas som ingenting alls. */
       +(b.typ==='lamp'?('<span class="ctl-dim" onclick="event.stopPropagation();openLampor(\''+b.vilka+'\')" title="Dimmer">'
         +icon('sun-dim')+'</span>'):'')
-      +'<span class="ctl-s">'+(b.typ==='flow'?'starta'
+      +'<span class="ctl-s">'+(arKlimatKn(b)?(pa?('på · '+klimatMinKvar()+' min'):'av')
+        :b.typ==='flow'?'starta'
         :(b.typ==='lamp'?(lampTanda(b.vilka).length+' av '+lampUrval(b.vilka).length+' tända'
             +((function(n){return n==null?'':' · '+n+' %';})(lampNivda(b.vilka))))
         :(b.typ==='allt'?(alltTanda().length+' av '+alltLampor().length+' tända')
@@ -2361,6 +2395,9 @@ async function knappTryck(i){
          kvar i fel läge tills nästa hämtning — och ett nytt tryck skickade om
          samma sak, vilket såg ut som att ingenting hände. */
       mal.forEach(d=>{if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=v;});
+    }else if(arKlimatKn(b)){
+      const pa=await klimatVaxla();
+      blink(i,pa?'startad ✓':'stoppad ✓');setTimeout(renderControls,1500);return;
     }else if(b.typ==='flow'){
       await startaFlow(b.ftyp,b.flow);
       blink(i,'startad ✓');setTimeout(renderControls,1500);return;
@@ -3288,6 +3325,8 @@ async function adaptHamta(){
     const v=await homeyGet('/api/manager/logic/variable/');
     if(!v)return;
     const arr=Array.isArray(v)?v:Object.keys(v).map(k=>v[k]);
+    const kb=arr.find(a=>a&&a.name===KLIMAT_VAR);
+    if(kb){const n=Number(kb.value);KLIMAT_AT=isFinite(n)?n:0;}
     const x=arr.find(a=>a&&a.name==='adaptiv_lage');
     if(!x)return;
     const j=JSON.parse(String(x.value||''));
@@ -3857,7 +3896,8 @@ function openBil(){
       +dRow('Motor',capOf(d,'engine')===true?'<span class="chip warn">igång</span>':'<span class="chip off">av</span>')
       +dRow('Mätarställning',num(capOf(d,'odometer'),0)+' km');
     h+='<div class="dbtn-row">'
-      +'<button class="dbtn pri" onclick="korFlow(\'standard\',\''+KLIMAT_FLOW+'\',\'Klimatisering\')">Starta klimatisering</button></div>';
+      +(klimatPa()?('<div class="setup-t" style="margin:0 0 8px">Klimatisering på · '+klimatMinKvar()+' min kvar</div>'):'')
+      +'<button class="dbtn pri" id="dbtn-klimat" onclick="klimatStarta()">'+klimatKnText()+'</button></div>';
     return h;};
   DLG_OM.bil=()=>dlgSatt(g());
   openDlg('Volvo C40','car-profile',g(),'bil');}
@@ -3905,6 +3945,18 @@ function openFlows(){
     return h;};
   DLG_OM.flows=()=>dlgSatt(g());
   openDlg('Flows','sparkle',g(),'flows');}
+/* v1.77.0: bilens popup – samma två tryck som knappen, och samma på/av. */
+function klimatKnText(){
+  const pa=klimatPa();
+  if(bekraftVantar('klimat'))return pa?'Tryck igen för att stoppa':'Tryck igen för att starta';
+  return pa?'Stoppa klimatisering':'Starta klimatisering';}
+async function klimatStarta(){
+  if(!bekraftKlar('klimat',function(){
+    const b=$('dbtn-klimat');if(b)b.textContent=klimatKnText();
+  },true))return;
+  try{const pa=await klimatVaxla();toast('Klimatisering '+(pa?'startad':'stoppad'));
+    try{if(DLG_OM.bil)DLG_OM.bil();}catch(e){}try{renderControls();}catch(e){}}
+  catch(e){toast('Gick inte: '+(e.message||''));}}
 async function korFlow(typ,id,n){
   try{await startaFlow(typ,id);toast((n||'Flow')+' startad');setTimeout(load,1500);}
   catch(e){toast('Gick inte: '+(e.message||''));}}
