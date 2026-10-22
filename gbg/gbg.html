@@ -1023,7 +1023,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.75.0';
+const APP_VERSION = 'v1.76.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1419,7 +1419,11 @@ async function homeySkriv(path,body){
         body:JSON.stringify(body),signal:t.signal});
       t.clear();
       if(r.ok){if(b!==BASE){BASE=b;_baseAt=Date.now();}return true;}
-      sistFel='HTTP '+r.status;
+      /* v1.76.0: Homey förklarar sina nej i svaret ({"error":"…"}). Förut
+         visades bara koden, och "HTTP 400" säger inte vad som är fel. */
+      let txt='';
+      try{const j=await r.json();txt=(j&&(j.error_description||j.error||j.message))||'';}catch(e2){}
+      sistFel='HTTP '+r.status+(txt?(': '+String(txt).slice(0,120)):'');
     }catch(e){t.clear();sistFel=(e&&e.name==='AbortError')?'tog för lång tid':'ingen kontakt';}
   }
   throw new Error(sistFel||'ingen kontakt');}
@@ -1434,7 +1438,11 @@ async function homeyPost(path){
         body:'{}',signal:t.signal});
       t.clear();
       if(r.ok){if(b!==BASE){BASE=b;_baseAt=Date.now();}return true;}
-      sistFel='HTTP '+r.status;
+      /* v1.76.0: Homey förklarar sina nej i svaret ({"error":"…"}). Förut
+         visades bara koden, och "HTTP 400" säger inte vad som är fel. */
+      let txt='';
+      try{const j=await r.json();txt=(j&&(j.error_description||j.error||j.message))||'';}catch(e2){}
+      sistFel='HTTP '+r.status+(txt?(': '+String(txt).slice(0,120)):'');
     }catch(e){t.clear();sistFel=(e&&e.name==='AbortError')?'tog för lång tid':'ingen kontakt';}
   }
   throw new Error(sistFel||'ingen kontakt');}
@@ -1876,13 +1884,21 @@ function innetemp(){
   return (v==null||!isFinite(v))?null:v;}
 
 /* ---------- styrknappar ---------- */
+/* v1.76.0: KLIMAT BIL gav HTTP 400. Knappen startade "Bil – klimatisering (v2)"
+   (be57e57c…), men det flödet har inget startkort – det körs av ett schema var
+   5:e minut, frågar via push och har triggerable=false. Homey vägrar då starta
+   det utifrån. Knappen startar nu ett eget litet flöde, likt Gottskärs
+   "EX40 · klimat på": Detta flöde startas → CLIMATIZATION_START på C40 → sätter
+   clim_done så att påminnelsen inte frågar igen samma dag. Skapat 2026-10-22. */
+const KLIMAT_FLOW='c0342f83-6ca4-499f-9c69-9fba6b81425c';
+const KLIMAT_FLOW_GAMMAL='be57e57c-d63b-4c1c-9af1-68521a8a90fc';
 const KNAPPAR_DEF=[
   {l:'Auto',      ic:'toggle-right', typ:'dev',  id:DEV.auto,     cap:'onoff'},
   {l:'Läggdags',  ic:'moon',         typ:'dev',  id:DEV.laggdags, cap:'onoff'},
   {l:'Släck allt',ic:'lightbulb-off',typ:'allt'},
   {l:'Fläkt',     ic:'fan',          typ:'dev',  id:DEV.flakt,    cap:'onoff'},
   {l:'Luftrenare',ic:'wind',         typ:'dev',  id:DEV.luftren,  cap:'onoff'},
-  {l:'Klimat bil',ic:'car',          typ:'flow', flow:'be57e57c-d63b-4c1c-9af1-68521a8a90fc', ftyp:'advanced'},
+  {l:'Klimat bil',ic:'car',          typ:'flow', flow:KLIMAT_FLOW, ftyp:'standard'},
 ];
 const KN_KEY='gbgknappar_v1';
 /* Bekräftelse med två tryck, som på Gottskär, men PER KNAPP: kryssrutan sitter
@@ -1946,6 +1962,10 @@ function knTaBortGamla(lista){
 }
 function knByteNamn(lista){
   let andrat=false;
+  /* v1.76.0: sparade knappar som pekar på det gamla, ostartbara klimatflödet. */
+  lista.forEach(b=>{
+    if(b&&b.typ==='flow'&&b.flow===KLIMAT_FLOW_GAMMAL){b.flow=KLIMAT_FLOW;b.ftyp='standard';andrat=true;}
+  });
   lista.forEach(b=>{
     KN_NAMNBYTEN.forEach(x=>{
       if(b&&b.typ===x.typ&&b.vilka===x.vilka&&b.l===x.fran){b.l=x.till;andrat=true;}
@@ -3837,7 +3857,7 @@ function openBil(){
       +dRow('Motor',capOf(d,'engine')===true?'<span class="chip warn">igång</span>':'<span class="chip off">av</span>')
       +dRow('Mätarställning',num(capOf(d,'odometer'),0)+' km');
     h+='<div class="dbtn-row">'
-      +'<button class="dbtn pri" onclick="korFlow(\'advanced\',\'be57e57c-d63b-4c1c-9af1-68521a8a90fc\',\'Klimatisering\')">Starta klimatisering</button></div>';
+      +'<button class="dbtn pri" onclick="korFlow(\'standard\',\''+KLIMAT_FLOW+'\',\'Klimatisering\')">Starta klimatisering</button></div>';
     return h;};
   DLG_OM.bil=()=>dlgSatt(g());
   openDlg('Volvo C40','car-profile',g(),'bil');}
