@@ -1023,7 +1023,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.77.0';
+const APP_VERSION = 'v1.78.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1453,6 +1453,10 @@ const satt=(id,c,v)=>{
     toast('Demoläge – inget skickas till Homey');
     return Promise.resolve({ok:true});
   }
+  /* v1.78.0: säg till appens handlingslogg att ändringen som kommer är vår.
+     Skickas först och väntas inte in — trycket ska aldrig bli långsammare
+     eller misslyckas för att loggen inte svarar. */
+  appAvsikt(id,c);
   return homeySkriv('/api/manager/devices/device/'+id+'/capability/'+c+'/',{value:v});};
 /* Verifierad endpoint: vanliga flows under flow/flow, advanced under
    flow/advancedflow. Fel gren ger 404. */
@@ -2655,6 +2659,64 @@ async function appHamta(){
     /* Gammal data får stå kvar: en tappad hämtning är inget skäl att glömma. */
   }
   try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}
+}
+/* ===== handlingsloggen (appen 1.1.0) =====
+   Appen loggar varje tändning, släckning, dimning och gardin, med en bild av
+   resten av huset i samma ögonblick. Härifrån: (1) talar dashboarden om vilka
+   ändringar som är dess egna, och (2) loggen kan laddas ner som en fil. */
+function appAvsikt(id,c){
+  try{
+    const b=(BASE||vagar()[0]||'').replace(/\/$/,'');
+    if(!b||!CONFIG.TOKEN)return;
+    const t=withTimeout(5000);
+    fetch(b+'/api/app/'+APP_ID+'/avsikt',{method:'POST',
+      headers:{Authorization:'Bearer '+CONFIG.TOKEN,'Content-Type':'application/json'},
+      body:JSON.stringify({id:String(id),cap:String(c)}),signal:t.signal})
+      .then(()=>t.clear(),()=>t.clear());
+  }catch(e){/* loggen är en bisak */}
+}
+var HSTAT=null,_hstatFel=null;
+async function handlingStatusHamta(){
+  try{HSTAT=await appGet('/handlingar/status');_hstatFel=null;}
+  catch(e){HSTAT=null;_hstatFel=(e&&e.message)||'okänt fel';}
+  const el=$('hl-status');if(el)el.innerHTML=handlingStatusHTML();
+}
+function handlingStatusHTML(){
+  if(!HSTAT||!Array.isArray(HSTAT.dagar)){
+    if(!_hstatFel)return dRow('Handlingslogg','hämtar…');
+    /* 404 = appen svarar men har ingen sådan väg, alltså äldre än 1.1.0. */
+    return dRow('Handlingslogg','<span style="color:var(--hot)">'+esc(/404/.test(_hstatFel)?'kräver appen 1.1.0':_hstatFel)+'</span>');
+  }
+  const tot=HSTAT.dagar.reduce((s,d)=>s+(d.antal||0),0),r=HSTAT.rakn||{};
+  return dRow('Handlingslogg',tot+' händelser · '+HSTAT.dagar.length+' dygn')
+    +dRow('Senaste',HSTAT.senast?(new Date(HSTAT.senast).toLocaleDateString('sv-SE',{day:'numeric',month:'short'})+' '+hhmm(new Date(HSTAT.senast))):'–')
+    +dRow('Fångade','<span style="font-size:11px">'+(r.realtid||0)+' realtid · '+(r.poll||0)+' via varv · '+(r.adaptivBort||0)+' adaptiva bortsorterade</span>');
+}
+/* Hela loggen som en fil. Ett dygn i taget — ett enda svar på 90 dygn blir
+   för stort för molnvägen. */
+async function handlingExport(){
+  const knapp=$('dbtn-hlexp'),sattText=t=>{if(knapp)knapp.textContent=t;};
+  try{
+    sattText('Hämtar…');
+    const st=await appGet('/handlingar/status');
+    const dagar=(st&&st.dagar)||[];
+    if(!dagar.length){toast('Loggen är tom');sattText('Ladda ner loggen');return;}
+    const ut={app:APP_ID,version:st.version,exporterad:new Date().toISOString(),katalog:{},handelser:[]};
+    for(let i=0;i<dagar.length;i++){
+      sattText('Hämtar '+(i+1)+'/'+dagar.length+'…');
+      const j=await appGet('/handlingar?dag='+encodeURIComponent(dagar[i].dag));
+      if(j&&j.katalog)Object.assign(ut.katalog,j.katalog);
+      if(j&&Array.isArray(j.handelser))ut.handelser=ut.handelser.concat(j.handelser);
+    }
+    const blob=new Blob([JSON.stringify(ut)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='gbg-handlingar-'+new Date().toLocaleDateString('sv-SE')+'.json';
+    document.body.appendChild(a);a.click();
+    setTimeout(()=>{try{URL.revokeObjectURL(a.href);a.remove();}catch(e){}},2000);
+    toast(ut.handelser.length+' händelser nedladdade');
+  }catch(e){toast('Kunde inte hämta loggen: '+((e&&e.message)||'fel'));}
+  sattText('Ladda ner loggen');
 }
 function appStatus(){
   if(APPDATA)return 'appen svarar · v'+esc(String(APPDATA.version||'?'))
@@ -4489,13 +4551,17 @@ function openInst(){
   h+=dSec('Bakgrundsloggning')
     +dRow('Homey-appen','<span style="font-size:11px">'+appStatus()+'</span>')
     +'<div class="setup-t">Städningar, utskrifter, batterinivåer och när bilen åker loggas av appen '+esc(APP_ID)+', som kör även när dashboarden är stängd.</div>'
-    +'<div class="dbtn-row"><button class="dbtn" data-app="hamta" onclick="appHamta().then(()=>{toast(APPDATA?\'Hämtat\':\'Appen svarar inte\');openInst();})">Hämta nu</button></div>';
+    +'<div class="dbtn-row"><button class="dbtn" data-app="hamta" onclick="appHamta().then(()=>{toast(APPDATA?\'Hämtat\':\'Appen svarar inte\');openInst();})">Hämta nu</button></div>'
+    +'<div id="hl-status">'+handlingStatusHTML()+'</div>'
+    +'<div class="setup-t">Handlingsloggen sparar vad som tänds, släcks, dimras och dras för, vem som gjorde det och hur resten av huset stod just då. 90 dygn. Underlag för nya automatiseringar.</div>'
+    +'<button class="dbtn wide" id="dbtn-hlexp" onclick="handlingExport()">Ladda ner loggen</button>';
   h+=dSec('Demoläge')
     +'<div class="setup-t">Öppnar samma sida med påhittad data: rum, enheter, bil, sensorer och en skrivare mitt i en utskrift. Inget läses från eller skickas till Homey, och din inloggning rörs inte.</div>'
     +'<div class="dbtn-row"><button class="dbtn" data-demo="ny" onclick="demoOppna(true)">Öppna i ny flik</button>'
     +'<button class="dbtn" data-demo="har" onclick="demoOppna(false)">Öppna här</button></div>';
   DLG_OM.inst=null;
-  openDlg('Inställningar','wrench',h,'inst');}
+  openDlg('Inställningar','wrench',h,'inst');
+  if(!DEMO)handlingStatusHamta();}
 function sparaKamera(){
   const v=($('in-kam')||{}).value||'';
   const c=credGet();credSet({token:c.token,homeyId:c.homeyId,lan:c.lan,kamera:v});
