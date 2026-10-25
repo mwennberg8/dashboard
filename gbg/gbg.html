@@ -675,18 +675,23 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .dlg-tb[hidden]{display:none}
 .dlg-tb:active{transform:scale(.94)}
 .dlg-tb .ic{width:17px;height:17px}
-.fp{animation:fpIn .18s ease-out}
-@keyframes fpIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* LUFT RUNT INNEHÅLLET (v1.81.0). Rutans kropp klipper allt som sticker
+   utanför den — det är så den håller sidled stilla. Kulans sken, den valda
+   knappens ring och reglagens prickar i ändlägena stack ut och klipptes.
+   12 px inåt räcker för alla tre.
+   Ingen inglidning: rutan ritas om när Homey svarar, och då spelades den upp
+   varje gång — det var det som hoppade. */
+.fp{padding:0 12px}
 /* Toppen: en lysande kula i lampans färg, läget i ord, och strömbrytaren. */
-.fp-topp{display:flex;align-items:center;gap:14px;padding:6px 2px 12px 8px}
-.fp-klot{width:58px;height:58px;border-radius:50%;flex:0 0 auto;position:relative;
+.fp-topp{display:flex;align-items:center;gap:16px;padding:14px 0 14px}
+.fp-klot{width:54px;height:54px;border-radius:50%;flex:0 0 auto;position:relative;
   background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.85),var(--fp-c,#888) 55%);
-  box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 18px var(--fp-c,transparent);transition:box-shadow .2s,background .2s}
+  box-shadow:0 0 0 1px rgba(0,0,0,.1),0 0 10px 1px var(--fp-c,transparent);transition:box-shadow .2s,background .2s}
 .fp-klot.av{background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.35),var(--inset) 60%);box-shadow:0 0 0 1px var(--line)}
 .fp-tt{flex:1 1 auto;min-width:0}
 .fp-tt b{display:block;font-size:15px;font-weight:760;letter-spacing:-.01em}
 .fp-tt small{display:block;font-size:11.5px;font-weight:620;color:var(--dim);margin-top:2px}
-.fp-dim{padding:0 2px 4px}
+.fp-dim{padding:0 0 4px}
 .fp-lage{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin:6px 0 14px;
   background:rgba(127,127,127,.13);border-radius:12px}
 .fp-flik{appearance:none;border:0;background:transparent;color:var(--dim);font:inherit;font-size:13px;font-weight:720;
@@ -695,20 +700,22 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .fp-flik i{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .fp-flik .fp-i-vitt{background:linear-gradient(90deg,#cfe0ff,#fff3e2,#ffb45e)}
 .fp-flik .fp-i-farg{background:conic-gradient(#f44,#fd3,#4d6,#3cf,#66f,#e4e,#f44)}
-.fp-h{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:720;color:var(--dim);margin:4px 2px 0}
+.fp-h{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:720;color:var(--dim);margin:4px 0 0}
 .fp-h b{margin-left:auto;font-weight:750;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
 /* Reglagen är dashboardens vanliga, men skåran är själva färgskalan och
    fyllningen göms — en fylld halva säger ingenting på en färgskala. Pricken
    får lampans färg. */
-.fp .fp-skala .slx{margin:2px 2px 8px;height:40px}
+.fp .fp-skala .slx{margin:2px 0 8px;height:40px}
 .fp .fp-skala .slx-fyll{display:none}
 .fp .fp-skala .slx-spar{height:14px;border-radius:8px;border:1px solid rgba(0,0,0,.12)}
-.fp .fp-skala .slx-prick{width:30px;height:30px;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)}
+/* 26 px som alla reglage: prickens mitt rör sig mellan 13 px och bredd−13,
+   så en större prick sticker ut i ändarna. */
+.fp .fp-skala .slx-prick{width:26px;height:26px;border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.4)}
 .fp-temp .slx-spar{background:linear-gradient(90deg,#c9dcff 0%,#eef3ff 22%,#fff6ea 45%,#ffd9a3 72%,#ffaa52 100%)}
 .fp-hue .slx-spar{background:linear-gradient(90deg,hsl(0,95%,55%),hsl(45,95%,55%),hsl(90,95%,50%),hsl(150,90%,48%),
   hsl(195,95%,52%),hsl(240,90%,62%),hsl(285,85%,60%),hsl(330,90%,58%),hsl(360,95%,55%))}
 .fp-sat .slx-spar{background:linear-gradient(90deg,#fff,hsl(var(--fp-h,30),95%,55%))}
-.fp-snabb{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:2px 2px 14px}
+.fp-snabb{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:2px 0 14px}
 .fp-s{appearance:none;width:100%;aspect-ratio:1;border-radius:50%;border:1px solid rgba(0,0,0,.14);
   cursor:pointer;padding:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
 .fp-s.on{outline:2px solid var(--ink);outline-offset:2px}
@@ -1078,7 +1085,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.80.0';
+const APP_VERSION = 'v1.81.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3706,14 +3713,17 @@ function fargLive(el,v){
    myslampor …) sparas — rubrik, ikon, nyckel och skrollläge — och pilen uppe
    till vänster ritar upp den igen. Krysset och tryck utanför stänger allt,
    precis som förut. */
-var _dlgForra=null;
+var _dlgForra=null,_fargSist='';
 function fargOppna(id){
   const d=DATA[id];if(!d)return;
   const b=$('dlg-body'),ic=$('dlg-ic'),ti=$('dlg-title');
   const forra=_dlgKey?{key:_dlgKey,titel:ti?ti.textContent:'',ic:ic?ic.innerHTML:'',y:b?b.scrollTop:0}:null;
   _fargId=id;
-  DLG_OM.farg=()=>dlgSatt(fargPopHTML(_fargId));
-  openDlg(namn(d),lampIkon(d),fargPopHTML(id),'farg');
+  /* Rita bara om när något faktiskt ändrats. Homey svarar var 15:e sekund,
+     och en omritning med samma innehåll ger bara ett ryck för ögat. */
+  DLG_OM.farg=()=>{const h=fargPopHTML(_fargId);if(h===_fargSist)return;_fargSist=h;dlgSatt(h);};
+  _fargSist=fargPopHTML(id);
+  openDlg(namn(d),lampIkon(d),_fargSist,'farg');
   _dlgForra=forra;
   const tb=$('dlg-tb');if(tb)tb.hidden=!forra;
   if(b)b.scrollTop=0;
