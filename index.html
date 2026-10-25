@@ -4199,7 +4199,7 @@ const grp=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
 const fmtKwh=v=>(v==null||!isFinite(v))?'–':(v<100?num(v,1):grp(Math.round(v)))+' <small>kWh</small>';
 const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
 const setT=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
-const esc=s=>(''+s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc=s=>(''+s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const zoneName=id=>{const z=ZONES[id];return z&&z.name?z.name:'';};
 const isSensorBatt=d=>['battery','car','evcharger'].indexOf(d.class||d.type||'')<0&&d.id!==BATT_MB;   /* v701: växelriktarens husbatteri är ingen sensor med lågt batteri */
 function tempColor(t){if(t==null)return'var(--faint)';if(t<18)return'var(--blue)';if(t<=23)return'var(--ok)';if(t<=26)return'var(--warm)';return'var(--hot)';}
@@ -14446,22 +14446,6 @@ function btRuta(namn,varde,extra,ik,farg){
     +'<span class="kr-v">'+varde+'</span>'
     +(extra?('<span class="kr-x">'+esc(extra)+'</span>'):'')+'</span></div>';}
 
-function btKl(t){
-  if(!t)return '';
-  try{return new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}
-  catch(e){return '';}}
-
-/* Rutor byggda som notisernas: ikon till vanster, etikett och varde till
-   hoger, fast hojd. Samma greppa-med-blicken som i sammanfattningarna. */
-function btRuta(namn,varde,extra,ik,farg){
-  if(varde==null)return '';
-  return '<div class="kr-c"><span class="kr-ic" style="color:'+(farg||'var(--faint)')+'">'
-    +icon(ik||'gauge')+'</span><span class="kr-tx">'
-    +'<span class="kr-l">'+esc(namn)+'</span>'
-    +'<span class="kr-v">'+varde+'</span>'
-    +(extra?('<span class="kr-x">'+extra+'</span>'):'')
-    +'</span></div>';}
-
 function btKlocka(t){
   if(!t)return '';
   try{return new Date(t).toLocaleTimeString('sv-SE',{hour:'2-digit',minute:'2-digit'});}
@@ -21109,7 +21093,7 @@ function beAdd(i){if(!Array.isArray(CONFIG.BUTTONS))CONFIG.BUTTONS=[];CONFIG.BUT
 function beRemove(i){if(!Array.isArray(CONFIG.BUTTONS))return;CONFIG.BUTTONS.splice(i,1);saveButtons();renderControls();if(CONFIG.BUTTONS.length){openBtnEdit(Math.max(0,Math.min(i,CONFIG.BUTTONS.length-1)));}else{closeDetail();}}
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v762';
+const APP_VERSION='v763';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
