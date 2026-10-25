@@ -1125,6 +1125,8 @@ var _carIdx=0,_carTimer=null,_carN=0,_carAuto=0;
 var INS_GROUPS=[['rekord','Årets rekord',4],['jamf','Jämförelser',4],['extrem','Extremer & spann',4],['kul','Kul att veta',4]];
 
 /* ---------- [vader.js] ---------- */
+/* v770: löpnummer för väderikonernas gradienter (vpIkon) – varje id unikt i sidan. */
+var _vpIkN=0;
 /* ===================== VÄDER-SIDAN (omarbetad) =====================
    Karta: riktiga OpenStreetMap-rutor som laddas av webbläsaren (dashboarden
    körs på hemmanätet och har internet). Ovanpå ritas vindfält, tryck och regn.
@@ -2600,7 +2602,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v769';
+const APP_VERSION='v770';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

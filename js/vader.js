@@ -1393,8 +1393,11 @@ function vpHTML(){
   const pres=cap(DEV.vader,'measure_pressure')||g('measure_air_pressure_cp'),tr=pressureTrend(pres);
   const moln=g('mean_value_of_total_cloud_cover_cp'),sikt=g('horizontal_visibility_cp'),aska=g('measure_thunder_probability_cp');
   const sol=wxSolTider();
-  return '<div class="dsec">Nu</div>'
-    +vpRad('Läge',esc(g('measure_weather_situation_cp')||'–'),wxIcon(g('measure_weather_situation_cp')),'var(--gold)')
+  /* v770: prognosen överst – det är den man öppnar rutan för. Läget nu är
+     uppslag och står under. */
+  return '<div id="vp-prog">'+vpPrognosHTML()+'</div>'
+    +'<div class="dsec">Nu</div>'
+    +vpRad('Läge',esc(g('measure_weather_situation_cp')||'–'),wxIcon(g('measure_weather_situation_cp')),vpIkFarg(wxIcon(g('measure_weather_situation_cp'))))
     +vpRad('Ute',(tOut==null?'–':num(tOut,1)+' °C'),'thermometer','var(--hot)')
     +vpRad('Känns som',(g('air_temperature_feels_like_cp')==null?'–':num(g('air_temperature_feels_like_cp'),0)+' °C'),'thermometer','var(--warm)')
     +vpRad('Lägst idag',(ex.min==null?'–':num(ex.min,1)+' °C'),'thermometer-cold','var(--blue)')
@@ -1406,14 +1409,15 @@ function vpHTML(){
     +vpRad('Sikt',(sikt==null?'–':num(sikt,0)+' km'),'cloud-fog','var(--faint)')
     +vpRad('Åska',(aska==null?'–':Math.round(aska)+' %'),'lightning','var(--gold)')
     +vpRad('Sol upp – ned',sol.upp+' – '+sol.ned,'sun-horizon','var(--gold)')
-    +'<div id="vp-prog">'+vpPrognosHTML()+'</div>'
     +smhiStatusRad();}
 /* En datarad med egen ikon – drRutor gör den till en ruta som de andra. */
 function vpRad(k,v,ik,farg){
   return '<div class="drow" data-ik="'+ik+'" data-ikf="'+farg+'"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
 /* SMHI:s väderkod (1–27) som ikon och text. Saknas koden räcker moln och
-   nederbörd till en grov bild. Klart på natten blir en måne. */
-function vpSym(f){
+   nederbörd till en grov bild. Klart på natten blir en måne och halvklart ett
+   moln (det finns ingen måne-med-moln-ikon). dag=true ger alltid dagsikonen –
+   dagraderna sammanfattar dygnet, inte kvällen just nu. */
+function vpSym(f,dag){
   const T=['','Klart','Nästan klart','Växlande molnighet','Halvklart','Molnigt','Mulet','Dimma',
     'Lätta regnskurar','Regnskurar','Kraftiga regnskurar','Åskskurar',
     'Lätta byar av snöblandat regn','Byar av snöblandat regn','Kraftiga byar av snöblandat regn',
@@ -1427,8 +1431,31 @@ function vpSym(f){
   else if(f.tcc<=2){ik='sun';txt='Klart';}
   else if(f.tcc<=5){ik='cloud-sun';txt='Halvklart';}
   else{ik='cloud';txt='Mulet';}
-  if(ik==='sun'&&vpNatt(f.t))ik='moon';
+  if(!dag&&(ik==='sun'||ik==='cloud-sun')&&vpNatt(f.t))ik=(ik==='sun')?'moon':'cloud';
   return [ik,txt];}
+/* v770: VÄDERIKONER I FÄRG. Gul sol och blixt, grå moln, blått regn, vit snö,
+   ljusgrå dimma. Ikonerna är en enda form, så de tvåfärgade får en gradient med
+   hårt skifte: molnen sitter ovanför regnet och dimman (skifte i höjdled),
+   solen uppe till vänster om molnet (skifte på diagonalen). Gränserna är
+   uppmätta i ikonerna ritade i 256 px: regnmolnets nederkant slutar på rad 167
+   och dropparna börjar direkt under (66,5 %); dimmolnet slutar på rad 175 och
+   raderna 176–190 är tomma (70 %). Färgerna är variabler (--vx-*) som
+   byts med temat. */
+function vpIkFarg(ik){
+  return ({sun:'var(--gold)',moon:'var(--gold)',lightning:'var(--gold)',snowflake:'var(--vx-sno)',
+    'cloud-rain':'var(--vx-regn)','cloud-fog':'var(--vx-dimma)'})[ik]||'var(--vx-moln)';}
+function vpIkon(ik){
+  const p=ICONS[ik];if(!p)return '';
+  const TVA={'cloud-rain':['var(--vx-moln)','var(--vx-regn)',0,0,0,256,66.5],
+    'cloud-fog':['var(--vx-moln)','var(--vx-dimma)',0,0,0,256,70],
+    'cloud-sun':['var(--gold)','var(--vx-moln)',0,0,256,256,39]};
+  const t=TVA[ik];
+  if(!t)return '<svg class="ic" viewBox="0 0 256 256" aria-hidden="true" style="color:'+vpIkFarg(ik)+'">'+p+'</svg>';
+  const id='vpg'+(++_vpIkN);
+  return '<svg class="ic" viewBox="0 0 256 256" aria-hidden="true"><defs><linearGradient id="'+id+'" gradientUnits="userSpaceOnUse"'
+    +' x1="'+t[2]+'" y1="'+t[3]+'" x2="'+t[4]+'" y2="'+t[5]+'">'
+    +'<stop offset="'+t[6]+'%" style="stop-color:'+t[0]+'"/><stop offset="'+t[6]+'%" style="stop-color:'+t[1]+'"/></linearGradient></defs>'
+    +'<g fill="url(#'+id+')">'+p+'</g></svg>';}
 function vpNatt(t){try{const d=new Date(t);return solar(d,CONFIG.LAT,CONFIG.LON,-d.getTimezoneOffset()).elevation<-0.83;}catch(e){return false;}}
 /* Nederbörden i snow1g är millimeter per timme. Prognosen glesnar till 3, 6
    och 12 timmar mellan punkterna längre fram, så varje punkt räknas för tiden
@@ -1446,7 +1473,7 @@ function vpPrognosHTML(){
     const sy=vpSym(f),d=new Date(f.t);
     h+='<div class="vp-t'+(n===0?' nu':'')+'" title="'+esc(sy[1])+'">'
       +'<span class="vp-tk">'+(n===0?'Nu':('0'+d.getHours()).slice(-2))+'</span>'
-      +'<span class="vp-ti">'+icon(sy[0])+'</span>'
+      +'<span class="vp-ti">'+vpIkon(sy[0])+'</span>'
       +'<span class="vp-tt">'+(f.temp==null?'–':num(f.temp,0)+'°')+'</span>'
       +'<span class="vp-tp">'+(f.p!=null&&f.p>=0.1?num(f.p,1)+' mm':'&nbsp;')+'</span>'
       +'<span class="vp-tw">'+(f.ws==null?'–':num(f.ws,0)+(f.gust!=null?'<small>('+num(f.gust,0)+')</small>':''))+'</span></div>';
@@ -1467,10 +1494,10 @@ function vpPrognosHTML(){
     if(md<o.md){o.md=md;o.mitt=f;}}
   h+='<div class="dsec">Kommande dagar</div><div class="vp-dagar">';
   dagar.forEach(function(o,j){
-    const sy=vpSym(o.mitt),namn=j===0?'Idag':j===1?'Imorgon':(D[o.d.getDay()]+' '+o.d.getDate());
+    const sy=vpSym(o.mitt,true),namn=j===0?'Idag':j===1?'Imorgon':(D[o.d.getDay()]+' '+o.d.getDate());
     h+='<div class="vp-d" title="'+esc(sy[1])+'">'
       +'<span class="vp-dn">'+namn+'</span>'
-      +'<span class="vp-di">'+icon(sy[0])+'</span>'
+      +'<span class="vp-di">'+vpIkon(sy[0])+'</span>'
       +'<span class="vp-dt"><b>'+(o.max==null?'–':num(o.max,0)+'°')+'</b> '+(o.min==null?'':num(o.min,0)+'°')+'</span>'
       +'<span class="vp-dp">'+(o.mm>=0.1?num(o.mm,1)+' mm':'')+'</span>'
       +'<span class="vp-dw">'+(o.vind==null?'':num(o.vind,0)+(o.by!=null?'<small>('+num(o.by,0)+')</small>':'')+' m/s')+'</span></div>';});
