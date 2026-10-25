@@ -883,7 +883,10 @@ function buildWeatherHTML(){
     +'<div class="wx2-by" style="font-size:'+zKB+'px">'+(feels!=null?('Känns<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span>'):'&nbsp;')+'</div>'
     +'<div class="wx2-sub" style="font-size:'+zNsub+'px">'+esc(sit||'Väder')+'</div></div></div>';
   h+='<span class="wxv-linje" aria-hidden="true"></span>';
-  h+='<div class="wx2-wind wxv-halva wx-click" onclick="openVader()">'+windArrow(wdir,zIk,zArrColor)
+  /* v765: vindhalvan öppnar vindpopupen (graf, högsta nu, riktning, SMHI). Förut
+     openVader() – men kortet står på Väder-sidan, så trycket gjorde ingenting.
+     Popupen nåddes tidigare via Max vind/Max by i remsan, som försvann i v748. */
+  h+='<div class="wx2-wind wxv-halva wx-click" onclick="openDetail(\'wind\')">'+windArrow(wdir,zIk,zArrColor)
     +'<div class="wx2-wind-txt"><div class="wx2-line"><span class="wx2-wv" style="font-size:'+zNumV+'px">'+(wspd==null?'–':num(wspd,1)+'<small>m/s</small>')+'</span></div>'
     +'<div class="wx2-by" style="font-size:'+zKB+'px">'+(wBy||wdir_txt?(esc(wBy)
       +(wBy&&wdir_txt?'<span class="wx2-pt">·</span>':'')
