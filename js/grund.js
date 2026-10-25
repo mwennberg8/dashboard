@@ -388,7 +388,8 @@ function drawChart(elId,ss,opts){
   const el=$(elId);if(!el)return;opts=opts||{};
   const all=[].concat.apply([],ss.map(s=>s.points||[]));
   if(all.length<2){el.innerHTML='<div class="chart-empty">samlar data… grafen fylls på medan sidan är öppen</div>';return;}
-  const Wd=1000,H=150,pT=12,pB=24,pL=2,pR=2;
+  /* v769: pL/pR 2 → 17 (5 av 300, som elnätsgrafen), så avläsningspricken får plats vid kanten. */
+  const Wd=1000,H=150,pT=12,pB=24,pL=17,pR=17;
   let tMin=Math.min.apply(0,all.map(p=>p.t)),tMax=Math.max.apply(0,all.map(p=>p.t));
   let vMin=Math.min.apply(0,all.map(p=>p.v)),vMax=Math.max.apply(0,all.map(p=>p.v));
   /* Kom ihåg om datan var helt positiv INNAN luft läggs till. */

@@ -142,18 +142,20 @@ function progKurvaSVG(off,cid){
   var t0=dagT0+Math.max(0,upp-0.5)*3600000;
   var t1=dagT0+Math.min(24,ner+0.5)*3600000;
   /* Ingen egen kolumn längre: kurvan får hela bredden. */
-  var vxL=0;
-  var X=function(ms){return vxL+((ms-t0)/(t1-t0))*(W-vxL);};
+  /* v769: marginal i båda sidor som elnätsgrafen (5 av 300), så
+     avläsningspricken får plats vid kurvans ändar. */
+  var vxL=W*5/300,vxR=W-vxL;
+  var X=function(ms){return vxL+((ms-t0)/(t1-t0))*(vxR-vxL);};
   var Y=function(v){return pT+(1-Math.max(0,Math.min(1,v/max)))*(H-pT-pB);};
   /* Prognosen ritas som en yta: den ar en uppskattning, inte en matning, och
      ska inte se lika bestamd ut som den faktiska kurvan. */
   var d='M'+vxL+' '+Y(0).toFixed(1);
   for(var h=0;h<24;h++){
     var hx=X(dagT0+(h+0.5)*3600000);
-    if(hx<vxL-2||hx>W+2)continue;           /* utanför det beskurna fönstret */
+    if(hx<vxL-2||hx>vxR+2)continue;           /* utanför det beskurna fönstret */
     d+=' L'+hx.toFixed(1)+' '+Y(e.timmar[h]).toFixed(1);
   }
-  d+=' L'+W+' '+Y(0).toFixed(1)+' L'+W+' '+(H-pB)+' L'+vxL+' '+(H-pB)+' Z';
+  d+=' L'+vxR+' '+Y(0).toFixed(1)+' L'+vxR+' '+(H-pB)+' L'+vxL+' '+(H-pB)+' Z';
   /* Klockslagen ritades förut som <text> här inne. De ligger numera i den
      gemensamma tidsaxeln under grafen — samma ställe och samma stil som i alla
      andra grafer. Stödlinjerna på tredjedelarna är kvar: utan dem gick det
@@ -523,7 +525,10 @@ function windChartHTML(cid){
     if(s.axel==='deg'){harDeg=true;return;}
     harMs=true;s.p.forEach(function(x){if(x.v>msMax)msMax=x.v;});});
   msMax=Math.max(1,msMax*1.12);
-  var X=function(t){return ((t-tMin)/((tMax-tMin)||1))*W;};
+  /* v769: marginal i sidled som elnätsgrafen (5 av 300), så avläsningspricken
+     får plats vid kurvans ändar. */
+  var pX=W*5/300;
+  var X=function(t){return pX+((t-tMin)/((tMax-tMin)||1))*(W-2*pX);};
   var Y=function(v,ax){var f=(ax==='deg')?(v/360):(v/msMax);
     return pT+(1-Math.max(0,Math.min(1,f)))*(H-pT-pB);};
   var b='';
@@ -1573,22 +1578,21 @@ function avlDelar(id){
   var g=_avlGeo[id];if(!g)return tom;
   var vald=_avlVald[id];if(vald==null)return tom;
   var t=vald, xp=avlXp(g,t), h='', rutor='';
-  /* v768: strecket och pricken kläms i PIXLAR, och lika mycket, så att de alltid
-     sitter ihop. Förut kläms pricken till 1,6–98,4 % (radien på en 300 px bred
-     graf) och strecket till 0,3–99,7 %: på plattan stannade pricken 9 px före
-     strecket, och i vindgrafen – som ritar ända ut i kanten – syntes det. 7 px
-     är prickens största radie (4,5 px + 2,5 px ring under drag). Strecket är
-     1,5 px brett från sin vänsterkant, därav 0,75 px åt vardera hållet. */
-  h+='<span class="avl-lin" style="left:clamp(6.25px,'+xp.toFixed(2)+'%,calc(100% - 7.75px))"></span>';
+  /* v769: INGEN KLÄMNING. Pricken och strecket sitter exakt där kurvan är, även
+     vid kanten. Förut kläms de in mot mitten (v768: 7 px), och i grafer som
+     ritade ända ut i kanten stannade pricken då före kurvans slut. Graferna har
+     i stället en marginal i sidled, som elnätsgrafen (5 av 300), så pricken får
+     plats innanför. Strecket är 1,5 px brett från sin vänsterkant – -0,75 px
+     centrerar det på punkten. */
+  h+='<span class="avl-lin" style="left:calc('+xp.toFixed(2)+'% - 0.75px)"></span>';
   for(var i=0;i<g.ser.length;i++){
     var s=g.ser[i],p=avlKurva(g,s,t);
     if(!p||p.v==null||!isFinite(p.v)||!isFinite(p.y))continue;
     var yp=Math.max(0,Math.min(100,(p.y/(g.H||1))*100));
     var f=(typeof s.farg==='function')?s.farg(p.v):(s.farg||'var(--ink)');
-    /* Pricken är centrerad på sin punkt (translate -50%). Vid NU, som ligger på
-       100 %, hamnade halva utanför ritytan – därför klämningen, se strecket. */
+    /* Pricken är centrerad på sin punkt (translate -50%), se strecket ovan. */
     var dx=Math.max(0,Math.min(100,(p.x/(g.W||1))*100));
-    h+='<span class="avl-dot" style="left:clamp(7px,'+dx.toFixed(2)+'%,calc(100% - 7px));top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
+    h+='<span class="avl-dot" style="left:'+dx.toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
     rutor+='<b style="color:'+f+'">'+esc(avlText(s,p.v))+'</b>';
   }
   if(!rutor)return tom;
@@ -1743,7 +1747,8 @@ function dayChart(series,fonster){
   var tr=(t1-t0)||1,W=300,H=132,padT=8,padB=6;
   var vs=[];segs.forEach(function(o){o.seg.forEach(function(p){vs.push(p.v);});});
   var vmax=niceMax(Math.max.apply(null,vs)),vmin=niceMin(Math.min.apply(null,vs));
-  var X=function(t){return (t-t0)/tr*W;};
+  /* v769: marginal i sidled som elnätsgrafen, så avläsningspricken får plats. */
+  var X=function(t){return 5+(t-t0)/tr*(W-10);};
   var Y=function(v){return H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB);};
   var ticks=(vmin<0)?[vmax,0,vmin]:[vmax,vmax/2,0];
   var sel=_chartSel[cid]||{},active=Object.keys(sel).length>0;
@@ -1841,7 +1846,8 @@ function yearOverlayChart(key,colMap,cid){
   var lfm=lastFullMonth();
   var byYear=years.map(function(yr){var vals=[];for(var mo=1;mo<=12;mo++){var mm=(mo<10?'0':'')+mo,rec=null;if(!(yr===cy&&mo>lfm)){for(var i=0;i<SEED_MONTHS.length;i++){if(SEED_MONTHS[i].m===yr+'-'+mm){rec=SEED_MONTHS[i];break;}}}var v=rec?rec[key]:null;if(v!=null&&v>maxV)maxV=v;vals.push(v);}return {year:yr,vals:vals};});
   var vmax=niceMax(maxV);
-  var x=function(mo){return ((mo-1)/11)*W;};
+  /* v769: marginal i sidled som elnätsgrafen, så avläsningspricken får plats. */
+  var x=function(mo){return 5+((mo-1)/11)*(W-10);};
   var y=function(v){return H-padB-(v/vmax)*(H-padT-padB);};
   var ticks=[vmax,vmax/2,0];
   function pathPts(vals){var pts=[];for(var i=0;i<12;i++){if(vals[i]!=null)pts.push([x(i+1),y(vals[i])]);}return pts;}
