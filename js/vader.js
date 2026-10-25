@@ -1381,3 +1381,97 @@ function renderVader(){
   wxFullRita();
   try{initIcons();}catch(e){}
 }
+
+/* ===== v766: VÄDERPOPUPEN =====
+   Vädersidans väderhalva öppnar den här, som vindhalvan öppnar vindpopupen.
+   Först läget nu som rutor, sedan SMHI:s prognos: kommande timmar som en rad
+   att svepa i, kommande dagar en rad per dag. Prognosen är samma FORECAST som
+   solmodellen redan hämtar (snow1g) – ingen ny källa. */
+function vpHTML(){
+  const g=k=>cap(DEV.smhi,k);
+  const tOut=cap(DEV.outdoor,'measure_temperature'),ex=tempExtremes(tOut);
+  const pres=cap(DEV.vader,'measure_pressure')||g('measure_air_pressure_cp'),tr=pressureTrend(pres);
+  const moln=g('mean_value_of_total_cloud_cover_cp'),sikt=g('horizontal_visibility_cp'),aska=g('measure_thunder_probability_cp');
+  const sol=wxSolTider();
+  return '<div class="dsec">Nu</div>'
+    +vpRad('Läge',esc(g('measure_weather_situation_cp')||'–'),wxIcon(g('measure_weather_situation_cp')),'var(--gold)')
+    +vpRad('Ute',(tOut==null?'–':num(tOut,1)+' °C'),'thermometer','var(--hot)')
+    +vpRad('Känns som',(g('air_temperature_feels_like_cp')==null?'–':num(g('air_temperature_feels_like_cp'),0)+' °C'),'thermometer','var(--warm)')
+    +vpRad('Lägst idag',(ex.min==null?'–':num(ex.min,1)+' °C'),'thermometer-cold','var(--blue)')
+    +vpRad('Högst idag',(ex.max==null?'–':num(ex.max,1)+' °C'),'thermometer-hot','var(--hot)')
+    +vpRad('Luftfuktighet',(cap(DEV.outdoor,'measure_humidity')==null?'–':num(cap(DEV.outdoor,'measure_humidity'),0)+' %'),'drop-half-bottom','var(--blue)')
+    +vpRad('Lufttryck',(pres==null?'–':num(pres,0)+' hPa'+(tr>0?' ↑':tr<0?' ↓':' →')),'gauge','var(--faint)')
+    +vpRad('Regn 24 h',(cap(DEV.rain,'measure_rain.24h')==null?'–':num(cap(DEV.rain,'measure_rain.24h'),1)+' mm'),'cloud-rain','var(--blue)')
+    +vpRad('Molnighet',(moln==null?'–':Math.round(moln)+'/8'),'cloud','var(--faint)')
+    +vpRad('Sikt',(sikt==null?'–':num(sikt,0)+' km'),'cloud-fog','var(--faint)')
+    +vpRad('Åska',(aska==null?'–':Math.round(aska)+' %'),'lightning','var(--gold)')
+    +vpRad('Sol upp – ned',sol.upp+' – '+sol.ned,'sun-horizon','var(--gold)')
+    +'<div id="vp-prog">'+vpPrognosHTML()+'</div>'
+    +smhiStatusRad();}
+/* En datarad med egen ikon – drRutor gör den till en ruta som de andra. */
+function vpRad(k,v,ik,farg){
+  return '<div class="drow" data-ik="'+ik+'" data-ikf="'+farg+'"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
+/* SMHI:s väderkod (1–27) som ikon och text. Saknas koden räcker moln och
+   nederbörd till en grov bild. Klart på natten blir en måne. */
+function vpSym(f){
+  const T=['','Klart','Nästan klart','Växlande molnighet','Halvklart','Molnigt','Mulet','Dimma',
+    'Lätta regnskurar','Regnskurar','Kraftiga regnskurar','Åskskurar',
+    'Lätta byar av snöblandat regn','Byar av snöblandat regn','Kraftiga byar av snöblandat regn',
+    'Lätta snöbyar','Snöbyar','Kraftiga snöbyar','Lätt regn','Regn','Kraftigt regn','Åska',
+    'Lätt snöblandat regn','Snöblandat regn','Kraftigt snöblandat regn','Lätt snöfall','Snöfall','Kraftigt snöfall'];
+  const s=f.sym;let ik,txt=(s>=1&&s<=27)?T[s]:null;
+  if(txt)ik=(s===11||s===21)?'lightning':s===7?'cloud-fog':((s>=15&&s<=17)||s>=25)?'snowflake'
+    :s>=8?'cloud-rain':s<=2?'sun':s<=4?'cloud-sun':'cloud';
+  else if(f.p!=null&&f.p>=0.1){const sno=f.temp!=null&&f.temp<=0;ik=sno?'snowflake':'cloud-rain';txt=sno?'Snö':'Regn';}
+  else if(f.tcc==null){ik='cloud-sun';txt='';}
+  else if(f.tcc<=2){ik='sun';txt='Klart';}
+  else if(f.tcc<=5){ik='cloud-sun';txt='Halvklart';}
+  else{ik='cloud';txt='Mulet';}
+  if(ik==='sun'&&vpNatt(f.t))ik='moon';
+  return [ik,txt];}
+function vpNatt(t){try{const d=new Date(t);return solar(d,CONFIG.LAT,CONFIG.LON,-d.getTimezoneOffset()).elevation<-0.83;}catch(e){return false;}}
+/* Nederbörden i snow1g är millimeter per timme. Prognosen glesnar till 3, 6
+   och 12 timmar mellan punkterna längre fram, så varje punkt räknas för tiden
+   fram till nästa – annars blir dygnssumman för låg de sista dagarna. */
+function vpSteg(i){const a=FORECAST[i],b=FORECAST[i+1];
+  return b?Math.max(1,Math.min(12,(b.t-a.t)/3600000)):1;}
+function vpPrognosHTML(){
+  if(!FORECAST||!FORECAST.length)
+    return '<div class="dsec">Prognos</div><div class="vp-tom">Prognosen hämtas från SMHI…</div>';
+  const nu=Date.now(),D=['sön','mån','tis','ons','tor','fre','lör'];
+  /* Kommande timmar: de närmaste 24 punkterna från den pågående timmen. */
+  let h='<div class="dsec">Kommande timmar <em class="dsec-x">• SMHI</em></div><div class="vp-tim">';
+  let n=0;
+  for(let i=0;i<FORECAST.length&&n<24;i++){const f=FORECAST[i];if(f.t<nu-1800000)continue;
+    const sy=vpSym(f),d=new Date(f.t);
+    h+='<div class="vp-t'+(n===0?' nu':'')+'" title="'+esc(sy[1])+'">'
+      +'<span class="vp-tk">'+(n===0?'Nu':('0'+d.getHours()).slice(-2))+'</span>'
+      +'<span class="vp-ti">'+icon(sy[0])+'</span>'
+      +'<span class="vp-tt">'+(f.temp==null?'–':num(f.temp,0)+'°')+'</span>'
+      +'<span class="vp-tp">'+(f.p!=null&&f.p>=0.1?num(f.p,1)+' mm':'&nbsp;')+'</span>'
+      +'<span class="vp-tw">'+(f.ws==null?'–':num(f.ws,0)+(f.gust!=null?'<small>('+num(f.gust,0)+')</small>':''))+'</span></div>';
+    n++;}
+  h+='</div><div class="vp-fork">Temperatur, nederbörd och vind i m/s, byvind inom parentes</div>';
+  /* Kommande dagar: lägst/högst, nederbörd och vind per dygn. Ikonen är
+     läget mitt på dagen; för i dag den närmaste punkten. */
+  const dagar=[];
+  for(let i=0;i<FORECAST.length;i++){const f=FORECAST[i];if(f.t<nu-1800000)continue;
+    const d=new Date(f.t),k=d.getFullYear()*10000+d.getMonth()*100+d.getDate();
+    let o=dagar.length?dagar[dagar.length-1]:null;
+    if(!o||o.k!==k){if(dagar.length>=7)break;o={k:k,d:d,min:null,max:null,mm:0,vind:null,by:null,mitt:null,md:Infinity};dagar.push(o);}
+    if(f.temp!=null){o.min=o.min==null?f.temp:Math.min(o.min,f.temp);o.max=o.max==null?f.temp:Math.max(o.max,f.temp);}
+    if(f.p!=null)o.mm+=f.p*vpSteg(i);
+    if(f.ws!=null)o.vind=Math.max(o.vind||0,f.ws);
+    if(f.gust!=null)o.by=Math.max(o.by||0,f.gust);
+    const md=dagar.length===1?0:Math.abs(d.getHours()+d.getMinutes()/60-13);
+    if(md<o.md){o.md=md;o.mitt=f;}}
+  h+='<div class="dsec">Kommande dagar</div><div class="vp-dagar">';
+  dagar.forEach(function(o,j){
+    const sy=vpSym(o.mitt),namn=j===0?'Idag':j===1?'Imorgon':(D[o.d.getDay()]+' '+o.d.getDate());
+    h+='<div class="vp-d" title="'+esc(sy[1])+'">'
+      +'<span class="vp-dn">'+namn+'</span>'
+      +'<span class="vp-di">'+icon(sy[0])+'</span>'
+      +'<span class="vp-dt"><b>'+(o.max==null?'–':num(o.max,0)+'°')+'</b> '+(o.min==null?'':num(o.min,0)+'°')+'</span>'
+      +'<span class="vp-dp">'+(o.mm>=0.1?num(o.mm,1)+' mm':'')+'</span>'
+      +'<span class="vp-dw">'+(o.vind==null?'':num(o.vind,0)+(o.by!=null?'<small>('+num(o.by,0)+')</small>':'')+' m/s')+'</span></div>';});
+  return h+'</div>';}

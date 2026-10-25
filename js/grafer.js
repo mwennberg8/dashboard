@@ -877,7 +877,10 @@ function buildWeatherHTML(){
     +'<span class="wx2-hl-ic"'+(up?'':' style="transform:rotate(180deg)"')+'>'+icon('arrow-fat-up')+'</span>'
     +(v==null?'–':num(v,1)+'°')+'</span>';
   let h='<div class="wx2 wxv" data-wxedit="now">';
-  h+='<div class="wx2-now wxv-halva wx-click" onclick="openVader()"><span class="wx2-ic" style="width:'+zIk+'px;height:'+zIk+'px">'+icon(wxIcon(sit))+'</span>'
+  /* v766: väderhalvan öppnar väderpopupen med prognosen (vpHTML), som
+     vindhalvan öppnar vindpopupen. Lägst/högst-stapeln öppnar fortfarande
+     Temperaturer. */
+  h+='<div class="wx2-now wxv-halva wx-click" onclick="openDetail(\'weather\')"><span class="wx2-ic" style="width:'+zIk+'px;height:'+zIk+'px">'+icon(wxIcon(sit))+'</span>'
     +'<div class="wx2-now-txt"><div class="wx2-line"><span class="wx2-temp" style="font-size:'+zNumV+'px">'+(tOut==null?'–':num(tOut,1)+'°')+'</span>'
     +'<span class="wx2-hlk wx-click" style="font-size:'+zHl+'px" onclick="event.stopPropagation();openDetail(\'temps\')">'+hlr('Högst',ex.max,true)+hlr('Lägst',ex.min,false)+'</span></div>'
     +'<div class="wx2-by" style="font-size:'+zKB+'px">'+(feels!=null?('Känns<span class="wx2-dir" style="font-size:'+zDir+'px">'+num(feels,0)+'°</span>'):'&nbsp;')+'</div>'

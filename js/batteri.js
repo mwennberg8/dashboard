@@ -878,9 +878,11 @@ function openDetailKarna(which){
     const bdb=$('dlg-body');if(bdb)bdb.innerHTML=buildBoughtYear();
     const bkb=$('dlg-back');if(bkb&&bkb.classList)bkb.classList.add('open');dlgTop();return;
   }else if(which==='weather'){title='Väder · Onsala';
-    const wd=windDeg(),wab=windDirTxt(wd);
-    body=dRow('Läge',esc(cap(DEV.smhi,'measure_weather_situation_cp')||'–'))+dRow('Temperatur',num(cap(DEV.outdoor,'measure_temperature'),1)+' °C')+dRow('Känns som',num(cap(DEV.smhi,'air_temperature_feels_like_cp'),0)+' °C')+dRow('Vind',num(vindMs(),1)+' m/s'+(wab?' '+wab:''))+dRow('Byvind',num(byMs(),1)+' m/s')+dRow('Luftfukt',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Regn 24h',num(cap(DEV.rain,'measure_rain.24h'),1)+' mm')+dRow('Lufttryck',num(cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),0)+' hPa')
-      +smhiStatusRad();
+    /* v766: läget nu som rutor och SMHI:s prognos – se vpHTML. Har prognosen
+       inte kommit än hämtas den, och prognosdelen ritas om när den landat. */
+    body=vpHTML();
+    if(!FORECAST)fetchSmhiForecast().then(function(){var e=$('vp-prog');
+      if(e&&_dlgWhich==='weather'){e.innerHTML=vpPrognosHTML();}});
   }else if(which==='humidity'){title='Luftfuktighet';
     body=dRow('Utomhus',num(cap(DEV.outdoor,'measure_humidity'),0)+' %')+dRow('Inne · kök',num(cap(DEV.vader,'measure_humidity'),0)+' %')+dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
   }else if(which==='rain'){title='Regn';

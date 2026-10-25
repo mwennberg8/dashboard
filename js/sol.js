@@ -363,7 +363,7 @@ function smhiUrl(){return 'https://opendata-download-metfcst.smhi.se/api/categor
 function parseSmhiForecast(j){const ts=j&&j.timeSeries;if(!Array.isArray(ts))return null;const out=[];
   const val=(d,k)=>{const v=d?d[k]:null;return (v==null||v===9999||v===-9||v===-8)?null:Number(v);};
   ts.forEach(e=>{const t=new Date(e.time||e.validTime).getTime();if(isNaN(t))return;const d=e.data||{};
-    out.push({t:t,temp:val(d,'air_temperature'),ws:val(d,'wind_speed'),wd:val(d,'wind_from_direction'),gust:val(d,'wind_speed_of_gust'),r:val(d,'relative_humidity'),msl:val(d,'air_pressure_at_mean_sea_level'),p:val(d,'precipitation_amount_mean'),tcc:val(d,'cloud_area_fraction')});});
+    out.push({t:t,temp:val(d,'air_temperature'),ws:val(d,'wind_speed'),wd:val(d,'wind_from_direction'),gust:val(d,'wind_speed_of_gust'),r:val(d,'relative_humidity'),msl:val(d,'air_pressure_at_mean_sea_level'),p:val(d,'precipitation_amount_mean'),tcc:val(d,'cloud_area_fraction'),sym:val(d,'symbol_code')});});
   return out.length?out:null;}
 async function fetchSmhiForecast(){const now=Date.now();if(FORECAST&&now-_fcLast<25*60000)return;_fcLast=now;
   var t0=Date.now();
