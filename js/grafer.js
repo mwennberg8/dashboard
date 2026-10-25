@@ -1573,19 +1573,22 @@ function avlDelar(id){
   var g=_avlGeo[id];if(!g)return tom;
   var vald=_avlVald[id];if(vald==null)return tom;
   var t=vald, xp=avlXp(g,t), h='', rutor='';
-  /* Strecket är 1,5 px; kläm så att det inte hamnar utanför ritytans kant. */
-  var linX=Math.max(0.3,Math.min(99.7,xp));
-  h+='<span class="avl-lin" style="left:'+linX.toFixed(2)+'%"></span>';
+  /* v768: strecket och pricken kläms i PIXLAR, och lika mycket, så att de alltid
+     sitter ihop. Förut kläms pricken till 1,6–98,4 % (radien på en 300 px bred
+     graf) och strecket till 0,3–99,7 %: på plattan stannade pricken 9 px före
+     strecket, och i vindgrafen – som ritar ända ut i kanten – syntes det. 7 px
+     är prickens största radie (4,5 px + 2,5 px ring under drag). Strecket är
+     1,5 px brett från sin vänsterkant, därav 0,75 px åt vardera hållet. */
+  h+='<span class="avl-lin" style="left:clamp(6.25px,'+xp.toFixed(2)+'%,calc(100% - 7.75px))"></span>';
   for(var i=0;i<g.ser.length;i++){
     var s=g.ser[i],p=avlKurva(g,s,t);
     if(!p||p.v==null||!isFinite(p.v)||!isFinite(p.y))continue;
     var yp=Math.max(0,Math.min(100,(p.y/(g.H||1))*100));
     var f=(typeof s.farg==='function')?s.farg(p.v):(s.farg||'var(--ink)');
-    /* Pricken är 9 px och centrerad på sin punkt (translate -50%). Vid NU, som
-       ligger på 100 %, hamnade halva utanför ritytan. left kläms så att prickens
-       MITT aldrig kommer närmare kanten än dess egen radie (~1,6 % av 300 px). */
-    var dx=Math.max(1.6,Math.min(98.4,(p.x/(g.W||1))*100));
-    h+='<span class="avl-dot" style="left:'+dx.toFixed(2)+'%;top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
+    /* Pricken är centrerad på sin punkt (translate -50%). Vid NU, som ligger på
+       100 %, hamnade halva utanför ritytan – därför klämningen, se strecket. */
+    var dx=Math.max(0,Math.min(100,(p.x/(g.W||1))*100));
+    h+='<span class="avl-dot" style="left:clamp(7px,'+dx.toFixed(2)+'%,calc(100% - 7px));top:'+yp.toFixed(2)+'%;background:'+f+'"></span>';
     rutor+='<b style="color:'+f+'">'+esc(avlText(s,p.v))+'</b>';
   }
   if(!rutor)return tom;

@@ -106,9 +106,12 @@ self.addEventListener('fetch', (e) => {
     try {
       /* Fråga servern varje gång (svaret blir 304 om inget ändrats). Annars kan
          webbläsarens egen cache – tio minuter på GitHub Pages – ge en gammal
-         js-fil till en ny index.html, och de två måste höra ihop. */
-      const svar = await medTidsgrans(
-        req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' }), 4000);
+         js-fil till en ny index.html, och de två måste höra ihop. Det gäller
+         ÄVEN sidan själv: förut undantogs navigeringen, och då kom ny js med
+         gammal CSS – prisgrafens nya prick (v767) hade ingen stil och syntes
+         inte. En navigering blir en vanlig förfrågan när den kopieras med nya
+         val; omdirigeringsläget följer med, så en omdirigering går igenom. */
+      const svar = await medTidsgrans(new Request(req, { cache: 'no-cache' }), 4000);
       /* Spara bara riktiga svar. En 404-sida i cachen är värre än inget:
          den serveras sedan glatt varje gång man är offline. */
       if (svar && svar.ok && svar.status === 200) {
