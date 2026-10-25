@@ -21,7 +21,7 @@
  *  färska eller misslyckas — en cachad temperatur är värre än ingen.
  */
 
-const CACHE = 'dashboard-v2';
+const CACHE = 'dashboard-v3';
 
 /* Det som behövs för att sidan ska kunna starta. Ikonerna har versionslösa
    namn men byts sällan; blir de fel räcker en avinstallation. */
@@ -32,6 +32,23 @@ const SKAL = [
      annars faller en offline-navigering dit tillbaka på startsidan, som är
      Gottskär. Det ser ut som ett växlingsfel men är den här reserven. */
   './gbg/gbg.html',
+  /* Gottskärsdashboardens kod. Samma lista som skripttaggarna i index.html;
+     glöms en fil här hamnar den ändå i cachen första gången den hämtas. */
+  './js/grund.js',
+  './js/grafer.js',
+  './js/insikter.js',
+  './js/vader.js',
+  './js/notiser.js',
+  './js/historik.js',
+  './js/batteri.js',
+  './js/rutor.js',
+  './js/sol.js',
+  './js/enheter.js',
+  './js/data.js',
+  './js/installningar.js',
+  './js/sidan.js',
+  './js/styrning.js',
+  './js/start.js',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -87,7 +104,11 @@ self.addEventListener('fetch', (e) => {
 
   e.respondWith((async () => {
     try {
-      const svar = await medTidsgrans(req, 4000);
+      /* Fråga servern varje gång (svaret blir 304 om inget ändrats). Annars kan
+         webbläsarens egen cache – tio minuter på GitHub Pages – ge en gammal
+         js-fil till en ny index.html, och de två måste höra ihop. */
+      const svar = await medTidsgrans(
+        req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' }), 4000);
       /* Spara bara riktiga svar. En 404-sida i cachen är värre än inget:
          den serveras sedan glatt varje gång man är offline. */
       if (svar && svar.ok && svar.status === 200) {
