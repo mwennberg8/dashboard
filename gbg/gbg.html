@@ -660,48 +660,60 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
    första bokstaven i enhetens namn. */
 .dv-dim{width:calc(100% - 38px - var(--rad-h));margin-left:38px}
 .dv-dim .slx{margin:0 0 6px}
-/* ===== FÄRGPANELEN (v1.79.0) =====
+/* ===== FÄRGRUTAN (v1.80.0) =====
    Lampor som kan byta vithet eller färg: tryck på ikonen eller namnet, så
-   fälls panelen ut under raden. Samma indrag som dimmern — allt i raden
-   börjar under första bokstaven i namnet. */
+   öppnas en egen ruta med pil tillbaka till rutan man kom från. (v1.79.0
+   fällde ut en panel i listan — för trångt.) */
 .dv-row.fp-kan .dv-ic,.dv-row.fp-kan .dv-n{cursor:pointer}
 .dv-row.fp-kan .dv-n{-webkit-tap-highlight-color:transparent}
-.dv-n .fp-pil{display:inline-block;width:5px;height:5px;margin:0 0 2px 7px;border-right:1.6px solid var(--faint);
-  border-bottom:1.6px solid var(--faint);transform:rotate(45deg);transition:transform .2s;vertical-align:middle;opacity:.7}
-.dv-row.fp-oppen .fp-pil{transform:rotate(-135deg);margin-bottom:-1px}
-.dv-row.fp-oppen .dv-n{color:var(--ink)}
-.fp{width:calc(100% - 38px - var(--rad-h));margin:2px 0 10px 38px;box-sizing:border-box;
-  background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:10px 12px 4px;
-  animation:fpIn .18s ease-out}
-@keyframes fpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-.fp-lage{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin-bottom:10px;
-  background:rgba(127,127,127,.13);border-radius:11px}
-.fp-flik{appearance:none;border:0;background:transparent;color:var(--dim);font:inherit;font-size:12px;font-weight:720;
-  padding:7px 6px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.dv-n .fp-pil{display:inline-block;width:5px;height:5px;margin:0 0 2px 6px;border-right:1.6px solid var(--faint);
+  border-bottom:1.6px solid var(--faint);transform:rotate(-45deg);vertical-align:middle;opacity:.75}
+/* Tillbaka: krysset spegelvänt, samma knapp tal för tal. */
+.dlg-tb{position:absolute;top:10px;left:10px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);background:var(--inset);color:var(--ink);opacity:.92;cursor:pointer;padding:0;z-index:6;
+  border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.dlg-tb[hidden]{display:none}
+.dlg-tb:active{transform:scale(.94)}
+.dlg-tb .ic{width:17px;height:17px}
+.fp{animation:fpIn .18s ease-out}
+@keyframes fpIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* Toppen: en lysande kula i lampans färg, läget i ord, och strömbrytaren. */
+.fp-topp{display:flex;align-items:center;gap:14px;padding:6px 2px 12px 8px}
+.fp-klot{width:58px;height:58px;border-radius:50%;flex:0 0 auto;position:relative;
+  background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.85),var(--fp-c,#888) 55%);
+  box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 18px var(--fp-c,transparent);transition:box-shadow .2s,background .2s}
+.fp-klot.av{background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.35),var(--inset) 60%);box-shadow:0 0 0 1px var(--line)}
+.fp-tt{flex:1 1 auto;min-width:0}
+.fp-tt b{display:block;font-size:15px;font-weight:760;letter-spacing:-.01em}
+.fp-tt small{display:block;font-size:11.5px;font-weight:620;color:var(--dim);margin-top:2px}
+.fp-dim{padding:0 2px 4px}
+.fp-lage{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin:6px 0 14px;
+  background:rgba(127,127,127,.13);border-radius:12px}
+.fp-flik{appearance:none;border:0;background:transparent;color:var(--dim);font:inherit;font-size:13px;font-weight:720;
+  padding:9px 6px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
 .fp-flik.on{background:var(--panel-b);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.fp-flik i{width:10px;height:10px;border-radius:50%;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.fp-flik i{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
 .fp-flik .fp-i-vitt{background:linear-gradient(90deg,#cfe0ff,#fff3e2,#ffb45e)}
 .fp-flik .fp-i-farg{background:conic-gradient(#f44,#fd3,#4d6,#3cf,#66f,#e4e,#f44)}
-.fp-h{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--dim);margin:2px 0 -2px}
+.fp-h{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:720;color:var(--dim);margin:4px 2px 0}
 .fp-h b{margin-left:auto;font-weight:750;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
-.fp-h b i{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
 /* Reglagen är dashboardens vanliga, men skåran är själva färgskalan och
    fyllningen göms — en fylld halva säger ingenting på en färgskala. Pricken
    får lampans färg. */
-.fp .slx{margin:0 0 6px}
-.fp .slx-fyll{display:none}
-.fp .slx-spar{height:10px;border-radius:6px;border:1px solid rgba(0,0,0,.12)}
-.fp .slx-prick{border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35)}
+.fp .fp-skala .slx{margin:2px 2px 8px;height:40px}
+.fp .fp-skala .slx-fyll{display:none}
+.fp .fp-skala .slx-spar{height:14px;border-radius:8px;border:1px solid rgba(0,0,0,.12)}
+.fp .fp-skala .slx-prick{width:30px;height:30px;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)}
 .fp-temp .slx-spar{background:linear-gradient(90deg,#c9dcff 0%,#eef3ff 22%,#fff6ea 45%,#ffd9a3 72%,#ffaa52 100%)}
 .fp-hue .slx-spar{background:linear-gradient(90deg,hsl(0,95%,55%),hsl(45,95%,55%),hsl(90,95%,50%),hsl(150,90%,48%),
   hsl(195,95%,52%),hsl(240,90%,62%),hsl(285,85%,60%),hsl(330,90%,58%),hsl(360,95%,55%))}
 .fp-sat .slx-spar{background:linear-gradient(90deg,#fff,hsl(var(--fp-h,30),95%,55%))}
-.fp-snabb{display:flex;gap:6px;justify-content:space-between;margin:2px 0 10px}
-.fp-s{appearance:none;flex:1 1 0;min-width:0;height:26px;border-radius:9px;border:1px solid rgba(0,0,0,.14);
-  cursor:pointer;padding:0;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.fp-snabb{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px;margin:2px 2px 14px}
+.fp-s{appearance:none;width:100%;aspect-ratio:1;border-radius:50%;border:1px solid rgba(0,0,0,.14);
+  cursor:pointer;padding:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
 .fp-s.on{outline:2px solid var(--ink);outline-offset:2px}
-.fp-snabb.fp-ord .fp-s{height:auto;padding:6px 2px;font:inherit;font-size:10.5px;font-weight:720;color:#2e3440}
-.fp-not{font-size:10.5px;color:var(--faint);line-height:1.4;margin:-2px 0 8px}
+.fp-snabb.fp-ord{grid-template-columns:repeat(5,minmax(0,1fr))}
+.fp-snabb.fp-ord .fp-s{aspect-ratio:auto;border-radius:11px;padding:9px 2px;font:inherit;font-size:11px;font-weight:740;color:#2e3440}
 /* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
    listan under — inte är ännu en lampa i mängden. */
 .rum-master{border:1px solid var(--line);border-radius:16px;padding:4px 13px 11px;
@@ -959,6 +971,7 @@ body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 
 <div class="dlg-back" id="dlg-back" onclick="closeDlg(event)">
   <div class="dlg" id="dlg" role="dialog" aria-modal="true">
+    <button class="dlg-tb" id="dlg-tb" hidden onclick="dlgTillbaka()" aria-label="tillbaka"><span class="ic-slot" data-ic="arrow-left"></span></button>
     <button class="dlg-x" onclick="closeDlg(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button>
     <div class="dlg-h"><span class="dlg-ic ic-slot" id="dlg-ic"></span><span id="dlg-title">–</span></div>
     <div class="dlg-body" id="dlg-body"></div>
@@ -1065,7 +1078,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.79.0';
+const APP_VERSION = 'v1.80.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3381,6 +3394,8 @@ function renderVarning(){
 const DLG_OM={};
 function openDlg(titel,ic,html,key){
   _dlgKey=key||'';
+  /* Ny ruta = ingen väg tillbaka, om inte fargOppna sätter en efteråt. */
+  _dlgForra=null;{const tb=$('dlg-tb');if(tb)tb.hidden=true;}
   setT('dlg-title',titel);
   const i=$('dlg-ic');if(i)i.innerHTML=icon(ic||'house');
   const b=$('dlg-body');if(b){b.innerHTML=html;initIcons(b);try{knBind();}catch(e){}}
@@ -3410,7 +3425,8 @@ function closeDlg(ev){
   }
   stangDlg();}
 function stangDlg(){
-  clearTimeout(_dlgTimer);_dlgKey='';_fargId='';_fargFlik={};
+  clearTimeout(_dlgTimer);_dlgKey='';_fargId='';_fargFlik={};_dlgForra=null;
+  {const tb=$('dlg-tb');if(tb)tb.hidden=true;}
   const back=$('dlg-back');if(back)back.classList.remove('open');}
 
 function dRow(k,v){return '<div class="drow"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
@@ -3507,11 +3523,11 @@ function devRad(d,val){
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
   /* v1.79.0: lampor med vithet eller färg får en panel. Ikonen bär lampans
      verkliga färg när den lyser, så man ser vad som är inställt. */
-  const fk=fargKan(d),fo=fk&&_fargId===d.id;
+  const fk=fargKan(d);
   const ikF=(fk&&pa)?fargVisning(d):null;
   const ikStil=ikF?(' style="color:'+ikF.css+';background:'+ikF.bak+'"'):'';
-  const tryck=fk?(' onclick="fargVaxla(\''+d.id+'\')"'):'';
-  let h='<div class="dv-row'+(pa?' on':'')+(fk?' fp-kan':'')+(fo?' fp-oppen':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
+  const tryck=fk?(' onclick="fargOppna(\''+d.id+'\')"'):'';
+  let h='<div class="dv-row'+(pa?' on':'')+(fk?' fp-kan':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
     +'<span class="dv-ic"'+ikStil+tryck+'>'+icon(lampIkon(d))+'</span>'
     +'<span class="dv-n"'+tryck+'>'+esc(val.namn||namn(d))+(fk?'<span class="fp-pil" aria-hidden="true"></span>':'')
       +((!val.dolj&&arGrupp(d)&&grpMedlemmar(d).length)?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
@@ -3520,7 +3536,6 @@ function devRad(d,val){
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
   if(bekraftVantar('dev'+d.id))h=h.replace('</div>','<span class="dv-bekr">tryck igen</span></div>');
   if(dim!=null&&pa)h+='<div class="dv-dim">'+slxHTML(d.id,dim*100,'devDim')+'</div>';
-  if(fo)h+=fargPanel(d);
   return h;}
 
 /* ===== VITHET OCH FÄRG (v1.79.0) =====
@@ -3530,7 +3545,7 @@ function devRad(d,val){
 
    ADAPTIVT LJUS: skriptet ser en ändring här som manuell och låser lampan
    resten av dygnet. Det är rätt — man vill inte att skriptet tar tillbaka
-   färgen en minut senare — men det ska stå i panelen, så det inte förvånar.
+   färgen en minut senare. (Texten om det i rutan togs bort i v1.80.0.)
 
    Ambilight-slingan får ingen panel: Sync Box skriver över färgen flera
    gånger i sekunden medan TV:n är på. */
@@ -3593,16 +3608,38 @@ function fargTempOrd(v){
   if(v<80)return 'Varmt';
   return 'Mysigt';
 }
-const FARG_VITT=[['Kallt',5],['Neutralt',35],['Varmt',65],['Mys',100]];
+const FARG_VITT=[['Kallt',0],['Dagsljus',20],['Neutralt',40],['Varmt',70],['Mys',100]];
+/* Två rader: mättade färger överst, samma nyanser pastell under. */
 const FARG_SNABB=[['röd',0],['orange',24],['gul',48],['grön',125],['turkos',178],['blå',222],['lila',272],['rosa',322]];
+const FARG_PASTELL=40;
 function fargSlx(id,v,akt,mn,mx,prickCss){
   return slxHTML(id,v,akt,mn,mx)
     .replace('<div class="slx"','<div class="slx" data-live="fargLive"')
     .replace('class="slx-prick" style="','class="slx-prick" style="background:'+prickCss+';');
 }
-function fargPanel(d){
-  const id=d.id,lage=fargLage(d),bada=fargHarVitt(d)&&fargHarFarg(d);
-  let h='<div class="fp" data-fp="'+esc(id)+'">';
+/* Rubriken bär redan lampans namn; toppen säger i stället vad den gör. */
+function fargStatus(d){
+  const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
+  let rubrik;
+  if(!pa)rubrik='Släckt';
+  else if(fargLage(d)==='farg'){const sa=capOf(d,'light_saturation');rubrik=(sa!=null&&sa<0.5)?'Pastellfärg':'Färg';}
+  else{const t=capOf(d,'light_temperature');rubrik=fargTempOrd(Math.round((t==null?0.6:t)*100))+' vitt';}
+  const under=[];
+  if(pa&&dim!=null)under.push(Math.round(dim*100)+' %');
+  if(zonNamn(d.zone))under.push(zonNamn(d.zone));
+  return {rubrik:rubrik,under:under.join(' · ')};
+}
+function fargPopHTML(id){
+  const d=DATA[id];
+  if(!d)return '<div class="setup-t">Lampan finns inte längre i Homey.</div>';
+  const lage=fargLage(d),bada=fargHarVitt(d)&&fargHarFarg(d),pa=capOf(d,'onoff')===true;
+  const vis=fargVisning(d),dim=har(d,'dim')?capOf(d,'dim'):null;
+  let h='<div class="fp" data-fp="'+esc(id)+'">'
+    +'<div class="fp-topp"><span class="fp-klot'+(pa?'':' av')+'" data-fpv="klot" style="--fp-c:'+fargCss(vis.rgb)+'"></span>'
+    +'<span class="fp-tt"><b data-fpv="status">'+esc(fargStatus(d).rubrik)+'</b><small>'+esc(fargStatus(d).under)+'</small></span>'
+    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+id+'\')" aria-label="på/av"><i></i></button></div>';
+  if(dim!=null)h+='<div class="fp-dim"><div class="sl-h"><span class="ic-slot" data-ic="sun-dim"></span>Ljusstyrka<b>'+(pa?Math.round(dim*100)+' %':'–')+'</b></div>'
+    +slxHTML(id,dim*100,'devDim')+'</div>';
   if(bada){
     h+='<div class="fp-lage" role="tablist">'
       +'<button class="fp-flik'+(lage==='vitt'?' on':'')+'" onclick="fargFlik(\''+id+'\',\'vitt\')"><i class="fp-i-vitt"></i>Vitt</button>'
@@ -3611,8 +3648,8 @@ function fargPanel(d){
   }
   if(lage==='vitt'){
     const t=capOf(d,'light_temperature'),v=Math.round((t==null?0.6:t)*100),rgb=fargCss(fargTempRGB(v/100));
-    h+='<div class="fp-h">Vithet<b data-fpv="temp"><i style="background:'+rgb+'"></i><span>'+fargTempOrd(v)+'</span></b></div>'
-      +'<div class="fp-temp">'+fargSlx(id,v,'fargTempSlx',0,100,rgb)+'</div>'
+    h+='<div class="fp-h">Vithet<b data-fpv="temp">'+fargTempOrd(v)+'</b></div>'
+      +'<div class="fp-skala fp-temp">'+fargSlx(id,v,'fargTempSlx',0,100,rgb)+'</div>'
       +'<div class="fp-snabb fp-ord">'+FARG_VITT.map(x=>{
         const c=fargCss(fargTempRGB(x[1]/100));
         return '<button class="fp-s'+(Math.abs(v-x[1])<=4?' on':'')+'" style="background:'+c+'" onclick="fargTempSatt(\''+id+'\','+x[1]+')">'+x[0]+'</button>';
@@ -3621,20 +3658,22 @@ function fargPanel(d){
     const hu=capOf(d,'light_hue'),sa=capOf(d,'light_saturation');
     const hv=Math.round((hu==null?0.08:hu)*360),sv=Math.round((sa==null?1:sa)*100);
     const c=fargCss(fargHueRGB(hv/360,sv/100)),cr=fargCss(fargHueRGB(hv/360,1));
-    h+='<div class="fp-h">Färg<b data-fpv="hue"><i style="background:'+c+'"></i></b></div>'
-      +'<div class="fp-hue">'+fargSlx(id,hv,'fargHueSlx',0,359,cr)+'</div>'
-      +'<div class="fp-snabb">'+FARG_SNABB.map(x=>{
-        const cc=fargCss(fargHueRGB(x[1]/360,1)),narmast=Math.min(Math.abs(hv-x[1]),360-Math.abs(hv-x[1]))<=8&&sv>=80;
-        return '<button class="fp-s'+(narmast?' on':'')+'" style="background:'+cc+'" aria-label="'+x[0]+'" onclick="fargSnabb(\''+id+'\','+x[1]+')"></button>';
-      }).join('')+'</div>';
-    if(har(d,'light_saturation')){
-      h+='<div class="fp-h">Mättnad<b data-fpv="sat"><span>'+sv+' %</span></b></div>'
-        +'<div class="fp-sat" style="--fp-h:'+hv+'">'+fargSlx(id,sv,'fargSatSlx',0,100,c)+'</div>';
+    const harSat=har(d,'light_saturation');
+    const knapp=(x,mt)=>{
+      const cc=fargCss(fargHueRGB(x[1]/360,mt/100));
+      const pa2=Math.min(Math.abs(hv-x[1]),360-Math.abs(hv-x[1]))<=8&&Math.abs(sv-mt)<=12;
+      return '<button class="fp-s'+(pa2?' on':'')+'" style="background:'+cc+'" aria-label="'+x[0]+(mt<100?' pastell':'')+'" onclick="fargSnabb(\''+id+'\','+x[1]+','+mt+')"></button>';
+    };
+    h+='<div class="fp-h">Snabbval</div>'
+      +'<div class="fp-snabb">'+FARG_SNABB.map(x=>knapp(x,100)).join('')
+      +(harSat?FARG_SNABB.map(x=>knapp(x,FARG_PASTELL)).join(''):'')+'</div>'
+      +'<div class="fp-h">Färgton</div>'
+      +'<div class="fp-skala fp-hue">'+fargSlx(id,hv,'fargHueSlx',0,359,cr)+'</div>';
+    if(harSat){
+      h+='<div class="fp-h">Mättnad<b data-fpv="sat">'+sv+' %</b></div>'
+        +'<div class="fp-skala fp-sat" style="--fp-h:'+hv+'">'+fargSlx(id,sv,'fargSatSlx',0,100,c)+'</div>';
     }
   }
-  const a=adaptSum(id);
-  if(a&&a.s==='a')h+='<div class="fp-not">Följer adaptivt ljus. En ändring här låser lampan till midnatt.</div>';
-  else if(a&&a.s==='m')h+='<div class="fp-not">Manuellt låst till midnatt — adaptivt ljus rör den inte.</div>';
   return h+'</div>';
 }
 /* Under dragningen: pricken, rubriken och mättnadsskalan följer fingret.
@@ -3642,34 +3681,54 @@ function fargPanel(d){
 function fargLive(el,v){
   const fp=el.closest?el.closest('.fp'):null;if(!fp)return;
   const k=el.querySelector('.slx-prick'),akt=el.dataset.act;
+  const klot=c=>{const o=fp.querySelector('[data-fpv="klot"]');if(o&&!o.classList.contains('av'))o.style.setProperty('--fp-c',c);};
   if(akt==='fargTempSlx'){
     const c=fargCss(fargTempRGB(v/100));
     if(k)k.style.background=c;
-    const b=fp.querySelector('[data-fpv="temp"]');
-    if(b)b.innerHTML='<i style="background:'+c+'"></i><span>'+fargTempOrd(v)+'</span>';
+    klot(c);
+    const b=fp.querySelector('[data-fpv="temp"]');if(b)b.textContent=fargTempOrd(v);
   }else if(akt==='fargHueSlx'){
     if(k)k.style.background=fargCss(fargHueRGB(v/360,1));
     const sat=fp.querySelector('.fp-sat');if(sat)sat.style.setProperty('--fp-h',String(v));
     const sp=fp.querySelector('.fp-sat .slx'),sv=sp?(+sp.dataset.v)/100:1;
     const c=fargCss(fargHueRGB(v/360,sv));
-    const b=fp.querySelector('[data-fpv="hue"]');if(b)b.innerHTML='<i style="background:'+c+'"></i>';
+    klot(c);
     const sk=fp.querySelector('.fp-sat .slx-prick');if(sk)sk.style.background=c;
   }else if(akt==='fargSatSlx'){
     const hp=fp.querySelector('.fp-hue .slx'),hv=hp?(+hp.dataset.v):30;
     const c=fargCss(fargHueRGB(hv/360,v/100));
     if(k)k.style.background=c;
-    const b=fp.querySelector('[data-fpv="sat"]');if(b)b.innerHTML='<span>'+v+' %</span>';
-    const bh=fp.querySelector('[data-fpv="hue"]');if(bh)bh.innerHTML='<i style="background:'+c+'"></i>';
+    klot(c);
+    const b=fp.querySelector('[data-fpv="sat"]');if(b)b.textContent=v+' %';
   }
 }
-function fargOmrita(){try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}}
-function fargVaxla(id){
-  _fargId=(_fargId===id)?'':id;
-  fargOmrita();
-  if(_fargId){
-    const el=document.querySelector('.fp[data-fp="'+id+'"]');
-    try{el&&el.scrollIntoView&&el.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}
-  }
+/* EGEN RUTA MED VÄG TILLBAKA. Rutan man kom från (rum, taklampor,
+   myslampor …) sparas — rubrik, ikon, nyckel och skrollläge — och pilen uppe
+   till vänster ritar upp den igen. Krysset och tryck utanför stänger allt,
+   precis som förut. */
+var _dlgForra=null;
+function fargOppna(id){
+  const d=DATA[id];if(!d)return;
+  const b=$('dlg-body'),ic=$('dlg-ic'),ti=$('dlg-title');
+  const forra=_dlgKey?{key:_dlgKey,titel:ti?ti.textContent:'',ic:ic?ic.innerHTML:'',y:b?b.scrollTop:0}:null;
+  _fargId=id;
+  DLG_OM.farg=()=>dlgSatt(fargPopHTML(_fargId));
+  openDlg(namn(d),lampIkon(d),fargPopHTML(id),'farg');
+  _dlgForra=forra;
+  const tb=$('dlg-tb');if(tb)tb.hidden=!forra;
+  if(b)b.scrollTop=0;
+}
+function dlgTillbaka(){
+  const f=_dlgForra;
+  _dlgForra=null;_fargId='';
+  const tb=$('dlg-tb');if(tb)tb.hidden=true;
+  if(!f||!DLG_OM[f.key]){stangDlg();return;}
+  _dlgKey=f.key;
+  setT('dlg-title',f.titel);
+  const ic=$('dlg-ic');if(ic)ic.innerHTML=f.ic;
+  DLG_OM[f.key]();
+  const b=$('dlg-body');if(b){initIcons(b);b.scrollTop=f.y;}
+  dlgRorelse();
 }
 /* Skriv och spegla lokalt, så panelen visar det nya direkt. En släckt lampa
    tänds — den som väljer färg vill se den. light_mode sätts sist och får
@@ -3703,7 +3762,7 @@ function fargHueSatt(id,hv,sv){
   return fargSkriv(id,ut,'color');
 }
 function fargHueSlx(id,v){return fargHueSatt(id,v,null);}
-function fargSnabb(id,hv){return fargHueSatt(id,hv,100);}
+function fargSnabb(id,hv,sv){return fargHueSatt(id,hv,sv==null?100:sv);}
 function fargSatSlx(id,v){
   _fargFlik[id]='farg';
   return fargSkriv(id,{light_saturation:Math.max(0,Math.min(1,Number(v)/100))},'color');
