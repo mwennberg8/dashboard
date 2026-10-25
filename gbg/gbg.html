@@ -660,6 +660,48 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
    första bokstaven i enhetens namn. */
 .dv-dim{width:calc(100% - 38px - var(--rad-h));margin-left:38px}
 .dv-dim .slx{margin:0 0 6px}
+/* ===== FÄRGPANELEN (v1.79.0) =====
+   Lampor som kan byta vithet eller färg: tryck på ikonen eller namnet, så
+   fälls panelen ut under raden. Samma indrag som dimmern — allt i raden
+   börjar under första bokstaven i namnet. */
+.dv-row.fp-kan .dv-ic,.dv-row.fp-kan .dv-n{cursor:pointer}
+.dv-row.fp-kan .dv-n{-webkit-tap-highlight-color:transparent}
+.dv-n .fp-pil{display:inline-block;width:5px;height:5px;margin:0 0 2px 7px;border-right:1.6px solid var(--faint);
+  border-bottom:1.6px solid var(--faint);transform:rotate(45deg);transition:transform .2s;vertical-align:middle;opacity:.7}
+.dv-row.fp-oppen .fp-pil{transform:rotate(-135deg);margin-bottom:-1px}
+.dv-row.fp-oppen .dv-n{color:var(--ink)}
+.fp{width:calc(100% - 38px - var(--rad-h));margin:2px 0 10px 38px;box-sizing:border-box;
+  background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:10px 12px 4px;
+  animation:fpIn .18s ease-out}
+@keyframes fpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.fp-lage{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;margin-bottom:10px;
+  background:rgba(127,127,127,.13);border-radius:11px}
+.fp-flik{appearance:none;border:0;background:transparent;color:var(--dim);font:inherit;font-size:12px;font-weight:720;
+  padding:7px 6px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.fp-flik.on{background:var(--panel-b);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.fp-flik i{width:10px;height:10px;border-radius:50%;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.fp-flik .fp-i-vitt{background:linear-gradient(90deg,#cfe0ff,#fff3e2,#ffb45e)}
+.fp-flik .fp-i-farg{background:conic-gradient(#f44,#fd3,#4d6,#3cf,#66f,#e4e,#f44)}
+.fp-h{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--dim);margin:2px 0 -2px}
+.fp-h b{margin-left:auto;font-weight:750;color:var(--ink);display:inline-flex;align-items:center;gap:6px}
+.fp-h b i{width:11px;height:11px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+/* Reglagen är dashboardens vanliga, men skåran är själva färgskalan och
+   fyllningen göms — en fylld halva säger ingenting på en färgskala. Pricken
+   får lampans färg. */
+.fp .slx{margin:0 0 6px}
+.fp .slx-fyll{display:none}
+.fp .slx-spar{height:10px;border-radius:6px;border:1px solid rgba(0,0,0,.12)}
+.fp .slx-prick{border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35)}
+.fp-temp .slx-spar{background:linear-gradient(90deg,#c9dcff 0%,#eef3ff 22%,#fff6ea 45%,#ffd9a3 72%,#ffaa52 100%)}
+.fp-hue .slx-spar{background:linear-gradient(90deg,hsl(0,95%,55%),hsl(45,95%,55%),hsl(90,95%,50%),hsl(150,90%,48%),
+  hsl(195,95%,52%),hsl(240,90%,62%),hsl(285,85%,60%),hsl(330,90%,58%),hsl(360,95%,55%))}
+.fp-sat .slx-spar{background:linear-gradient(90deg,#fff,hsl(var(--fp-h,30),95%,55%))}
+.fp-snabb{display:flex;gap:6px;justify-content:space-between;margin:2px 0 10px}
+.fp-s{appearance:none;flex:1 1 0;min-width:0;height:26px;border-radius:9px;border:1px solid rgba(0,0,0,.14);
+  cursor:pointer;padding:0;position:relative;box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.fp-s.on{outline:2px solid var(--ink);outline-offset:2px}
+.fp-snabb.fp-ord .fp-s{height:auto;padding:6px 2px;font:inherit;font-size:10.5px;font-weight:720;color:#2e3440}
+.fp-not{font-size:10.5px;color:var(--faint);line-height:1.4;margin:-2px 0 8px}
 /* Rummets huvudrad. Egen ram och lite mer tyngd, så det syns att den styr
    listan under — inte är ännu en lampa i mängden. */
 .rum-master{border:1px solid var(--line);border-radius:16px;padding:4px 13px 11px;
@@ -1023,7 +1065,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.78.0';
+const APP_VERSION = 'v1.79.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1081,17 +1123,17 @@ function demoData(){
       capabilities:Object.keys(caps),capabilitiesObj:co},extra||{});
     return D[id];};
   /* lampor i fyra rum, några tända och dimrade */
-  dev('d-kok1','Taklampa kök','light',kok,{onoff:true,dim:0.72});
-  dev('d-kok2','Bänkbelysning','light',kok,{onoff:true,dim:0.4});
+  dev('d-kok1','Taklampa kök','light',kok,{onoff:true,dim:0.72,light_temperature:0.35});
+  dev('d-kok2','Bänkbelysning','light',kok,{onoff:true,dim:0.4,light_temperature:0.8,light_hue:0.08,light_saturation:0.7,light_mode:'temperature'});
   /* En Hue-grupp med tre medlemmar, så gruppdöljningen går att se i demoläget. */
   dev('d-koktak','Kök tak','light',kok,{onoff:false,dim:0.51});
   dev('d-koktak1','Kök tak 1','light',kok,{onoff:false,dim:0.51});
   dev('d-koktak2','Kök tak 2','light',kok,{onoff:false,dim:0.51});
   dev('d-koktak3','Kök tak 3','light',kok,{onoff:false,dim:0.51});
-  dev('d-vard1','Golvlampa','light',vard,{onoff:true,dim:0.55});
+  dev('d-vard1','Golvlampa','light',vard,{onoff:true,dim:0.55,light_temperature:0.6,light_hue:0.78,light_saturation:0.85,light_mode:'color'});
   dev('d-vard2','Ambilight','light',vard,{onoff:false,dim:0.9});
   dev('d-vard3','Fönsterlampa','light',vard,{onoff:true,dim:0.35});
-  dev('d-sov1','Sänglampa','light',sov,{onoff:false,dim:0.3});
+  dev('d-sov1','Sänglampa','light',sov,{onoff:false,dim:0.3,light_hue:0.07,light_saturation:0.76});
   dev('d-bad1','Spegelbelysning','light',bad,{onoff:false});
   /* styrknapparnas enheter */
   dev(DEV.auto,'Auto','other',ZON.modes,{onoff:true});
@@ -1602,6 +1644,9 @@ function slxSatt(el,v,rita){
     if(f)f.style.width=slxPos(a);
     if(k)k.style.left=slxPos(a);
   }
+  /* v1.79.0: reglage med data-live får följa med under dragningen. */
+  const live=el.dataset.live&&window[el.dataset.live];
+  if(typeof live==='function'){try{live(el,v);}catch(e){}}
   return v;
 }
 /* Dragningen. Den startar bara på pricken; ett tryck på skåran gör ingenting
@@ -1747,7 +1792,8 @@ function render(){
   try{dammFolj();}catch(e){}
   try{renderVarning();}catch(e){}
   try{footVia();tickRel();setT('foot-src',SOURCE);}catch(e){}
-  try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}
+  /* Inte mitt i en dragning: omritningen byter ut reglaget under fingret. */
+  if(!(_slxDrag&&_slxDrag.tagit)){try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}}
 }
 
 /* ---------- väder ---------- */
@@ -3364,7 +3410,7 @@ function closeDlg(ev){
   }
   stangDlg();}
 function stangDlg(){
-  clearTimeout(_dlgTimer);_dlgKey='';
+  clearTimeout(_dlgTimer);_dlgKey='';_fargId='';_fargFlik={};
   const back=$('dlg-back');if(back)back.classList.remove('open');}
 
 function dRow(k,v){return '<div class="drow"><span class="dk">'+esc(k)+'</span><span class="dv">'+v+'</span></div>';}
@@ -3459,16 +3505,221 @@ function adaptText(id){
 function devRad(d,val){
   val=val||{};
   const pa=capOf(d,'onoff')===true,dim=har(d,'dim')?capOf(d,'dim'):null;
-  let h='<div class="dv-row'+(pa?' on':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
-    +'<span class="dv-ic">'+icon(lampIkon(d))+'</span>'
-    +'<span class="dv-n">'+esc(val.namn||namn(d))
+  /* v1.79.0: lampor med vithet eller färg får en panel. Ikonen bär lampans
+     verkliga färg när den lyser, så man ser vad som är inställt. */
+  const fk=fargKan(d),fo=fk&&_fargId===d.id;
+  const ikF=(fk&&pa)?fargVisning(d):null;
+  const ikStil=ikF?(' style="color:'+ikF.css+';background:'+ikF.bak+'"'):'';
+  const tryck=fk?(' onclick="fargVaxla(\''+d.id+'\')"'):'';
+  let h='<div class="dv-row'+(pa?' on':'')+(fk?' fp-kan':'')+(fo?' fp-oppen':'')+(bekraftVantar('dev'+d.id)?' vantar':'')+'" data-bekr="'+d.id+'">'
+    +'<span class="dv-ic"'+ikStil+tryck+'>'+icon(lampIkon(d))+'</span>'
+    +'<span class="dv-n"'+tryck+'>'+esc(val.namn||namn(d))+(fk?'<span class="fp-pil" aria-hidden="true"></span>':'')
       +((!val.dolj&&arGrupp(d)&&grpMedlemmar(d).length)?('<small>grupp · '+grpMedlemmar(d).length+' lampor</small>'):'')
       +(dim!=null?('<small>'+Math.round(dim*100)+' %'
         +(adaptText(d.id)?(' · '+esc(adaptText(d.id))):'')+'</small>'):'')+'</span>'
     +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';
   if(bekraftVantar('dev'+d.id))h=h.replace('</div>','<span class="dv-bekr">tryck igen</span></div>');
   if(dim!=null&&pa)h+='<div class="dv-dim">'+slxHTML(d.id,dim*100,'devDim')+'</div>';
+  if(fo)h+=fargPanel(d);
   return h;}
+
+/* ===== VITHET OCH FÄRG (v1.79.0) =====
+   Homeys capabilities: light_temperature 0..1 där 0 är kallt och 1 varmt,
+   light_hue 0..1 (hela färgcirkeln), light_saturation 0..1, och light_mode
+   'temperature' eller 'color' på lampor som kan båda.
+
+   ADAPTIVT LJUS: skriptet ser en ändring här som manuell och låser lampan
+   resten av dygnet. Det är rätt — man vill inte att skriptet tar tillbaka
+   färgen en minut senare — men det ska stå i panelen, så det inte förvånar.
+
+   Ambilight-slingan får ingen panel: Sync Box skriver över färgen flera
+   gånger i sekunden medan TV:n är på. */
+const FARG_UTAN=new Set(['326efe6d-bbdd-47be-a3b0-0d2d8d96fca0'].concat(GRUPP_FAST['326efe6d-bbdd-47be-a3b0-0d2d8d96fca0']||[]));
+var _fargId='',_fargFlik={};
+function fargKan(d){
+  if(!d||FARG_UTAN.has(d.id)||!arLampa(d))return false;
+  return har(d,'light_temperature')||har(d,'light_hue');
+}
+function fargHarVitt(d){return har(d,'light_temperature');}
+function fargHarFarg(d){return har(d,'light_hue');}
+/* Vilken flik som visas: den lampan står i, om den kan båda. */
+function fargLage(d){
+  if(!fargHarFarg(d))return 'vitt';
+  if(!fargHarVitt(d))return 'farg';
+  if(_fargFlik[d.id])return _fargFlik[d.id];
+  return capOf(d,'light_mode')==='color'?'farg':'vitt';
+}
+/* Vithet till skärmfärg. Värdet läggs linjärt i mired (som Hue gör) men
+   över 125–500 mired, alltså 8000–2000 K: lampans kallaste läge (6500 K) blir
+   annars rent vitt på skärmen, och då ser kallt och neutralt likadana ut.
+   Det är en bild av hur ljuset upplevs, inte ett mätvärde. */
+function fargTempRGB(t){
+  const mired=125+Math.max(0,Math.min(1,t))*(500-125),k=1e6/mired/100;
+  let r,g,b;
+  if(k<=66){r=255;g=99.47*Math.log(k)-161.12;b=k<=19?0:138.52*Math.log(k-10)-305.04;}
+  else{r=329.7*Math.pow(k-60,-0.1332);g=288.12*Math.pow(k-60,-0.0755);b=255;}
+  /* En fjärdedel mot vitt: rå 2000 K blir ett skrikigt orange på skärmen,
+     medan lampan i rummet upplevs som varmvit. */
+  const c=x=>Math.round(255*0.25+0.75*Math.max(0,Math.min(255,x)));
+  return [c(r),c(g),c(b)];
+}
+function fargHslRGB(h,s,l){
+  s/=100;l/=100;
+  const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  return [Math.round(f(0)*255),Math.round(f(8)*255),Math.round(f(4)*255)];
+}
+/* Färg ur nyans och mättnad: låg mättnad = nästan vitt. */
+function fargHueRGB(h01,s01){
+  const s=Math.max(0,Math.min(1,s01==null?1:s01));
+  return fargHslRGB((h01||0)*360,95,100-48*s);
+}
+function fargCss(rgb){return 'rgb('+rgb[0]+','+rgb[1]+','+rgb[2]+')';}
+/* Lampans nuvarande färg, för ikonen och panelen. */
+function fargVisning(d){
+  const lage=fargLage(d);
+  let rgb;
+  if(lage==='farg')rgb=fargHueRGB(capOf(d,'light_hue'),capOf(d,'light_saturation'));
+  else{const t=capOf(d,'light_temperature');rgb=fargTempRGB(t==null?0.6:t);}
+  /* Ikonen ritas i färgen, men en nästan vit färg syns inte mot ljust tema.
+     Ljusa färger mörkas därför för ikonen — bakgrunden bär den riktiga. */
+  const lum=(0.2126*rgb[0]+0.7152*rgb[1]+0.0722*rgb[2])/255;
+  const ik=lum>0.62?rgb.map(x=>Math.round(x*0.62/lum)):rgb;
+  return {rgb:rgb,css:fargCss(ik),bak:'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+',.22)'};
+}
+function fargTempOrd(v){
+  if(v<15)return 'Kallt';
+  if(v<45)return 'Neutralt';
+  if(v<80)return 'Varmt';
+  return 'Mysigt';
+}
+const FARG_VITT=[['Kallt',5],['Neutralt',35],['Varmt',65],['Mys',100]];
+const FARG_SNABB=[['röd',0],['orange',24],['gul',48],['grön',125],['turkos',178],['blå',222],['lila',272],['rosa',322]];
+function fargSlx(id,v,akt,mn,mx,prickCss){
+  return slxHTML(id,v,akt,mn,mx)
+    .replace('<div class="slx"','<div class="slx" data-live="fargLive"')
+    .replace('class="slx-prick" style="','class="slx-prick" style="background:'+prickCss+';');
+}
+function fargPanel(d){
+  const id=d.id,lage=fargLage(d),bada=fargHarVitt(d)&&fargHarFarg(d);
+  let h='<div class="fp" data-fp="'+esc(id)+'">';
+  if(bada){
+    h+='<div class="fp-lage" role="tablist">'
+      +'<button class="fp-flik'+(lage==='vitt'?' on':'')+'" onclick="fargFlik(\''+id+'\',\'vitt\')"><i class="fp-i-vitt"></i>Vitt</button>'
+      +'<button class="fp-flik'+(lage==='farg'?' on':'')+'" onclick="fargFlik(\''+id+'\',\'farg\')"><i class="fp-i-farg"></i>Färg</button>'
+      +'</div>';
+  }
+  if(lage==='vitt'){
+    const t=capOf(d,'light_temperature'),v=Math.round((t==null?0.6:t)*100),rgb=fargCss(fargTempRGB(v/100));
+    h+='<div class="fp-h">Vithet<b data-fpv="temp"><i style="background:'+rgb+'"></i><span>'+fargTempOrd(v)+'</span></b></div>'
+      +'<div class="fp-temp">'+fargSlx(id,v,'fargTempSlx',0,100,rgb)+'</div>'
+      +'<div class="fp-snabb fp-ord">'+FARG_VITT.map(x=>{
+        const c=fargCss(fargTempRGB(x[1]/100));
+        return '<button class="fp-s'+(Math.abs(v-x[1])<=4?' on':'')+'" style="background:'+c+'" onclick="fargTempSatt(\''+id+'\','+x[1]+')">'+x[0]+'</button>';
+      }).join('')+'</div>';
+  }else{
+    const hu=capOf(d,'light_hue'),sa=capOf(d,'light_saturation');
+    const hv=Math.round((hu==null?0.08:hu)*360),sv=Math.round((sa==null?1:sa)*100);
+    const c=fargCss(fargHueRGB(hv/360,sv/100)),cr=fargCss(fargHueRGB(hv/360,1));
+    h+='<div class="fp-h">Färg<b data-fpv="hue"><i style="background:'+c+'"></i></b></div>'
+      +'<div class="fp-hue">'+fargSlx(id,hv,'fargHueSlx',0,359,cr)+'</div>'
+      +'<div class="fp-snabb">'+FARG_SNABB.map(x=>{
+        const cc=fargCss(fargHueRGB(x[1]/360,1)),narmast=Math.min(Math.abs(hv-x[1]),360-Math.abs(hv-x[1]))<=8&&sv>=80;
+        return '<button class="fp-s'+(narmast?' on':'')+'" style="background:'+cc+'" aria-label="'+x[0]+'" onclick="fargSnabb(\''+id+'\','+x[1]+')"></button>';
+      }).join('')+'</div>';
+    if(har(d,'light_saturation')){
+      h+='<div class="fp-h">Mättnad<b data-fpv="sat"><span>'+sv+' %</span></b></div>'
+        +'<div class="fp-sat" style="--fp-h:'+hv+'">'+fargSlx(id,sv,'fargSatSlx',0,100,c)+'</div>';
+    }
+  }
+  const a=adaptSum(id);
+  if(a&&a.s==='a')h+='<div class="fp-not">Följer adaptivt ljus. En ändring här låser lampan till midnatt.</div>';
+  else if(a&&a.s==='m')h+='<div class="fp-not">Manuellt låst till midnatt — adaptivt ljus rör den inte.</div>';
+  return h+'</div>';
+}
+/* Under dragningen: pricken, rubriken och mättnadsskalan följer fingret.
+   Inget skickas förrän man släpper — samma regel som dimmern. */
+function fargLive(el,v){
+  const fp=el.closest?el.closest('.fp'):null;if(!fp)return;
+  const k=el.querySelector('.slx-prick'),akt=el.dataset.act;
+  if(akt==='fargTempSlx'){
+    const c=fargCss(fargTempRGB(v/100));
+    if(k)k.style.background=c;
+    const b=fp.querySelector('[data-fpv="temp"]');
+    if(b)b.innerHTML='<i style="background:'+c+'"></i><span>'+fargTempOrd(v)+'</span>';
+  }else if(akt==='fargHueSlx'){
+    if(k)k.style.background=fargCss(fargHueRGB(v/360,1));
+    const sat=fp.querySelector('.fp-sat');if(sat)sat.style.setProperty('--fp-h',String(v));
+    const sp=fp.querySelector('.fp-sat .slx'),sv=sp?(+sp.dataset.v)/100:1;
+    const c=fargCss(fargHueRGB(v/360,sv));
+    const b=fp.querySelector('[data-fpv="hue"]');if(b)b.innerHTML='<i style="background:'+c+'"></i>';
+    const sk=fp.querySelector('.fp-sat .slx-prick');if(sk)sk.style.background=c;
+  }else if(akt==='fargSatSlx'){
+    const hp=fp.querySelector('.fp-hue .slx'),hv=hp?(+hp.dataset.v):30;
+    const c=fargCss(fargHueRGB(hv/360,v/100));
+    if(k)k.style.background=c;
+    const b=fp.querySelector('[data-fpv="sat"]');if(b)b.innerHTML='<span>'+v+' %</span>';
+    const bh=fp.querySelector('[data-fpv="hue"]');if(bh)bh.innerHTML='<i style="background:'+c+'"></i>';
+  }
+}
+function fargOmrita(){try{if(_dlgKey&&DLG_OM[_dlgKey])DLG_OM[_dlgKey]();}catch(e){}}
+function fargVaxla(id){
+  _fargId=(_fargId===id)?'':id;
+  fargOmrita();
+  if(_fargId){
+    const el=document.querySelector('.fp[data-fp="'+id+'"]');
+    try{el&&el.scrollIntoView&&el.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){}
+  }
+}
+/* Skriv och spegla lokalt, så panelen visar det nya direkt. En släckt lampa
+   tänds — den som väljer färg vill se den. light_mode sätts sist och får
+   misslyckas: vissa drivrutiner vägrar, och bytet sker ändå när värdet skrivs. */
+async function fargSkriv(id,varden,lage){
+  const d=DATA[id];if(!d)return;
+  const lok=(c,v)=>{if(d.capabilitiesObj&&d.capabilitiesObj[c])d.capabilitiesObj[c].value=v;};
+  try{
+    if(capOf(d,'onoff')!==true){await satt(id,'onoff',true);lok('onoff',true);}
+    for(const c of Object.keys(varden)){
+      if(!har(d,c))continue;
+      await satt(id,c,varden[c]);lok(c,varden[c]);
+    }
+    if(lage&&har(d,'light_mode')&&capOf(d,'light_mode')!==lage){
+      try{await satt(id,'light_mode',lage);lok('light_mode',lage);}catch(e){}
+    }
+    render();setTimeout(load,1200);
+  }catch(e){toast('Gick inte: '+(e.message||''));}
+}
+function fargTempSatt(id,v){
+  _fargFlik[id]='vitt';
+  return fargSkriv(id,{light_temperature:Math.max(0,Math.min(1,Number(v)/100))},'temperature');
+}
+function fargTempSlx(id,v){return fargTempSatt(id,v);}
+function fargHueSatt(id,hv,sv){
+  _fargFlik[id]='farg';
+  const d=DATA[id],ut={light_hue:Math.max(0,Math.min(1,Number(hv)/360))};
+  /* Nästan vit lampa + ny nyans syns inte. Då höjs mättnaden. */
+  if(sv!=null)ut.light_saturation=Math.max(0,Math.min(1,sv/100));
+  else if(d&&har(d,'light_saturation')&&!(capOf(d,'light_saturation')>=0.25))ut.light_saturation=1;
+  return fargSkriv(id,ut,'color');
+}
+function fargHueSlx(id,v){return fargHueSatt(id,v,null);}
+function fargSnabb(id,hv){return fargHueSatt(id,hv,100);}
+function fargSatSlx(id,v){
+  _fargFlik[id]='farg';
+  return fargSkriv(id,{light_saturation:Math.max(0,Math.min(1,Number(v)/100))},'color');
+}
+/* Fliken byter läge på lampan direkt: står den i färg och man trycker Vitt
+   vill man ha vitt ljus, inte bara se ett annat reglage. */
+function fargFlik(id,lage){
+  const d=DATA[id];if(!d)return;
+  if(fargLage(d)===lage)return;
+  if(lage==='vitt'){
+    const t=capOf(d,'light_temperature');
+    return fargTempSatt(id,Math.round((t==null?0.6:t)*100));
+  }
+  const hu=capOf(d,'light_hue'),sa=capOf(d,'light_saturation');
+  return fargHueSatt(id,Math.round((hu==null?0.08:hu)*360),Math.round(((sa!=null&&sa>=0.25)?sa:1)*100));
+}
 
 /* ---- rum ---- */
 let _rumId='';
