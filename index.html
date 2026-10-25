@@ -3227,8 +3227,11 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 /* Under dragning blir strecket helt och pricken växer — då syns det att det är
    fingret som styr och inte klockan. */
 .pgraph-lager.drar .pg-now{stroke-dasharray:none;opacity:.8}
-.pg-dot{stroke:var(--panel-b);stroke-width:2.5}
-.pgraph-lager.drar .pg-dot{stroke-width:3}
+/* v767: pricken är ett <span> ovanpå SVG:n (se dayPriceGraphSVG). Samma mått
+   som cirkeln hade på telefonen: färgad kärna med en ring i panelens färg. */
+.pg-dot{position:absolute;width:11.5px;height:11.5px;border-radius:50%;box-sizing:border-box;
+  border:2.5px solid var(--panel-b);transform:translate(-50%,-50%);pointer-events:none}
+.pgraph-lager.drar .pg-dot{width:12.5px;height:12.5px;border-width:3px}
 /* pan-y, inte none: ett lodrätt svep ska fortfarande kunna rulla popupen.
    Greppet tas först när fingret rör sig mer i sidled — samma regel som
    rumsreglaget. */

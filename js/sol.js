@@ -343,6 +343,14 @@ function solPerfPct(){const p=cap(DEV.solar,'measure_power');const theo=solTheoW
 /* ===== Tidsläge: historik bakåt, prognos framåt ===== */
 function dayStart(){const d=new Date();d.setHours(0,0,0,0);return d.getTime();}
 function nowHour(){return (Date.now()-dayStart())/3600000;}
+/* v767: timmar sedan dagens midnatt i KLOCKTID – samma mått som prisgrafens
+   x-axel och pgTimmenNu. (t-midnatt)/3600000 räknar verkliga timmar, och de
+   dagar sommartiden slutar eller börjar skiljer de sig en timme efter kl 03:
+   batterilinjen hamnade då en timme till höger om nu-strecket. Dagar efter
+   i dag räknas som 24, 48 … plus klockslaget. */
+function klockTimmar(t){var d=new Date(t),m=new Date(dayStart());
+  var dagar=Math.round((new Date(d.getFullYear(),d.getMonth(),d.getDate())-m)/86400000);
+  return dagar*24+d.getHours()+d.getMinutes()/60+d.getSeconds()/3600;}
 function solTheoWAt(h){return solClearW(new Date(dayStart()+h*3600000),cap(DEV.outdoor,'measure_temperature'));}
 function solPerfRatioToday(){const a=HIST['solar'];if(!a||!a.length)return null;const t0=dayStart(),nh=nowHour();let n=0,d=0;
   for(const p of a){const h=(p.t-t0)/3600000;if(h<0||h>nh)continue;const theo=solTheoWAt(h);if(theo>500){n+=p.v;d+=theo;}}
@@ -932,7 +940,10 @@ function battKurva(offset){
   var h=HIST['batt']||[];
   for(var i=0;i<h.length;i++){var q=h[i];
     if(!q||q.v==null||!isFinite(q.v)||q.t<d0)continue;
-    fakt.push({h:(q.t-d0)/3600000, v:Math.max(0,Math.min(100,q.v))});}
+    /* Klocktid; timmen 02–03 som går två gånger när sommartiden slutar får
+       inte vända linjen bakåt. */
+    var hq=klockTimmar(q.t);if(fakt.length&&hq<fakt[fakt.length-1].h)continue;
+    fakt.push({h:hq, v:Math.max(0,Math.min(100,q.v))});}
   /* Ankare vid nu: enhetens nuvarande nivå, så prognosen börjar där bilden slutar. */
   var nuPct=(pct!=null&&isFinite(pct))?Math.max(0,Math.min(100,pct)):(fakt.length?fakt[fakt.length-1].v:null);
   if(nuPct!=null)fakt.push({h:nuH,v:nuPct});
@@ -1012,7 +1023,7 @@ function battSimulera(nuPct,nuH,kwh){
   try{if(typeof regelHamta==='function')regelHamta(false);}catch(e){}
   var R=(typeof _regel!=='undefined')?_regel:null,bok=[],nuMs=Date.now();
   if(R){[['start','ladda'],['spara','spara'],['stopp','normal']].forEach(function(x){var ms=R[x[0]];
-    if(ms>nuMs)bok.push({h:(ms-d0)/3600000,lage:x[1]});});
+    if(ms>nuMs)bok.push({h:klockTimmar(ms),lage:x[1]});});
     bok.sort(function(a,b){return a.h-b.h;});}
   var etaIn=Math.sqrt(BATT_SIM.eta),etaUt=Math.sqrt(BATT_SIM.eta),golv=kwh*BATT_SIM.golv/100;
   var e=kwh*nuPct/100,ut=[{h:nuH,v:nuPct}],st=BATT_SIM.steg,slut=nuH+BATT_SIM.timmar;
@@ -1059,7 +1070,8 @@ function solKurva(offset){
     for(var i=0;i<kalla.length;i++){var q=kalla[i];
       if(!q||q.v==null||!isFinite(q.v)||q.v<0||q.v>25000)continue;
       if(q.t<d0||q.t>=t1)continue;
-      fakt.push({h:(q.t-d0)/3600000, v:q.v});}
+      var hq=klockTimmar(q.t);if(fakt.length&&hq<fakt[fakt.length-1].h)continue;
+      fakt.push({h:hq, v:q.v});}
     fakt.sort(function(a,b){return a.h-b.h;});
   }
   var mx=0;
@@ -1120,7 +1132,7 @@ function pgUppdatera(){
   var l=$('pg-line'),d2=$('pg-dot'),tv=$('pg-nu-v'),ts=$('pg-nu-s');
   var x=pgX(_pgVald).toFixed(1);
   if(l){l.setAttribute('x1',x);l.setAttribute('x2',x);}
-  if(d2){d2.setAttribute('cx',x);d2.setAttribute('cy',pgY(a.kurva).toFixed(1));d2.setAttribute('fill',pgFarg(a.kurva));}
+  if(d2){d2.style.left=(pgX(_pgVald)/_pgGeo.W*100).toFixed(2)+'%';d2.style.top=(pgY(a.kurva)/_pgGeo.H*100).toFixed(2)+'%';d2.style.background=pgFarg(a.kurva);}
   if(tv){tv.textContent=num(a.visa,2)+' kr';tv.style.color=pgFarg(a.kurva);}
   if(ts)ts.textContent=a.under;
   var tb=$('pg-nu-b');if(tb)tb.textContent=pgBattText();
@@ -1235,7 +1247,9 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   });
   s=s.replace('</defs>','<linearGradient id="pgLine" gradientUnits="userSpaceOnUse" x1="'+padL+'" y1="0" x2="'+(W-padR)+'" y2="0">'+stops+'</linearGradient></defs>');
   s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
-  s+='<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';
+  /* non-scaling-stroke: grafen sträcks i sidled på plattan, och utan det blev
+     trappans lodräta steg nästan dubbelt så tjocka som de vågräta. */
+  s+='<path d="'+line+'" fill="none" stroke="url(#pgLine)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
   /* Markeringarna för högsta och lägsta är borta. Talen står i listan under
      grafen, och två extra prickar konkurrerade med avläsningspunkten om
      uppmärksamheten. iLo räknas fortfarande ut — den används som utgångsläge
@@ -1286,8 +1300,11 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk,sol:sk};
   _pgVald=hVal;
   var vy=pgPrisVid(hVal);
-  s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'"/>';
-  s+='<circle class="pg-dot" id="pg-dot" cx="'+X(hVal).toFixed(1)+'" cy="'+Y(vy==null?ys[0]:vy).toFixed(1)+'" r="4.2" fill="'+farg(vy==null?ys[0]:vy)+'"/>';
+  s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'" vector-effect="non-scaling-stroke"/>';
+  /* v767: PRICKEN ÄR HTML, inte en <circle>. SVG:n sträcks i sidled och en
+     cirkel blev en ellips på plattan. Som etiketterna placeras den i procent
+     ovanpå grafen och ritas i skärmens pixlar – rund på alla bredder. */
+  taggar+='<span class="pg-dot" id="pg-dot" style="left:'+(X(hVal)/W*100).toFixed(2)+'%;top:'+(Y(vy==null?ys[0]:vy)/H*100).toFixed(2)+'%;background:'+farg(vy==null?ys[0]:vy)+'"></span>';
   s+='</svg>';
   /* Grafen och etiketterna i samma ruta: SVG:n sträcks, texten gör det inte. */
   s='<div class="pgraph-lager" id="pg-lager" onpointerdown="pgNer(event)" onpointermove="pgRor(event)"'
