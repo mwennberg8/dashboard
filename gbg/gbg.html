@@ -1457,7 +1457,10 @@ function credSet(o){try{localStorage.setItem(CRED_KEY,JSON.stringify({
 const GBG_HOMEY_ID='65857c585f407045e73ddfdc';
 const GOTTSKAR_HOMEY_ID='65ae5b626f8c3918be8a18e2';
 var _felHomey='';            /* ID:t som rensades bort vid start, för förklaringen */
-function credFelHomey(){const c=credGet();return !!(c.homeyId&&c.homeyId!==GBG_HOMEY_ID);}
+/* Jämförs utan hänsyn till versaler: samma Homey inskrivet med stora
+   bokstäver ska inte rensas bort. */
+function arGbgId(id){return String(id||'').trim().toLowerCase()===GBG_HOMEY_ID;}
+function credFelHomey(){const c=credGet();return !!(c.homeyId&&!arGbgId(c.homeyId));}
 /* Rensa bort ett annat hus uppgifter ur Göteborgs nyckel. De ska inte heller
    användas av husvakten: den sonderar "Göteborg" med de här uppgifterna, och
    med Gottskärs token och adress skulle plattan i Gottskär tro att den står i
@@ -1467,7 +1470,7 @@ function credRensaFel(){
   const c=credGet();_felHomey=c.homeyId;
   credSet({token:'',homeyId:'',lan:'',kamera:c.kamera});
 }
-function credFinns(){const c=credGet();return !!(c.token&&c.homeyId===GBG_HOMEY_ID);}
+function credFinns(){const c=credGet();return !!(c.token&&arGbgId(c.homeyId));}
 function credMoln(){const c=credGet();return c.homeyId?('https://'+c.homeyId+'.connect.athom.com'):'';}
 /* Homeys lokala https-namn för en IP. Punkterna byts mot bindestreck under
    homeylocal.com, där Athom har ett giltigt certifikat. Samma maskin i samma
