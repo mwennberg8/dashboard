@@ -2083,7 +2083,11 @@ function credSet(o){
     token:(o.token||'').trim(),homeyId:(o.homeyId||'').trim(),
     lan:(o.lan||'').trim(),at:Date.now()}));return true;}catch(e){return false;}}
 function credRensa(){try{localStorage.removeItem(CRED_KEY);}catch(e){}}
-function credFinns(){var c=credGet();return !!(c.token&&c.homeyId);}
+/* Gottskärsdashboarden får inte köras mot Markus's Homey i Göteborg - den har
+   sin egen dashboard (gbg/). Samma adress, så en lösenordshanterare kan fylla
+   i fel uppgifter här också. */
+var GBG_HOMEY_ID='65857c585f407045e73ddfdc';
+function credFinns(){var c=credGet();return !!(c.token&&c.homeyId&&c.homeyId!==GBG_HOMEY_ID);}
 /* Molnadressen ar alltid tillganglig, aven hemifran. Den lokala bara pa LAN. */
 function credMoln(){var c=credGet();
   return c.homeyId?('https://'+c.homeyId+'.connect.athom.com'):'';}
@@ -2251,6 +2255,7 @@ async function setupProva(){
   var sag=function(t,fel){if(m){m.innerHTML=t;m.className='setup-m'+(fel?' fel':' ok');}};
   id=id.trim();tok=tok.trim();lan=lan.trim();
   if(!id||!tok){sag('Fyll i bade Homey-ID och token.',true);return;}
+  if(id===GBG_HOMEY_ID){sag('Det d\u00e4r \u00e4r Markus\u2019s Homey i G\u00f6teborg. Gottsk\u00e4rsdashboarden ansluter till Homey Pro i Gottsk\u00e4r.',true);return;}
   if(tok.split(':').length<3){sag('Token ska besta av tre delar atskilda med kolon.',true);return;}
   if(knapp){knapp.disabled=true;knapp.textContent='Provar…';}
   sag('Provar uppgifterna…');
