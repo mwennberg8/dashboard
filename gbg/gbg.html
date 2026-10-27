@@ -638,6 +638,10 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
 .kv-g.on{background:var(--panel-b);border-color:var(--blue);color:var(--ink)}
 .kv-g-p{width:8px;height:8px;border-radius:50%;background:var(--line);flex:0 0 auto}
 .kv-g.on .kv-g-p{background:var(--blue)}
+/* Säsongsväljaren (Nu / Vinter) ligger under gruppväljaren, och raden under
+   den säger hur mycket av vinterkurvan som gäller i dag. */
+.kv-sas{margin-top:7px}
+.kv-sas-t{text-align:center;font-size:11px;color:var(--faint);margin:6px auto 0;max-width:300px;line-height:1.4}
 /* Förklaringen: den streckade visar den andra gruppen. */
 .kv-leg{display:flex;gap:14px;justify-content:center;margin:7px 0 2px;font-size:11px;color:var(--faint)}
 .kv-leg i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
@@ -1085,7 +1089,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.81.0';
+const APP_VERSION = 'v1.82.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4426,19 +4430,56 @@ const KURVA_STD=[
    fortfarande som UTGÅNGSVÄRDE första gången, så inget går förlorat.
    KURVA pekar alltid på den valda gruppens array, så all dragkod nedan
    fungerar oförändrad. */
-const KURVA_VARS={tak:'adaptiv_kurva_tak', mys:'adaptiv_kurva_mys'};
-const KURVA_NAMN={tak:'Taklampor', mys:'Myslampor'};
-var KURVOR={tak:null,mys:null};
-var _kurvaVal='tak';                 /* vilken som redigeras just nu */
-var _kurvaVarIdar={tak:null,mys:null};
+/* VINTERKURVA (belysningsskriptet 1.8.0). Varje grupp har en vinterkurva
+   bredvid den vanliga. Skriptet blandar dem efter dagslängden: 0 % vinter den
+   27 oktober, 100 % vid vintersolståndet, tillbaka till 0 % i mitten av
+   februari. Nycklarna tak_vinter och mys_vinter ligger i samma tabeller som
+   tak och mys, så spara, ladda och dra fungerar likadant för alla fyra. */
+const KURVA_VARS={tak:'adaptiv_kurva_tak', mys:'adaptiv_kurva_mys',
+  tak_vinter:'adaptiv_kurva_tak_vinter', mys_vinter:'adaptiv_kurva_mys_vinter'};
+const KURVA_NAMN={tak:'Taklampor', mys:'Myslampor',
+  tak_vinter:'Taklampor, vinter', mys_vinter:'Myslampor, vinter'};
+const KURVA_NYCKLAR=['tak','mys','tak_vinter','mys_vinter'];
+var KURVOR={tak:null,mys:null,tak_vinter:null,mys_vinter:null};
+var _kurvaVal='tak';                 /* vilken grupp som redigeras just nu */
+var _kurvaSas='nu';                  /* 'nu' eller 'vinter' */
+var _kurvaVarIdar={tak:null,mys:null,tak_vinter:null,mys_vinter:null};
 var KURVA=null,_kurvaVarId=null,_kurvaAndrad=false;
 
+/* Nyckeln för det som visas: grupp plus säsong. */
+function kurvaNyckel(){return _kurvaVal+(_kurvaSas==='vinter'?'_vinter':'');}
+function kurvaVisa(){
+  const k=kurvaNyckel();
+  KURVA=KURVOR[k]||(KURVOR[k]=kurvaKopia(KURVOR[_kurvaVal]||KURVA_STD));
+  _kurvaVarId=_kurvaVarIdar[k];
+  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+}
 function kurvaValj(v){
   if(v!=='tak'&&v!=='mys')return;
-  _kurvaVal=v;
-  KURVA=KURVOR[v]||(KURVOR[v]=kurvaKopia(KURVA_STD));
-  _kurvaVarId=_kurvaVarIdar[v];
-  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+  _kurvaVal=v;kurvaVisa();
+}
+function kurvaSasong(v){
+  if(v!=='nu'&&v!=='vinter')return;
+  _kurvaSas=v;kurvaVisa();
+}
+/* Samma beräkning som skriptet: dagslängd i Göteborg och hur stor del av
+   vinterkurvan som gäller. Dagen räknas i webbläsarens tid, som är svensk. */
+const VINTER_LAT=57.7,VINTER_FRAN=[10,27],VINTER_FULL=[12,21];
+function vinterDagLangd(ar,man,dag){
+  const n=Math.round((Date.UTC(ar,man-1,dag)-Date.UTC(ar,0,1))/864e5)+1;
+  const g=2*Math.PI/365*(n-1);
+  const d=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)
+    +0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);
+  const f=VINTER_LAT*Math.PI/180,h0=-0.833*Math.PI/180;
+  const c=(Math.sin(h0)-Math.sin(f)*Math.sin(d))/(Math.cos(f)*Math.cos(d));
+  return 2*Math.acos(Math.max(-1,Math.min(1,c)))*180/Math.PI/15;
+}
+function vinterAndel(nu){
+  const t=nu||new Date(),ar=t.getFullYear();
+  const fran=vinterDagLangd(ar,VINTER_FRAN[0],VINTER_FRAN[1]);
+  const full=vinterDagLangd(ar,VINTER_FULL[0],VINTER_FULL[1]);
+  const L=vinterDagLangd(ar,t.getMonth()+1,t.getDate());
+  return {andel:Math.max(0,Math.min(1,(fran-L)/(fran-full))),langd:L};
 }
 
 function kurvaKopia(k){return k.map(function(p){return {tid:p.tid,dim:p.dim,temp:p.temp};});}
@@ -4460,7 +4501,7 @@ async function kurvaHamta(){
        första gången rutan öppnas, i stället för standardkurvan. */
     const g=arr.find(function(a){return a&&a.name===KURVA_VAR;});
     if(g){try{const j=JSON.parse(String(g.value||''));if(kurvaGiltig(j))gammal=j;}catch(e){}}
-    ['tak','mys'].forEach(function(k){
+    KURVA_NYCKLAR.forEach(function(k){
       const x=arr.find(function(a){return a&&a.name===KURVA_VARS[k];});
       _kurvaVarIdar[k]=x?x.id:null;
       if(x){try{const j=JSON.parse(String(x.value||''));if(kurvaGiltig(j))KURVOR[k]=j;}catch(e){}}
@@ -4468,17 +4509,21 @@ async function kurvaHamta(){
   }catch(e){/* saknas eller otolkbar - standardkurvan galler */}
   ['tak','mys'].forEach(function(k){
     if(!KURVOR[k])KURVOR[k]=kurvaKopia(gammal||KURVA_STD);
+    /* Saknas vinterkurvan börjar den som en kopia av den vanliga - då gör
+       den ingen skillnad förrän man ändrar den. */
+    if(!KURVOR[k+'_vinter'])KURVOR[k+'_vinter']=kurvaKopia(KURVOR[k]);
   });
-  KURVA=KURVOR[_kurvaVal];
-  _kurvaVarId=_kurvaVarIdar[_kurvaVal];
+  KURVA=KURVOR[kurvaNyckel()];
+  _kurvaVarId=_kurvaVarIdar[kurvaNyckel()];
 }
 async function kurvaSpara(){
   if(!kurvaGiltig(KURVA)){toast('Kurvan ser fel ut \u2013 sparar inte');return;}
   const varde=JSON.stringify(KURVA);
   try{
-    const varNamn=KURVA_VARS[_kurvaVal];
-    if(_kurvaVarIdar[_kurvaVal]){
-      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarIdar[_kurvaVal]+'/',{value:varde});
+    const nyckel=kurvaNyckel();
+    const varNamn=KURVA_VARS[nyckel];
+    if(_kurvaVarIdar[nyckel]){
+      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarIdar[nyckel]+'/',{value:varde});
     }else{
       /* Finns den inte skapas den. Typen ar string - Homey har ingen JSON-typ,
          och skriptet gor JSON.parse anda. */
@@ -4487,7 +4532,7 @@ async function kurvaSpara(){
       await kurvaHamta();
     }
     _kurvaAndrad=false;
-    toast(KURVA_NAMN[_kurvaVal]+': kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
+    toast(KURVA_NAMN[nyckel]+': kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
     if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
 }
@@ -4615,7 +4660,12 @@ function kurvaVardeVid(minut){
   const f=langd===0?0:pos/langd;
   return {dim:p1.dim+(p2.dim-p1.dim)*f, temp:p1.temp+(p2.temp-p1.temp)*f};
 }
-function kurvaAter(){KURVA=KURVOR[_kurvaVal]=kurvaKopia(KURVA_STD);_kurvaAndrad=true;dlgSatt(kurvaHTML());}
+/* Återställ: den vanliga kurvan går till standardkurvan, vinterkurvan till en
+   kopia av gruppens vanliga kurva (alltså ingen vinterskillnad). */
+function kurvaAter(){
+  KURVA=KURVOR[kurvaNyckel()]=kurvaKopia(_kurvaSas==='vinter'?KURVOR[_kurvaVal]:KURVA_STD);
+  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+}
 
 /* --- ritningen --- */
 const KV_W=320,KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
@@ -4655,6 +4705,12 @@ function kvY(v){return KV_T+(1-v)*(KV_H-KV_T-KV_B);}
 function kvBana(pts,falt){
   return pts.map(function(p,i){return (i?'L':'M')+kvX(p.m).toFixed(1)+' '+kvY(p[falt]).toFixed(1);}).join(' ');
 }
+/* Bakgrundskurvan: i vanligt läge den andra gruppen, i vinterläge samma
+   grupps vanliga kurva - då syns vad vintern ändrar. */
+function kurvaBakNyckel(){
+  if(_kurvaSas==='vinter')return _kurvaVal;
+  return (_kurvaVal==='tak')?'mys':'tak';
+}
 function kurvaSVG(){
   const pts=kvSort();
   let s='<svg class="kv" viewBox="0 0 '+KV_W+' '+KV_H+'" preserveAspectRatio="none">';
@@ -4670,7 +4726,7 @@ function kurvaSVG(){
      som att ingenting händer — båda kurvorna börjar som identiska kopior, så
      bara knappmarkeringen skiljer. Nu syns skillnaden direkt, och man ser hur
      taket och myslamporna förhåller sig till varandra medan man drar. */
-  const annan=(_kurvaVal==='tak')?'mys':'tak';
+  const annan=kurvaBakNyckel();
   if(KURVOR&&KURVOR[annan]&&KURVOR[annan]!==KURVA){
     const ap=kvSortAv(KURVOR[annan]);
     s+='<path class="kv-l kv-dim kv-bak" d="'+kvBana(ap,'dim')+'"/>';
@@ -4689,6 +4745,12 @@ function kurvaSVG(){
   });
   return s+'</svg>';
 }
+function kurvaVinterText(){
+  const v=vinterAndel();
+  const h=Math.floor(v.langd),m=Math.round((v.langd-h)*60);
+  return 'I dag g\u00e4ller '+Math.round(v.andel*100)+' % av vinterkurvan (dagsl\u00e4ngd '+h+' h '+m+' min). '
+    +'Andelen v\u00e4xer n\u00e4r dagarna blir kortare, \u00e4r full vid vintersolst\u00e5ndet och \u00e4r borta i mitten av februari.';
+}
 function kurvaHTML(){
   if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
   const pts=kvSort();
@@ -4704,8 +4766,14 @@ function kurvaHTML(){
       return '<button class="kv-g'+(_kurvaVal===k?' on':'')+'" onclick="kurvaValj(\''+k+'\')">'
         +'<span class="kv-g-p"></span>'+esc(KURVA_NAMN[k])+'</button>';}).join('')
     +'</div>'
+    +'<div class="kv-grupp kv-sas">'
+    +[['nu','Nu'],['vinter','Vinter']].map(function(x){
+      return '<button class="kv-g'+(_kurvaSas===x[0]?' on':'')+'" onclick="kurvaSasong(\''+x[0]+'\')">'
+        +'<span class="kv-g-p"></span>'+x[1]+'</button>';}).join('')
+    +'</div>'
+    +'<div class="kv-sas-t">'+kurvaVinterText()+'</div>'
     +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span>'
-    +'<span class="kv-leg-b"><i></i>'+esc(KURVA_NAMN[(_kurvaVal==='tak')?'mys':'tak'])+'</span></div>';
+    +'<span class="kv-leg-b"><i></i>'+esc(_kurvaSas==='vinter'?(KURVA_NAMN[_kurvaVal]+', nu'):KURVA_NAMN[kurvaBakNyckel()])+'</span></div>';
   /* REDIGERBAR LISTA. Varje rad är tre fält: klockslag, ljusstyrka och värme.
      Indexet som skickas är platsen i KURVA (p.i), inte i den sorterade listan —
      annars skulle en ändrad tid skriva på fel punkt. */
