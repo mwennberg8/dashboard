@@ -432,7 +432,11 @@ body .lamna .warn:last-child{padding-bottom:0}
 .lk-ad:not([disabled]):active{transform:scale(.97)}
 /* v1.75.0: lampkorten är vanliga celler i rumsrutnätet (display:contents),
    så de får exakt rumskortens storlek. Första rummet börjar alltid ny rad. */
-.lampkort{display:contents}
+/* v1.84.0: på plattan fick lampkorten en rumscell var (fyra kolumner på
+   800 px) - halva raden stod tom och namnen klipptes ("Takla…"). Nu är de en
+   egen rad med två lika breda kort, som på telefonen där rummen ändå har två
+   kolumner. */
+.lampkort{display:grid;grid-column:1/-1;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:var(--kn-luft)}
 .lampkort+.room{grid-column-start:1}
 .lampkort .room-m{flex-wrap:nowrap;align-items:center;white-space:nowrap;min-width:0}
 /* Texten får ge vika (klipps) i stället för att trycka brickan ur läge när
@@ -1103,7 +1107,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.83.0';
+const APP_VERSION = 'v1.84.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1443,7 +1447,27 @@ function credGet(){try{const o=JSON.parse(localStorage.getItem(CRED_KEY)||'{}');
 function credSet(o){try{localStorage.setItem(CRED_KEY,JSON.stringify({
   token:(o.token||'').trim(),homeyId:(o.homeyId||'').trim(),
   lan:(o.lan||'').trim(),kamera:(o.kamera||'').trim(),at:Date.now()}));return true;}catch(e){return false;}}
-function credFinns(){const c=credGet();return !!(c.token&&c.homeyId);}
+/* GÖTEBORGSDASHBOARDEN STYR BARA MARKUS'S HOMEY.
+   Båda dashboarderna ligger på samma adress, och webbläsarens lösenordshanterare
+   fyller gärna i Gottskärs sparade Homey-ID och token i den här rutan. Då
+   visade Göteborgsdashboarden Gottskärs lampor - och styrde dem. Homey-ID:t
+   är därför fast här, och sparade uppgifter med något annat ID används inte.
+   (Ett personligt token gäller bara den Homey det skapats på, så med rätt ID
+   går ett token från Gottskär inte att använda mot molnet här.) */
+const GBG_HOMEY_ID='65857c585f407045e73ddfdc';
+const GOTTSKAR_HOMEY_ID='65ae5b626f8c3918be8a18e2';
+var _felHomey='';            /* ID:t som rensades bort vid start, för förklaringen */
+function credFelHomey(){const c=credGet();return !!(c.homeyId&&c.homeyId!==GBG_HOMEY_ID);}
+/* Rensa bort ett annat hus uppgifter ur Göteborgs nyckel. De ska inte heller
+   användas av husvakten: den sonderar "Göteborg" med de här uppgifterna, och
+   med Gottskärs token och adress skulle plattan i Gottskär tro att den står i
+   Göteborg. Gottskärs egna uppgifter (homeycred_v1) rörs inte. */
+function credRensaFel(){
+  if(!credFelHomey())return;
+  const c=credGet();_felHomey=c.homeyId;
+  credSet({token:'',homeyId:'',lan:'',kamera:c.kamera});
+}
+function credFinns(){const c=credGet();return !!(c.token&&c.homeyId===GBG_HOMEY_ID);}
 function credMoln(){const c=credGet();return c.homeyId?('https://'+c.homeyId+'.connect.athom.com'):'';}
 /* Homeys lokala https-namn för en IP. Punkterna byts mot bindestreck under
    homeylocal.com, där Athom har ett giltigt certifikat. Samma maskin i samma
@@ -5476,21 +5500,33 @@ function knSparaRed(i){
 /* ================= första uppstarten ================= */
 function setupHTML(){
   const c=credGet();
+  /* Var den sparade anslutningen en annan Homey (Gottskär) visas varken dess
+     token eller lokala adress - de hör till det andra huset. */
+  const felId=credFelHomey()?c.homeyId:_felHomey;
+  const fel=!!felId;
+  const tok=fel?'':c.token, lan=fel?'':c.lan;
   return '<div class="setup-bak" id="setup-bak"><div class="setup">'
-    +'<div class="setup-h">Anslut till Homey</div>'
+    +'<div class="setup-h">Anslut till Markus\u2019s Homey</div>'
+    +(fel?'<div class="setup-m fel" style="margin:0 0 10px">Den h\u00e4r webbl\u00e4saren var ansluten till '
+      +(felId===GOTTSKAR_HOMEY_ID?'Gottsk\u00e4rs Homey':'en annan Homey ('+esc(felId)+')')
+      +'. G\u00f6teborgsdashboarden styr bara Markus\u2019s Homey \u2013 fyll i en token fr\u00e5n den.</div>':'')
     +'<div class="setup-s">Uppgifterna sparas i den här webbläsaren och lämnar den aldrig. '
     +'De finns inte i sidans fil.</div>'
     +'<label class="setup-l" for="su-id">Homey-ID</label>'
-    +'<input class="setup-i" id="su-id" spellcheck="false" autocomplete="off" '
-    +'placeholder="65857c585f407045e73ddfdc" value="'+esc(c.homeyId)+'">'
-    +'<div class="setup-t">Står i adressen på my.homey.app efter <b>/homeys/</b></div>'
+    /* Fast värde: rutan går inte att fylla i av misstag med Gottskärs ID. */
+    +'<input class="setup-i" id="su-id" name="gbg-homey" spellcheck="false" autocomplete="off" readonly '
+    +'value="'+GBG_HOMEY_ID+'" style="opacity:.75">'
+    +'<div class="setup-t">Markus\u2019s Homey i G\u00f6teborg. G\u00f6teborgsdashboarden ansluter bara hit.</div>'
     +'<label class="setup-l" for="su-tok">Personal Access Token</label>'
-    +'<input class="setup-i" id="su-tok" type="password" spellcheck="false" autocomplete="off" '
-    +'placeholder="tre delar åtskilda med kolon" value="'+esc(c.token)+'">'
-    +'<div class="setup-t">Skapas i Homey Developer Tools under <b>Personal Access Tokens</b></div>'
+    /* new-password: annars fyller lösenordshanteraren i Gottskärs token,
+       som sparats för samma adress. */
+    +'<input class="setup-i" id="su-tok" name="gbg-token" type="password" spellcheck="false" autocomplete="new-password" '
+    +'placeholder="tre delar åtskilda med kolon" value="'+esc(tok)+'">'
+    +'<div class="setup-t">Skapas i Homey Developer Tools för <b>Markus\u2019s Homey</b> under <b>Personal Access Tokens</b>. '
+    +'En token fr\u00e5n Gottsk\u00e4rs Homey fungerar inte h\u00e4r.</div>'
     +'<label class="setup-l" for="su-lan">Lokal adress <em style="font-style:normal;opacity:.6">(valfritt)</em></label>'
-    +'<input class="setup-i" id="su-lan" spellcheck="false" autocomplete="off" '
-    +'placeholder="http://192.168.1.20" value="'+esc(c.lan)+'">'
+    +'<input class="setup-i" id="su-lan" name="gbg-lan" spellcheck="false" autocomplete="off" '
+    +'placeholder="Markus\u2019s Homey i G\u00f6teborg, t.ex. http://192.168.1.20" value="'+esc(lan)+'">'
     +'<div class="setup-t">Snabbare hemma. Utan den går allt via molnet.</div>'
     +'<button class="setup-b" id="su-ok">Anslut</button>'
     +'<div class="setup-m" id="su-msg"></div>'
@@ -5505,7 +5541,7 @@ function setupVisa(){
     if(e)e.addEventListener('keydown',ev=>{if(ev.key==='Enter')setupProva();});});}
 function setupDolj(){const e=$('setup-bak');if(e&&e.parentNode)e.parentNode.removeChild(e);}
 async function setupProva(){
-  let id=(($('su-id')||{}).value||'').trim();
+  let id=GBG_HOMEY_ID;
   const tok=(($('su-tok')||{}).value||'').trim();
   const lan=(($('su-lan')||{}).value||'').trim();
   const m=$('su-msg'),knapp=$('su-ok');
@@ -5533,8 +5569,24 @@ async function setupProva(){
   if(knapp){knapp.disabled=false;knapp.textContent='Anslut';}
   if(!lyckad){
     sag('Kom inte fram.<br>'+fel.map(esc).join('<br>')
-      +'<br><br>Kontrollera id och token. Är båda rätt men molnet inte svarar kan Homey vara offline.',true);
+      +'<br><br>Kontrollera token. Den ska vara skapad f\u00f6r Markus\u2019s Homey, inte Gottsk\u00e4rs.',true);
     return;}
+  /* Svarade den lokala adressen kan det vara fel Homey (Gottskärs, om plattan
+     står där). Molnadressen hör alltid till Markus's Homey och godtar bara en
+     token från den - svarar molnet med 401/403 är token alltså från en annan
+     Homey, och då sparas ingenting. */
+  if(lyckad!==baser[baser.length-1]){
+    try{
+      const t=withTimeout(9000);
+      const r=await fetch(baser[baser.length-1]+'/api/manager/system/',
+        {headers:{Authorization:'Bearer '+tok},cache:'no-store',signal:t.signal});
+      t.clear();
+      if(r.status===401||r.status===403){
+        sag('Token h\u00f6r inte till Markus\u2019s Homey (molnet svarade '+r.status+'). '
+          +'Skapa en token f\u00f6r Markus\u2019s Homey i Homey Developer Tools.',true);
+        return;}
+    }catch(e){/* molnet nås inte - den lokala anslutningen får räcka */}
+  }
   const c=credGet();
   credSet({token:tok,homeyId:id,lan:lan,kamera:c.kamera});
   credTillCONFIG();
@@ -5564,6 +5616,9 @@ function start(){
     demoBind();
     return;
   }
+  /* Fel Homey sparad (Gottskärs): visa anslutningsrutan med förklaring i
+     stället för att hämta och styra det andra husets enheter. */
+  credRensaFel();
   if(!credFinns()){setupVisa();return;}
   load();
   fetchSmhi();
