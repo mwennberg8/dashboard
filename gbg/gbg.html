@@ -601,7 +601,7 @@ body .lamna .warn:last-child{padding-bottom:0}
   padding:6px;touch-action:none;user-select:none}
 .kv{width:100%;height:150px;display:block}
 .kv-rut{stroke:var(--line);stroke-width:1}
-.kv-tx{fill:var(--faint);font-size:8px;font-family:var(--sans)}
+.kv-tx{fill:var(--faint);font-size:9px;font-family:var(--sans)}
 .kv-l{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .kv-p{stroke:var(--panel-b);stroke-width:2;cursor:grab;pointer-events:none}
 .kv-t{fill:transparent;stroke:none;cursor:grab}
@@ -650,6 +650,20 @@ path.kv-temp{stroke:var(--blue)} circle.kv-temp{fill:var(--blue)}
    före vann basregelns border-radius:50% och strecket blev en märklig böjd
    form i stället för en linje. */
 .kv-leg-b{opacity:.6}
+/* Ljusstyrka och Värme i förklaringen är knappar: tryck på en så går bara den
+   kurvan att dra i (bra när punkterna ligger på varandra), tryck igen för båda. */
+.kv-ser{background:none;border:1px solid transparent;border-radius:999px;padding:2px 8px;
+  font:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center}
+.kv-ser.on{border-color:var(--line);background:var(--inset);color:var(--ink)}
+.kv-ser.av{opacity:.4}
+/* Punkten man håller i: större, med ring. Den låsta seriens punkter dämpas. */
+.kv-p.kv-akt{stroke:var(--ink);stroke-width:2.5}
+.kv-p.kv-las,.kv-l.kv-las{opacity:.3}
+/* Nu-strecket och värdet man drar i. */
+.kv-nu{stroke:var(--dim);stroke-width:1;stroke-dasharray:2 3;opacity:.7}
+.kv-nu-t{fill:var(--dim);font-size:9px;font-family:var(--sans);font-weight:700}
+.kv-vis{fill:var(--ink);font-size:11px;font-family:var(--sans);font-weight:700}
+.kv-just{text-align:center;font-size:11.5px;color:var(--dim);margin:4px auto 0;max-width:320px}
 .kv-leg-b i{width:15px;height:2px;border-radius:0;background:none;
   background-image:linear-gradient(90deg,var(--dim) 0 4px,transparent 4px 7px);
   background-size:7px 2px;background-repeat:repeat-x;align-self:center}
@@ -1089,7 +1103,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.82.0';
+const APP_VERSION = 'v1.83.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4444,7 +4458,13 @@ var KURVOR={tak:null,mys:null,tak_vinter:null,mys_vinter:null};
 var _kurvaVal='tak';                 /* vilken grupp som redigeras just nu */
 var _kurvaSas='nu';                  /* 'nu' eller 'vinter' */
 var _kurvaVarIdar={tak:null,mys:null,tak_vinter:null,mys_vinter:null};
-var KURVA=null,_kurvaVarId=null,_kurvaAndrad=false;
+var KURVA=null,_kurvaVarId=null;
+/* OSPARADE ÄNDRINGAR PER KURVA. Förut fanns en enda flagga: ändrade man
+   taket, bytte till mys och sparade, sparades bara mys och knappen sa
+   "Sparad" fast takets ändring låg kvar osparad. */
+var _kurvaAndrade={};
+function kurvaMarkera(){_kurvaAndrade[kurvaNyckel()]=true;}
+function kurvaOsparade(){return KURVA_NYCKLAR.filter(function(k){return _kurvaAndrade[k];});}
 
 /* Nyckeln för det som visas: grupp plus säsong. */
 function kurvaNyckel(){return _kurvaVal+(_kurvaSas==='vinter'?'_vinter':'');}
@@ -4452,7 +4472,7 @@ function kurvaVisa(){
   const k=kurvaNyckel();
   KURVA=KURVOR[k]||(KURVOR[k]=kurvaKopia(KURVOR[_kurvaVal]||KURVA_STD));
   _kurvaVarId=_kurvaVarIdar[k];
-  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+  kurvaRita();
 }
 function kurvaValj(v){
   if(v!=='tak'&&v!=='mys')return;
@@ -4504,7 +4524,14 @@ async function kurvaHamta(){
     KURVA_NYCKLAR.forEach(function(k){
       const x=arr.find(function(a){return a&&a.name===KURVA_VARS[k];});
       _kurvaVarIdar[k]=x?x.id:null;
-      if(x){try{const j=JSON.parse(String(x.value||''));if(kurvaGiltig(j))KURVOR[k]=j;}catch(e){}}
+      /* DEN HÄR KÖRS VAR 15:E SEKUND. Förut skrev den över kurvan man höll på
+         att ändra med det som låg på Homey - en osparad ändring försvann
+         medan man tittade på den, och mitt i en dragning byttes kurvan ut.
+         En kurva med osparade ändringar rörs därför inte, och ingenting
+         rörs medan man drar. Oförändrat innehåll byter inte heller objekt. */
+      if(_kurvaAndrade[k]||_kvDrag)return;
+      if(x){try{const j=JSON.parse(String(x.value||''));
+        if(kurvaGiltig(j)&&JSON.stringify(j)!==JSON.stringify(KURVOR[k]))KURVOR[k]=j;}catch(e){}}
     });
   }catch(e){/* saknas eller otolkbar - standardkurvan galler */}
   ['tak','mys'].forEach(function(k){
@@ -4513,28 +4540,42 @@ async function kurvaHamta(){
        den ingen skillnad förrän man ändrar den. */
     if(!KURVOR[k+'_vinter'])KURVOR[k+'_vinter']=kurvaKopia(KURVOR[k]);
   });
+  if(_kvDrag)return;
+  const forra=KURVA;
   KURVA=KURVOR[kurvaNyckel()];
   _kurvaVarId=_kurvaVarIdar[kurvaNyckel()];
+  /* Har kurvan på Homey ändrats någon annanstans (en annan platta) syns det
+     direkt i en öppen ruta. */
+  if(KURVA!==forra&&_dlgKey==='kurva')kurvaRita();
 }
+/* Sparar ALLA kurvor med osparade ändringar, inte bara den som visas. */
 async function kurvaSpara(){
-  if(!kurvaGiltig(KURVA)){toast('Kurvan ser fel ut \u2013 sparar inte');return;}
-  const varde=JSON.stringify(KURVA);
+  const lista=kurvaOsparade();
+  if(!lista.length)return;
+  for(const k of lista){
+    if(!kurvaGiltig(KURVOR[k])){toast(KURVA_NAMN[k]+': kurvan ser fel ut \u2013 sparar inte');return;}
+  }
+  let skapad=false;
+  const sparade=[];
   try{
-    const nyckel=kurvaNyckel();
-    const varNamn=KURVA_VARS[nyckel];
-    if(_kurvaVarIdar[nyckel]){
-      await homeySkriv('/api/manager/logic/variable/'+_kurvaVarIdar[nyckel]+'/',{value:varde});
-    }else{
-      /* Finns den inte skapas den. Typen ar string - Homey har ingen JSON-typ,
-         och skriptet gor JSON.parse anda. */
-      const ok=await homeySkapaVar(varNamn,varde);
-      if(!ok){toast('Kunde inte skapa '+varNamn);return;}
-      await kurvaHamta();
+    for(const k of lista){
+      const varde=JSON.stringify(KURVOR[k]);
+      if(_kurvaVarIdar[k]){
+        await homeySkriv('/api/manager/logic/variable/'+_kurvaVarIdar[k]+'/',{value:varde});
+      }else{
+        /* Finns den inte skapas den. Typen ar string - Homey har ingen JSON-typ,
+           och skriptet gor JSON.parse anda. */
+        const ok=await homeySkapaVar(KURVA_VARS[k],varde);
+        if(!ok){toast('Kunde inte skapa '+KURVA_VARS[k]);break;}
+        skapad=true;
+      }
+      delete _kurvaAndrade[k];
+      sparade.push(KURVA_NAMN[k]);
     }
-    _kurvaAndrad=false;
-    toast(KURVA_NAMN[nyckel]+': kurvan sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
-    if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
+  if(skapad)await kurvaHamta();
+  if(sparade.length)toast(sparade.join(', ')+': sparad \u2013 g\u00e4ller fr\u00e5n n\u00e4sta varv');
+  kurvaRita();
 }
 async function homeySkapaVar(namn,varde){
   const lista=(BASE?[BASE].concat(vagar().filter(function(v){return v!==BASE;})):vagar());
@@ -4608,22 +4649,22 @@ function kurvaTidTolka(v){
 function kurvaSattTid(i,v){
   if(!KURVA||!KURVA[i])return;
   const t=kurvaTidTolka(v);
-  if(t===null){toast('Skriv tiden som 07:30');dlgSatt(kurvaHTML());return;}
+  if(t===null){toast('Skriv tiden som 07:30');kurvaRita();return;}
   /* Två punkter på samma klockslag gör kurvan tvetydig. */
   if(KURVA.some(function(p,j){return j!==i&&p.tid===t;})){
-    toast('Det finns redan en punkt '+t);dlgSatt(kurvaHTML());return;}
-  KURVA[i].tid=t;_kurvaAndrad=true;dlgSatt(kurvaHTML());
+    toast('Det finns redan en punkt '+t);kurvaRita();return;}
+  KURVA[i].tid=t;kurvaMarkera();kurvaRita();
 }
 function kurvaSattVarde(i,falt,v){
   if(!KURVA||!KURVA[i])return;
   const n=Number(String(v).replace(',','.'));
-  if(!isFinite(n)){toast('Skriv ett tal 0\u2013100');dlgSatt(kurvaHTML());return;}
+  if(!isFinite(n)){toast('Skriv ett tal 0\u2013100');kurvaRita();return;}
   KURVA[i][falt]=Math.max(0,Math.min(1,n/100));
-  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+  kurvaMarkera();kurvaRita();
 }
 function kurvaTaBort(i){
   if(!KURVA||KURVA.length<=2){toast('Kurvan beh\u00f6ver minst tv\u00e5 punkter');return;}
-  KURVA.splice(i,1);_kurvaAndrad=true;dlgSatt(kurvaHTML());
+  KURVA.splice(i,1);kurvaMarkera();kurvaRita();
 }
 /* Ny punkt mitt i den största luckan — då hamnar den någonstans man faktiskt
    vill ha den, i stället för alltid sist. */
@@ -4642,33 +4683,24 @@ function kurvaLaggTill(){
   /* Värdena tas från kurvan där punkten hamnar, så den inte gör ett hopp. */
   const m=kurvaVardeVid(bast);
   KURVA.push({tid:tid,dim:m.dim,temp:m.temp});
-  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+  kurvaMarkera();kurvaRita();
 }
 /* Kurvans värde vid en minut — samma interpolation som skriptet gör. */
-function kurvaVardeVid(minut){
-  const min=function(t){const b=String(t).split(':');return (+b[0])*60+(+b[1]);};
-  const a=KURVA.map(function(p){return {m:min(p.tid),dim:p.dim,temp:p.temp};})
-    .sort(function(x,y){return x.m-y.m;});
-  if(!a.length)return {dim:0.5,temp:0.5};
-  if(a.length===1)return {dim:a[0].dim,temp:a[0].temp};
-  let i=-1;for(let k=0;k<a.length;k++)if(a[k].m<=minut)i=k;
-  let p1,p2,langd,pos;
-  if(i===-1||i===a.length-1){
-    p1=a[a.length-1];p2=a[0];langd=1440-p1.m+p2.m;
-    pos=(i===-1)?(1440-p1.m+minut):(minut-p1.m);
-  }else{p1=a[i];p2=a[i+1];langd=p2.m-p1.m;pos=minut-p1.m;}
-  const f=langd===0?0:pos/langd;
-  return {dim:p1.dim+(p2.dim-p1.dim)*f, temp:p1.temp+(p2.temp-p1.temp)*f};
-}
+function kurvaVardeVid(minut){return kvVarde(KURVA,minut);}
 /* Återställ: den vanliga kurvan går till standardkurvan, vinterkurvan till en
    kopia av gruppens vanliga kurva (alltså ingen vinterskillnad). */
 function kurvaAter(){
   KURVA=KURVOR[kurvaNyckel()]=kurvaKopia(_kurvaSas==='vinter'?KURVOR[_kurvaVal]:KURVA_STD);
-  _kurvaAndrad=true;dlgSatt(kurvaHTML());
+  kurvaMarkera();kurvaRita();
 }
 
 /* --- ritningen --- */
-const KV_W=320,KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
+/* KV_W FÖLJER RUTANS VERKLIGA BREDD (kvMat). SVG:n sträcks med
+   preserveAspectRatio="none"; med en fast bredd på 320 blev punkterna ovaler
+   och avstånden i sidled fel så fort rutan var bredare, och pekpunkten
+   räknades om fel. Nu är en enhet en bildpunkt i båda leden. */
+var KV_W=320;
+const KV_H=170,KV_L=26,KV_R=8,KV_T=10,KV_B=18;
 function kvMin(t){const m=/^(\d{1,2}):(\d{2})$/.exec(String(t));return m?(+m[1]*60+ +m[2]):0;}
 /* 00:00 i kurvan betyder dygnets SLUT nar den star sist - annars hamnar sista
    punkten ovanpa den forsta. */
@@ -4702,8 +4734,57 @@ function kvSort(){
 }
 function kvX(m){return KV_L+(m/1440)*(KV_W-KV_L-KV_R);}
 function kvY(v){return KV_T+(1-v)*(KV_H-KV_T-KV_B);}
+/* Kurvan ritas över HELA dygnet. Förut började linjen vid första punkten
+   (05:00) - sträckan från midnatt dit, som skriptet följer, syntes inte. */
 function kvBana(pts,falt){
-  return pts.map(function(p,i){return (i?'L':'M')+kvX(p.m).toFixed(1)+' '+kvY(p[falt]).toFixed(1);}).join(' ');
+  if(!pts.length)return '';
+  const f=pts[0],l=pts[pts.length-1];
+  const spann=1440-l.m+f.m;
+  const v0=spann>0?l[falt]+(f[falt]-l[falt])*((1440-l.m)/spann):f[falt];
+  const hel=[{m:0}].concat(pts,[{m:1440}]);
+  hel[0][falt]=v0;hel[hel.length-1][falt]=(l.m>=1440)?l[falt]:v0;
+  if(f.m<=0)hel.shift();
+  if(l.m>=1440)hel.pop();
+  return hel.map(function(p,i){return (i?'L':'M')+kvX(p.m).toFixed(1)+' '+kvY(p[falt]).toFixed(1);}).join(' ');
+}
+/* Mät rutan och rita om grafen om bredden inte stämmer. */
+function kvMat(){
+  const sv=document.querySelector('#kv-box svg.kv');
+  if(!sv||!sv.getBoundingClientRect)return;
+  /* clientWidth, inte getBoundingClientRect: rutan glider in med en
+     skalning, och mitt i den blir den uppmätta bredden för liten. */
+  const w=Math.round(sv.clientWidth||sv.getBoundingClientRect().width);
+  if(w>120&&Math.abs(w-KV_W)>1){KV_W=w;const box=$('kv-box');if(box)box.innerHTML=kurvaSVG();}
+}
+function kurvaRita(){
+  if(_dlgKey!=='kurva')return;
+  dlgSatt(kurvaHTML());kvMat();
+}
+try{window.addEventListener('resize',function(){if(_dlgKey==='kurva'&&!_kvDrag)kvMat();});}catch(e){}
+/* Värdet vid en minut för vilken kurva som helst - samma interpolation som
+   skriptet. */
+function kvVarde(kurva,minut){
+  const a=kurva.map(function(p){return {m:kvMin(p.tid),dim:p.dim,temp:p.temp};})
+    .sort(function(x,y){return x.m-y.m;});
+  if(!a.length)return {dim:0.5,temp:0.5};
+  if(a.length===1)return {dim:a[0].dim,temp:a[0].temp};
+  let i=-1;for(let k=0;k<a.length;k++)if(a[k].m<=minut)i=k;
+  let p1,p2,langd,pos;
+  if(i===-1||i===a.length-1){
+    p1=a[a.length-1];p2=a[0];langd=1440-p1.m+p2.m;
+    pos=(i===-1)?(1440-p1.m+minut):(minut-p1.m);
+  }else{p1=a[i];p2=a[i+1];langd=p2.m-p1.m;pos=minut-p1.m;}
+  const f=langd===0?0:pos/langd;
+  return {dim:p1.dim+(p2.dim-p1.dim)*f, temp:p1.temp+(p2.temp-p1.temp)*f};
+}
+/* Det lamporna i gruppen får just nu: vanliga kurvan blandad med vinterkurvan
+   efter dagens vinterandel, som skriptet gör. */
+function kurvaJustNu(){
+  const d=new Date(),min=d.getHours()*60+d.getMinutes();
+  const g=_kurvaVal,a=vinterAndel(d).andel;
+  const v=kvVarde(KURVOR[g]||KURVA_STD,min);
+  const w=kvVarde(KURVOR[g+'_vinter']||KURVOR[g]||KURVA_STD,min);
+  return {min:min,dim:v.dim+(w.dim-v.dim)*a,temp:v.temp+(w.temp-v.temp)*a};
 }
 /* Bakgrundskurvan: i vanligt läge den andra gruppen, i vinterläge samma
    grupps vanliga kurva - då syns vad vintern ändrar. */
@@ -4732,24 +4813,42 @@ function kurvaSVG(){
     s+='<path class="kv-l kv-dim kv-bak" d="'+kvBana(ap,'dim')+'"/>';
     s+='<path class="kv-l kv-temp kv-bak" d="'+kvBana(ap,'temp')+'"/>';
   }
-  s+='<path class="kv-l kv-dim" id="kv-b-dim" d="'+kvBana(pts,'dim')+'"/>';
-  s+='<path class="kv-l kv-temp" id="kv-b-temp" d="'+kvBana(pts,'temp')+'"/>';
-  /* Varje punkt far en osynlig traffyta pa 18 - ett finger ar bredare an sex
-     bildpunkter, och de tva serierna ligger dessutom ofta nara varandra. */
-  pts.forEach(function(p){
-    ['dim','temp'].forEach(function(f){
+  /* Nu-strecket: var på dygnet man är. */
+  const nu=new Date(),nm=nu.getHours()*60+nu.getMinutes();
+  s+='<line class="kv-nu" x1="'+kvX(nm).toFixed(1)+'" y1="'+KV_T+'" x2="'+kvX(nm).toFixed(1)+'" y2="'+(KV_H-KV_B)+'"/>';
+  const las=function(f){return (_kvSerie&&_kvSerie!==f)?' kv-las':'';};
+  s+='<path class="kv-l kv-dim'+las('dim')+'" id="kv-b-dim" d="'+kvBana(pts,'dim')+'"/>';
+  s+='<path class="kv-l kv-temp'+las('temp')+'" id="kv-b-temp" d="'+kvBana(pts,'temp')+'"/>';
+  /* Punkterna. Vilken man tar avgörs av kvNarmast, inte av vilken cirkel
+     fingret råkar träffa - inga osynliga träffytor behövs. Den låsta seriens
+     punkter ritas först, så den man kan dra i ligger överst. */
+  const ordning=(_kvSerie==='dim')?['temp','dim']:['dim','temp'];
+  ordning.forEach(function(f){
+    pts.forEach(function(p){
       const x=kvX(p.m).toFixed(1), y=kvY(p[f]).toFixed(1);
-      s+='<circle class="kv-t" data-i="'+p.i+'" data-f="'+f+'" cx="'+x+'" cy="'+y+'" r="18"/>';
-      s+='<circle class="kv-p kv-'+f+'" id="kv-p-'+p.i+'-'+f+'" cx="'+x+'" cy="'+y+'" r="7"/>';
+      s+='<circle class="kv-p kv-'+f+las(f)+'" id="kv-p-'+p.i+'-'+f+'" cx="'+x+'" cy="'+y+'" r="7"/>';
     });
   });
+  s+='<text class="kv-vis" id="kv-vis" x="'+(KV_W-KV_R)+'" y="'+(KV_T+10)+'" text-anchor="end"></text>';
   return s+'</svg>';
+}
+function kurvaSparaText(){
+  const o=kurvaOsparade();
+  if(!o.length)return 'Sparad';
+  if(o.length===1&&o[0]===kurvaNyckel())return 'Spara \u00e4ndringar';
+  return 'Spara \u00e4ndringar ('+o.length+' kurvor)';
 }
 function kurvaVinterText(){
   const v=vinterAndel();
   const h=Math.floor(v.langd),m=Math.round((v.langd-h)*60);
   return 'I dag g\u00e4ller '+Math.round(v.andel*100)+' % av vinterkurvan (dagsl\u00e4ngd '+h+' h '+m+' min). '
     +'Andelen v\u00e4xer n\u00e4r dagarna blir kortare, \u00e4r full vid vintersolst\u00e5ndet och \u00e4r borta i mitten av februari.';
+}
+function kurvaJustNuText(){
+  const j=kurvaJustNu();
+  const kl=('0'+Math.floor(j.min/60)).slice(-2)+':'+('0'+(j.min%60)).slice(-2);
+  return 'Just nu '+kl+': '+esc(KURVA_NAMN[_kurvaVal].toLowerCase())+' f\u00e5r ljus '
+    +Math.round(j.dim*100)+' %, v\u00e4rme '+Math.round(j.temp*100)+' %';
 }
 function kurvaHTML(){
   if(!KURVA)KURVA=kurvaKopia(KURVA_STD);
@@ -4772,8 +4871,12 @@ function kurvaHTML(){
         +'<span class="kv-g-p"></span>'+x[1]+'</button>';}).join('')
     +'</div>'
     +'<div class="kv-sas-t">'+kurvaVinterText()+'</div>'
-    +'<div class="kv-leg"><span><i class="kv-dim"></i>Ljusstyrka</span><span><i class="kv-temp"></i>V\u00e4rme</span>'
-    +'<span class="kv-leg-b"><i></i>'+esc(_kurvaSas==='vinter'?(KURVA_NAMN[_kurvaVal]+', nu'):KURVA_NAMN[kurvaBakNyckel()])+'</span></div>';
+    +'<div class="kv-leg">'
+    +[['dim','Ljusstyrka'],['temp','V\u00e4rme']].map(function(x){
+      const c=_kvSerie===x[0]?' on':(_kvSerie?' av':'');
+      return '<button class="kv-ser'+c+'" onclick="kvSerieValj(\''+x[0]+'\')"><i class="kv-'+x[0]+'"></i>'+x[1]+'</button>';}).join('')
+    +'<span class="kv-leg-b"><i></i>'+esc(_kurvaSas==='vinter'?(KURVA_NAMN[_kurvaVal]+', nu'):KURVA_NAMN[kurvaBakNyckel()])+'</span></div>'
+    +'<div class="kv-just">'+kurvaJustNuText()+'</div>';
   /* REDIGERBAR LISTA. Varje rad är tre fält: klockslag, ljusstyrka och värme.
      Indexet som skickas är platsen i KURVA (p.i), inte i den sorterade listan —
      annars skulle en ändrad tid skriva på fel punkt. */
@@ -4797,7 +4900,7 @@ function kurvaHTML(){
   h+='<div class="dbtn-row" style="margin-top:8px">'
     +'<button class="dbtn" onclick="kurvaLaggTill()">L\u00e4gg till punkt</button></div>';
   h+='<div class="dbtn-row" style="margin-top:10px">'
-    +'<button class="dbtn pri" onclick="kurvaSpara()">'+(_kurvaAndrad?'Spara \u00e4ndringar':'Sparad')+'</button>'
+    +'<button class="dbtn pri" onclick="kurvaSpara()">'+kurvaSparaText()+'</button>'
     +'<button class="dbtn" onclick="kurvaAter()">\u00c5terst\u00e4ll</button></div>';
   if(!_kurvaVarId){
     h+='<div class="dbtn-row" style="margin-top:12px">'
@@ -4805,68 +4908,98 @@ function kurvaHTML(){
       +'<div class="setup-t">Dimmar du en lampa f\u00f6r hand slutar den f\u00f6lja schemat '
       +'resten av dygnet. Knappen sl\u00e4pper alla s\u00e5dana l\u00e5sningar direkt \u2014 '
       +'annars sker det av sig sj\u00e4lvt vid n\u00e4sta dygnsskifte.</div>';
-    h+='<div class="setup-t" style="margin-top:10px;color:var(--warm)">Variabeln <b>adaptiv_kurva</b> '
-      +'finns inte \u00e4n. Den skapas n\u00e4r du sparar. Skriptet anv\u00e4nder den f\u00f6rst efter att du '
-      +'lagt in de fyra raderna som st\u00e5r i chatten.</div>';
+    h+='<div class="setup-t" style="margin-top:10px;color:var(--warm)">Variabeln <b>'+esc(KURVA_VARS[kurvaNyckel()])+'</b> '
+      +'finns inte \u00e4n. Den skapas n\u00e4r du sparar.</div>';
   }
   return h;
 }
 function openKurva(){
   DLG_OM.kurva=function(){};   /* ingen automatisk omritning - man drar ju i den */
   openDlg('Adaptiv kurva','chart-line',kurvaHTML(),'kurva');
+  kvMat();
 }
-/* Dragning. Bara punkter tas, och bara i hojdled - x rors aldrig. */
+/* DRAGNING. Bara punkter tas, och bara i höjdled - x rörs aldrig.
+
+   Tre buggar rättade i v1.83.0:
+   - Pekpunkten räknades mot rutan runt grafen (med 6 px marginal och ram), inte
+     mot grafen. Allt hamnade upp till 7 px fel, så när ljus- och
+     värmepunkten låg nära varandra valdes ofta den andra.
+   - Punkten hoppade till fingret redan vid tryck. Ett tryck på fel punkt
+     ändrade den direkt. Nu flyttas den först när fingret rört sig 3 px, och
+     RELATIVT: den följer fingrets rörelse i stället för att hoppa dit.
+   - Låg ljus- och värmepunkten ovanpå varandra vann alltid samma. Nu vinner
+     den serie man senast drog i, och förklaringens knappar Ljusstyrka/Värme
+     låser dragningen till en serie. */
 var _kvDrag=null;
-/* Pekpunkten i anvandarkoordinater. SVG:n stracks i sidled men inte i hojdled,
-   sa bada leden maste raknas om mot rutans faktiska storlek. */
+var _kvSerie=null;          /* null = båda går att dra, annars 'dim' eller 'temp' */
+var _kvSenastF='dim';       /* vid lika avstånd: serien man senast drog i */
+function kvSerieValj(f){
+  _kvSerie=(_kvSerie===f)?null:f;
+  kurvaRita();
+}
+/* Pekpunkten i grafens koordinater - mot SVG:n själv, inte rutan runt den. */
 function kvPek(e){
-  const box=$('kv-box');if(!box||!box.getBoundingClientRect)return null;
-  const r=box.getBoundingClientRect();
+  const sv=document.querySelector('#kv-box svg.kv');if(!sv||!sv.getBoundingClientRect)return null;
+  const r=sv.getBoundingClientRect();
   if(!r.width||!r.height)return null;
   return {x:((e.clientX-r.left)/r.width)*KV_W, y:((e.clientY-r.top)/r.height)*KV_H};
 }
-/* Narmaste punkt inom ett rimligt avstand. Att bara lita pa vad fingret rakade
-   tacka gor sma mal nastan omojliga att traffa - i stallet vinner den narmaste,
-   och da racker det att peka i ratt omrade. */
+/* Närmaste punkt inom 24 px. Ligger två punkter lika nära (inom 6 px av
+   varandra i avstånd) är det tvetydigt - då vinner serien man senast drog i. */
 function kvNarmast(pek){
-  let bast=null,bd=Infinity;
+  const kand=[];
   kvSort().forEach(function(p){
     ['dim','temp'].forEach(function(f){
+      if(_kvSerie&&_kvSerie!==f)return;
       const dx=kvX(p.m)-pek.x, dy=kvY(p[f])-pek.y;
       const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<bd){bd=d;bast={i:p.i,f:f};}
+      if(d<=24)kand.push({i:p.i,f:f,d:d});
     });
   });
-  return (bd<=26)?bast:null;
+  if(!kand.length)return null;
+  kand.sort(function(a,b){return a.d-b.d;});
+  const nara=kand.filter(function(k){return k.d-kand[0].d<6;});
+  return nara.find(function(k){return k.f===_kvSenastF;})||kand[0];
 }
 function kvNer(e){
+  if(e.button!=null&&e.button>0)return;
   const pek=kvPek(e);if(!pek)return;
   const t=kvNarmast(pek);if(!t)return;
-  _kvDrag=t;
+  _kvDrag={i:t.i,f:t.f,y0:pek.y,v0:KURVA[t.i][t.f],igang:false};
   const box=$('kv-box');
   try{box&&box.setPointerCapture&&box.setPointerCapture(e.pointerId);}catch(err){}
-  /* Flytta dit direkt, sa att punkten hoppar till fingret i stallet for att
-     vanta pa forsta rorelsen. */
-  kvFlytta(pek);
+  const c=$('kv-p-'+t.i+'-'+t.f);
+  if(c){c.classList.add('kv-akt');c.setAttribute('r','9');
+    /* Överst, så ringen inte döljs av den andra seriens punkt. */
+    c.parentNode.appendChild(c);}
+  kvVisa();
   e.preventDefault();
 }
-/* ENDAST det som andrats ritas om. Att bygga om hela SVG:n vid varje rorelse
-   forstor elementet man haller i, och da slapper greppet - det var darfor
-   punkten inte foljde med fingret. */
+function kvVisa(){
+  const d=_kvDrag,t=$('kv-vis');if(!t)return;
+  if(!d){t.textContent='';return;}
+  t.textContent=(d.f==='dim'?'Ljus ':'V\u00e4rme ')+Math.round(KURVA[d.i][d.f]*100)+' %  \u00b7  '+KURVA[d.i].tid;
+  /* Texten på motsatt sida om punkten, så fingret och punkten inte skymmer den. */
+  const hoger=kvX(kvMinPos(KURVA[d.i].tid))<KV_W/2;
+  t.setAttribute('x',hoger?(KV_W-KV_R):(KV_L+4));
+  t.setAttribute('text-anchor',hoger?'end':'start');
+}
+/* ENDAST det som ändrats ritas om. Att bygga om hela SVG:n vid varje rörelse
+   förstör elementet man håller i, och då släpper greppet. */
 function kvFlytta(pek){
   const d=_kvDrag;if(!d)return;
-  let v=1-((pek.y-KV_T)/(KV_H-KV_T-KV_B));
+  if(!d.igang){if(Math.abs(pek.y-d.y0)<3)return;d.igang=true;}
+  let v=d.v0-(pek.y-d.y0)/(KV_H-KV_T-KV_B);
   v=Math.max(0,Math.min(1,v));
   v=Math.round(v*100)/100;
   if(KURVA[d.i][d.f]===v)return;
-  KURVA[d.i][d.f]=v;_kurvaAndrad=true;
+  KURVA[d.i][d.f]=v;kurvaMarkera();
   const pts=kvSort();
   const p=pts.find(function(x){return x.i===d.i;});
   const y=kvY(p[d.f]).toFixed(1);
   const c=$('kv-p-'+d.i+'-'+d.f);if(c)c.setAttribute('cy',y);
-  const t=document.querySelector('.kv-t[data-i="'+d.i+'"][data-f="'+d.f+'"]');
-  if(t)t.setAttribute('cy',y);
   const b=$('kv-b-'+d.f);if(b)b.setAttribute('d',kvBana(pts,d.f));
+  kvVisa();
 }
 function kvRor(e){
   if(!_kvDrag)return;
@@ -4876,9 +5009,11 @@ function kvRor(e){
 }
 function kvUpp(){
   if(!_kvDrag)return;
+  const d=_kvDrag;
   _kvDrag=null;
-  /* Nu, och bara nu, ritas rutan om - da uppdateras vardelistan och knappen. */
-  if(_dlgKey==='kurva')dlgSatt(kurvaHTML());
+  if(d.igang)_kvSenastF=d.f;
+  /* Nu, och bara nu, ritas rutan om - då uppdateras värdelistan och knappen. */
+  kurvaRita();
 }
 function openInst(){
   const c=credGet();
