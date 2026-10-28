@@ -1107,7 +1107,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.84.0';
+const APP_VERSION = 'v1.85.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4473,8 +4473,8 @@ const KURVA_STD=[
    fungerar oförändrad. */
 /* VINTERKURVA (belysningsskriptet 1.8.0). Varje grupp har en vinterkurva
    bredvid den vanliga. Skriptet blandar dem efter dagslängden: 0 % vinter den
-   27 oktober, 100 % vid vintersolståndet, tillbaka till 0 % i mitten av
-   februari. Nycklarna tak_vinter och mys_vinter ligger i samma tabeller som
+   1 oktober (skriptet 1.8.1), 100 % vid vintersolståndet, tillbaka till 0 % i
+   mitten av mars. Nycklarna tak_vinter och mys_vinter ligger i samma tabeller som
    tak och mys, så spara, ladda och dra fungerar likadant för alla fyra. */
 const KURVA_VARS={tak:'adaptiv_kurva_tak', mys:'adaptiv_kurva_mys',
   tak_vinter:'adaptiv_kurva_tak_vinter', mys_vinter:'adaptiv_kurva_mys_vinter'};
@@ -4511,7 +4511,7 @@ function kurvaSasong(v){
 }
 /* Samma beräkning som skriptet: dagslängd i Göteborg och hur stor del av
    vinterkurvan som gäller. Dagen räknas i webbläsarens tid, som är svensk. */
-const VINTER_LAT=57.7,VINTER_FRAN=[10,27],VINTER_FULL=[12,21];
+const VINTER_LAT=57.7,VINTER_FRAN=[10,1],VINTER_FULL=[12,21];
 function vinterDagLangd(ar,man,dag){
   const n=Math.round((Date.UTC(ar,man-1,dag)-Date.UTC(ar,0,1))/864e5)+1;
   const g=2*Math.PI/365*(n-1);
@@ -4869,7 +4869,7 @@ function kurvaVinterText(){
   const v=vinterAndel();
   const h=Math.floor(v.langd),m=Math.round((v.langd-h)*60);
   return 'I dag g\u00e4ller '+Math.round(v.andel*100)+' % av vinterkurvan (dagsl\u00e4ngd '+h+' h '+m+' min). '
-    +'Andelen v\u00e4xer n\u00e4r dagarna blir kortare, \u00e4r full vid vintersolst\u00e5ndet och \u00e4r borta i mitten av februari.';
+    +'Andelen v\u00e4xer n\u00e4r dagarna blir kortare, \u00e4r full vid vintersolst\u00e5ndet och \u00e4r borta i mitten av mars.';
 }
 function kurvaJustNuText(){
   const j=kurvaJustNu();
