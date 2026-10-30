@@ -73,6 +73,15 @@ function solPoa(el,az,tilt,gam){
   /* stralen via cosinuslagen, diffusen via himmelsvyfaktorn - de traffar
      ett lutande tak helt olika, vilket var precis felet i forra forsoket */
   return dni*Math.max(0,c)+dhi*(1+Math.cos(b))/2;}
+/* Horisontskuggan vid låg sol, 0,05–1. Tabellen (SOL_HOR_*) står i start.js
+   och är densamma som i appens lib/sol.js – de två ska räkna exakt lika. */
+function solHorisont(el,az){
+  var A,B,n=SOL_HOR_AZ.length;
+  if(az<=SOL_HOR_AZ[0]){A=SOL_HOR_A[0];B=SOL_HOR_B[0];}
+  else if(az>=SOL_HOR_AZ[n-1]){A=SOL_HOR_A[n-1];B=SOL_HOR_B[n-1];}
+  else{for(var i=0;i<n-1;i++){if(az<=SOL_HOR_AZ[i+1]){var f=(az-SOL_HOR_AZ[i])/(SOL_HOR_AZ[i+1]-SOL_HOR_AZ[i]);
+    A=SOL_HOR_A[i]+(SOL_HOR_A[i+1]-SOL_HOR_A[i])*f;B=SOL_HOR_B[i]+(SOL_HOR_B[i+1]-SOL_HOR_B[i])*f;break;}}}
+  return Math.max(0.05,1-A*Math.exp(-el/B));}
 /* Klarhimmelseffekt (W) vid en tidpunkt. tamb = utetemp for celltemperaturen. */
 function solClearW(date,tamb){
   var sc=solar(date,CONFIG.LAT,CONFIG.LON,-date.getTimezoneOffset());
@@ -84,7 +93,7 @@ function solClearW(date,tamb){
     pw+=G.n*p; sum+=G.n*SOL_WP*p*solShade(G.sh,az);}
   if(tamb==null||!isFinite(tamb))tamb=15;
   var eff=1+SOL_GAMMA*((tamb+(SOL_NOCT-20)/800*(pw/48))-25);
-  var w=SOL_K*sum*eff;
+  var w=SOL_K*sum*eff*solHorisont(el,az);
   return (isFinite(w)&&w>0)?w:0;}
 function solTheoW(){return solClearW(new Date(),cap(DEV.outdoor,'measure_temperature'));}
 /* Klarhimmelseffekt UTAN skuggkorrigering - skillnaden mot solClearW ar skuggforlusten */

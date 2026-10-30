@@ -1885,6 +1885,14 @@ var SOL_DA=0.12817, SOL_DP=0.7805;                          /* DHI=DA*1353*sin(h
    UPPMATT SMHI-instralning (Erbs-uppdelad) mot uppmatt AC-produktion dec-2025,
    32 dygn: RMSE 2.24 kWh/dygn, R2 0.82. Klarhimmelsmodellen rors inte i den fitten. */
 var SOL_NOCT=45, SOL_GAMMA=-0.0035;   /* JAM54S31-405/MR datablad */
+/* HORISONTSKUGGA VID LÅG SOL (v772, appen 2.66.0 – samma tabell där).
+   Faktorn 1 − A·e^(−höjd/B) med A och B vid fyra azimuter, linjärt emellan.
+   SOL_GROUPS.sh beror bara på azimut; den här ser att samma riktning skuggas
+   mer ju lägre solen står. Anpassad mot uppmätt AC-effekt jan–okt 2026 (klara
+   perioder enligt SMHI) och den klara 30 december 2025. Oktober låg förut på
+   82 % av modellen på förmiddagen och 57 % på eftermiddagen; nu 99 % och 99 %.
+   Se solHorisont() i sol.js. */
+var SOL_HOR_AZ=[90,160,220,270], SOL_HOR_A=[0.99,0.10,0.72,0.99], SOL_HOR_B=[5,31,40,4];
 
 /* ===== KLIMATOLOGI: MOLNEN, PER SOLPOSITION =====
    Klarhimmelsmodellen har inga moln. Att multiplicera bort dem med en enda
@@ -2602,7 +2610,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v771';
+const APP_VERSION='v772';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
