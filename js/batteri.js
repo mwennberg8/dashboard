@@ -324,7 +324,7 @@ function paNuLista(){
     else if(dst==='breveden')lagg('Breveden','breveden');
     else if(dst==='dish')lagg('Disk bokad','dish',true);
     else if(dst==='pool')lagg('Poolvärme','pool');
-    else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())lagg('Tänt','hem');
+    else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())return;   /* v773: belysningsrutan visar redan Tänt – ingen bricka */
     else if(/^auto$/i.test(l))return;            /* v693: Auto är grundläget — ingen bricka */
     else lagg(l.replace(/\s+\d+([,.]\d+)?°.*$/,''),'hem');});}catch(e){}
   return ut;
