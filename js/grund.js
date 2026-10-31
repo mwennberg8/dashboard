@@ -1537,7 +1537,9 @@ function applyKiosk(){
      platta med rumsavsnittet (v745) rann de sex rutorna in under rummen. Andra
      plattor än väggplattan (och plattramen, som visar väggplattan) får samma
      utseende men skrollar när innehållet är högre än skärmen. */
-  const rull=on&&!tabprev&&!arVaggplattaVy();
+  /* index2 (sidan har husbilden): även väggplattan skrollar, så att huset får
+     fylla hela bredden och resten ligger under. */
+  const rull=on&&!tabprev&&(!arVaggplattaVy()||!!document.getElementById('huspanel'));
   document.body.classList.toggle('rull',rull);
   try{const r=document.documentElement;if(r&&r.style)r.style.overflow=(on&&!rull)?'hidden':'';}catch(e){}
   /* v680: samma startsida som mobilen — flikrad i stället för toppraden. */
