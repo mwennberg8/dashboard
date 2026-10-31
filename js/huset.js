@@ -103,7 +103,10 @@ function husLjusBygg(el,svg,NS){
   HUS_UTE.forEach(function(p){
     if(p.length>2&&p[2]!=null){
       var vg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
-      vg.appendChild(ny('path',{d:'M0,-46 A46,46 0 0 1 0,46 Z',fill:'url(#hus-g-v)'}));
+      /* En sektor kring riktningen: 180° på en vägg, 270° på ett hörn. */
+      var sp=Math.max(30,Math.min(359,p[3]||180)),h=sp/2*Math.PI/180,R=46;
+      var x1=(R*Math.cos(h)).toFixed(1),y1=(R*Math.sin(h)).toFixed(1);
+      vg.appendChild(ny('path',{d:'M0,0 L'+x1+','+(-y1)+' A'+R+','+R+' 0 '+(sp>180?1:0)+' 1 '+x1+','+y1+' Z',fill:'url(#hus-g-v)'}));
       vg.appendChild(ny('circle',{cx:1.5,cy:0,r:4,fill:'#ffe6b0'}));
       ute.appendChild(vg);return;}
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
