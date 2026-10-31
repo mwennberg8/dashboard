@@ -3704,13 +3704,13 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 .hus-topp .en-wxrad{margin-right:auto}
 .hus-karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;
   container-type:inline-size}
-.hus-karta img{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .8s}
+.hus-karta>img{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .8s}
 /* Mörkt tema (även auto efter solnedgång): nattbilden och mörka fält. */
 .hus-karta{background:#1c222b}
 .hus-karta .hus-dag{opacity:0}
 :root[data-theme="light"] .hus-karta{background:#dfe6ee}
 :root[data-theme="light"] .hus-karta .hus-dag{opacity:1}
-.hus-karta svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hus-karta>svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .hus-bas{fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transition:stroke-width .4s,opacity .4s}
 .hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
   animation:husflod 1.1s linear infinite}
@@ -3746,6 +3746,17 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 :root:not([data-theme="light"]) .hus-falt{background:rgba(26,31,40,.58);color:#eceff4;border-color:rgba(236,239,244,.10);
   box-shadow:0 1cqw 3cqw -1.2cqw rgba(0,0,0,.75)}
 :root:not([data-theme="light"]) .hus-falt .rub{color:var(--f);color:color-mix(in srgb,var(--f) 70%,#ffffff)}
+/* SMÅ RUTOR (sol, bil, batteri): bara ikon och effekt, som en pille.
+   Samma glas som de stora, men färgen sitter i kanten och ikonen. */
+.hus-falt.liten{flex-direction:row;align-items:center;justify-content:center;gap:.9cqw;
+  padding:0 1.5cqw;border-radius:99px;border:1.5px solid var(--f);
+  border-color:color-mix(in srgb,var(--f) 70%,transparent)}
+.hus-falt.liten::before{display:none}
+.hus-falt.liten .hik{position:static;display:inline-flex;width:3cqw;height:3cqw;flex:0 0 auto;color:var(--f)}
+.hus-falt.liten .hik svg{width:100%;height:100%}
+.hus-falt.liten .v{font-size:3.5cqw}
+.hus-falt.liten .v small{font-size:2.1cqw}
+.hus-falt.liten .hx{font:700 2.1cqw/1 var(--sans,inherit);opacity:.65;white-space:nowrap}
 /* Etikettlinjen från Sol-rutan till panelerna: tunn och streckad, inget flöde. */
 .hus-ledare{fill:none;stroke-width:2.5;stroke-dasharray:2 7;stroke-linecap:round;opacity:.7}
 /* index2: huset ersätter "förbrukning nu". Av energipanelen står bara

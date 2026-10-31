@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v798';
+const APP_VERSION='v799';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3112,34 +3112,40 @@ var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
   nat:  {x:20, y:28,  w:225,h:124, typ:'nat',  pop:'grid'},
-  last: {x:255,y:28,  w:237,h:124, typ:'last', pop:'energyfull'},
-  bil:  {x:502,y:28,  w:184,h:124, typ:'bil',  pop:'cars'},
-  sol:  {x:20, y:162, w:225,h:124, typ:'sol',  pop:'sun'},   /* under Elnät */
-  batt: {x:806,y:556, w:224,h:124, typ:'batt', pop:'batt'}
+  last: {x:20, y:162, w:225,h:124, typ:'last', pop:'energyfull'},   /* under Elnät */
+  /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
+     tak), bilen ovanför bilarna, batteriet under husbatteriet. */
+  sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
+  bil:  {x:480,y:80,  w:210,h:56,  typ:'bil',  pop:'cars', liten:true},
+  batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };
-/* LEDNINGARNA – ett litet elnät med elcentralen som nav. Varje sträcka är
-   ritad i den riktning strömmen oftast går; negativt värde vänder prickarna.
-   - nat:  Elnät-rutan längs överkanten till avgreningen ovanför Förbrukning.
-           Köper = in mot huset, säljer = ut mot rutan.
-   - last: avgreningen ned i huset (hela husets förbrukning). Biten genom
-           Förbrukning-rutan hoppas över – rutan är halvgenomskinlig.
-   - buss: elcentralen upp och längs överkanten till avgreningen. Bär det som
-           kommer från elcentralens sida (sol + batteri); negativt när nätet
-           laddar batteriet. Färgen följer det som flödar (husRita).
-   - sol1–4: panelerna vänster tak → nedre mitten → övre mitten → höger tak →
-           elcentralen. Varje sträcka bär summan av panelerna före.
-   - batt: batteriet upp utmed väggen till elcentralen. Urladdning = mot huset.
-   - solled: bara en etikettlinje från Sol-rutan till panelerna (inget flöde). */
+/* LEDNINGARNA – ett litet elnät. Överkanten är en samlingsskena: elnätet
+   kopplar in längst till vänster, huset grenar av ned vid x 262 (bredvid
+   Förbrukning-rutan), bilen grenar av ned till sin ruta, och längst till höger
+   går skenan ned till elcentralen där solen och batteriet ansluter. Varje
+   sträcka är ritad i den riktning strömmen oftast går; negativt värde vänder
+   prickarna, så att de alltid visar varifrån strömmen kommer och vart den går.
+   - nat:   Elnät-rutan → husets avgrening. Köper = in, säljer = ut.
+   - hus:   avgreningen ned i huset (husets förbrukning utom bilen).
+   - bussB: bilens avgrening → husets avgrening (det som kommer från
+            elcentralens sida, minus bilen).
+   - bil:   bilens avgrening ned till bilrutan (bara när en bil laddar).
+   - bussA: elcentralen → bilens avgrening (sol + batteri; negativt när
+            nätet laddar batteriet).
+   - sol1–4: solrutan på vänster tak → nedre mitten → övre mitten → höger tak
+            → elcentralen. Varje sträcka bär summan av panelerna före.
+   - batt:  batterirutan upp utmed väggen till elcentralen; urladdning = mot huset. */
 var HUS_LEDN=[
-  {id:'sol1',  typ:'sol', d:'M428,680 H512'},
-  {id:'sol2',  typ:'sol', d:'M600,632 V612'},
-  {id:'sol3',  typ:'sol', d:'M684,582 H790 V552'},
-  {id:'sol4',  typ:'sol', d:'M878,418 H900'},
-  {id:'solled',typ:'sol', d:'M290,592 V224 H245', ledare:true},
-  {id:'batt',  typ:'batt',d:'M895,556 V430'},
-  {id:'buss',  typ:'last',d:'M904,396 V12 H373'},
-  {id:'nat',   typ:'nat', d:'M132,28 V12 H373'},
-  {id:'last',  typ:'last',d:'M373,12 V28 M373,152 V445'}
+  {id:'sol1', typ:'sol', d:'M423,656 H512'},
+  {id:'sol2', typ:'sol', d:'M600,632 V612'},
+  {id:'sol3', typ:'sol', d:'M684,582 H790 V552'},
+  {id:'sol4', typ:'sol', d:'M878,418 H900'},
+  {id:'batt', typ:'batt',d:'M895,560 V430'},
+  {id:'bussA',typ:'last',d:'M904,396 V12 H585'},
+  {id:'bussB',typ:'last',d:'M585,12 H262'},
+  {id:'bil',  typ:'bil', d:'M585,12 V80'},
+  {id:'nat',  typ:'nat', d:'M132,28 V12 H262'},
+  {id:'hus',  typ:'last',d:'M262,12 V445'}
 ];
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */
