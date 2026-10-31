@@ -282,8 +282,9 @@ function husRita(){
      som uppdateras i olika takt, som skulle flimra mellan röd och orange. */
   var egen=Math.max(0,s)+Math.max(0,batt)>=100,kop=(v.nat||0)>=100;
   el._ledn.hus.bas.style.stroke=!egen&&kop?HUS_HUS_FARG.nat:(egen&&!kop?HUS_HUS_FARG.egen:(egen&&kop?HUS_HUS_FARG.blandat:HUS_FARG.last));
-  /* Bilens gren syns bara när en bil laddar. */
-  el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=bil?'':'none';
+  /* Bilens gren: tänd när en bil laddar, tunn och blek när en bil bara är
+     inkopplad (som de andra ledningarna utan flöde), borta utan bil. */
+  el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=(bil||v.inkopplad)?'':'none';
   var nat=v.nat,last=v.last;
   /* Andelen eget räknas som "självförsörjt" i energipanelen (renderEnergy):
      sol och batteri mot det som går in i huset, solen högst vad panelerna ger. */
