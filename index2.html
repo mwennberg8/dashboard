@@ -3769,7 +3769,13 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 #view-flode .enpanel .en-mix,
 #view-flode .enpanel #en-del,
 #view-flode .enpanel #stats-energy,
-#view-flode .enpanel #sp-del{display:none!important}
+#view-flode .enpanel #sp-del,
+#view-flode .enpanel .en-body{display:none!important}
+/* Kvar i panelen är bara elprisskalan: ingen luft ovanför (den skilde skalan
+   från förbrukningen som stod här) och lika mycket kant upptill som nedtill,
+   så att skalan står mitt i en låg ruta. */
+#view-flode .enpanel #sp-plats{padding-top:0!important;margin-top:0!important}
+#view-flode>.enpanel{padding-top:11px;padding-bottom:11px;justify-content:center}
 </style>
 </head>
 <body>
