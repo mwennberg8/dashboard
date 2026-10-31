@@ -51,7 +51,10 @@ function husBygg(el){
     +'<img class="hus-natt" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån">'
     +'<img class="hus-dag" src="bild/hus-ovanifran.webp" alt="">'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
-  el.innerHTML=h;
+  /* Efter det som redan står i panelen (index2: raden #hus-topp överst). En
+     halvbyggd karta från ett avbrutet försök tas bort först. */
+  var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
+  el.insertAdjacentHTML('beforeend',h);
   var svg=$('hus-svg'),karta=$('hus-karta');
   husLjusBygg(el,svg,NS);
   el._ledn={};
@@ -191,6 +194,8 @@ function husFyll(b,rub,w,under){
 }
 function husRita(){
   var el=$('huspanel');if(!el)return;
+  /* render() kan köras innan start.js hunnit till [huset.js]; då väntar vi. */
+  if(typeof HUS_LEDN==='undefined'||!HUS_LEDN||typeof HUS_FONSTER==='undefined'||!HUS_FONSTER)return;
   husBygg(el);
   try{husLjusRita(el);}catch(e){}
   var v=husVarden();
