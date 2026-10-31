@@ -70,6 +70,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12.5px;font-weight:700
   <h1>Flytta fönster och lampor</h1>
   <p class="hint">Dra en punkt för att flytta den. Ett valt fönster får en liten knopp: dra den för att vrida
     åt vilket håll ljuset faller ut. Tryck på en punkt för exakta värden och pilar för små steg.
+    Dra de små fyrkanterna i fönstrets ändar för att göra ett fönster eller en dörr bredare eller smalare.
     Rutorna med streckad kant är fälten med siffror – det som ligger under dem syns inte i dashboarden.</p>
   <p class="hint"><b>Vilka lampor tänder fönstret?</b> Tryck på ett fönster och välj <i>Valda lampor</i> under bilden.
     Gröna fönster följer egna lampor, orange följer hela rummet. Välj en lampa i <i>Prova</i> för att se
@@ -184,6 +185,7 @@ function ritaHandtag(){
   Object.keys(BAS.FALT).forEach(function(k){var f=BAS.FALT[k];
     svg.appendChild(ny('rect',{x:f.x,y:f.y,width:f.w,height:f.h,rx:14,'class':'faltruta','stroke-width':1.5*u}));
     var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil (vid laddning)',sol:'Sol',batt:'Batteri'})[k]||k;svg.appendChild(t);});
+  var efter=null;
   saker.forEach(function(s,i){
     var sel=i===valt,g=ny('g',{'class':'h','data-i':i});
     var farg=s.typ==='ute'?'#fff3d0':(s.lampor&&s.lampor.length?'#a3be8c':'#ffb54d');
@@ -195,15 +197,29 @@ function ritaHandtag(){
     g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:20*u,fill:'transparent'}));   /* större träffyta */
     g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:(sel?9:7)*u,fill:sel?'#88c0d0':'rgba(46,52,64,.55)',stroke:sel?'#eceff4':farg,'stroke-width':2.2*u}));
     svg.appendChild(g);
-    if(sel&&s.typ==='fonster'){
+    /* Den valda punktens vrid- och breddhandtag ritas sist, överst – annars
+       tar grannarnas träffytor över när punkterna ligger tätt. */
+    if(sel&&s.typ==='fonster')efter=function(){
       var D=Math.max(46*u,40),kx=s.x+Math.cos(s.v*Math.PI/180)*D,ky=s.y+Math.sin(s.v*Math.PI/180)*D;
       svg.appendChild(ny('line',{x1:s.x,y1:s.y,x2:kx,y2:ky,stroke:'#88c0d0','stroke-width':2*u,'stroke-dasharray':(4*u)+' '+(4*u),'pointer-events':'none'}));
       var k=ny('g',{'class':'h','data-i':i,'data-vrid':'1'});
       k.appendChild(ny('circle',{cx:kx,cy:ky,r:20*u,fill:'transparent'}));
       k.appendChild(ny('circle',{cx:kx,cy:ky,r:7*u,fill:'#eceff4',stroke:'#88c0d0','stroke-width':2.5*u}));
       svg.appendChild(k);
-    }
+      /* Breddhandtagen: små fyrkanter i fönstrets båda ändar, längs väggen.
+         Ett smalt fönster får dem en bit ut, så att de går att ta i. */
+      var ar=s.v*Math.PI/180,ax=-Math.sin(ar),ay=Math.cos(ar),E=Math.max(s.b/2,34*u),q=6*u;
+      [-1,1].forEach(function(sg){
+        var ex=s.x+ax*E*sg,ey=s.y+ay*E*sg;
+        if(E>s.b/2)svg.appendChild(ny('line',{x1:s.x+ax*s.b/2*sg,y1:s.y+ay*s.b/2*sg,x2:ex,y2:ey,stroke:'#88c0d0','stroke-width':1.5*u,'stroke-dasharray':(3*u)+' '+(3*u),'pointer-events':'none'}));
+        var bg=ny('g',{'class':'h','data-i':i,'data-bredd':sg});
+        bg.appendChild(ny('circle',{cx:ex,cy:ey,r:18*u,fill:'transparent'}));
+        bg.appendChild(ny('rect',{x:ex-q,y:ey-q,width:2*q,height:2*q,rx:1.5*u,fill:'#eceff4',stroke:'#88c0d0','stroke-width':2.5*u,
+          transform:'rotate('+s.v+' '+ex+' '+ey+')'}));
+        svg.appendChild(bg);});
+    };
   });
+  if(efter)efter();
 }
 function rita(){if(!BAS)return;ritaLjus();ritaHandtag();ritaVald();ritaUt();spara();}
 
@@ -221,7 +237,7 @@ function ritaVald(){
     +'<label class="f">Y<input type="number" value="'+s.y+'" onchange="satt(\'y\',+this.value)"></label>';
   if(s.typ==='fonster'){
     h+='<label class="f">Riktning °<input type="number" step="5" value="'+s.v+'" onchange="satt(\'v\',+this.value)"></label>'
-      +'<label class="f">Bredd<input type="number" step="2" value="'+s.b+'" onchange="satt(\'b\',+this.value)"></label>';
+      +'<label class="f">Bredd<input type="number" step="2" min="10" max="160" value="'+s.b+'" onchange="satt(\'b\',+this.value)"></label>';
   }
   if(s.typ==='fonster')h+='</div>'+lampvalHTML(s)+'<div class="rad">';
   h+='</div><div class="rad"><div class="pilar">'
@@ -272,7 +288,7 @@ function klistraLampval(){var s=saker[valt];if(!s||!urklipp)return;minns();
 function minns(){hist.push(JSON.stringify(saker));if(hist.length>80)hist.shift();$('b-angra').disabled=false;}
 function angra(){if(!hist.length)return;saker=JSON.parse(hist.pop());if(valt>=saker.length)valt=-1;$('b-angra').disabled=!hist.length;rita();}
 function satt(k,v){var s=saker[valt];if(!s)return;if(k!=='rum'&&!isFinite(v))return;minns();
-  if(k==='v')v=((Math.round(v)%360)+360)%360;if(k==='b')v=Math.max(10,Math.min(120,Math.round(v)));
+  if(k==='v')v=((Math.round(v)%360)+360)%360;if(k==='b')v=Math.max(10,Math.min(160,Math.round(v)));
   s[k]=k==='rum'?v:Math.round(v);if(k==='rum')senasteRum=v;rita();}
 function knuffa(dx,dy){var s=saker[valt];if(!s)return;minns();s.x+=dx;s.y+=dy;rita();}
 function vrid(d){var s=saker[valt];if(!s)return;satt('v',s.v+d);}
@@ -299,13 +315,20 @@ $('handtag').addEventListener('pointerdown',function(e){
   e.preventDefault();
   var i=+g.getAttribute('data-i'),p=punkt(e);
   if(valt!==i){valt=i;senasteRum=saker[i].rum||senasteRum;ritaHandtag();ritaVald();}
-  drag={i:i,vrid:g.hasAttribute('data-vrid'),p0:p,x0:saker[i].x,y0:saker[i].y,fore:JSON.stringify(saker),flyttat:false};
+  drag={i:i,vrid:g.hasAttribute('data-vrid'),bredd:+(g.getAttribute('data-bredd')||0),p0:p,x0:saker[i].x,y0:saker[i].y,b0:saker[i].b,
+    fore:JSON.stringify(saker),flyttat:false};
   try{this.setPointerCapture(e.pointerId);}catch(x){}
 });
 $('handtag').addEventListener('pointermove',function(e){
   if(!drag)return;e.preventDefault();
   var s=saker[drag.i],p=punkt(e);
-  if(drag.vrid){
+  if(drag.bredd){
+    /* Bredden ändras lika mycket åt båda håll: dubbla förflyttningen längs väggen. */
+    var ar=s.v*Math.PI/180,ax=-Math.sin(ar),ay=Math.cos(ar);
+    var d=((p.x-drag.p0.x)*ax+(p.y-drag.p0.y)*ay)*drag.bredd;
+    s.b=Math.max(10,Math.min(160,Math.round((drag.b0+2*d)/2)*2));
+    ritaVald();
+  }else if(drag.vrid){
     var v=Math.atan2(p.y-s.y,p.x-s.x)*180/Math.PI;
     /* Fäster på 5°; 0/90/180/270 drar lite extra så att raka väggar blir raka. */
     v=Math.round(v/5)*5;var r=Math.round(v/90)*90;if(Math.abs(v-r)<=5)v=r;
