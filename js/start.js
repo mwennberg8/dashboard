@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v784';
+const APP_VERSION='v785';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3114,18 +3114,18 @@ var HUS_FALT={
   nat:  {x:20, y:28,  w:225,h:124, typ:'nat',  pop:'grid'},
   last: {x:255,y:28,  w:237,h:124, typ:'last', pop:'energyfull'},
   bil:  {x:502,y:28,  w:184,h:124, typ:'bil',  pop:'cars'},
-  sol:  {x:470,y:440, w:230,h:100, typ:'sol',  pop:'sun'},
+  sol:  {x:20, y:162, w:225,h:124, typ:'sol',  pop:'sun'},   /* under Elnät */
   batt: {x:806,y:556, w:224,h:124, typ:'batt', pop:'batt'}
 };
-/* Ledningarna, ritade i strömmens normala riktning. Solpanelerna: vänster tak
-   → nedre mitten → övre mitten, högra taket in från sidan, och därifrån upp i
-   solfältet. Nätet från elcentralen upp mellan Breveden och förrådet och längs
+/* Ledningarna, ritade i strömmens normala riktning. Solpanelerna: högra
+   taket in från sidan till övre mitten → nedre mitten → vänster tak, och
+   därifrån rakt upp förbi skorstenen och in i solfältet under Elnät. Nätet från elcentralen upp mellan Breveden och förrådet och längs
    överkanten, så att det aldrig korsar förbrukningens ledning. */
 var HUS_LEDN=[
-  {id:'sol1', typ:'sol', d:'M428,680 H512'},
-  {id:'sol2', typ:'sol', d:'M600,632 V612'},
   {id:'sol3', typ:'sol', d:'M790,552 V582 H684'},
-  {id:'sol4', typ:'sol', d:'M592,552 V540'},
+  {id:'sol2', typ:'sol', d:'M600,612 V632'},
+  {id:'sol1', typ:'sol', d:'M512,680 H428'},
+  {id:'sol4', typ:'sol', d:'M290,592 V224 H245'},
   {id:'nat',  typ:'nat', d:'M904,396 V12 H132 V28'},
   {id:'last', typ:'last',d:'M373,152 V445'},
   {id:'batt', typ:'batt',d:'M910,522 V556'}
@@ -3172,9 +3172,9 @@ var HUS_FONSTER=[
   {rum:'Kontor',p:[[535,742,90,30],[662,742,90,30],[701,648,0,26],[598,741,90,30]]},
   {rum:'Lekrum',p:[[650,445,270,30],[701,506,0,26]]},
   {rum:'Snickarboa',p:[[148,481,27,22]]},
-  {rum:'Breveden',p:[[798,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22],[724,100,270,48]]},
+  {rum:'Breveden',p:[[798,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22],[720,94,270,30]]},
   /* Uterummets glasdörrar: ut mot altanen och framåt. */
-  {rum:'Uterum',p:[[402,770,0,44],[402,830,0,44],[374,865,90,56],[306,864,90,48],[262,864,90,30],[244,836,180,30]]}
+  {rum:'Uterum',p:[[402,786,0,44],[402,838,0,44],[372,867,90,56],[314,866,90,48],[266,866,90,30],[244,838,180,30]]}
 ];
 /* GLASTAKEN: taket lyser svagt och skenet faller ut runt om.
    tak = [x,y,b,h], sken = [cx,cy,rx,ry]. */
