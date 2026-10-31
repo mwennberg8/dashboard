@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v780';
+const APP_VERSION='v781';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3152,6 +3152,11 @@ var HUS_FONSTER=[
   {zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',p:[[143,481]]},                              /* Snickarboa */
   {zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',p:[[760,93],[690,145],[690,232],[830,145],[830,232]]}  /* Breveden */
 ];
+/* UTERUMMET: glastaket lyser svagt och skenet faller ut runt om, mest framåt
+   mot altanen. tak = glasytorna [x,y,b,h] (uterummet och den inglasade delen
+   till vänster), sken = [cx,cy,rx,ry]. */
+var HUS_UTERUM={zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',
+  tak:[[242,735,160,130],[112,697,130,113]],sken:[290,815,215,165]};
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 
