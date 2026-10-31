@@ -165,9 +165,10 @@ function husRita(){
   try{husLjusRita(el);}catch(e){}
   var v=husVarden();
   /* Solen per panelyta, i proportion till antalet paneler – det finns bara en
-     mätare för hela anläggningen. Kedjan bär summan av ytorna före. */
+     mätare för hela anläggningen. Kedjan bär summan av ytorna före:
+     höger tak (A) → övre mitten (B) → nedre mitten (C) → vänster tak (D) → fältet. */
   var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL;
-  var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*p.A,sol4:s,
+  var varden={sol3:s*p.A,sol2:s*(p.A+p.B),sol1:s*(p.A+p.B+p.C),sol4:s,
     nat:v.nat||0,last:v.last||0,batt:v.batt||0};
   HUS_LEDN.forEach(function(l){
     var w=varden[l.id]||0,r=el._ledn[l.id],tom=Math.abs(w)<50,b=husBredd(w);
