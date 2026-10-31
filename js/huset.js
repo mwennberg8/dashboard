@@ -163,7 +163,7 @@ function husLjusBygg(el,svg,NS){
       if(!grupper[nyckel]){
         var g=ny('g',{'class':'hus-fonster'});lj.appendChild(g);
         var kalla=egna?{ids:egna.map(function(n){return HUS_LAMPOR[n];}).filter(Boolean)}:(HUS_RUM[f.rum]||{});
-        grupper[nyckel]=g;kallor.push({kalla:kalla,g:g});}
+        grupper[nyckel]=g;kallor.push({kalla:kalla,g:g,fonster:true});}
       fonster(grupper[nyckel],p);});
   });
   el._fonster=kallor;
@@ -195,11 +195,18 @@ function husKallaLjus(k){
 }
 /* Mängden ljus följer dimningen: både hur starkt och hur långt skenet når.
    En lampa på lägsta dimning ger ett svagt men synligt sken. */
+/* Hur mycket fönstren lyser, i procent (Inställningar → Utseende). 75 som
+   standard. Under 100 blir skenet svagare, över 100 både starkare och längre. */
+function husFonsterStyrka(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husFonster!=null)?+CFG.husFonster:75;
+  return isFinite(v)?Math.max(0.2,Math.min(1.5,v/100)):0.75;}
 function husLjusRita(el){
+  var fs=husFonsterStyrka();
   (el._fonster||[]).forEach(function(f){
     var l=husKallaLjus(f.kalla),pa=l!=null,k=pa?0.4+0.6*l:1;
+    var ff=f.fonster?fs:1;
+    if(f.fonster&&ff>1)k*=Math.sqrt(ff);
     f.g.classList.toggle('pa',pa);
-    f.g.style.opacity=pa?String(0.25+0.75*l):'';
+    f.g.style.opacity=pa?String(Math.min(1,(0.25+0.75*l)*ff)):'';
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-l]'),function(c){
       c.setAttribute('transform','scale('+k.toFixed(3)+',1)');});
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){
