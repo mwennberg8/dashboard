@@ -106,19 +106,29 @@ function husLjusBygg(el,svg,NS){
       g.appendChild(ny('rect',{x:r[0],y:r[1],width:r[2],height:r[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
     lj.appendChild(g);return {kalla:HUS_RUM[t.rum]||{},g:g};});
   /* Fönstren: skenet är en kägla som vidgar sig ut från fönstret; längden
-     följer dimningen (data-l skalas i husLjusRita). Rutan i väggen är fast. */
+     följer dimningen (data-l skalas i husLjusRita). Rutan i väggen är fast.
+     Fönster som följer hela rummet delar en grupp; fönster med egna lampor
+     (femte värdet) får en grupp per lampval. */
+  function fonster(g,p){
+    var w=p[3]||28,h=w/2,L=80,S=34;
+    var fg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
+    var sk=ny('g',{'data-l':'1'});
+    sk.appendChild(ny('polygon',{points:'0,'+(-h)+' 0,'+h+' '+L+','+(h+S)+' '+L+','+(-h-S),
+      fill:'url(#hus-g-f)',filter:'url(#hus-mjuk)'}));
+    fg.appendChild(sk);
+    fg.appendChild(ny('rect',{x:-2.5,y:-h,width:5,height:w,rx:1.5,fill:'#ffe6b3'}));
+    g.appendChild(fg);
+  }
   HUS_FONSTER.forEach(function(f){
-    var g=ny('g',{'class':'hus-fonster'});
+    var grupper={};
     f.p.forEach(function(p){
-      var w=p[3]||28,h=w/2,L=80,S=34;
-      var fg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
-      var sk=ny('g',{'data-l':'1'});
-      sk.appendChild(ny('polygon',{points:'0,'+(-h)+' 0,'+h+' '+L+','+(h+S)+' '+L+','+(-h-S),
-        fill:'url(#hus-g-f)',filter:'url(#hus-mjuk)'}));
-      fg.appendChild(sk);
-      fg.appendChild(ny('rect',{x:-2.5,y:-h,width:5,height:w,rx:1.5,fill:'#ffe6b3'}));
-      g.appendChild(fg);});
-    lj.appendChild(g);kallor.push({kalla:HUS_RUM[f.rum]||{},g:g});});
+      var egna=(p[4]&&p[4].length)?p[4]:null,nyckel=egna?egna.join('|'):'';
+      if(!grupper[nyckel]){
+        var g=ny('g',{'class':'hus-fonster'});lj.appendChild(g);
+        var kalla=egna?{ids:egna.map(function(n){return HUS_LAMPOR[n];}).filter(Boolean)}:(HUS_RUM[f.rum]||{});
+        grupper[nyckel]=g;kallor.push({kalla:kalla,g:g});}
+      fonster(grupper[nyckel],p);});
+  });
   el._fonster=kallor;
   svg.appendChild(lj);
 }
@@ -126,11 +136,17 @@ function husLjusBygg(el,svg,NS){
    dimmade tända lampan. En lampa utan dimning (fönsterlamporna) räknas som
    full. Alla lampor som faktiskt lyser räknas, även de som är dolda i
    rumsvyn (t.ex. Föröver och Styrbord i uterummet).
-   k.zon = lamporna i zonen (utom k.utan), k.bara = en enda lampa. */
+   k.zon = lamporna i zonen (utom k.utan), k.bara = en enda lampa,
+   k.ids = just de här lamporna (fönster med egna lampor). */
 function husKallaLjus(k){
   var max=null;
   Object.keys(DATA).forEach(function(id){
-    var d=DATA[id];if(!d||HUS_EJ_FONSTER[id])return;
+    var d=DATA[id];if(!d)return;
+    /* Uttryckligen valda lampor: precis de, oavsett typ. */
+    if(k.ids){if(k.ids.indexOf(id)<0||cap(id,'onoff')!==true)return;
+      var di=cap(id,'dim');di=(di==null||!isFinite(di))?1:Math.max(0,Math.min(1,di));
+      max=Math.max(max==null?0:max,di);return;}
+    if(HUS_EJ_FONSTER[id])return;
     if(k.bara){if(id!==k.bara)return;}
     else if(!k.zon||d.zone!==k.zon||id===k.utan)return;
     if(!d.capabilitiesObj||!d.capabilitiesObj.onoff)return;
