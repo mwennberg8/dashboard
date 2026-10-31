@@ -1972,6 +1972,7 @@ var ZK_SER={t:{lab:'Temperatur',kort:'Temp',u:'°C',col:'warm',dec:1},h:{lab:'Lu
   p:{lab:'Poolvattnet',kort:'Pool',u:'°C',col:'cyan',dec:1},s:{lab:'Badtemp havet',kort:'Hav',u:'°C',col:'blue',dec:1},
   m:{lab:'Medel inne',kort:'Medel',u:'°C',col:'warm',dec:1},k:{lab:'Kök',kort:'Kök',u:'°C',col:'gold',dec:1}};
 var _zkSer={};      /* vald serie i grafen per rum – 't', 'h' eller 'c' */
+var _zkVald=null;   /* lampan vars ljusreglage visas under korten i rumsrutans popup */
 /* Tydlig dygnsgraf: ytfyllnad + linje, med dygnets högsta och lägsta tydligt markerade
    och en punkt för nuläget. offset 0=idag, 1=imorgon. */
 /* ===== timpriser från Tibber =====
@@ -2610,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v773';
+const APP_VERSION='v774';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
