@@ -63,6 +63,7 @@ function husBygg(el){
   var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
   el.insertAdjacentHTML('beforeend',h);
   var svg=$('hus-svg'),karta=$('hus-karta');
+  try{document.body.classList.add('hus-sida');}catch(e){}
   husLjusBygg(el,svg,NS);
   el._ledn={};
   HUS_LEDN.forEach(function(l){
@@ -204,6 +205,12 @@ function husLjusRita(el){
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
+}
+/* Kioskläget i index2: menyn syns bara en stund efter att man rört skärmen. */
+function husMenyVisa(){
+  var b=document.body;if(!b||!b.classList.contains('kiosk')||!b.classList.contains('hus-sida'))return;
+  b.classList.add('meny-visas');
+  clearTimeout(_husMenyT);_husMenyT=setTimeout(function(){b.classList.remove('meny-visas');},6000);
 }
 function husFyll(b,rub,w,under){
   var t=husTal(w);

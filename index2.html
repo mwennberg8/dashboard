@@ -3695,7 +3695,17 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 /* index2 (beta): HUSET OVANIFRÅN överst på startsidan. Bilden, SVG:n och fälten
    delar koordinater (1040 × 1120); fälttexten skalas med kartans bredd (cqw).
    Ritas av husRita() i js/huset.js. */
-.huspanel{padding:10px;display:flex;flex-direction:column;gap:10px}
+/* Huset ligger inte i en ruta: kartan går ut till samma bredd som panelerna. */
+#view-flode>#huspanel.panel{padding:0;background:none;border:0;box-shadow:none;
+  display:flex;flex-direction:column;gap:10px}
+#huspanel .hus-karta{border-radius:22px}
+/* KIOSKLÄGET (index2): huset överst – utan notisklocka och liveprick – och
+   menyn dold tills man rör skärmen (husMenyVisa). Då glider den upp en stund. */
+body.kiosk.hus-sida #hus-topp{display:none!important}
+body.kiosk.hus-sida .flikrad{position:fixed;left:10px;right:10px;bottom:10px;z-index:45;margin:0;
+  transition:transform .25s ease,opacity .25s ease;transform:translateY(140%);opacity:0;pointer-events:none;
+  box-shadow:0 10px 30px -10px rgba(0,0,0,.55)}
+body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
 /* Raden ovanför husbilden: väder och soltider till vänster, notisklockan och
    livepricken till höger (mobilTopp flyttar hit #en-hogra). */
 .hus-topp{display:flex;align-items:center;justify-content:flex-end;min-height:0}
@@ -3778,7 +3788,7 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 #view-flode>.enpanel{padding-top:11px;padding-bottom:11px;justify-content:center}
 </style>
 </head>
-<body>
+<body class="hus-sida">
 <div class="wrap">
 
   <section class="view" id="view-flode">
