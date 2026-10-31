@@ -1701,6 +1701,9 @@ function openConfig(){
     h+='<div class="cfg-hint" style="margin-top:6px">Återställer allt till dashboardens standardläge. '
       +'Anslutningen till Homey påverkas inte.</div>';
 
+  }else if(_cfgSec==='styrning'){
+    h+=cfgBack();
+    h+=cfgStyrningHTML();
   }else if(_cfgSec==='uppd'){
     h+=cfgBack();
     h+='<div class="cfg-sec">Uppdatering</div>';
@@ -1727,6 +1730,50 @@ function openConfig(){
   setT('dlg-title','Inställningar');setIcon('dlg-ic','gauge');
   const bd=$('dlg-body');if(bd)bd.innerHTML=h;
   const bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');dlgTop();}
+/* ENHETSSTYRNING (v776). Varje rum med något att styra, och dess enheter med
+   en vippa: på = visas i rummet och i rumsrutans popup, av = döljs där. Valet
+   ligger i CFG.rumDolj och följer med i synken. Alla enheter står med, även
+   gruppmedlemmarna i RUM_DOLJ_DEV: rummets popup döljer dem redan, men
+   rumsrutornas popuper (Föröver och Styrbord i Uterum) visar dem. */
+function cfgStyrningHTML(){
+  var dolj=(CFG&&CFG.rumDolj)||{},zon={};
+  rDevs().forEach(function(d){
+    if(!d||!d.zone)return;
+    if(!(rHar(d,'onoff')||rArGardin(d)))return;
+    (zon[d.zone]=zon[d.zone]||[]).push(d);});
+  var zids=Object.keys(zon).sort(function(a,b){return cfgZonNamn(a).localeCompare(cfgZonNamn(b),'sv');});
+  var antal=Object.keys(dolj).filter(function(k){return dolj[k];}).length;
+  var h='<div class="cfg-hint" style="margin-top:0">Stäng av en enhet så syns den inte i rummet på startsidan, '
+    +'i rummets popup eller i rumsrutans popup (till exempel Uterum), och rummets vippa rör den inte. '
+    +'Enheten påverkas inte i Homey. '+(antal?(antal+' dold'+(antal===1?'':'a')+' just nu.'):'Inga dolda just nu.')+'</div>';
+  if(!zids.length)h+='<div class="cfg-hint">Inga styrbara enheter hittades.</div>';
+  zids.forEach(function(zid){
+    var lista=zon[zid].sort(rSort);
+    h+='<div class="cfg-sec">'+esc(cfgZonNamn(zid))+'</div>';
+    h+=lista.map(function(d){
+      var syns=!dolj[d.id];
+      var ic=rArGardin(d)?'elevator':(rArLampa(d)?'lightbulb-filament':'plug');
+      return '<div class="dv-row'+(syns?' on':'')+'">'
+        +'<span class="dv-ic">'+icon(ic)+'</span>'
+        +'<span class="dv-n">'+esc(rNamn(d))+'<small>'+(syns?'visas':'dold')+'</small></span>'
+        +'<button class="dv-sw'+(syns?' on':'')+'" onclick="cfgRumDolj(\''+d.id+'\')" aria-label="visa eller dölj"><i></i></button></div>';
+    }).join('');
+  });
+  return h;}
+function cfgRumDolj(id){
+  if(!CFG.rumDolj)CFG.rumDolj={};
+  if(CFG.rumDolj[id])delete CFG.rumDolj[id];else CFG.rumDolj[id]=1;
+  saveCfg();
+  try{rumRita();}catch(e){}
+  /* Behåll rullningen – listan är lång och sidan ritas om vid varje tryck. */
+  var bd=$('dlg-body'),y=bd?bd.scrollTop:0;
+  openConfig();
+  bd=$('dlg-body');if(bd)bd.scrollTop=y;}
+/* Rummets namn. Zonlistan kan saknas (demoläget) – då duger rumsrutornas egna. */
+function cfgZonNamn(zid){
+  var n=zoneName(zid);if(n)return n;
+  try{for(var k in ZK)if(ZK[k].zon===zid)return ZK[k].lab;}catch(e){}
+  return 'Okänt rum';}
 function cfgTheme(t){CFG.theme=t;saveCfg();applyCfg();render();openConfig();}
 function cfgScenario(n){applyScenario(n);saveCfg();render();openConfig();}
 /* Centreringslägena. Sparas i CFG.tile så de följer med i synken, och gäller

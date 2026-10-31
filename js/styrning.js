@@ -30,8 +30,14 @@
    Uttag och sensorlistan är medvetet inte med — det var steg 3. */
 
 /* ---- hjälpare. r-prefix så ingenting krockar med filens övriga namn ---- */
-function rDevs(){return Object.keys(DATA).map(k=>DATA[k]).filter(Boolean);}
-function rDevsIZon(zid){return rDevs().filter(d=>d&&d.zone===zid);}
+/* Id:t tas ur DATA-nyckeln om enheten saknar fältet (demodatan) – dolda
+   enheter och korten slår upp på id. */
+function rDevs(){return Object.keys(DATA).map(function(k){var d=DATA[k];if(d&&d.id==null)d.id=k;return d;}).filter(Boolean);}
+/* v776: ENHETER DOLDA I RUMMEN, valda under Inställningar → Enhetsstyrning.
+   De syns varken i rummen, rumspopuperna eller rumsrutornas popuper (Uterum
+   m.fl.), och rummets vippa rör dem inte. I Homey är de orörda. */
+function rDold(d){return !!(d&&CFG&&CFG.rumDolj&&CFG.rumDolj[d.id]);}
+function rDevsIZon(zid){return rDevs().filter(d=>d&&d.zone===zid&&!rDold(d));}
 function rumIkon(n){return RUM_IC[String(n||'').trim().toLowerCase()]||'lightbulb';}
 function rArLampa(d){
   if(!d||!rHar(d,'onoff'))return false;

@@ -746,10 +746,7 @@ function zkPopHTML(k){
      undertext och stapel. Lamporna först, sedan övrigt (fläkt, värme, uttag)
      i samma rutnät så att de passar in. Ett tryck på en dimbar lampa visar
      dess ljusreglage under korten; på allt annat slår trycket av och på. */
-  /* Id:t tas ur DATA-nyckeln. Homey skickar det även som fält, men demodatan
-     gör det inte – och kortens onclick behöver det. */
-  var ens=Object.keys(DATA).filter(function(id){var d=DATA[id];return d&&d.zone===Z.zon&&rHar(d,'onoff');})
-    .map(function(id){var d=DATA[id];if(d.id==null)d.id=id;return d;}).sort(rSort);
+  var ens=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(rSort);
   var lj=ens.filter(zkArLampa),ov=ens.filter(function(d){return !zkArLampa(d);});
   var ljPa=lj.filter(function(d){return capOf(d,'onoff')===true;}).length;
   if(!ens.length){
