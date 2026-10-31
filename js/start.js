@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v782';
+const APP_VERSION='v783';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3143,27 +3143,44 @@ var HUS_UTE=[[455,60],[455,212],[455,362],
   [908,362],[598,428],
   /* Altanen: en vid vardagsrummet, tre jämnt utmed poolrummets vägg (x 700–900). */
   [508,744],[740,744],[820,744],[900,744]];
-/* Fönstren lyser när någon lampa i zonen är tänd: en ljus ruta i väggen och
-   ett sken som faller ut ur fönstret. [x, y, riktning ut i grader (0 = höger,
-   90 = ned, 180 = vänster, 270 = upp), fönstrets bredd]. Punkterna ligger på
-   väggen. Kontorets och lekrummets östfönster lyser ut över poolrummets tak.
-   Sovrummet har inga markerade fönster. */
-var HUS_FONSTER=[
-  {zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14',p:[[471,445,270,30],[233,509,180,30]]},                  /* Kök */
-  {zon:'9eb2975d-49ea-4033-8db0-105a3e982117',p:[[233,660,180,30],[467,740,90,30]]},                   /* Vardagsrum */
-  {zon:'1815c884-af06-4d53-a2c1-6f4c77e9eb4e',p:[[547,742,90,30],[652,742,90,30],[703,672,0,26]]},     /* Kontor */
-  {zon:'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64',p:[[650,445,270,30],[703,490,0,26]]},                    /* Lekrum */
-  {zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',p:[[148,481,27,22]]},                                    /* Snickarboa (står snett) */
-  {zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',p:[[760,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22]]}  /* Breveden */
-];
-/* GLASTAKEN: taket lyser svagt och skenet faller ut runt om. Uterummet tänds
-   av rummets lampor utom Verkstad belysning, som sitter i grovuterummet (den
-   inglasade delen till vänster) och tänder bara det. tak = [x,y,b,h],
-   sken = [cx,cy,rx,ry]. */
+/* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
+   utan), bara = en enda lampa. Verkstad belysning sitter i grovuterummet (den
+   inglasade delen till vänster om uterummet) och tänder bara det. */
 var HUS_VERKSTAD='6077f9b6-904e-4c3e-93c0-a742bb1bf348';
+var HUS_RUM={
+  'Kök':{zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14'},
+  'Vardagsrum':{zon:'9eb2975d-49ea-4033-8db0-105a3e982117'},
+  'Kontor':{zon:'1815c884-af06-4d53-a2c1-6f4c77e9eb4e'},
+  'Lekrum':{zon:'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64'},
+  'Sovrum':{zon:'ddc3cdaa-8172-4c4a-97c9-22d8ec462972'},
+  'Gästrum':{zon:'98deb58e-be42-497a-bc32-d0e1ef61b2c1'},
+  'Hall':{zon:'478cfd92-6475-4214-80d9-27125e39863a'},
+  'Poolrum':{zon:'3efd5258-2221-49c2-aa98-e22e8ac8425d'},
+  'Uterum':{zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',utan:HUS_VERKSTAD},
+  'Grovuterum':{bara:HUS_VERKSTAD},
+  'Snickarboa':{zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78'},
+  'Breveden':{zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd'}
+};
+/* FÖNSTER OCH GLASDÖRRAR lyser när någon lampa i rummet är tänd: en ljus ruta
+   i väggen och ett sken som faller ut. [x, y, riktning ut i grader (0 = höger,
+   90 = ned, 180 = vänster, 270 = upp), bredd]. Punkterna ligger på väggen.
+   Justeras enklast i hus-redigera.html, som kopierar ut listan i det här
+   formatet. Kontorets och lekrummets östfönster lyser ut över poolrummets tak. */
+var HUS_FONSTER=[
+  {rum:'Kök',p:[[471,445,270,30],[233,509,180,30]]},
+  {rum:'Vardagsrum',p:[[233,660,180,30],[467,740,90,30]]},
+  {rum:'Kontor',p:[[547,742,90,30],[652,742,90,30],[703,672,0,26]]},
+  {rum:'Lekrum',p:[[650,445,270,30],[703,490,0,26]]},
+  {rum:'Snickarboa',p:[[148,481,27,22]]},
+  {rum:'Breveden',p:[[760,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22]]},
+  /* Uterummets glasdörrar: ut mot altanen och framåt. */
+  {rum:'Uterum',p:[[402,770,0,44],[402,830,0,44],[322,865,90,56]]}
+];
+/* GLASTAKEN: taket lyser svagt och skenet faller ut runt om.
+   tak = [x,y,b,h], sken = [cx,cy,rx,ry]. */
 var HUS_GLASTAK=[
-  {zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',utan:HUS_VERKSTAD,tak:[[242,735,160,130]],sken:[322,815,175,140]},  /* Uterum */
-  {bara:HUS_VERKSTAD,tak:[[112,697,130,113]],sken:[177,760,140,112]}                                           /* Grovuterum */
+  {rum:'Uterum',tak:[[242,735,160,130]],sken:[322,815,175,140]},
+  {rum:'Grovuterum',tak:[[112,697,130,113]],sken:[177,760,140,112]}
 ];
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};

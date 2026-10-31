@@ -104,7 +104,7 @@ function husLjusBygg(el,svg,NS){
     g.appendChild(ny('ellipse',{cx:t.sken[0],cy:t.sken[1],rx:t.sken[2],ry:t.sken[3],fill:'url(#hus-g-r)','data-rx':t.sken[2],'data-ry':t.sken[3]}));
     t.tak.forEach(function(r){
       g.appendChild(ny('rect',{x:r[0],y:r[1],width:r[2],height:r[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
-    lj.appendChild(g);return {kalla:t,g:g};});
+    lj.appendChild(g);return {kalla:HUS_RUM[t.rum]||{},g:g};});
   /* Fönstren: skenet är en kägla som vidgar sig ut från fönstret; längden
      följer dimningen (data-l skalas i husLjusRita). Rutan i väggen är fast. */
   HUS_FONSTER.forEach(function(f){
@@ -118,7 +118,7 @@ function husLjusBygg(el,svg,NS){
       fg.appendChild(sk);
       fg.appendChild(ny('rect',{x:-2.5,y:-h,width:5,height:w,rx:1.5,fill:'#ffe6b3'}));
       g.appendChild(fg);});
-    lj.appendChild(g);kallor.push({kalla:{zon:f.zon},g:g});});
+    lj.appendChild(g);kallor.push({kalla:HUS_RUM[f.rum]||{},g:g});});
   el._fonster=kallor;
   svg.appendChild(lj);
 }
@@ -132,7 +132,7 @@ function husKallaLjus(k){
   Object.keys(DATA).forEach(function(id){
     var d=DATA[id];if(!d||HUS_EJ_FONSTER[id])return;
     if(k.bara){if(id!==k.bara)return;}
-    else if(d.zone!==k.zon||id===k.utan)return;
+    else if(!k.zon||d.zone!==k.zon||id===k.utan)return;
     if(!d.capabilitiesObj||!d.capabilitiesObj.onoff)return;
     var lampa=!!(RUM_LAMPA[id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');
     if(!lampa||cap(id,'onoff')!==true)return;

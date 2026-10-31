@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="sv"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Huset · flytta ljus</title>
+<style>
+/* REDIGERAREN för ljuset i husbilden (index2). Läser fönster, glasdörrar och
+   utelampor direkt ur js/start.js, ritar dem med samma kod som dashboarden
+   (js/huset.js) och kopierar ut ändringarna som text att ge till Claude.
+   Ändrar ingenting i dashboarden själv. */
+:root{--bg:#2e3440;--panel-a:#353d4b;--panel-b:#2f3643;--line:rgba(216,222,233,.12);
+  --ink:#eceff4;--dim:#cdd6e2;--faint:#8b93a3;--inset:#3b4252;--acc:#88c0d0;--warm:#ebcb8b;--red:#bf616a;
+  --sans:"Inter Tight","Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:12px 12px 40px;background:var(--bg);color:var(--ink);font:14px/1.42 var(--sans)}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+h1{font-size:19px;margin:2px 4px 0;letter-spacing:-.01em}
+.hint{font-size:12.5px;color:var(--dim);margin:0 4px}
+.panel{background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);
+  border-radius:20px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.rad{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select,input{font:650 13px var(--sans);color:var(--ink)}
+button{appearance:none;border:1px solid var(--line);background:var(--inset);border-radius:11px;padding:8px 11px;cursor:pointer}
+button:active{transform:translateY(1px)}
+button.pa{background:#4c566a;border-color:rgba(216,222,233,.28)}
+button.ny{border-color:rgba(235,203,139,.45);color:var(--warm)}
+button.fara{border-color:rgba(191,97,106,.5);color:#e08c94}
+button.huvud{background:var(--acc);color:#2e3440;border-color:transparent;font-weight:800}
+button:disabled{opacity:.4}
+.sp{flex:1 1 auto}
+select,input{background:var(--inset);border:1px solid var(--line);border-radius:10px;padding:7px 8px}
+input[type=number]{width:74px}
+label.f{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--faint);font-weight:700}
+
+/* Kartan. Bild, ljus och handtag delar koordinater (1040 × 1120). */
+.ram{overflow:auto;border-radius:16px;max-height:78vh}
+.karta{position:relative;width:100%;aspect-ratio:1040/1120;background:#1c222b;user-select:none;-webkit-user-select:none}
+.karta.zoom{width:220%}
+.karta img,.karta svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+#ljus{pointer-events:none}
+.karta.dag #ljus{display:none}
+.hus-ljus{mix-blend-mode:screen}
+.hus-glastak{opacity:.24}
+#handtag .h{touch-action:none;cursor:grab}
+#handtag .faltruta{fill:rgba(46,52,64,.28);stroke:rgba(236,239,244,.45);stroke-dasharray:6 6;pointer-events:none}
+#handtag .falttext{fill:rgba(236,239,244,.7);font:700 22px var(--sans);pointer-events:none}
+.karta.dag #handtag .faltruta{fill:rgba(255,255,255,.35);stroke:rgba(46,52,64,.45)}
+.karta.dag #handtag .falttext{fill:rgba(46,52,64,.7)}
+
+.vald-tom{color:var(--faint);font-size:13px;margin:2px 4px}
+.vald-rub{font-weight:800;font-size:14px;margin:0 2px}
+.pilar{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(2,34px);gap:4px}
+.pilar button{padding:0}
+textarea{width:100%;min-height:150px;background:#242933;color:var(--dim);border:1px solid var(--line);border-radius:12px;
+  padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+.status{font-size:12px;color:var(--faint);margin:0 4px}
+.status b{color:var(--warm)}
+</style></head><body>
+<div class="wrap">
+  <h1>Flytta fönster och lampor</h1>
+  <p class="hint">Dra en punkt för att flytta den. Ett valt fönster får en liten knopp: dra den för att vrida
+    åt vilket håll ljuset faller ut. Tryck på en punkt för exakta värden och pilar för små steg.
+    Rutorna med streckad kant är fälten med siffror – det som ligger under dem syns inte i dashboarden.</p>
+
+  <div class="panel">
+    <div class="rad">
+      <button class="ny" onclick="laggTill('ute')">+ Utelampa</button>
+      <button class="ny" onclick="laggTill('fonster')">+ Fönster</button>
+      <button class="ny" onclick="laggTill('dorr')">+ Glasdörr</button>
+      <span class="sp"></span>
+      <button id="b-dag" onclick="vaxlaDag()">Dagbild</button>
+      <button id="b-zoom" onclick="vaxlaZoom()">Zooma</button>
+      <button id="b-angra" onclick="angra()" disabled>Ångra</button>
+    </div>
+    <div class="ram" id="ram">
+      <div class="karta" id="karta">
+        <img id="bild" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån" draggable="false">
+        <svg id="ljus" viewBox="0 0 1040 1120" aria-hidden="true"></svg>
+        <svg id="handtag" viewBox="0 0 1040 1120"></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="vald"></div>
+
+  <div class="panel">
+    <div class="rad">
+      <button class="huvud" onclick="kopiera()">Kopiera till Claude</button>
+      <span class="sp"></span>
+      <button class="fara" onclick="aterstall()">Börja om från dashboarden</button>
+    </div>
+    <p class="status" id="status">Läser in…</p>
+    <textarea id="ut" readonly></textarea>
+  </div>
+</div>
+
+<!-- Samma ritkod som dashboarden: husLjusBygg ritar ljuset. -->
+<script src="js/huset.js"></script>
+<script>
+'use strict';
+var NS='http://www.w3.org/2000/svg',NYCKEL='hus_redigera_v1';
+var BAS=null;          /* det som står i js/start.js just nu */
+var BAS_ID='';         /* fingeravtryck av start.js-avsnittet, för utkastet */
+var saker=[];          /* {typ:'ute',x,y} | {typ:'fonster',rum,x,y,v,b} */
+var valt=-1,dagbild=false,zoom=false,hist=[],drag=null;
+
+function $(id){return document.getElementById(id);}
+function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function hash(t){var h=0;for(var i=0;i<t.length;i++){h=(h*31+t.charCodeAt(i))|0;}return String(h);}
+
+/* ---- inläsning ---- */
+function franBas(){
+  var s=[];
+  BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1]});});
+  BAS.FONSTER.forEach(function(f){f.p.forEach(function(p){
+    s.push({typ:'fonster',rum:f.rum,x:p[0],y:p[1],v:p[2],b:p[3]||28});});});
+  return s;
+}
+fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
+  var a=t.indexOf('/* ---------- [huset.js] ---------- */'),b=t.indexOf('/* ---------- [',a+10);
+  if(a<0||b<0)throw new Error('Hittar inte [huset.js] i start.js');
+  var sek=t.slice(a,b);BAS_ID=hash(sek);
+  BAS=new Function(sek+';return {UTE:HUS_UTE,FONSTER:HUS_FONSTER,GLASTAK:HUS_GLASTAK,RUM:HUS_RUM,FALT:HUS_FALT};')();
+  window.HUS_RUM=BAS.RUM;window.HUS_GLASTAK=BAS.GLASTAK;
+  var sparat=null;try{sparat=JSON.parse(localStorage.getItem(NYCKEL)||'null');}catch(e){}
+  if(sparat&&sparat.bas===BAS_ID&&Array.isArray(sparat.saker)){saker=sparat.saker;meddela('Fortsätter ditt utkast.');}
+  else{saker=franBas();meddela('Visar det som ligger i dashboarden nu.');}
+  rita();
+}).catch(function(e){meddela('Kunde inte läsa in: '+e.message);});
+
+/* ---- ritning ---- */
+function tillData(){
+  var ute=[],per={},ordning=[];
+  saker.forEach(function(s){
+    if(s.typ==='ute'){ute.push([s.x,s.y]);return;}
+    if(!per[s.rum]){per[s.rum]=[];ordning.push(s.rum);}
+    per[s.rum].push([s.x,s.y,s.v,s.b]);});
+  return {ute:ute,fonster:ordning.map(function(r){return {rum:r,p:per[r]};})};
+}
+function ritaLjus(){
+  var d=tillData(),svg=$('ljus');
+  window.HUS_UTE=d.ute;window.HUS_FONSTER=d.fonster;
+  while(svg.firstChild)svg.removeChild(svg.firstChild);
+  var el={};husLjusBygg(el,svg,NS);
+  /* Allt tänt, full styrka – så syns var ljuset hamnar. */
+  (el._fonster||[]).forEach(function(f){f.g.classList.add('pa');f.g.style.opacity='1';});
+}
+function enhet(){var w=$('karta').clientWidth||1040;return 1040/w;}   /* bildenheter per skärmpixel */
+function ritaHandtag(){
+  var svg=$('handtag'),u=enhet();
+  while(svg.firstChild)svg.removeChild(svg.firstChild);
+  /* Fälten med siffror, som referens. */
+  Object.keys(BAS.FALT).forEach(function(k){var f=BAS.FALT[k];
+    svg.appendChild(ny('rect',{x:f.x,y:f.y,width:f.w,height:f.h,rx:14,'class':'faltruta','stroke-width':1.5*u}));
+    var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil (vid laddning)',sol:'Sol',batt:'Batteri'})[k]||k;svg.appendChild(t);});
+  saker.forEach(function(s,i){
+    var sel=i===valt,g=ny('g',{'class':'h','data-i':i});
+    var farg=s.typ==='ute'?'#fff3d0':'#ffb54d';
+    if(s.typ==='fonster'){
+      /* Fönstret som en linje längs väggen. */
+      var r=s.v*Math.PI/180,dx=-Math.sin(r)*s.b/2,dy=Math.cos(r)*s.b/2;
+      g.appendChild(ny('line',{x1:s.x-dx,y1:s.y-dy,x2:s.x+dx,y2:s.y+dy,stroke:sel?'#88c0d0':farg,'stroke-width':(sel?5:4)*u,'stroke-linecap':'round'}));
+    }
+    g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:20*u,fill:'transparent'}));   /* större träffyta */
+    g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:(sel?9:7)*u,fill:sel?'#88c0d0':'rgba(46,52,64,.55)',stroke:sel?'#eceff4':farg,'stroke-width':2.2*u}));
+    svg.appendChild(g);
+    if(sel&&s.typ==='fonster'){
+      var D=Math.max(46*u,40),kx=s.x+Math.cos(s.v*Math.PI/180)*D,ky=s.y+Math.sin(s.v*Math.PI/180)*D;
+      svg.appendChild(ny('line',{x1:s.x,y1:s.y,x2:kx,y2:ky,stroke:'#88c0d0','stroke-width':2*u,'stroke-dasharray':(4*u)+' '+(4*u),'pointer-events':'none'}));
+      var k=ny('g',{'class':'h','data-i':i,'data-vrid':'1'});
+      k.appendChild(ny('circle',{cx:kx,cy:ky,r:20*u,fill:'transparent'}));
+      k.appendChild(ny('circle',{cx:kx,cy:ky,r:7*u,fill:'#eceff4',stroke:'#88c0d0','stroke-width':2.5*u}));
+      svg.appendChild(k);
+    }
+  });
+}
+function rita(){if(!BAS)return;ritaLjus();ritaHandtag();ritaVald();ritaUt();spara();}
+
+/* ---- den valda punkten ---- */
+function ritaVald(){
+  var el=$('vald'),s=saker[valt];
+  if(!s){el.innerHTML='<p class="vald-tom">Tryck på en punkt i bilden för att ändra den, eller lägg till en ny ovanför.</p>';return;}
+  var h='<div class="rad"><span class="vald-rub">'+(s.typ==='ute'?'Utelampa':(s.b>=40?'Glasdörr':'Fönster'))+'</span><span class="sp"></span>'
+    +'<button onclick="duplicera()">Kopiera</button><button class="fara" onclick="taBort()">Ta bort</button></div><div class="rad">';
+  if(s.typ==='fonster'){
+    h+='<label class="f">Rum (lyser när en lampa där är tänd)<select onchange="satt(\'rum\',this.value)">'
+      +Object.keys(BAS.RUM).map(function(r){return '<option'+(r===s.rum?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></label>';
+  }
+  h+='<label class="f">X<input type="number" value="'+s.x+'" onchange="satt(\'x\',+this.value)"></label>'
+    +'<label class="f">Y<input type="number" value="'+s.y+'" onchange="satt(\'y\',+this.value)"></label>';
+  if(s.typ==='fonster'){
+    h+='<label class="f">Riktning °<input type="number" step="5" value="'+s.v+'" onchange="satt(\'v\',+this.value)"></label>'
+      +'<label class="f">Bredd<input type="number" step="2" value="'+s.b+'" onchange="satt(\'b\',+this.value)"></label>';
+  }
+  h+='</div><div class="rad"><div class="pilar">'
+    +'<span></span><button onclick="knuffa(0,-2)" aria-label="Upp">↑</button><span></span>'
+    +'<button onclick="knuffa(-2,0)" aria-label="Vänster">←</button><button onclick="knuffa(0,2)" aria-label="Ned">↓</button><button onclick="knuffa(2,0)" aria-label="Höger">→</button></div>';
+  if(s.typ==='fonster'){
+    h+='<div class="rad"><button onclick="vrid(-5)">⟲ 5°</button><button onclick="vrid(5)">⟳ 5°</button>'
+      +'<button onclick="bredda(-4)">Smalare</button><button onclick="bredda(4)">Bredare</button></div>';
+  }
+  el.innerHTML=h+'</div>';
+}
+function minns(){hist.push(JSON.stringify(saker));if(hist.length>80)hist.shift();$('b-angra').disabled=false;}
+function angra(){if(!hist.length)return;saker=JSON.parse(hist.pop());if(valt>=saker.length)valt=-1;$('b-angra').disabled=!hist.length;rita();}
+function satt(k,v){var s=saker[valt];if(!s)return;if(k!=='rum'&&!isFinite(v))return;minns();
+  if(k==='v')v=((Math.round(v)%360)+360)%360;if(k==='b')v=Math.max(10,Math.min(120,Math.round(v)));
+  s[k]=k==='rum'?v:Math.round(v);if(k==='rum')senasteRum=v;rita();}
+function knuffa(dx,dy){var s=saker[valt];if(!s)return;minns();s.x+=dx;s.y+=dy;rita();}
+function vrid(d){var s=saker[valt];if(!s)return;satt('v',s.v+d);}
+function bredda(d){var s=saker[valt];if(!s)return;satt('b',s.b+d);}
+function taBort(){if(valt<0)return;minns();saker.splice(valt,1);valt=-1;rita();}
+function duplicera(){var s=saker[valt];if(!s)return;minns();var k=JSON.parse(JSON.stringify(s));k.x+=24;k.y+=24;saker.push(k);valt=saker.length-1;rita();}
+var senasteRum='Kök';
+function laggTill(typ){
+  if(!BAS)return;minns();
+  /* Mitt i det som syns av bilden. */
+  var ram=$('ram'),k=$('karta'),u=enhet();
+  var x=Math.round((ram.scrollLeft+ram.clientWidth/2)*u),y=Math.round((ram.scrollTop+Math.min(ram.clientHeight,k.clientHeight)/2)*u);
+  if(typ==='ute')saker.push({typ:'ute',x:x,y:y});
+  else saker.push({typ:'fonster',rum:senasteRum,x:x,y:y,v:90,b:typ==='dorr'?48:30});
+  valt=saker.length-1;rita();
+}
+
+/* ---- dra ---- */
+function punkt(e){var svg=$('handtag'),pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());}
+$('handtag').addEventListener('pointerdown',function(e){
+  var g=e.target.closest&&e.target.closest('.h');
+  if(!g){if(valt>=0){valt=-1;ritaHandtag();ritaVald();}return;}
+  e.preventDefault();
+  var i=+g.getAttribute('data-i'),p=punkt(e);
+  if(valt!==i){valt=i;senasteRum=saker[i].rum||senasteRum;ritaHandtag();ritaVald();}
+  drag={i:i,vrid:g.hasAttribute('data-vrid'),p0:p,x0:saker[i].x,y0:saker[i].y,fore:JSON.stringify(saker),flyttat:false};
+  try{this.setPointerCapture(e.pointerId);}catch(x){}
+});
+$('handtag').addEventListener('pointermove',function(e){
+  if(!drag)return;e.preventDefault();
+  var s=saker[drag.i],p=punkt(e);
+  if(drag.vrid){
+    var v=Math.atan2(p.y-s.y,p.x-s.x)*180/Math.PI;
+    /* Fäster på 5°; 0/90/180/270 drar lite extra så att raka väggar blir raka. */
+    v=Math.round(v/5)*5;var r=Math.round(v/90)*90;if(Math.abs(v-r)<=5)v=r;
+    s.v=((v%360)+360)%360;
+  }else{s.x=Math.round(drag.x0+p.x-drag.p0.x);s.y=Math.round(drag.y0+p.y-drag.p0.y);}
+  drag.flyttat=true;ritaLjus();ritaHandtag();
+});
+function slapp(){if(!drag)return;
+  if(drag.flyttat){hist.push(drag.fore);$('b-angra').disabled=false;}
+  drag=null;rita();}
+$('handtag').addEventListener('pointerup',slapp);
+$('handtag').addEventListener('pointercancel',slapp);
+window.addEventListener('resize',function(){if(BAS)ritaHandtag();});
+
+function vaxlaDag(){dagbild=!dagbild;$('karta').classList.toggle('dag',dagbild);
+  $('bild').src=dagbild?'bild/hus-ovanifran.webp':'bild/hus-ovanifran-natt.webp';$('b-dag').classList.toggle('pa',dagbild);}
+function vaxlaZoom(){zoom=!zoom;$('karta').classList.toggle('zoom',zoom);$('b-zoom').classList.toggle('pa',zoom);
+  $('b-zoom').textContent=zoom?'Zooma ut':'Zooma';ritaHandtag();}
+
+/* ---- ut ---- */
+function ritaUt(){
+  var d=tillData();
+  var t='/* Husljus från hus-redigera.html, '+new Date().toLocaleString('sv-SE')+' */\n'
+    +'var HUS_UTE=['+d.ute.map(function(p){return '['+p.join(',')+']';}).join(',')+'];\n'
+    +'var HUS_FONSTER=[\n'+d.fonster.map(function(f){
+      return "  {rum:'"+f.rum+"',p:["+f.p.map(function(p){return '['+p.join(',')+']';}).join(',')+']}';}).join(',\n')+'\n];';
+  $('ut').value=t;
+}
+function kopiera(){
+  var t=$('ut').value;
+  function klart(){meddela('<b>Kopierat.</b> Klistra in det i chatten med Claude.');}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(klart,function(){markera();});}
+  else markera();
+  function markera(){var a=$('ut');a.focus();a.select();try{document.execCommand('copy');klart();}catch(e){meddela('Markera texten nedan och kopiera den.');}}
+}
+function spara(){try{localStorage.setItem(NYCKEL,JSON.stringify({bas:BAS_ID,saker:saker}));}catch(e){}}
+function aterstall(){if(!BAS)return;if(!confirm('Släng dina ändringar och börja om från det som ligger i dashboarden?'))return;
+  minns();saker=franBas();valt=-1;try{localStorage.removeItem(NYCKEL);}catch(e){}rita();meddela('Visar det som ligger i dashboarden nu.');}
+function meddela(h){$('status').innerHTML=h;}
+</script>
+</body></html>
