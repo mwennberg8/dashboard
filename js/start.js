@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v779';
+const APP_VERSION='v780';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3133,6 +3133,27 @@ var HUS_LEDN=[
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */
 var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
+/* LJUSET I NATTBILDEN (index2). Punkterna är Markus markeringar, omräknade
+   till bildens koordinater (1040 × 1120) och rätade: lamporna längs
+   parkeringen står på en linje utmed stenläggningen, Brevedens lampor och
+   fönster symmetriskt runt huset.
+   Utelamporna tänds automatiskt på kvällen och lyser alltid i nattbilden. */
+var HUS_UTE=[[455,60],[455,212],[455,362],
+  [680,112],[840,112],[680,278],[840,278],
+  [908,362],[598,428],
+  [508,744],[737,744],[809,744],[904,744]];
+/* Fönstren lyser när någon lampa i zonen är tänd. Nycklarna är zon-id i
+   Gottskärs Homey. Sovrummet har inga markerade fönster. */
+var HUS_FONSTER=[
+  {zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14',p:[[471,446],[234,509]]},                    /* Kök */
+  {zon:'9eb2975d-49ea-4033-8db0-105a3e982117',p:[[234,660],[467,738]]},                    /* Vardagsrum */
+  {zon:'1815c884-af06-4d53-a2c1-6f4c77e9eb4e',p:[[547,742],[652,742],[712,672]]},          /* Kontor */
+  {zon:'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64',p:[[650,446],[712,490]]},                    /* Lekrum */
+  {zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',p:[[143,481]]},                              /* Snickarboa */
+  {zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',p:[[760,93],[690,145],[690,232],[830,145],[830,232]]}  /* Breveden */
+];
+/* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
+var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 
 /* ---------- [styrning.js] ---------- */
 const rHar=(d,c)=>!!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]);

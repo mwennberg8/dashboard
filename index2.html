@@ -3711,6 +3711,11 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 .hus-flod.bak{animation-direction:reverse}
 .hus-flod.av{animation:none;stroke-dasharray:none;opacity:0}
 @keyframes husflod{to{stroke-dashoffset:-32}}
+/* Ljuset i nattbilden: bara i mörkt tema. Fönstren tänds per zon (.pa). */
+.hus-ljus{opacity:0;transition:opacity .8s;mix-blend-mode:screen}
+:root:not([data-theme="light"]) .hus-ljus{opacity:1}
+.hus-fonster{opacity:0;transition:opacity .6s}
+.hus-fonster:not(.pa){opacity:0!important}
 @media (prefers-reduced-motion:reduce){.hus-flod{animation:none;stroke-dasharray:none}}
 .hus-falt{appearance:none;-webkit-appearance:none;margin:0;text-align:left;cursor:pointer;
   position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:.2cqw;
