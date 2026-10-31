@@ -1031,6 +1031,12 @@ function flikradBygg(){
 function mobilTopp(mob){
   var h=document.getElementById('en-hogra');if(!h)return;
   ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
+  /* index2: raden (väder, soltider, klockan, pricken) står ovanför husbilden
+     i #hus-topp i stället för i energipanelen. Finns ingen sådan plats
+     (index.html) gäller allt nedan som förut. */
+  var husTopp=document.getElementById('hus-topp');
+  if(husTopp){if(h.parentElement!==husTopp)husTopp.appendChild(h);
+    document.body.classList.add('topp-flyttad');return;}
   /* ALTERNATIV A (v678): två fasta rader. Rad 1 = förbrukningen och, till
      höger, klockan och pricken. Rad 2 = Självförsörjt och elpriset, lika
      breda kant i kant. Ordningen läggs om i DOM:en i stället för med
