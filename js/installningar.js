@@ -1522,6 +1522,10 @@ function openConfig(){
     +'<b id="sakr-v" style="min-width:44px;display:inline-block;text-align:center">'+fasSakring()+' A</b>'
     +'<button class="dbtn" onclick="sakringStep(1)">+</button></span>');
   h+='</div>';
+  /* Husbilden högst upp på startsidan (index2): hur mycket fönstren lyser. */
+  h+='<div class="cfg-sec">Husbilden</div>';
+  h+=stepRow('Ljus från fönstren','cfgnum-husfon',Math.round(husFonsterStyrka()*100)+' %','cfgHusFonster');
+  h+='<div class="cfg-hint">Skenet från fönster och glasdörrar i nattbilden. 100 % är fullt, över 100 % lyser de starkare och längre ut.</div>';
   h+='<div class="cfg-sec">Köpt/sålt-rutan</div>';
   h+=krcOpRow();
   h+='</div>';
@@ -1790,6 +1794,8 @@ function cfgSpot(v){CFG.showspot=(v!=='off');saveCfg();applyCfg();if(typeof setT
    så skillnaden syns direkt i menyn. */
 function cfgGlow(d){let D=Math.round((CFG.glowmul-1)*100)+d*10;D=Math.max(-100,Math.min(200,D));CFG.glowmul=Math.max(0,Math.round((1+D/100)*100)/100);saveCfg();applyCfg();const n=$('cfgnum-glow');if(n)n.textContent=(D>0?'+':'')+D+'%';}
 function cfgSharp(d){let s=(CFG.glowsharp==null?.75:CFG.glowsharp)+d*0.1;CFG.glowsharp=Math.max(0,Math.min(1,Math.round(s*100)/100));saveCfg();applyCfg();const n=$('cfgnum-sharp');if(n)n.textContent=Math.round(CFG.glowsharp*100)+'%';}
+function cfgHusFonster(d){var v=Math.round(husFonsterStyrka()*100)+d*10;CFG.husFonster=Math.max(20,Math.min(150,v));saveCfg();
+  try{husRita();}catch(e){}const n=$('cfgnum-husfon');if(n)n.textContent=CFG.husFonster+' %';}
 function cfgNight(d){CFG.night=Math.max(0,Math.min(60,(CFG.night||0)+d*10));saveCfg();render();const n=$('cfgnum-night');if(n)n.textContent=CFG.night+'%';}
 function cfgBatt(d){CFG.battkwh=Math.max(3,Math.min(40,(CFG.battkwh||10)+d));saveCfg();render();const n=$('cfgnum-batt');if(n)n.textContent=CFG.battkwh+'';}
 function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick();}
