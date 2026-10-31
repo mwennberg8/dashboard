@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v809';
+const APP_VERSION='v810';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3120,8 +3120,9 @@ var HUS_FALT={
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };
 /* LEDNINGARNA. Elnätet går ut ur Elnät-rutans högra kortsida, längs
-   överkanten hela vägen till bildens högra kant (hörnet följer bildens
-   rundning), ned längs kanten och in i elcentralen från höger. Bilen grenar
+   överkanten till bildens högra kant – 24 in från både överkant och
+   högerkant, hörnet följer bildens rundning – ned längs kanten och in i
+   elcentralen från höger. Svängarna är rundade, utom där bilen ansluter. Bilen grenar
    av ned mellan bilarna. Solen kommer in i elcentralen från vänster och
    batteriet har en egen kort ledning till elcentralen. Varje sträcka är ritad
    i den riktning strömmen oftast går; negativt värde vänder prickarna, så att
@@ -3136,12 +3137,12 @@ var HUS_FALT={
 var HUS_LEDN=[
   {id:'sol1', typ:'sol', d:'M423,656 H512'},
   {id:'sol2', typ:'sol', d:'M600,632 V612'},
-  {id:'sol3', typ:'sol', d:'M684,582 H790 V552'},
+  {id:'sol3', typ:'sol', d:'M684,582 H780 A10,10 0 0 0 790,572 V552'},
   {id:'sol4', typ:'sol', d:'M878,418 H900'},
-  {id:'batt', typ:'batt',d:'M925,489 H965 V434 H921'},
-  {id:'natB', typ:'nat', d:'M585,12 H988 A40,40 0 0 1 1028,52 V408 H921'},
-  {id:'bil',  typ:'bil', d:'M585,12 V282'},
-  {id:'nat',  typ:'nat', d:'M245,94 H300 V12 H585'}
+  {id:'batt', typ:'batt',d:'M925,489 H955 A10,10 0 0 0 965,479 V444 A10,10 0 0 0 955,434 H921'},
+  {id:'natB', typ:'nat', d:'M585,24 H984 A32,32 0 0 1 1016,56 V394 A14,14 0 0 1 1002,408 H921'},
+  {id:'bil',  typ:'bil', d:'M585,24 V282'},
+  {id:'nat',  typ:'nat', d:'M245,94 H286 A14,14 0 0 0 300,80 V38 A14,14 0 0 1 314,24 H585'}
 ];
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */
