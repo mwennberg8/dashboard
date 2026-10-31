@@ -3725,6 +3725,11 @@ body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:
 :root[data-theme="light"] .hus-karta{background:#dfe6ee}
 :root[data-theme="light"] .hus-karta .hus-dag{opacity:1}
 .hus-karta>svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+/* Tryckytorna (solpaneler, uterum, Breveden, Snickarboa): osynliga, en svag
+   ljus ton när man trycker. Själva SVG:n släpper igenom, ytorna tar emot. */
+.hus-yta{fill:transparent;pointer-events:all;cursor:pointer;transition:fill .15s;-webkit-tap-highlight-color:transparent}
+.hus-yta:active{fill:rgba(255,255,255,.14)}
+@media (hover:hover){.hus-yta:hover{fill:rgba(255,255,255,.07)}}
 .hus-bas{fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transition:stroke-width .4s,opacity .4s}
 .hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
   animation:husflod 1.1s linear infinite}

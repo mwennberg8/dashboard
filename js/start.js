@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v810';
+const APP_VERSION='v811';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3143,6 +3143,19 @@ var HUS_LEDN=[
   {id:'natB', typ:'nat', d:'M585,24 H984 A32,32 0 0 1 1016,56 V394 A14,14 0 0 1 1002,408 H921'},
   {id:'bil',  typ:'bil', d:'M585,24 V282'},
   {id:'nat',  typ:'nat', d:'M245,94 H286 A14,14 0 0 0 300,80 V38 A14,14 0 0 1 314,24 H585'}
+];
+/* TRYCKYTOR i bilden: ett tryck öppnar popupen. Rektanglar [x,y,b,h] eller
+   en polygon (Snickarboa står snett). Ligger under ljuset och ledningarna och
+   under rutorna, som öppnar sina egna popuper. */
+var HUS_YTOR=[
+  {pop:'sun',r:[244,590,188,134]},        /* vänster tak, 16 paneler */
+  {pop:'sun',r:[508,628,186,100]},        /* nedre mitten */
+  {pop:'sun',r:[498,548,190,66]},         /* övre mitten */
+  {pop:'sun',r:[778,376,102,178]},        /* höger tak (poolrummet) */
+  {pop:'uterum',r:[242,735,160,130]},     /* uterummet */
+  {pop:'uterum',r:[112,697,130,113]},     /* den inglasade delen bredvid */
+  {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
+  {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'}
 ];
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */

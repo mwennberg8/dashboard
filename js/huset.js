@@ -57,6 +57,7 @@ function husBygg(el){
     /* Två bilder: dag i ljust tema, kväll/natt i mörkt (CSS väljer efter data-theme). */
     +'<img class="hus-natt" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån">'
     +'<img class="hus-dag" src="bild/hus-ovanifran.webp" alt="">'
+    +'<svg viewBox="0 0 1040 1120" class="hus-ytor" id="hus-ytor"></svg>'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
   /* Efter det som redan står i panelen (index2: raden #hus-topp överst). En
      halvbyggd karta från ett avbrutet försök tas bort först. */
@@ -64,6 +65,14 @@ function husBygg(el){
   el.insertAdjacentHTML('beforeend',h);
   var svg=$('hus-svg'),karta=$('hus-karta');
   try{document.body.classList.add('hus-sida');}catch(e){}
+  /* Tryckytorna: solpanelerna, uterummet, Breveden, Snickarboa. */
+  var yt=$('hus-ytor');
+  (typeof HUS_YTOR!=='undefined'?HUS_YTOR:[]).forEach(function(y){
+    var e=y.p?document.createElementNS(NS,'polygon'):document.createElementNS(NS,'rect');
+    if(y.p)e.setAttribute('points',y.p);
+    else{e.setAttribute('x',y.r[0]);e.setAttribute('y',y.r[1]);e.setAttribute('width',y.r[2]);e.setAttribute('height',y.r[3]);e.setAttribute('rx',8);}
+    e.setAttribute('class','hus-yta');e.setAttribute('onclick',"openDetail('"+y.pop+"')");
+    yt.appendChild(e);});
   husLjusBygg(el,svg,NS);
   el._ledn={};
   HUS_LEDN.forEach(function(l){
