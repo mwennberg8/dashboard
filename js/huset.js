@@ -252,16 +252,12 @@ function husRita(){
      mätare för hela anläggningen. Kedjan bär summan av ytorna före:
      vänster tak (D) → nedre mitten (C) → övre mitten (B) → höger tak (A) → elcentralen. */
   var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL,batt=v.batt||0;
-  /* Skenan från elcentralen bär det sol och batteri ger (urladdning +,
-     laddning −). Räknas från källorna själva, INTE som förbrukning − köpt:
-     förbrukningen och Pulse uppdateras i olika takt, och när lasten ändras
-     ligger de flera hundra watt isär några sekunder. Skillnaden tände då
-     skenan gul eller röd en kort stund fast varken sol eller batteri gav
-     något (31 okt, tomt batteri och natt). Bilen grenar av på vägen. */
-  var bil=v.bil>=50?v.bil:0;
-  var bussA=s+batt;
+  /* Nätets ledning: Elnät → bilens avgrening bär det som köps (säljs = −);
+     avgreningen → elcentralen bär nätet minus det bilen tar. Båda från
+     Pulse och laddboxen – sol och batteri har egna ledningar in i elcentralen. */
+  var bil=v.bil>=50?v.bil:0,nat0=v.nat||0;
   var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*(p.D+p.C+p.B),sol4:s,
-    nat:v.nat||0,hus:Math.max(0,(v.last||0)-bil),batt:batt,bussA:bussA,bussB:bussA-bil,bil:bil};
+    nat:nat0,natB:nat0-bil,batt:batt,bil:bil};
   HUS_LEDN.forEach(function(l){
     if(l.ledare)return;
     var w=varden[l.id]||0,r=el._ledn[l.id],tom=Math.abs(w)<50,b=husBredd(w);
@@ -270,18 +266,11 @@ function husRita(){
     r.fl.setAttribute('class','hus-flod'+(tom?' av':'')+(w<0?' bak':''));
     r.fl.style.animationDuration=(tom?0:Math.max(0.45,1.5-Math.abs(w)/1000*0.12))+'s';
   });
-  /* Skenans färg: det som faktiskt flödar i den – nätet när strömmen går mot
-     elcentralen eller bilen, annars den största av sol och batteri. */
-  function skenfarg(w){if(Math.abs(w)<50)return HUS_FARG.last;
-    return w<0?HUS_FARG.nat:(s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt);}
-  el._ledn.bussA.bas.style.stroke=skenfarg(bussA);
-  el._ledn.bussB.bas.style.stroke=skenfarg(bussA-bil);
-  /* Ledningen in i huset: röd när allt kommer från nätet, grön när allt kommer
-     från sol och batteri, orange när det är en blandning. Avgörs av källorna
-     (ger sol/batteri något? köps något?) – inte av en kvot mellan två mätare
-     som uppdateras i olika takt, som skulle flimra mellan röd och orange. */
-  var egen=Math.max(0,s)+Math.max(0,batt)>=100,kop=(v.nat||0)>=100;
-  el._ledn.hus.bas.style.stroke=!egen&&kop?HUS_HUS_FARG.nat:(egen&&!kop?HUS_HUS_FARG.egen:(egen&&kop?HUS_HUS_FARG.blandat:HUS_FARG.last));
+  /* Nätets färg efter det som flödar: köpt el (in) = nätets färg, el ut från
+     elcentralen (till bilen eller ut på nätet) = den största av sol och batteri. */
+  function natfarg(w){if(w>-50)return HUS_FARG.nat;return s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt;}
+  el._ledn.nat.bas.style.stroke=natfarg(nat0);
+  el._ledn.natB.bas.style.stroke=natfarg(nat0-bil);
   /* Bilens gren: tänd när en bil laddar, tunn och blek när en bil bara är
      inkopplad (som de andra ledningarna utan flöde), borta utan bil. */
   el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=(bil||v.inkopplad)?'':'none';
