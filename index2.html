@@ -3697,8 +3697,13 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
    Ritas av husRita() i js/huset.js. */
 .huspanel{padding:10px}
 .hus-karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;
-  background:#dfe6ee;container-type:inline-size}
-.hus-karta img{position:absolute;inset:0;width:100%;height:100%;display:block}
+  container-type:inline-size}
+.hus-karta img{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .8s}
+/* Mörkt tema (även auto efter solnedgång): nattbilden och mörka fält. */
+.hus-karta{background:#1c222b}
+.hus-karta .hus-dag{opacity:0}
+:root[data-theme="light"] .hus-karta{background:#dfe6ee}
+:root[data-theme="light"] .hus-karta .hus-dag{opacity:1}
 .hus-karta svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .hus-bas{fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transition:stroke-width .4s,opacity .4s}
 .hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
@@ -3719,6 +3724,11 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 .hus-falt .v small{font-size:2.9cqw;font-weight:700;color:#4c566a}
 .hus-falt .u{font:650 2.35cqw/1.15 var(--sans,inherit);color:#4c566a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hus-falt.noll .v{color:#8b93a3}
+:root:not([data-theme="light"]) .hus-falt{background:rgba(36,41,51,.9);color:#eceff4;box-shadow:0 6px 18px -8px rgba(0,0,0,.7)}
+:root:not([data-theme="light"]) .hus-falt .rub,
+:root:not([data-theme="light"]) .hus-falt .v small,
+:root:not([data-theme="light"]) .hus-falt .u{color:#cdd6e2}
+:root:not([data-theme="light"]) .hus-falt.noll .v{color:#8b93a3}
 </style>
 </head>
 <body>
