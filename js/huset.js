@@ -83,6 +83,11 @@ function husLjusBygg(el,svg,NS){
     r.appendChild(ny('stop',{offset:'.3','stop-color':g[1],'stop-opacity':'.6'}));
     r.appendChild(ny('stop',{offset:'1','stop-color':g[1],'stop-opacity':'0'}));
     defs.appendChild(r);});
+  /* Uterummets sken: bredare och mjukare än fönstrens. */
+  var ru=ny('radialGradient',{id:'hus-g-r'});
+  [['0','.6'],['.45','.32'],['1','0']].forEach(function(st){
+    ru.appendChild(ny('stop',{offset:st[0],'stop-color':'#ffbe63','stop-opacity':st[1]}));});
+  defs.appendChild(ru);
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
   var ute=ny('g',{'class':'hus-ute'});
@@ -90,32 +95,48 @@ function husLjusBygg(el,svg,NS){
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#fffaf0'}));});
   lj.appendChild(ute);
-  el._fonster=HUS_FONSTER.map(function(f){
+  /* Uterummet först, så att fönstrens sken ligger ovanpå. Skenets storlek
+     (data-r) skalas med dimningen i husLjusRita. */
+  var u=HUS_UTERUM,ug=ny('g',{'class':'hus-fonster hus-uterum'});
+  ug.appendChild(ny('ellipse',{cx:u.sken[0],cy:u.sken[1],rx:u.sken[2],ry:u.sken[3],fill:'url(#hus-g-r)','data-rx':u.sken[2],'data-ry':u.sken[3]}));
+  u.tak.forEach(function(t){
+    ug.appendChild(ny('rect',{x:t[0],y:t[1],width:t[2],height:t[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
+  lj.appendChild(ug);
+  el._fonster=[{zon:u.zon,g:ug}].concat(HUS_FONSTER.map(function(f){
     var g=ny('g',{'class':'hus-fonster'});
     f.p.forEach(function(p){
-      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:62,fill:'url(#hus-g-f)'}));
+      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:62,fill:'url(#hus-g-f)','data-r':62}));
       g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:6,fill:'#ffe9bf'}));});
-    lj.appendChild(g);return {zon:f.zon,g:g};});
+    lj.appendChild(g);return {zon:f.zon,g:g};}));
   svg.appendChild(lj);
 }
-/* Starkaste tända lampan i zonen, 0–1, eller null om ingen lyser. */
+/* Ljuset i zonen, 0–1, eller null om ingen lampa lyser: den starkast dimmade
+   tända lampan. En lampa utan dimning (fönsterlamporna) räknas som full.
+   Här räknas alla lampor som faktiskt lyser, även de som är dolda i rumsvyn
+   (t.ex. Föröver och Styrbord i uterummet). */
 function husZonLjus(zid){
   var max=null;
   Object.keys(DATA).forEach(function(id){
     var d=DATA[id];if(!d||d.zone!==zid||HUS_EJ_FONSTER[id])return;
-    if(!d.id)d=Object.assign({id:id},d);
-    var pa=false;try{pa=rArLampa(d)&&cap(id,'onoff')===true;}catch(e){}
-    if(!pa)return;
-    var dm=cap(id,'dim');dm=(dm==null||!isFinite(dm))?1:dm;
+    if(!d.capabilitiesObj||!d.capabilitiesObj.onoff)return;
+    var lampa=!!(RUM_LAMPA[id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');
+    if(!lampa||cap(id,'onoff')!==true)return;
+    var dm=cap(id,'dim');dm=(dm==null||!isFinite(dm))?1:Math.max(0,Math.min(1,dm));
     max=Math.max(max==null?0:max,dm);});
   return max;
 }
+/* Mängden ljus följer dimningen: både hur starkt och hur långt skenet når.
+   En lampa på lägsta dimning ger ett svagt men synligt sken. */
 function husLjusRita(el){
   (el._fonster||[]).forEach(function(f){
-    var l=husZonLjus(f.zon);
-    f.g.classList.toggle('pa',l!=null);
-    /* Även en svagt dimmad lampa ska synas: 0,55 i botten. */
-    f.g.style.opacity=l==null?'':String(0.55+0.45*l);});
+    var l=husZonLjus(f.zon),pa=l!=null,k=pa?0.45+0.55*l:1;
+    f.g.classList.toggle('pa',pa);
+    f.g.style.opacity=pa?String(0.18+0.82*l):'';
+    Array.prototype.forEach.call(f.g.querySelectorAll('[data-r]'),function(c){
+      c.setAttribute('r',(+c.getAttribute('data-r')*k).toFixed(1));});
+    Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){
+      c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
+      c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
 }
 function husFyll(b,rub,w,under){
   var t=husTal(w);
