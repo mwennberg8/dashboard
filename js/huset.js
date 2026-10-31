@@ -47,7 +47,9 @@ function husBygg(el){
   if(el._byggd)return;
   var NS='http://www.w3.org/2000/svg';
   var h='<div class="hus-karta" id="hus-karta">'
-    +'<img src="bild/hus-ovanifran.webp" alt="Huset ovanifrån">'
+    /* Två bilder: dag i ljust tema, kväll/natt i mörkt (CSS väljer efter data-theme). */
+    +'<img class="hus-natt" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån">'
+    +'<img class="hus-dag" src="bild/hus-ovanifran.webp" alt="">'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
   el.innerHTML=h;
   var svg=$('hus-svg'),karta=$('hus-karta');
