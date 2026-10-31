@@ -65,13 +65,17 @@ details summary{cursor:pointer;color:var(--dim);font-size:12.5px;font-weight:700
 .val2{display:flex;gap:6px;flex-wrap:wrap}
 .val2 button.pa{background:rgba(163,190,140,.18);border-color:rgba(163,190,140,.6)}
 .hint b{color:var(--ink)}
+.nyare{border-color:rgba(235,203,139,.5);background:rgba(235,203,139,.1);font-size:13px}
+.nyare[hidden]{display:none}
 </style></head><body>
 <div class="wrap">
   <h1>Flytta fönster och lampor</h1>
   <p class="hint">Dra en punkt för att flytta den. Ett valt fönster får en liten knopp: dra den för att vrida
     åt vilket håll ljuset faller ut. Tryck på en punkt för exakta värden och pilar för små steg.
-    En utelampa kan vara fristående, sitta på en vägg (lyser bara ut från väggen) eller på ett hörn
-    (lyser runt hörnet). Vrid knoppen så att den pekar rakt ut från väggen eller hörnet.
+    En utelampa kan vara fristående, sitta på en vägg (lyser bara ut från väggen), nära ett hörn
+    (ljuset tonar mjukt runt hörnet) eller på ett hörn (lyser runt hörnet). Vrid knoppen så att den
+    pekar rakt ut från väggen eller hörnet. <b>Ladda om sidan</b> när Claude lagt in dina ändringar,
+    så att du redigerar det senaste.
     Dra de små fyrkanterna i fönstrets ändar för att göra ett fönster eller en dörr bredare eller smalare.
     Rutorna med streckad kant är fälten med siffror – det som ligger under dem syns inte i dashboarden.</p>
   <p class="hint"><b>Vilka lampor tänder fönstret?</b> Tryck på ett fönster och välj <i>Valda lampor</i> under bilden.
@@ -97,6 +101,12 @@ details summary{cursor:pointer;color:var(--dim);font-size:12.5px;font-weight:700
         <svg id="handtag" viewBox="0 0 1040 1120"></svg>
       </div>
     </div>
+  </div>
+
+  <div class="panel nyare" id="nyare" hidden>
+    <div class="rad"><span><b>Dashboarden har uppdaterats</b> sedan du öppnade sidan. Ladda om för att redigera det senaste.
+      Har du ändringar du inte skickat? Kopiera dem till Claude först.</span><span class="sp"></span>
+      <button class="huvud" onclick="location.reload()">Ladda om</button></div>
   </div>
 
   <div class="panel" id="vald"></div>
@@ -131,7 +141,7 @@ function hash(t){var h=0;for(var i=0;i<t.length;i++){h=(h*31+t.charCodeAt(i))|0;
 /* ---- inläsning ---- */
 function franBas(){
   var s=[];
-  BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1],v:(p.length>2&&p[2]!=null)?p[2]:null,sp:p[3]||180});});
+  BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1],v:(p.length>2&&p[2]!=null)?p[2]:null,sp:p[3]||180,hs:(p[4]===1||p[4]===-1)?p[4]:0});});
   BAS.FONSTER.forEach(function(f){f.p.forEach(function(p){
     s.push({typ:'fonster',rum:f.rum,x:p[0],y:p[1],v:p[2],b:p[3]||28,lampor:(p[4]&&p[4].length)?p[4].slice():null});});});
   return s;
@@ -154,7 +164,7 @@ fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then
 function tillData(){
   var ute=[],per={},ordning=[];
   saker.forEach(function(s){
-    if(s.typ==='ute'){ute.push(s.v==null?[s.x,s.y]:((s.sp||180)!==180?[s.x,s.y,s.v,s.sp]:[s.x,s.y,s.v]));return;}
+    if(s.typ==='ute'){ute.push(s.v==null?[s.x,s.y]:(s.hs?[s.x,s.y,s.v,s.sp||180,s.hs]:((s.sp||180)!==180?[s.x,s.y,s.v,s.sp]:[s.x,s.y,s.v])));return;}
     if(!per[s.rum]){per[s.rum]=[];ordning.push(s.rum);}
     per[s.rum].push(s.lampor&&s.lampor.length?[s.x,s.y,s.v,s.b,s.lampor.slice()]:[s.x,s.y,s.v,s.b]);});
   return {ute:ute,fonster:ordning.map(function(r){return {rum:r,p:per[r]};})};
@@ -207,6 +217,9 @@ function ritaHandtag(){
       }else{
         var wx=-Math.sin(vr)*14*u,wy=Math.cos(vr)*14*u;
         g.appendChild(ny('line',{x1:s.x-wx,y1:s.y-wy,x2:s.x+wx,y2:s.y+wy,stroke:st,'stroke-width':3*u,'stroke-linecap':'round'}));
+        /* Nära ett hörn: väggen viker av bakåt i den änden. */
+        if(s.hs){var cx=s.x+wx*s.hs,cy=s.y+wy*s.hs;
+          g.appendChild(ny('line',{x1:cx,y1:cy,x2:cx-Math.cos(vr)*12*u,y2:cy-Math.sin(vr)*12*u,stroke:st,'stroke-width':3*u,'stroke-linecap':'round'}));}
       }
     }
     g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:20*u,fill:'transparent'}));   /* större träffyta */
@@ -257,10 +270,12 @@ function ritaVald(){
   }
   if(s.typ==='ute'&&s.v!=null)h+='<label class="f">Riktning °<input type="number" step="5" value="'+s.v+'" onchange="satt(\'v\',+this.value)"></label>';
   if(s.typ==='ute'){
-    var lage=s.v==null?'fri':((s.sp||180)>180?'horn':'vagg');
+    var lage=s.v==null?'fri':((s.sp||180)>180?'horn':(s.hs?'nara':'vagg'));
     h+='</div><div class="val2"><button class="'+(lage==='fri'?'pa':'')+'" onclick="pavagg(\'fri\')">Fristående – lyser runt om</button>'
       +'<button class="'+(lage==='vagg'?'pa':'')+'" onclick="pavagg(\'vagg\')">På vägg – lyser ut från väggen</button>'
-      +'<button class="'+(lage==='horn'?'pa':'')+'" onclick="pavagg(\'horn\')">På hörn – lyser runt hörnet</button></div><div class="rad">';
+      +'<button class="'+(lage==='nara'?'pa':'')+'" onclick="pavagg(\'nara\')">Nära hörn – tonar runt hörnet</button>'
+      +'<button class="'+(lage==='horn'?'pa':'')+'" onclick="pavagg(\'horn\')">På hörn – lyser runt hörnet</button>'
+      +(lage==='nara'?'<button onclick="bytHornsida()">Hörnet på andra sidan</button>':'')+'</div><div class="rad">';
   }
   if(s.typ==='fonster')h+='</div>'+lampvalHTML(s)+'<div class="rad">';
   h+='</div><div class="rad"><div class="pilar">'
@@ -318,9 +333,12 @@ function satt(k,v){var s=saker[valt];if(!s)return;if(k!=='rum'&&!isFinite(v))ret
 /* Fristående, på vägg (180°) eller på hörn (270°, ljuset går runt hörnet).
    Riktningen pekar ut från huset; på ett hörn rakt ut från hörnet. */
 function pavagg(lage){var s=saker[valt];if(!s||s.typ!=='ute')return;minns();
-  if(lage==='fri'){s.v=null;s.sp=180;}
-  else{if(s.v==null)s.v=lage==='horn'?315:90;s.sp=lage==='horn'?270:180;}
+  if(lage==='fri'){s.v=null;s.sp=180;s.hs=0;}
+  else{if(s.v==null)s.v=lage==='horn'?315:90;s.sp=lage==='horn'?270:180;
+    s.hs=lage==='nara'?(s.hs||1):0;}
   rita();}
+/* Nära hörn: vilken ände av väggen hörnet sitter i (ljuset tonar runt det). */
+function bytHornsida(){var s=saker[valt];if(!s||!s.hs)return;minns();s.hs=-s.hs;rita();}
 function knuffa(dx,dy){var s=saker[valt];if(!s)return;minns();s.x+=dx;s.y+=dy;rita();}
 function vrid(d){var s=saker[valt];if(!s)return;satt('v',s.v+d);}
 function bredda(d){var s=saker[valt];if(!s)return;satt('b',s.b+d);}
@@ -400,5 +418,16 @@ function spara(){try{localStorage.setItem(NYCKEL,JSON.stringify({bas:BAS_ID,sake
 function aterstall(){if(!BAS)return;if(!confirm('Släng dina ändringar och börja om från det som ligger i dashboarden?'))return;
   minns();saker=franBas();valt=-1;try{localStorage.removeItem(NYCKEL);}catch(e){}rita();meddela('Visar det som ligger i dashboarden nu.');}
 function meddela(h){$('status').innerHTML=h;}
+/* NYARE VERSION? Ligger redigeraren öppen medan Claude lägger in ändringar
+   redigerar man annars en gammal kopia – och exporten tappar det som lagts
+   till sedan dess (som hörnlampan vid elcentralen). Kollas när sidan visas
+   igen och varannan minut. */
+function kollaNy(){if(!BAS_ID)return;
+  fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
+    var a=t.indexOf('/* ---------- [huset.js] ---------- */'),b=t.indexOf('/* ---------- [',a+10);if(a<0||b<0)return;
+    if(hash(t.slice(a,b))!==BAS_ID){
+      $('nyare').hidden=false;}}).catch(function(){});}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')kollaNy();});
+setInterval(kollaNy,120000);
 </script>
 </body></html>
