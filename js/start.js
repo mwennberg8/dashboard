@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v781';
+const APP_VERSION='v782';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3141,22 +3141,30 @@ var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
 var HUS_UTE=[[455,60],[455,212],[455,362],
   [680,112],[840,112],[680,278],[840,278],
   [908,362],[598,428],
-  [508,744],[737,744],[809,744],[904,744]];
-/* Fönstren lyser när någon lampa i zonen är tänd. Nycklarna är zon-id i
-   Gottskärs Homey. Sovrummet har inga markerade fönster. */
+  /* Altanen: en vid vardagsrummet, tre jämnt utmed poolrummets vägg (x 700–900). */
+  [508,744],[740,744],[820,744],[900,744]];
+/* Fönstren lyser när någon lampa i zonen är tänd: en ljus ruta i väggen och
+   ett sken som faller ut ur fönstret. [x, y, riktning ut i grader (0 = höger,
+   90 = ned, 180 = vänster, 270 = upp), fönstrets bredd]. Punkterna ligger på
+   väggen. Kontorets och lekrummets östfönster lyser ut över poolrummets tak.
+   Sovrummet har inga markerade fönster. */
 var HUS_FONSTER=[
-  {zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14',p:[[471,446],[234,509]]},                    /* Kök */
-  {zon:'9eb2975d-49ea-4033-8db0-105a3e982117',p:[[234,660],[467,738]]},                    /* Vardagsrum */
-  {zon:'1815c884-af06-4d53-a2c1-6f4c77e9eb4e',p:[[547,742],[652,742],[712,672]]},          /* Kontor */
-  {zon:'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64',p:[[650,446],[712,490]]},                    /* Lekrum */
-  {zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',p:[[143,481]]},                              /* Snickarboa */
-  {zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',p:[[760,93],[690,145],[690,232],[830,145],[830,232]]}  /* Breveden */
+  {zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14',p:[[471,445,270,30],[233,509,180,30]]},                  /* Kök */
+  {zon:'9eb2975d-49ea-4033-8db0-105a3e982117',p:[[233,660,180,30],[467,740,90,30]]},                   /* Vardagsrum */
+  {zon:'1815c884-af06-4d53-a2c1-6f4c77e9eb4e',p:[[547,742,90,30],[652,742,90,30],[703,672,0,26]]},     /* Kontor */
+  {zon:'b044ba53-b4f4-4a2c-b139-6ef1ab37ac64',p:[[650,445,270,30],[703,490,0,26]]},                    /* Lekrum */
+  {zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78',p:[[148,481,27,22]]},                                    /* Snickarboa (står snett) */
+  {zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',p:[[760,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22]]}  /* Breveden */
 ];
-/* UTERUMMET: glastaket lyser svagt och skenet faller ut runt om, mest framåt
-   mot altanen. tak = glasytorna [x,y,b,h] (uterummet och den inglasade delen
-   till vänster), sken = [cx,cy,rx,ry]. */
-var HUS_UTERUM={zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',
-  tak:[[242,735,160,130],[112,697,130,113]],sken:[290,815,215,165]};
+/* GLASTAKEN: taket lyser svagt och skenet faller ut runt om. Uterummet tänds
+   av rummets lampor utom Verkstad belysning, som sitter i grovuterummet (den
+   inglasade delen till vänster) och tänder bara det. tak = [x,y,b,h],
+   sken = [cx,cy,rx,ry]. */
+var HUS_VERKSTAD='6077f9b6-904e-4c3e-93c0-a742bb1bf348';
+var HUS_GLASTAK=[
+  {zon:'5a349f9e-a371-44ec-bb9a-fbb8c555f9a3',utan:HUS_VERKSTAD,tak:[[242,735,160,130]],sken:[322,815,175,140]},  /* Uterum */
+  {bara:HUS_VERKSTAD,tak:[[112,697,130,113]],sken:[177,760,140,112]}                                           /* Grovuterum */
+];
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 

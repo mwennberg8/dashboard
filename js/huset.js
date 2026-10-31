@@ -77,17 +77,20 @@ function husBygg(el){
 function husLjusBygg(el,svg,NS){
   function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
   var defs=ny('defs',{});
-  [['hus-g-f','#ffb54d'],['hus-g-u','#ffefc4']].forEach(function(g){
-    var r=ny('radialGradient',{id:g[0]});
-    r.appendChild(ny('stop',{offset:'0','stop-color':g[1],'stop-opacity':'1'}));
-    r.appendChild(ny('stop',{offset:'.3','stop-color':g[1],'stop-opacity':'.6'}));
-    r.appendChild(ny('stop',{offset:'1','stop-color':g[1],'stop-opacity':'0'}));
-    defs.appendChild(r);});
-  /* Uterummets sken: bredare och mjukare än fönstrens. */
-  var ru=ny('radialGradient',{id:'hus-g-r'});
-  [['0','.6'],['.45','.32'],['1','0']].forEach(function(st){
-    ru.appendChild(ny('stop',{offset:st[0],'stop-color':'#ffbe63','stop-opacity':st[1]}));});
-  defs.appendChild(ru);
+  function radial(id,farg,stops){var r=ny('radialGradient',{id:id});
+    stops.forEach(function(st){r.appendChild(ny('stop',{offset:st[0],'stop-color':farg,'stop-opacity':st[1]}));});
+    defs.appendChild(r);}
+  radial('hus-g-u','#ffefc4',[['0','1'],['.3','.6'],['1','0']]);      /* utelamporna */
+  radial('hus-g-r','#ffbe63',[['0','.6'],['.45','.32'],['1','0']]);   /* glastaken */
+  /* Fönsterskenet: starkast vid fönstret, tonar ut. Ritas i fönstrets egna
+     koordinater (ut = +x), så samma gradient fungerar åt alla håll. */
+  var lg=ny('linearGradient',{id:'hus-g-f',x1:'0',y1:'0',x2:'1',y2:'0'});
+  [['0','.85'],['.35','.42'],['1','0']].forEach(function(st){
+    lg.appendChild(ny('stop',{offset:st[0],'stop-color':'#ffb54d','stop-opacity':st[1]}));});
+  defs.appendChild(lg);
+  var fl=ny('filter',{id:'hus-mjuk',x:'-30%',y:'-30%',width:'160%',height:'160%'});
+  fl.appendChild(ny('feGaussianBlur',{stdDeviation:'7'}));
+  defs.appendChild(fl);
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
   var ute=ny('g',{'class':'hus-ute'});
@@ -95,29 +98,41 @@ function husLjusBygg(el,svg,NS){
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#fffaf0'}));});
   lj.appendChild(ute);
-  /* Uterummet först, så att fönstrens sken ligger ovanpå. Skenets storlek
-     (data-r) skalas med dimningen i husLjusRita. */
-  var u=HUS_UTERUM,ug=ny('g',{'class':'hus-fonster hus-uterum'});
-  ug.appendChild(ny('ellipse',{cx:u.sken[0],cy:u.sken[1],rx:u.sken[2],ry:u.sken[3],fill:'url(#hus-g-r)','data-rx':u.sken[2],'data-ry':u.sken[3]}));
-  u.tak.forEach(function(t){
-    ug.appendChild(ny('rect',{x:t[0],y:t[1],width:t[2],height:t[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
-  lj.appendChild(ug);
-  el._fonster=[{zon:u.zon,g:ug}].concat(HUS_FONSTER.map(function(f){
+  /* Glastaken först, så att fönstrens sken ligger ovanpå. */
+  var kallor=HUS_GLASTAK.map(function(t){
+    var g=ny('g',{'class':'hus-fonster'});
+    g.appendChild(ny('ellipse',{cx:t.sken[0],cy:t.sken[1],rx:t.sken[2],ry:t.sken[3],fill:'url(#hus-g-r)','data-rx':t.sken[2],'data-ry':t.sken[3]}));
+    t.tak.forEach(function(r){
+      g.appendChild(ny('rect',{x:r[0],y:r[1],width:r[2],height:r[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
+    lj.appendChild(g);return {kalla:t,g:g};});
+  /* Fönstren: skenet är en kägla som vidgar sig ut från fönstret; längden
+     följer dimningen (data-l skalas i husLjusRita). Rutan i väggen är fast. */
+  HUS_FONSTER.forEach(function(f){
     var g=ny('g',{'class':'hus-fonster'});
     f.p.forEach(function(p){
-      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:62,fill:'url(#hus-g-f)','data-r':62}));
-      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:6,fill:'#ffe9bf'}));});
-    lj.appendChild(g);return {zon:f.zon,g:g};}));
+      var w=p[3]||28,h=w/2,L=80,S=34;
+      var fg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
+      var sk=ny('g',{'data-l':'1'});
+      sk.appendChild(ny('polygon',{points:'0,'+(-h)+' 0,'+h+' '+L+','+(h+S)+' '+L+','+(-h-S),
+        fill:'url(#hus-g-f)',filter:'url(#hus-mjuk)'}));
+      fg.appendChild(sk);
+      fg.appendChild(ny('rect',{x:-2.5,y:-h,width:5,height:w,rx:1.5,fill:'#ffe6b3'}));
+      g.appendChild(fg);});
+    lj.appendChild(g);kallor.push({kalla:{zon:f.zon},g:g});});
+  el._fonster=kallor;
   svg.appendChild(lj);
 }
-/* Ljuset i zonen, 0–1, eller null om ingen lampa lyser: den starkast dimmade
-   tända lampan. En lampa utan dimning (fönsterlamporna) räknas som full.
-   Här räknas alla lampor som faktiskt lyser, även de som är dolda i rumsvyn
-   (t.ex. Föröver och Styrbord i uterummet). */
-function husZonLjus(zid){
+/* Ljuset från en källa, 0–1, eller null om ingen lampa lyser: den starkast
+   dimmade tända lampan. En lampa utan dimning (fönsterlamporna) räknas som
+   full. Alla lampor som faktiskt lyser räknas, även de som är dolda i
+   rumsvyn (t.ex. Föröver och Styrbord i uterummet).
+   k.zon = lamporna i zonen (utom k.utan), k.bara = en enda lampa. */
+function husKallaLjus(k){
   var max=null;
   Object.keys(DATA).forEach(function(id){
-    var d=DATA[id];if(!d||d.zone!==zid||HUS_EJ_FONSTER[id])return;
+    var d=DATA[id];if(!d||HUS_EJ_FONSTER[id])return;
+    if(k.bara){if(id!==k.bara)return;}
+    else if(d.zone!==k.zon||id===k.utan)return;
     if(!d.capabilitiesObj||!d.capabilitiesObj.onoff)return;
     var lampa=!!(RUM_LAMPA[id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');
     if(!lampa||cap(id,'onoff')!==true)return;
@@ -129,11 +144,11 @@ function husZonLjus(zid){
    En lampa på lägsta dimning ger ett svagt men synligt sken. */
 function husLjusRita(el){
   (el._fonster||[]).forEach(function(f){
-    var l=husZonLjus(f.zon),pa=l!=null,k=pa?0.45+0.55*l:1;
+    var l=husKallaLjus(f.kalla),pa=l!=null,k=pa?0.4+0.6*l:1;
     f.g.classList.toggle('pa',pa);
-    f.g.style.opacity=pa?String(0.18+0.82*l):'';
-    Array.prototype.forEach.call(f.g.querySelectorAll('[data-r]'),function(c){
-      c.setAttribute('r',(+c.getAttribute('data-r')*k).toFixed(1));});
+    f.g.style.opacity=pa?String(0.25+0.75*l):'';
+    Array.prototype.forEach.call(f.g.querySelectorAll('[data-l]'),function(c){
+      c.setAttribute('transform','scale('+k.toFixed(3)+',1)');});
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
