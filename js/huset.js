@@ -94,7 +94,18 @@ function husLjusBygg(el,svg,NS){
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
   var ute=ny('g',{'class':'hus-ute'});
+  /* Väggens sken: ett halvt sken ut från väggen, ritat i lampans egna
+     koordinater (ut = +x) med en gradient kring origo. */
+  var gv=ny('radialGradient',{id:'hus-g-v',gradientUnits:'userSpaceOnUse',cx:'0',cy:'0',r:'46'});
+  [['0','1'],['.3','.6'],['1','0']].forEach(function(st){
+    gv.appendChild(ny('stop',{offset:st[0],'stop-color':'#ffd48a','stop-opacity':st[1]}));});
+  defs.appendChild(gv);
   HUS_UTE.forEach(function(p){
+    if(p.length>2&&p[2]!=null){
+      var vg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
+      vg.appendChild(ny('path',{d:'M0,-46 A46,46 0 0 1 0,46 Z',fill:'url(#hus-g-v)'}));
+      vg.appendChild(ny('circle',{cx:1.5,cy:0,r:4,fill:'#ffe6b0'}));
+      ute.appendChild(vg);return;}
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));});
   lj.appendChild(ute);

@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v788';
+const APP_VERSION='v789';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3138,11 +3138,14 @@ var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
    parkeringen står på en linje utmed stenläggningen, Brevedens lampor och
    fönster symmetriskt runt huset.
    Utelamporna tänds automatiskt på kvällen och lyser alltid i nattbilden. */
+/* [x, y] = fristående lampa som lyser runt om (parkeringen). [x, y, riktning]
+   = lampa på en vägg som bara lyser ut från huset, riktningen i grader som för
+   fönstren (0 = höger, 90 = ned, 180 = vänster, 270 = upp). */
 var HUS_UTE=[[455,60],[455,212],[455,362],
-  [680,112],[840,112],[680,278],[840,278],
-  [908,362],[598,428],
+  [680,112,180],[840,112,0],[680,278,180],[840,278,0],
+  [908,362,0],[598,428,270],
   /* Altanen: en vid vardagsrummet, tre jämnt utmed poolrummets vägg (x 700–900). */
-  [492,744],[740,744],[820,744],[900,744]];
+  [492,744,90],[740,744,90],[820,744,90],[900,744,90]];
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
    utan), bara = en enda lampa. Verkstad belysning sitter i grovuterummet (den
    inglasade delen till vänster om uterummet) och tänder bara det. */
