@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v783';
+const APP_VERSION='v784';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3142,7 +3142,7 @@ var HUS_UTE=[[455,60],[455,212],[455,362],
   [680,112],[840,112],[680,278],[840,278],
   [908,362],[598,428],
   /* Altanen: en vid vardagsrummet, tre jämnt utmed poolrummets vägg (x 700–900). */
-  [508,744],[740,744],[820,744],[900,744]];
+  [492,744],[740,744],[820,744],[900,744]];
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
    utan), bara = en enda lampa. Verkstad belysning sitter i grovuterummet (den
    inglasade delen till vänster om uterummet) och tänder bara det. */
@@ -3167,14 +3167,14 @@ var HUS_RUM={
    Justeras enklast i hus-redigera.html, som kopierar ut listan i det här
    formatet. Kontorets och lekrummets östfönster lyser ut över poolrummets tak. */
 var HUS_FONSTER=[
-  {rum:'Kök',p:[[471,445,270,30],[233,509,180,30]]},
-  {rum:'Vardagsrum',p:[[233,660,180,30],[467,740,90,30]]},
-  {rum:'Kontor',p:[[547,742,90,30],[652,742,90,30],[703,672,0,26]]},
-  {rum:'Lekrum',p:[[650,445,270,30],[703,490,0,26]]},
+  {rum:'Kök',p:[[509,445,290,30],[492,445,245,30]]},
+  {rum:'Vardagsrum',p:[[467,740,90,30],[432,740,90,48],[234,636,180,44],[232,510,180,48]]},
+  {rum:'Kontor',p:[[535,742,90,30],[662,742,90,30],[701,648,0,26],[598,741,90,30]]},
+  {rum:'Lekrum',p:[[650,445,270,30],[701,506,0,26]]},
   {rum:'Snickarboa',p:[[148,481,27,22]]},
-  {rum:'Breveden',p:[[760,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22]]},
+  {rum:'Breveden',p:[[798,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22],[724,100,270,48]]},
   /* Uterummets glasdörrar: ut mot altanen och framåt. */
-  {rum:'Uterum',p:[[402,770,0,44],[402,830,0,44],[322,865,90,56]]}
+  {rum:'Uterum',p:[[402,770,0,44],[402,830,0,44],[374,865,90,56],[306,864,90,48],[262,864,90,30],[244,836,180,30]]}
 ];
 /* GLASTAKEN: taket lyser svagt och skenet faller ut runt om.
    tak = [x,y,b,h], sken = [cx,cy,rx,ry]. */
