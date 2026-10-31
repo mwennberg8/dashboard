@@ -59,10 +59,12 @@ function husBygg(el){
   husLjusBygg(el,svg,NS);
   el._ledn={};
   HUS_LEDN.forEach(function(l){
-    var bas=document.createElementNS(NS,'path');bas.setAttribute('d',l.d);bas.setAttribute('class','hus-bas');
-    bas.style.stroke=HUS_FARG[l.typ];
+    var bas=document.createElementNS(NS,'path');bas.setAttribute('d',l.d);
+    bas.setAttribute('class',l.ledare?'hus-ledare':'hus-bas');
+    bas.style.stroke=HUS_FARG[l.typ];svg.appendChild(bas);
+    if(l.ledare)return;   /* etikettlinje: inget flöde */
     var fl=document.createElementNS(NS,'path');fl.setAttribute('d',l.d);fl.setAttribute('class','hus-flod');
-    svg.appendChild(bas);svg.appendChild(fl);el._ledn[l.id]={bas:bas,fl:fl};
+    svg.appendChild(fl);el._ledn[l.id]={bas:bas,fl:fl};
   });
   el._falt={};
   Object.keys(HUS_FALT).forEach(function(k){
@@ -211,17 +213,26 @@ function husRita(){
   var v=husVarden();
   /* Solen per panelyta, i proportion till antalet paneler – det finns bara en
      mätare för hela anläggningen. Kedjan bär summan av ytorna före:
-     höger tak (A) → övre mitten (B) → nedre mitten (C) → vänster tak (D) → fältet. */
-  var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL;
-  var varden={sol3:s*p.A,sol2:s*(p.A+p.B),sol1:s*(p.A+p.B+p.C),sol4:s,
-    nat:v.nat||0,last:v.last||0,batt:v.batt||0};
+     vänster tak (D) → nedre mitten (C) → övre mitten (B) → höger tak (A) → elcentralen. */
+  var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL,batt=v.batt||0;
+  /* Bussen från elcentralen till huset bär det som inte kommer från nätet:
+     förbrukning − köpt (= sol + batteri). Negativ när nätet laddar batteriet. */
+  var buss=(v.last!=null&&v.nat!=null)?(v.last-v.nat):(s+batt);
+  var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*(p.D+p.C+p.B),sol4:s,
+    nat:v.nat||0,last:v.last||0,batt:batt,buss:buss};
   HUS_LEDN.forEach(function(l){
+    if(l.ledare)return;
     var w=varden[l.id]||0,r=el._ledn[l.id],tom=Math.abs(w)<50,b=husBredd(w);
     r.bas.style.strokeWidth=tom?2.5:b;r.bas.style.opacity=tom?0.25:0.85;
     r.fl.style.strokeWidth=Math.max(2.5,b*0.55);
     r.fl.setAttribute('class','hus-flod'+(tom?' av':'')+(w<0?' bak':''));
     r.fl.style.animationDuration=(tom?0:Math.max(0.45,1.5-Math.abs(w)/1000*0.12))+'s';
   });
+  /* Bussens färg: det som faktiskt flödar i den. Nätet när det går mot
+     elcentralen (laddar batteriet), annars den största av sol och batteri. */
+  var bf=buss<0?HUS_FARG.nat:(s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt);
+  if(Math.abs(buss)<50)bf=HUS_FARG.last;
+  el._ledn.buss.bas.style.stroke=bf;
   var nat=v.nat,last=v.last;
   /* Andelen eget räknas som "självförsörjt" i energipanelen (renderEnergy):
      sol och batteri mot det som går in i huset, solen högst vad panelerna ger. */
@@ -230,7 +241,9 @@ function husRita(){
   var eget=(last==null)?null:Math.round((T>0&&last>0?(solIn+battIn)/T:(nat!=null&&nat<0?1:0))*100);
   husFyll(el._falt.nat,'Elnät',nat,nat==null?'':(nat>50?'köper':nat<-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
-  husFyll(el._falt.sol,'Sol',v.sol,'');
+  /* Under solens siffra: dagens produktion, om växelriktaren rapporterar den. */
+  var solDag=null;try{solDag=cap(DEV.solar,'meter_power.day');}catch(e){}
+  husFyll(el._falt.sol,'Sol',v.sol,(solDag!=null&&isFinite(solDag))?(String(Math.round(solDag*10)/10).replace('.',',')+' kWh i dag'):'');
   /* Laddningen i rubriken, riktningen under – "46 % · laddar ur" fick inte plats. */
   husFyll(el._falt.batt,'Batteri'+(v.soc==null?'':' '+Math.round(v.soc)+' %'),v.batt,
     v.batt==null?'':(v.batt>50?'laddar ur':v.batt<-50?'laddar':'vilar'));

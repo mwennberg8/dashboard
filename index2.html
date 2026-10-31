@@ -3725,23 +3725,29 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 /* Uterummets glastak: en svag, varm ton – ränderna i glaset syns igenom. */
 .hus-glastak{opacity:.24}
 @media (prefers-reduced-motion:reduce){.hus-flod{animation:none;stroke-dasharray:none}}
+/* RUTORNA. Halvgenomskinliga och suddar bilden bakom sig, så att de hör till
+   bilden i stället för att ligga ovanpå den. Färgen sitter i en kant till
+   vänster och i rubriken; siffran är det som syns först. */
 .hus-falt{appearance:none;-webkit-appearance:none;margin:0;text-align:left;cursor:pointer;
-  position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:.2cqw;
-  background:rgba(255,255,255,.94);color:#2e3440;border:2px solid var(--f);border-radius:2.2cqw;
-  padding:0 1.5cqw;box-shadow:0 6px 16px -10px rgba(46,52,64,.55);transition:opacity .3s;font-family:inherit}
+  position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:.45cqw;
+  background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(7px) saturate(1.25);backdrop-filter:blur(7px) saturate(1.25);
+  color:#2e3440;border:1px solid rgba(46,52,64,.10);border-radius:2.2cqw;overflow:hidden;
+  padding:0 1.6cqw 0 2.5cqw;box-shadow:0 1cqw 2.6cqw -1.4cqw rgba(30,35,45,.5);transition:opacity .3s;font-family:inherit}
+.hus-falt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.8cqw;background:var(--f)}
 .hus-falt[hidden]{display:none}
-.hus-falt .rub{display:flex;align-items:center;gap:1cqw;font:750 2.5cqw/1.1 var(--sans,inherit);
-  color:#4c566a;white-space:nowrap;overflow:hidden}
-.hus-falt .rub i{width:1.6cqw;height:1.6cqw;border-radius:50%;background:var(--f);flex:0 0 auto}
-.hus-falt .v{font:800 5.2cqw/1.05 var(--sans,inherit);letter-spacing:-.02em;white-space:nowrap}
-.hus-falt .v small{font-size:2.9cqw;font-weight:700;color:#4c566a}
-.hus-falt .u{font:650 2.35cqw/1.15 var(--sans,inherit);color:#4c566a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hus-falt.noll .v{color:#8b93a3}
-:root:not([data-theme="light"]) .hus-falt{background:rgba(36,41,51,.9);color:#eceff4;box-shadow:0 6px 18px -8px rgba(0,0,0,.7)}
-:root:not([data-theme="light"]) .hus-falt .rub,
-:root:not([data-theme="light"]) .hus-falt .v small,
-:root:not([data-theme="light"]) .hus-falt .u{color:#cdd6e2}
-:root:not([data-theme="light"]) .hus-falt.noll .v{color:#8b93a3}
+.hus-falt .rub{display:block;font:750 2.3cqw/1.1 var(--sans,inherit);letter-spacing:.01em;
+  color:var(--f);color:color-mix(in srgb,var(--f) 78%,#2e3440);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hus-falt .rub i{display:none}
+.hus-falt .v{font:800 5.4cqw/1 var(--sans,inherit);letter-spacing:-.025em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hus-falt .v small{font-size:2.6cqw;font-weight:700;letter-spacing:0;opacity:.62}
+.hus-falt .u{font:650 2.15cqw/1.15 var(--sans,inherit);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hus-falt.noll .v{opacity:.45}
+.hus-falt:active{transform:scale(.98)}
+:root:not([data-theme="light"]) .hus-falt{background:rgba(26,31,40,.58);color:#eceff4;border-color:rgba(236,239,244,.10);
+  box-shadow:0 1cqw 3cqw -1.2cqw rgba(0,0,0,.75)}
+:root:not([data-theme="light"]) .hus-falt .rub{color:var(--f);color:color-mix(in srgb,var(--f) 70%,#ffffff)}
+/* Etikettlinjen från Sol-rutan till panelerna: tunn och streckad, inget flöde. */
+.hus-ledare{fill:none;stroke-width:2.5;stroke-dasharray:2 7;stroke-linecap:round;opacity:.7}
 /* index2: huset ersätter "förbrukning nu". Av energipanelen står bara
    elprisskalan kvar, plus raden med väder, notisklocka och livepricken som
    mobilTopp/wxRubrikRita lägger där (de har ingen annan plats på mobilen).
