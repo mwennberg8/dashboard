@@ -53,6 +53,7 @@ function husBygg(el){
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
   el.innerHTML=h;
   var svg=$('hus-svg'),karta=$('hus-karta');
+  husLjusBygg(el,svg,NS);
   el._ledn={};
   HUS_LEDN.forEach(function(l){
     var bas=document.createElementNS(NS,'path');bas.setAttribute('d',l.d);bas.setAttribute('class','hus-bas');
@@ -71,6 +72,51 @@ function husBygg(el){
   });
   el._byggd=true;
 }
+/* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
+   ledningarna. CSS visar det bara i mörkt tema. */
+function husLjusBygg(el,svg,NS){
+  function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+  var defs=ny('defs',{});
+  [['hus-g-f','#ffb54d'],['hus-g-u','#ffefc4']].forEach(function(g){
+    var r=ny('radialGradient',{id:g[0]});
+    r.appendChild(ny('stop',{offset:'0','stop-color':g[1],'stop-opacity':'1'}));
+    r.appendChild(ny('stop',{offset:'.3','stop-color':g[1],'stop-opacity':'.6'}));
+    r.appendChild(ny('stop',{offset:'1','stop-color':g[1],'stop-opacity':'0'}));
+    defs.appendChild(r);});
+  svg.appendChild(defs);
+  var lj=ny('g',{'class':'hus-ljus'});
+  var ute=ny('g',{'class':'hus-ute'});
+  HUS_UTE.forEach(function(p){
+    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
+    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#fffaf0'}));});
+  lj.appendChild(ute);
+  el._fonster=HUS_FONSTER.map(function(f){
+    var g=ny('g',{'class':'hus-fonster'});
+    f.p.forEach(function(p){
+      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:62,fill:'url(#hus-g-f)'}));
+      g.appendChild(ny('circle',{cx:p[0],cy:p[1],r:6,fill:'#ffe9bf'}));});
+    lj.appendChild(g);return {zon:f.zon,g:g};});
+  svg.appendChild(lj);
+}
+/* Starkaste tända lampan i zonen, 0–1, eller null om ingen lyser. */
+function husZonLjus(zid){
+  var max=null;
+  Object.keys(DATA).forEach(function(id){
+    var d=DATA[id];if(!d||d.zone!==zid||HUS_EJ_FONSTER[id])return;
+    if(!d.id)d=Object.assign({id:id},d);
+    var pa=false;try{pa=rArLampa(d)&&cap(id,'onoff')===true;}catch(e){}
+    if(!pa)return;
+    var dm=cap(id,'dim');dm=(dm==null||!isFinite(dm))?1:dm;
+    max=Math.max(max==null?0:max,dm);});
+  return max;
+}
+function husLjusRita(el){
+  (el._fonster||[]).forEach(function(f){
+    var l=husZonLjus(f.zon);
+    f.g.classList.toggle('pa',l!=null);
+    /* Även en svagt dimmad lampa ska synas: 0,55 i botten. */
+    f.g.style.opacity=l==null?'':String(0.55+0.45*l);});
+}
 function husFyll(b,rub,w,under){
   var t=husTal(w);
   b.innerHTML='<span class="rub"><i></i>'+esc(rub)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
@@ -80,6 +126,7 @@ function husFyll(b,rub,w,under){
 function husRita(){
   var el=$('huspanel');if(!el)return;
   husBygg(el);
+  try{husLjusRita(el);}catch(e){}
   var v=husVarden();
   /* Solen per panelyta, i proportion till antalet paneler – det finns bara en
      mätare för hela anläggningen. Kedjan bär summan av ytorna före. */
