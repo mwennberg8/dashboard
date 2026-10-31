@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v796';
+const APP_VERSION='v797';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3146,11 +3146,11 @@ var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
    betyder att lampan sitter NÄRA ett hörn: ljuset går mjukt runt hörnet på den
    sidan och tonar ut (1 = medurs från riktningen, -1 = moturs). */
 var HUS_UTE=[[455,60],[455,212],[455,362],
-  /* Breveden: nära hörnen, ljuset tonar runt hörnet mot norr respektive söder. */
-  [680,112,180,180,1],[840,112,0,180,-1],[680,278,180,180,-1],[840,278,0,180,1],
+  /* Breveden: på väggarna nära hörnen, ljuset tonar runt hörnet mot norr respektive söder. */
+  [690,112,180,180,1],[830,112,0,180,-1],[690,278,180,180,-1],[830,278,0,180,1],
   [902,370,315,270],[598,444,270],   /* elcentralen: på poolrummets nordöstra hörn */
-  /* Altanen: en vid vardagsrummet, tre jämnt utmed poolrummets vägg (x 700–900). */
-  [492,744,90],[740,744,90],[820,744,90],[900,744,90]];
+  /* Altanen: en vid vardagsrummet, två utmed poolrummets vägg och en på dess sydöstra hörn. */
+  [492,744,90],[740,744,90],[820,744,90],[900,744,45,270]];
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
    utan), bara = en enda lampa. Verkstad belysning sitter i grovuterummet (den
    inglasade delen till vänster om uterummet) och tänder bara det. */
