@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v775';
+const APP_VERSION='v776';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -2656,6 +2656,7 @@ var CFG_SECS=[['utseende','Utseende','sun-dim','Layout och färger'],
               ['skarm','Skärm & läge','moon','Nattklocka, skärmsläckare, kiosk'],
               ['energi','Energi & pris','lightning','Mätning, spotpris och solprognos'],
               ['homey','Homey & synk','cloud','Synk, variabler, årsdata'],
+              ['styrning','Enhetsstyrning','lightbulb','Dölj enheter i rummen och rumsrutorna'],
               ['uppd','Uppdatering','clock-counter-clockwise','Version och auto-uppdatering'],
               /* 'wrench', inte 'gear' — den senare finns inte i ikonuppsättningen
                  och gav en tom ruta i menyn. */
