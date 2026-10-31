@@ -54,12 +54,26 @@ textarea{width:100%;min-height:150px;background:#242933;color:var(--dim);border:
   padding:10px;font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
 .status{font-size:12px;color:var(--faint);margin:0 4px}
 .status b{color:var(--warm)}
+.lampval{display:flex;flex-direction:column;gap:6px}
+.lamprum{font-size:11px;font-weight:800;color:var(--faint);letter-spacing:.04em;margin:4px 2px 0}
+.lampor{display:flex;flex-wrap:wrap;gap:6px}
+.lampor label{display:flex;align-items:center;gap:6px;background:var(--inset);border:1px solid var(--line);border-radius:10px;
+  padding:6px 9px;font-size:13px;font-weight:650;cursor:pointer}
+.lampor label.pa{border-color:rgba(163,190,140,.6);background:rgba(163,190,140,.14)}
+.lampor input{margin:0;accent-color:#a3be8c}
+details summary{cursor:pointer;color:var(--dim);font-size:12.5px;font-weight:700;margin:2px}
+.val2{display:flex;gap:6px;flex-wrap:wrap}
+.val2 button.pa{background:rgba(163,190,140,.18);border-color:rgba(163,190,140,.6)}
+.hint b{color:var(--ink)}
 </style></head><body>
 <div class="wrap">
   <h1>Flytta fönster och lampor</h1>
   <p class="hint">Dra en punkt för att flytta den. Ett valt fönster får en liten knopp: dra den för att vrida
     åt vilket håll ljuset faller ut. Tryck på en punkt för exakta värden och pilar för små steg.
     Rutorna med streckad kant är fälten med siffror – det som ligger under dem syns inte i dashboarden.</p>
+  <p class="hint"><b>Vilka lampor tänder fönstret?</b> Tryck på ett fönster och välj <i>Valda lampor</i> under bilden.
+    Gröna fönster följer egna lampor, orange följer hela rummet. Välj en lampa i <i>Prova</i> för att se
+    vilka fönster just den tänder.</p>
 
   <div class="panel">
     <div class="rad">
@@ -71,6 +85,8 @@ textarea{width:100%;min-height:150px;background:#242933;color:var(--dim);border:
       <button id="b-zoom" onclick="vaxlaZoom()">Zooma</button>
       <button id="b-angra" onclick="angra()" disabled>Ångra</button>
     </div>
+    <div class="rad"><label class="f" style="flex:1 1 auto">Prova – visa vad som lyser när bara den här lampan är tänd
+      <select id="prova" onchange="prova=this.value;ritaLjus()"><option value="">Allt tänt</option></select></label></div>
     <div class="ram" id="ram">
       <div class="karta" id="karta">
         <img id="bild" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån" draggable="false">
@@ -100,8 +116,9 @@ textarea{width:100%;min-height:150px;background:#242933;color:var(--dim);border:
 var NS='http://www.w3.org/2000/svg',NYCKEL='hus_redigera_v1';
 var BAS=null;          /* det som står i js/start.js just nu */
 var BAS_ID='';         /* fingeravtryck av start.js-avsnittet, för utkastet */
-var saker=[];          /* {typ:'ute',x,y} | {typ:'fonster',rum,x,y,v,b} */
+var saker=[];          /* {typ:'ute',x,y} | {typ:'fonster',rum,x,y,v,b,lampor} */
 var valt=-1,dagbild=false,zoom=false,hist=[],drag=null;
+var prova='',urklipp=null;   /* lampan som provas; kopierat lampval */
 
 function $(id){return document.getElementById(id);}
 function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
@@ -113,15 +130,17 @@ function franBas(){
   var s=[];
   BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1]});});
   BAS.FONSTER.forEach(function(f){f.p.forEach(function(p){
-    s.push({typ:'fonster',rum:f.rum,x:p[0],y:p[1],v:p[2],b:p[3]||28});});});
+    s.push({typ:'fonster',rum:f.rum,x:p[0],y:p[1],v:p[2],b:p[3]||28,lampor:(p[4]&&p[4].length)?p[4].slice():null});});});
   return s;
 }
 fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then(function(t){
   var a=t.indexOf('/* ---------- [huset.js] ---------- */'),b=t.indexOf('/* ---------- [',a+10);
   if(a<0||b<0)throw new Error('Hittar inte [huset.js] i start.js');
   var sek=t.slice(a,b);BAS_ID=hash(sek);
-  BAS=new Function(sek+';return {UTE:HUS_UTE,FONSTER:HUS_FONSTER,GLASTAK:HUS_GLASTAK,RUM:HUS_RUM,FALT:HUS_FALT};')();
-  window.HUS_RUM=BAS.RUM;window.HUS_GLASTAK=BAS.GLASTAK;
+  BAS=new Function(sek+';return {UTE:HUS_UTE,FONSTER:HUS_FONSTER,GLASTAK:HUS_GLASTAK,RUM:HUS_RUM,FALT:HUS_FALT,LAMPOR:HUS_LAMPOR};')();
+  window.HUS_RUM=BAS.RUM;window.HUS_GLASTAK=BAS.GLASTAK;window.HUS_LAMPOR=BAS.LAMPOR;
+  $('prova').innerHTML='<option value="">Allt tänt</option>'+Object.keys(BAS.LAMPOR).map(function(n){
+    return '<option value="'+esc(n)+'">'+esc(n.replace('/',' · '))+'</option>';}).join('');
   var sparat=null;try{sparat=JSON.parse(localStorage.getItem(NYCKEL)||'null');}catch(e){}
   if(sparat&&sparat.bas===BAS_ID&&Array.isArray(sparat.saker)){saker=sparat.saker;meddela('Fortsätter ditt utkast.');}
   else{saker=franBas();meddela('Visar det som ligger i dashboarden nu.');}
@@ -134,7 +153,7 @@ function tillData(){
   saker.forEach(function(s){
     if(s.typ==='ute'){ute.push([s.x,s.y]);return;}
     if(!per[s.rum]){per[s.rum]=[];ordning.push(s.rum);}
-    per[s.rum].push([s.x,s.y,s.v,s.b]);});
+    per[s.rum].push(s.lampor&&s.lampor.length?[s.x,s.y,s.v,s.b,s.lampor.slice()]:[s.x,s.y,s.v,s.b]);});
   return {ute:ute,fonster:ordning.map(function(r){return {rum:r,p:per[r]};})};
 }
 function ritaLjus(){
@@ -142,8 +161,20 @@ function ritaLjus(){
   window.HUS_UTE=d.ute;window.HUS_FONSTER=d.fonster;
   while(svg.firstChild)svg.removeChild(svg.firstChild);
   var el={};husLjusBygg(el,svg,NS);
-  /* Allt tänt, full styrka – så syns var ljuset hamnar. */
-  (el._fonster||[]).forEach(function(f){f.g.classList.add('pa');f.g.style.opacity='1';});
+  /* Allt tänt, full styrka – så syns var ljuset hamnar. Provas en lampa
+     tänds bara det som följer den. */
+  (el._fonster||[]).forEach(function(f){var pa=!prova||tander(f.kalla,prova);
+    f.g.classList.toggle('pa',pa);f.g.style.opacity=pa?'1':'0';});
+}
+/* Skulle lampan (namn i HUS_LAMPOR) tända den här källan? Samma regler som
+   husKallaLjus i dashboarden. */
+function tander(k,namn){
+  var id=BAS.LAMPOR[namn],rum=namn.split('/')[0],zon=BAS.RUM[rum]&&BAS.RUM[rum].zon;
+  if(!k||!id)return false;
+  if(k.ids)return k.ids.indexOf(id)>=0;
+  if(k.bara)return id===k.bara;
+  if(/Utebelysning/.test(namn))return false;   /* HUS_EJ_FONSTER */
+  return !!k.zon&&k.zon===zon&&id!==k.utan;
 }
 function enhet(){var w=$('karta').clientWidth||1040;return 1040/w;}   /* bildenheter per skärmpixel */
 function ritaHandtag(){
@@ -155,7 +186,7 @@ function ritaHandtag(){
     var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil (vid laddning)',sol:'Sol',batt:'Batteri'})[k]||k;svg.appendChild(t);});
   saker.forEach(function(s,i){
     var sel=i===valt,g=ny('g',{'class':'h','data-i':i});
-    var farg=s.typ==='ute'?'#fff3d0':'#ffb54d';
+    var farg=s.typ==='ute'?'#fff3d0':(s.lampor&&s.lampor.length?'#a3be8c':'#ffb54d');
     if(s.typ==='fonster'){
       /* Fönstret som en linje längs väggen. */
       var r=s.v*Math.PI/180,dx=-Math.sin(r)*s.b/2,dy=Math.cos(r)*s.b/2;
@@ -183,7 +214,7 @@ function ritaVald(){
   var h='<div class="rad"><span class="vald-rub">'+(s.typ==='ute'?'Utelampa':(s.b>=40?'Glasdörr':'Fönster'))+'</span><span class="sp"></span>'
     +'<button onclick="duplicera()">Kopiera</button><button class="fara" onclick="taBort()">Ta bort</button></div><div class="rad">';
   if(s.typ==='fonster'){
-    h+='<label class="f">Rum (lyser när en lampa där är tänd)<select onchange="satt(\'rum\',this.value)">'
+    h+='<label class="f">Rum<select onchange="satt(\'rum\',this.value)">'
       +Object.keys(BAS.RUM).map(function(r){return '<option'+(r===s.rum?' selected':'')+'>'+esc(r)+'</option>';}).join('')+'</select></label>';
   }
   h+='<label class="f">X<input type="number" value="'+s.x+'" onchange="satt(\'x\',+this.value)"></label>'
@@ -192,6 +223,7 @@ function ritaVald(){
     h+='<label class="f">Riktning °<input type="number" step="5" value="'+s.v+'" onchange="satt(\'v\',+this.value)"></label>'
       +'<label class="f">Bredd<input type="number" step="2" value="'+s.b+'" onchange="satt(\'b\',+this.value)"></label>';
   }
+  if(s.typ==='fonster')h+='</div>'+lampvalHTML(s)+'<div class="rad">';
   h+='</div><div class="rad"><div class="pilar">'
     +'<span></span><button onclick="knuffa(0,-2)" aria-label="Upp">↑</button><span></span>'
     +'<button onclick="knuffa(-2,0)" aria-label="Vänster">←</button><button onclick="knuffa(0,2)" aria-label="Ned">↓</button><button onclick="knuffa(2,0)" aria-label="Höger">→</button></div>';
@@ -201,6 +233,42 @@ function ritaVald(){
   }
   el.innerHTML=h+'</div>';
 }
+function lampvalHTML(s){
+  var egna=!!(s.lampor&&s.lampor.length)||s._valda;
+  var h='<div class="lampval"><div class="val2">'
+    +'<button class="'+(egna?'':'pa')+'" onclick="lampLage(false)">Hela rummet ('+esc(s.rum)+')</button>'
+    +'<button class="'+(egna?'pa':'')+'" onclick="lampLage(true)">Valda lampor</button>'
+    +'<span class="sp"></span>'
+    +'<button onclick="kopieraLampval()">Kopiera lampval</button>'
+    +'<button onclick="klistraLampval()"'+(urklipp?'':' disabled')+'>Klistra in lampval</button></div>';
+  if(!egna)return h+'</div>';
+  var valda=s.lampor||[],per={},ordn=[];
+  Object.keys(BAS.LAMPOR).forEach(function(n){var r=n.split('/')[0];if(!per[r]){per[r]=[];ordn.push(r);}per[r].push(n);});
+  function grupp(r){return '<div class="lamprum">'+esc(r.toUpperCase())+'</div><div class="lampor">'+per[r].map(function(n){
+    var pa=valda.indexOf(n)>=0;
+    return '<label class="'+(pa?'pa':'')+'"><input type="checkbox"'+(pa?' checked':'')+' onchange="lampaNr('+Object.keys(BAS.LAMPOR).indexOf(n)+',this.checked)">'+esc(n.split('/')[1])+'</label>';}).join('')+'</div>';}
+  /* Fönstrets eget rum först, övriga rum ihopfällda – utom de som redan har en vald lampa. */
+  h+=per[s.rum]?grupp(s.rum):'';
+  var ovr=ordn.filter(function(r){return r!==s.rum;});
+  var oppna=ovr.some(function(r){return per[r].some(function(n){return valda.indexOf(n)>=0;});});
+  h+='<details'+(oppna?' open':'')+'><summary>Lampor i andra rum</summary>'+ovr.map(grupp).join('')+'</details>';
+  if(!valda.length)h+='<p class="vald-tom">Kryssa i minst en lampa – annars följer fönstret hela rummet.</p>';
+  return h+'</div>';
+}
+function lampLage(egna){var s=saker[valt];if(!s)return;
+  if(!egna){if(s.lampor&&s.lampor.length)minns();s.lampor=null;s._valda=false;}
+  else s._valda=true;
+  rita();}
+function lampaNr(i,pa){lampa(Object.keys(BAS.LAMPOR)[i],pa);}
+function lampa(n,pa){var s=saker[valt];if(!s)return;minns();
+  var l=(s.lampor||[]).filter(function(x){return x!==n;});if(pa)l.push(n);
+  /* I samma ordning som listan, så att exporten blir stabil. */
+  var ordn=Object.keys(BAS.LAMPOR);l.sort(function(a,b){return ordn.indexOf(a)-ordn.indexOf(b);});
+  s.lampor=l.length?l:null;s._valda=true;rita();}
+function kopieraLampval(){var s=saker[valt];if(!s)return;urklipp=(s.lampor||[]).slice();
+  meddela(urklipp.length?'<b>Lampvalet kopierat</b> ('+esc(urklipp.join(', '))+'). Välj ett annat fönster och tryck Klistra in lampval.':'<b>Kopierat:</b> hela rummet.');ritaVald();}
+function klistraLampval(){var s=saker[valt];if(!s||!urklipp)return;minns();
+  s.lampor=urklipp.length?urklipp.slice():null;s._valda=!!urklipp.length;rita();}
 function minns(){hist.push(JSON.stringify(saker));if(hist.length>80)hist.shift();$('b-angra').disabled=false;}
 function angra(){if(!hist.length)return;saker=JSON.parse(hist.pop());if(valt>=saker.length)valt=-1;$('b-angra').disabled=!hist.length;rita();}
 function satt(k,v){var s=saker[valt];if(!s)return;if(k!=='rum'&&!isFinite(v))return;minns();
@@ -263,7 +331,8 @@ function ritaUt(){
   var t='/* Husljus från hus-redigera.html, '+new Date().toLocaleString('sv-SE')+' */\n'
     +'var HUS_UTE=['+d.ute.map(function(p){return '['+p.join(',')+']';}).join(',')+'];\n'
     +'var HUS_FONSTER=[\n'+d.fonster.map(function(f){
-      return "  {rum:'"+f.rum+"',p:["+f.p.map(function(p){return '['+p.join(',')+']';}).join(',')+']}';}).join(',\n')+'\n];';
+      return "  {rum:'"+f.rum+"',p:["+f.p.map(function(p){
+        return '['+p.slice(0,4).join(',')+(p[4]?",["+p[4].map(function(n){return "'"+n+"'";}).join(',')+']':'')+']';}).join(',')+']}';}).join(',\n')+'\n];';
   $('ut').value=t;
 }
 function kopiera(){

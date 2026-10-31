@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v785';
+const APP_VERSION='v786';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3161,9 +3161,43 @@ var HUS_RUM={
   'Snickarboa':{zon:'3f7e329d-97d7-4be5-83e3-94cc439b2f78'},
   'Breveden':{zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd'}
 };
+/* LAMPORNA som ett fönster kan följa, 'Rum/Namn' → enhets-id i Gottskärs
+   Homey. Rummet före snedstrecket är zonen lampan står i. Byter en lampa id
+   vid ny parning ska raden här rättas. */
+var HUS_LAMPOR={
+  'Kök/Tak':'33c12418-8958-4e4d-9075-09259e043da2',
+  'Kök/Köksbord':'0dfb97b2-8562-40cf-89d4-c128bcb3bfa1',
+  'Kök/Burspråk':'91d74b9d-8ec0-4265-bf91-4cc5cbf103cb',
+  'Kök/Bardisk':'c724ec94-fa71-4907-bba1-7908fa2b2c9b',
+  'Kök/Vitrin':'6f302023-abc1-416e-9f86-ffc499cf6e1b',
+  'Kök/kök 1':'12dec91a-c4d4-4f61-9e70-883814b26491',
+  'Kök/kök 2':'96461a4e-ba9d-41f7-92f0-e9cbcb56d213',
+  'Kök/kök 3':'40ac0440-9760-48f4-9723-212646c69d84',
+  'Vardagsrum/Fönster 1':'9142a33c-06fe-4ac2-b374-02ec7c024e8b',
+  'Vardagsrum/Fönster 3':'7341ddc1-905c-49a7-a1a1-3355c110cca4',
+  'Vardagsrum/Fotolampa':'5c3c117f-b1f3-4db7-a613-5b1a858d77ca',
+  'Vardagsrum/Ambilight':'15fdcee6-0d9d-479c-8692-db892747899a',
+  'Vardagsrum/Lavalampa':'578f6f73-02ed-4d7b-8bcf-0b1dc53dcf9c',
+  'Kontor/Fönster kontor':'5265c751-b2df-4d52-8b04-c1a40e933f8e',
+  'Lekrum/Lekrum':'b298eaec-79c4-4b29-a0c7-aa2b1c462485',
+  'Sovrum/Fönster sovrum':'5ba55d2a-80dd-47ab-b306-8ff10f83ba81',
+  'Hall/Hallampa':'7cc59323-b19d-4986-88a3-01702cc16dcc',
+  'Gästrum/Gästrum':'79f8a819-97ca-4724-872c-63f9349f97c0',
+  'Uterum/Bordslampa':'38d7daa2-40c1-4cf5-a549-0b33eee1507c',
+  'Uterum/Styrbord':'4bcd206f-8869-4860-bba7-c80fa18d9dbd',
+  'Uterum/Skjutdörrar':'a08aaf22-8abc-4b31-a4dd-a6199b5e8222',
+  'Uterum/Verkstad belysning':HUS_VERKSTAD,
+  'Snickarboa/Fönster snickerboa':'2affdbf7-5365-4cd4-807c-8bc4462af69e',
+  'Breveden/Tak':'ff4a5d31-1970-4f1e-8e89-d32baed046e8',
+  'Breveden/Tak 2':'2c1aa03f-4a98-4482-934e-22362a0eb593',
+  'Breveden/Badrum':'f7202538-615e-4e4d-a618-86465aa6b33a',
+  'Breveden/Utebelysning':'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe'
+};
 /* FÖNSTER OCH GLASDÖRRAR lyser när någon lampa i rummet är tänd: en ljus ruta
    i väggen och ett sken som faller ut. [x, y, riktning ut i grader (0 = höger,
-   90 = ned, 180 = vänster, 270 = upp), bredd]. Punkterna ligger på väggen.
+   90 = ned, 180 = vänster, 270 = upp), bredd, (lampor)]. Punkterna ligger på
+   väggen. Står det en lista med lampor sist ('Kök/Tak' …, se HUS_LAMPOR)
+   följer fönstret bara dem i stället för hela rummet.
    Justeras enklast i hus-redigera.html, som kopierar ut listan i det här
    formatet. Kontorets och lekrummets östfönster lyser ut över poolrummets tak. */
 var HUS_FONSTER=[
