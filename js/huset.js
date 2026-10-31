@@ -80,7 +80,7 @@ function husLjusBygg(el,svg,NS){
   function radial(id,farg,stops){var r=ny('radialGradient',{id:id});
     stops.forEach(function(st){r.appendChild(ny('stop',{offset:st[0],'stop-color':farg,'stop-opacity':st[1]}));});
     defs.appendChild(r);}
-  radial('hus-g-u','#ffefc4',[['0','1'],['.3','.6'],['1','0']]);      /* utelamporna */
+  radial('hus-g-u','#ffd48a',[['0','1'],['.3','.6'],['1','0']]);      /* utelamporna – varmt, som glödlampor */
   radial('hus-g-r','#ffbe63',[['0','.6'],['.45','.32'],['1','0']]);   /* glastaken */
   /* Fönsterskenet: starkast vid fönstret, tonar ut. Ritas i fönstrets egna
      koordinater (ut = +x), så samma gradient fungerar åt alla håll. */
@@ -96,7 +96,7 @@ function husLjusBygg(el,svg,NS){
   var ute=ny('g',{'class':'hus-ute'});
   HUS_UTE.forEach(function(p){
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
-    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#fffaf0'}));});
+    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));});
   lj.appendChild(ute);
   /* Glastaken först, så att fönstrens sken ligger ovanpå. */
   var kallor=HUS_GLASTAK.map(function(t){
