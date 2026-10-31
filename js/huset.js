@@ -186,6 +186,23 @@ function husLjusRita(el){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
 }
+/* KIOSKLÄGET (väggplattan): sidan är låst till skärmens höjd, så huset får
+   det som blir över när de andra avsnitten tagit sitt (CSS: flex i index2).
+   Kartan görs så stor som ryms både på bredden och på höjden, centrerad.
+   Annars – telefon, skrollande platta, dator – fyller den bredden som förut. */
+function husPassa(){
+  var el=$('huspanel'),k=$('hus-karta');if(!el||!k)return;
+  var b=document.body,fast=b.classList.contains('kiosk')&&!b.classList.contains('rull')&&!b.classList.contains('cmp-open');
+  el.classList.toggle('hus-fast',fast);
+  if(!fast){k.style.width='';return;}
+  var cs=getComputedStyle(el),pl=parseFloat(cs.paddingLeft)||0,pr=parseFloat(cs.paddingRight)||0,
+      pt=parseFloat(cs.paddingTop)||0,pb=parseFloat(cs.paddingBottom)||0,gap=parseFloat(cs.rowGap)||0;
+  var topp=$('hus-topp'),th=topp&&topp.offsetHeight?topp.offsetHeight+gap:0;
+  var bredd=el.clientWidth-pl-pr,hojd=el.clientHeight-pt-pb-th;
+  if(bredd<=0||hojd<=0)return;
+  var w=Math.floor(Math.min(bredd,hojd*1040/1120));
+  if(Math.abs((parseFloat(k.style.width)||0)-w)>1)k.style.width=w+'px';
+}
 function husFyll(b,rub,w,under){
   var t=husTal(w);
   b.innerHTML='<span class="rub"><i></i>'+esc(rub)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
@@ -227,4 +244,5 @@ function husRita(){
   var laddar=v.bil>=50;
   husFyll(el._falt.bil,'Laddar',v.bil,v.bilNamn+(v.bilSoc!=null?' '+Math.round(v.bilSoc)+' %':''));
   el._falt.bil.hidden=!laddar;
+  try{husPassa();}catch(e){}
 }
