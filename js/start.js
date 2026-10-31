@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v808';
+const APP_VERSION='v809';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3109,8 +3109,6 @@ setInterval(checkForUpdate,60000);
    (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
    före den här raden, och då ska husRita få undefined och inte ett fel. */
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0'};
-/* Ledningen in i huset: varifrån strömmen kommer. */
-var HUS_HUS_FARG={nat:'#c4505c',egen:'#5f9e4e',blandat:'#e08a3c'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
   nat:  {x:20, y:20,  w:225,h:148, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
@@ -3121,35 +3119,29 @@ var HUS_FALT={
   bil:  {x:500,y:282, w:170,h:56,  typ:'bil',  pop:'cars', liten:true},
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };
-/* LEDNINGARNA – ett litet elnät. Elnätet kommer ut ur Elnät-rutans högra
-   kortsida till en knutpunkt (300,94). Därifrån går huset ned, och skenan upp
-   och längs överkanten: bilen grenar av ned mellan bilarna, och längst till
-   höger går skenan ned till elcentralen där solen och batteriet ansluter.
-   Varje sträcka är ritad i den riktning strömmen oftast går; negativt värde
-   vänder prickarna, så att de alltid visar varifrån strömmen kommer och vart
-   den går.
-   - nat:   Elnät-rutan → knutpunkten. Köper = in, säljer = ut.
-   - hus:   knutpunkten ned i huset (husets förbrukning utom bilen).
-   - bussB: bilens avgrening → knutpunkten (det som kommer från
-            elcentralens sida, minus bilen).
-   - bil:   bilens avgrening ned mellan bilarna till bilrutan under dem
-            (tänd när en bil laddar, blek när den bara är inkopplad).
-   - bussA: elcentralen → bilens avgrening (sol + batteri; negativt när
-            nätet laddar batteriet).
+/* LEDNINGARNA. Elnätet går ut ur Elnät-rutans högra kortsida, längs
+   överkanten hela vägen till bildens högra kant (hörnet följer bildens
+   rundning), ned längs kanten och in i elcentralen från höger. Bilen grenar
+   av ned mellan bilarna. Solen kommer in i elcentralen från vänster och
+   batteriet har en egen kort ledning till elcentralen. Varje sträcka är ritad
+   i den riktning strömmen oftast går; negativt värde vänder prickarna, så att
+   de alltid visar varifrån strömmen kommer och vart den går.
+   - nat:   Elnät-rutan → bilens avgrening. Köper = in, säljer = ut.
+   - natB:  bilens avgrening → elcentralen (nätet minus det bilen tar).
+   - bil:   avgreningen ned mellan bilarna till bilrutan (tänd när en bil
+            laddar, blek när den bara är inkopplad).
    - sol1–4: solrutan på vänster tak → nedre mitten → övre mitten → höger tak
             → elcentralen. Varje sträcka bär summan av panelerna före.
-   - batt:  batterirutan upp utmed väggen till elcentralen; urladdning = mot huset. */
+   - batt:  batteriet → elcentralen (urladdning +, laddning −). */
 var HUS_LEDN=[
   {id:'sol1', typ:'sol', d:'M423,656 H512'},
   {id:'sol2', typ:'sol', d:'M600,632 V612'},
   {id:'sol3', typ:'sol', d:'M684,582 H790 V552'},
   {id:'sol4', typ:'sol', d:'M878,418 H900'},
-  {id:'batt', typ:'batt',d:'M895,560 V430'},
-  {id:'bussA',typ:'last',d:'M904,396 V12 H585'},
-  {id:'bussB',typ:'last',d:'M585,12 H300 V94'},
+  {id:'batt', typ:'batt',d:'M925,489 H965 V434 H921'},
+  {id:'natB', typ:'nat', d:'M585,12 H988 A40,40 0 0 1 1028,52 V408 H921'},
   {id:'bil',  typ:'bil', d:'M585,12 V282'},
-  {id:'nat',  typ:'nat', d:'M245,94 H300'},
-  {id:'hus',  typ:'last',d:'M300,94 V445'}
+  {id:'nat',  typ:'nat', d:'M245,94 H300 V12 H585'}
 ];
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */
