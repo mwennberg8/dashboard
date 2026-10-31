@@ -3,33 +3,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Huset · strömflöden (prov)</title>
 <style>
-/* FÖRHANDSVISNING – toppen av startsidan med huset ovanifrån och strömmen
-   som vinkelräta ledningar mellan elcentralen och allt som drar eller ger
-   ström. Demodata, tre lägen. Inget här läser från Homey ännu. */
+/* FÖRHANDSVISNING 1.1 – toppen av startsidan med huset ovanifrån. Fyra fält
+   nere till höger (Elnät, Förbrukning, Sol, Batteri) och vinkelräta ledningar
+   till dem: solpanelerna i en kedja till solfältet, nätet från elcentralen,
+   batteriet från husbatteriet, och förbrukningen ut till stora huset.
+   Demodata, tre lägen. Inget här läser från Homey ännu. */
 :root{--bg:#2e3440;--panel-a:#353d4b;--panel-b:#2f3643;--line:rgba(216,222,233,.12);
   --ink:#eceff4;--dim:#cdd6e2;--faint:#8b93a3;--inset:#3b4252;
-  --sol:#d9a521;--batt:#3f9fb8;--nat:#c8683f;--last:#5e7fa8;--ok:#a3be8c;--hot:#bf616a;
+  --sol:#d9a521;--batt:#3f9fb8;--nat:#c8683f;--last:#5e7fa8;--ok:#5f8f4e;
   --sans:"Inter Tight","Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 *{box-sizing:border-box}
 body{margin:0;padding:12px;background:var(--bg);color:var(--ink);font:14px/1.42 var(--sans)}
 .wrap{max-width:560px;margin:0 auto}
 .panel{background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);
-  border-radius:26px;padding:14px;display:flex;flex-direction:column;gap:12px}
-.topp{display:flex;align-items:flex-end;gap:10px}
-.topp .stor{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
-.topp .stor small{font-size:17px;font-weight:700;color:var(--dim)}
-.topp .lbl{font-size:11px;font-weight:700;letter-spacing:.07em;color:var(--faint);margin-bottom:3px}
-.topp .eget{margin-left:auto;text-align:right}
-.topp .eget b{display:block;font-size:24px;font-weight:800;color:var(--ok);line-height:1}
-.topp .eget span{font-size:11.5px;color:var(--faint);font-weight:600}
+  border-radius:26px;padding:12px;display:flex;flex-direction:column;gap:10px}
 .lagen{display:flex;gap:6px}
 .lagen button{flex:1 1 0;appearance:none;border:1px solid var(--line);background:var(--inset);color:var(--dim);
   font:700 12.5px var(--sans);padding:8px 6px;border-radius:12px;cursor:pointer}
 .lagen button.on{background:#4c566a;color:var(--ink);border-color:rgba(216,222,233,.25)}
 
-/* Kartan. Bilden och SVG:n delar koordinater (1040 × 1120), brickorna sätts i
-   procent av samma mått – allt följer med när rutan skalas. */
-.karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;background:#dfe6ee}
+/* Kartan. Bilden, SVG:n och fälten delar koordinater (1040 × 1120): fälten
+   sätts i procent av samma mått, så ledningarna träffar dem i alla storlekar.
+   Texten i fälten skalas med kartans bredd (cqw). */
+.karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;
+  background:#dfe6ee;container-type:inline-size}
 .karta img{position:absolute;inset:0;width:100%;height:100%;display:block}
 .karta svg{position:absolute;inset:0;width:100%;height:100%}
 .ledn-bas{fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transition:stroke-width .4s,opacity .4s}
@@ -41,142 +38,111 @@ body{margin:0;padding:12px;background:var(--bg);color:var(--ink);font:14px/1.42 
 .ledn.av{animation:none;stroke-dasharray:none;opacity:0}
 @keyframes flod{to{stroke-dashoffset:-32}}
 @media (prefers-reduced-motion:reduce){.ledn{animation:none;stroke-dasharray:none}}
-.puls{fill:none;stroke:#2e3440;stroke-width:2;opacity:.0;transform-origin:910px 418px;animation:puls 2.4s ease-out infinite}
-@keyframes puls{0%{opacity:.5;transform:scale(.6)}100%{opacity:0;transform:scale(2.2)}}
 
-.bricka{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:4px;
-  background:rgba(255,255,255,.92);color:#2e3440;border:1.5px solid var(--f);border-radius:999px;
-  padding:2px 7px 2px 5px;font:800 clamp(9.5px,2.5vw,12.5px)/1.25 var(--sans);white-space:nowrap;
-  box-shadow:0 4px 10px -6px rgba(46,52,64,.45);transition:opacity .3s}
-.bricka.hog{transform:translate(-100%,-50%)}
-.bricka i{width:8px;height:8px;border-radius:50%;background:var(--f);flex:0 0 auto}
-.bricka small{font-weight:650;color:#4c566a}
-.bricka.noll{opacity:.45}
-.bricka.dold{display:none}
+.falt{position:absolute;display:flex;flex-direction:column;justify-content:center;gap:.2cqw;
+  background:rgba(255,255,255,.94);color:#2e3440;border:2px solid var(--f);border-radius:2.2cqw;
+  padding:0 1.5cqw;box-shadow:0 6px 16px -10px rgba(46,52,64,.55);transition:opacity .3s}
+.falt .rub{display:flex;align-items:center;gap:1cqw;font:750 2.6cqw/1.1 var(--sans);
+  color:#4c566a;white-space:nowrap;overflow:hidden}
+.falt .rub i{width:1.6cqw;height:1.6cqw;border-radius:50%;background:var(--f);flex:0 0 auto}
+.falt .v{font:800 5.2cqw/1.05 var(--sans);letter-spacing:-.02em;white-space:nowrap}
+.falt .v small{font-size:2.9cqw;font-weight:700;color:#4c566a}
+.falt .u{font:650 2.35cqw/1.15 var(--sans);color:#4c566a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.falt.noll .v{color:#8b93a3}
 .fot{font-size:11.5px;color:var(--faint);line-height:1.45;margin:0 4px}
 .fot b{color:var(--dim)}
-.leg{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;font-weight:650;color:var(--dim)}
-.leg span{display:flex;align-items:center;gap:5px}
-.leg i{width:14px;height:4px;border-radius:2px;background:var(--f)}
 </style></head><body>
 <div class="wrap">
   <div class="panel">
-    <div class="topp">
-      <div><div class="lbl">HUSET DRAR</div><div class="stor" id="drar">–</div></div>
-      <div class="eget"><b id="eget">–</b><span>från egen el</span></div>
-    </div>
     <div class="lagen" id="lagen"></div>
     <div class="karta" id="karta">
       <img src="bild/hus-ovanifran.webp" alt="Huset ovanifrån med uterum, altan, Breveden, Snickarboa och bilarna">
       <svg viewBox="0 0 1040 1120" aria-hidden="true" id="svg"></svg>
     </div>
-    <div class="leg">
-      <span style="--f:var(--sol)"><i></i>Sol</span>
-      <span style="--f:var(--batt)"><i></i>Batteri</span>
-      <span style="--f:var(--nat)"><i></i>Nät</span>
-      <span style="--f:var(--last)"><i></i>Förbrukning</span>
-    </div>
   </div>
-  <p class="fot"><b>Förhandsvisning med demodata.</b> Ledningarna går vinkelrätt från elcentralen.
-    Tjockleken följer effekten, prickarna rör sig åt det håll strömmen går, och en ledning utan
-    ström tonas ned. Tryck på lägena för att se dag, kväll och billaddning i natt.</p>
+  <p class="fot"><b>Förhandsvisning med demodata.</b> Solpanelerna är kopplade i en kedja till
+    solfältet, nätet går från elcentralen, batteriet från husbatteriet och förbrukningen ut till
+    stora huset. Tjockleken följer effekten och prickarna rör sig åt det håll strömmen går.</p>
 </div>
 <script>
 'use strict';
-/* LEDNINGARNA, i bildens koordinater (1040 × 1120). Varje ledning ritas i den
-   riktning strömmen normalt går: solen och batteriets urladdning MOT
-   elcentralen, förbrukningen FRÅN den, nätet in från tomtgränsen. Negativ
-   effekt vänder prickarna. Solens fyra tak samlas i en stam längs takfoten. */
+/* FÄLTEN, nere till höger, i bildens koordinater: x, y, bredd, höjd.
+   Två kolumner, två rader. */
+const F={
+  sol:  {x:500,y:822, w:252,h:134, typ:'sol'},
+  nat:  {x:776,y:822, w:246,h:134, typ:'nat'},
+  last: {x:500,y:966, w:252,h:134, typ:'last'},
+  batt: {x:776,y:966, w:246,h:134, typ:'batt'},
+};
+
+/* LEDNINGARNA, i bildens koordinater (1040 × 1120). Ritade i den riktning
+   strömmen normalt går; negativ effekt vänder prickarna.
+   Solpanelerna: vänster tak → mitten nedre → mitten övre → höger tak, och
+   därifrån ned till solfältet. Varje sträcka bär summan av panelerna före. */
 const L=[
-  /* sol – takens paneler, ned till takfoten och längs den till elcentralen */
-  {id:'solD', typ:'sol', d:'M338,722 V740 H602', v:s=>s.solD},
-  {id:'solC', typ:'sol', d:'M602,726 V740', v:s=>s.solC},
-  {id:'stam1',typ:'sol', d:'M602,740 H706', v:s=>s.solD+s.solC},
-  {id:'solB', typ:'sol', d:'M684,582 H706 V740', v:s=>s.solB},
-  {id:'stam2',typ:'sol', d:'M706,740 H828', v:s=>s.solD+s.solC+s.solB},
-  {id:'solA', typ:'sol', d:'M828,552 V740', v:s=>s.solA},
-  {id:'stam3',typ:'sol', d:'M828,740 H870 V440 H898', v:s=>s.solA+s.solB+s.solC+s.solD},
-  /* nätet kommer in vid tomtgränsen; positivt = köper */
-  {id:'nat',  typ:'nat', d:'M1040,378 H930 V398', v:s=>s.nat},
-  /* husbatteriet på väggen under elcentralen; positivt = laddar ur */
-  {id:'batt', typ:'batt',d:'M910,466 V444', v:s=>s.batt},
-  /* förbrukning, från elcentralen */
-  {id:'bil',  typ:'last',d:'M904,396 V352 H632 V268', v:s=>s.bil},
-  {id:'brev', typ:'last',d:'M916,396 V336 H760 V305', v:s=>s.brev},
-  {id:'snick',typ:'last',d:'M898,408 H188', v:s=>s.snick},
-  {id:'hus',  typ:'last',d:'M898,424 H560 V470', v:s=>s.hus},
-  {id:'ute',  typ:'last',d:'M898,456 H884 V770 H400', v:s=>s.ute},
+  {id:'sol1', typ:'sol', d:'M428,680 H512',                 v:s=>s.solD},
+  {id:'sol2', typ:'sol', d:'M600,632 V612',                 v:s=>s.solD+s.solC},
+  {id:'sol3', typ:'sol', d:'M684,582 H730 V500 H780',       v:s=>s.solD+s.solC+s.solB},
+  {id:'sol4', typ:'sol', d:'M800,552 V575 H740 V822',       v:s=>s.solD+s.solC+s.solB+s.solA},
+  /* nätet från elcentralen, runt huset och ned i elnätsfältet; positivt = köper */
+  {id:'nat',  typ:'nat', d:'M910,396 V380 H1000 V822',      v:s=>s.nat},
+  /* husbatteriet på väggen, ned och genom mellanrummet mellan fälten till
+     batterifältet; positivt = laddar ur */
+  {id:'batt', typ:'batt',d:'M910,522 V790 H764 V1033 H776', v:s=>s.batt},
+  /* förbrukningen ut till stora huset */
+  {id:'last', typ:'last',d:'M500,1033 H480 V745',           v:s=>s.last},
 ];
 const FARG={sol:'var(--sol)',batt:'var(--batt)',nat:'var(--nat)',last:'var(--last)'};
 
-/* BRICKORNA. x och y i bildens koordinater. */
-const B=[
-  {x:828,y:462, typ:'sol', t:s=>kw(s.solA)},
-  {x:592,y:582, typ:'sol', t:s=>kw(s.solB)},
-  {x:602,y:680, typ:'sol', t:s=>kw(s.solC)},
-  {x:338,y:658, typ:'sol', t:s=>kw(s.solD)},
-  /* hog: förankrad i högerkanten, så brickan växer inåt och inte klipps */
-  {x:1028,y:552,hog:1, typ:'batt',t:s=>s.soc+' %<small> · '+(s.batt>0.05?'ur ':s.batt<-0.05?'in ':'')+kw(Math.abs(s.batt))+'</small>', n:s=>Math.abs(s.batt)},
-  {x:1028,y:326,hog:1, typ:'nat', t:s=>'Nät<small> · '+(s.nat>0.05?'köper ':s.nat<-0.05?'säljer ':'')+kw(Math.abs(s.nat))+'</small>', n:s=>Math.abs(s.nat)},
-  {x:520,y:304, typ:'last',t:s=>'EX40<small> · '+kw(s.bil)+'</small>', n:s=>s.bil},
-  {x:760,y:226, typ:'last',t:s=>kw(s.brev), n:s=>s.brev},
-  {x:110,y:474, typ:'last',t:s=>kw(s.snick), n:s=>s.snick},
-  {x:322,y:832, typ:'last',t:s=>kw(s.ute), n:s=>s.ute},
-  {x:500,y:492, typ:'last',t:s=>'Huset<small> · '+kw(s.hus)+'</small>', n:s=>s.hus},
-];
-
-/* DEMODATA. Varje läge går jämnt upp: sol + batteri ur + nät köpt = all förbrukning. */
+/* DEMODATA. Varje läge går jämnt upp: sol + batteri ur + nät köpt = förbrukning. */
 const LAGEN=[
-  {namn:'Dag · sol', solA:2.1,solB:1.3,solC:1.2,solD:1.4, batt:-2.5, nat:-1.5, soc:62,
-   hus:1.4, bil:0, brev:0.3, snick:0.1, ute:0.2},
-  {namn:'Kväll', solA:0,solB:0,solC:0,solD:0, batt:1.9, nat:1.0, soc:41,
-   hus:2.1, bil:0, brev:0.5, snick:0, ute:0.3},
-  {namn:'Natt · bilen', solA:0,solB:0,solC:0,solD:0, batt:-2.5, nat:10.7, soc:28,
-   hus:0.6, bil:7.0, brev:0.4, snick:0, ute:0.2},
+  {namn:'Dag · sol',    solA:2.1,solB:1.3,solC:1.2,solD:1.4, batt:-2.5, nat:-1.5, soc:62, last:2.0},
+  {namn:'Kväll',        solA:0,solB:0,solC:0,solD:0,         batt:1.9,  nat:1.0,  soc:41, last:2.9},
+  {namn:'Natt · bilen', solA:0,solB:0,solC:0,solD:0,         batt:-2.5, nat:10.7, soc:28, last:8.2},
 ];
 
-function kw(v){return (Math.round(v*10)/10).toFixed(1).replace('.',',')+' kW';}
-function bredd(v){return Math.max(5,Math.min(16,5+Math.abs(v)*1.6));}
+function kw(v){return (Math.round(v*10)/10).toFixed(1).replace('.',',');}
+/* Högst 14: batteriets ledning går i ett 24 enheter brett mellanrum. */
+function bredd(v){return Math.max(5,Math.min(14,5+Math.abs(v)*1.4));}
 
 const svg=document.getElementById('svg'),karta=document.getElementById('karta');
 const NS='http://www.w3.org/2000/svg';
 const ritade={};
 L.forEach(function(l){
   const bas=document.createElementNS(NS,'path');bas.setAttribute('d',l.d);bas.setAttribute('class','ledn-bas');bas.style.stroke=FARG[l.typ];
-  const fl=document.createElementNS(NS,'path');fl.setAttribute('d',l.d);fl.setAttribute('class','ledn');fl.style.stroke=FARG[l.typ];
+  const fl=document.createElementNS(NS,'path');fl.setAttribute('d',l.d);fl.setAttribute('class','ledn');
   svg.appendChild(bas);svg.appendChild(fl);ritade[l.id]={bas:bas,fl:fl};
 });
-const puls=document.createElementNS(NS,'circle');puls.setAttribute('cx',910);puls.setAttribute('cy',418);puls.setAttribute('r',22);puls.setAttribute('class','puls');svg.appendChild(puls);
-const brickor=B.map(function(b){
-  const e=document.createElement('div');e.className='bricka'+(b.hog?' hog':'');e.style.setProperty('--f',FARG[b.typ]);
-  e.style.left=(b.x/1040*100)+'%';e.style.top=(b.y/1120*100)+'%';karta.appendChild(e);return e;});
+const falt={};
+Object.keys(F).forEach(function(k){
+  const f=F[k],e=document.createElement('div');
+  e.className='falt';e.style.setProperty('--f',FARG[f.typ]);
+  e.style.left=(f.x/1040*100)+'%';e.style.top=(f.y/1120*100)+'%';
+  e.style.width=(f.w/1040*100)+'%';e.style.height=(f.h/1120*100)+'%';
+  karta.appendChild(e);falt[k]=e;
+});
+function fyll(e,rub,v,under){
+  e.innerHTML='<div class="rub"><i></i>'+rub+'</div><div class="v">'+kw(Math.abs(v))+'<small> kW</small></div>'
+    +'<div class="u">'+under+'</div>';
+  e.classList.toggle('noll',!(Math.abs(v)>=0.05));
+}
 
 let valt=0;
 function rita(){
   const s=LAGEN[valt];
   L.forEach(function(l){
-    const v=l.v(s),r=ritade[l.id],w=bredd(v);
-    r.bas.style.strokeWidth=w;r.fl.style.strokeWidth=Math.max(2.5,w*0.55);
-    const tom=Math.abs(v)<0.05;
-    r.bas.style.opacity=tom?0.25:0.85;
-    if(tom)r.bas.style.strokeWidth=2.5;
+    const v=l.v(s),r=ritade[l.id],w=bredd(v),tom=Math.abs(v)<0.05;
+    r.bas.style.strokeWidth=tom?2.5:w;r.bas.style.opacity=tom?0.25:0.85;
+    r.fl.style.strokeWidth=Math.max(2.5,w*0.55);
     r.fl.setAttribute('class','ledn'+(tom?' av':'')+(v<0?' bak':''));
-    /* Fler prickar och snabbare ju mer effekt. */
     r.fl.style.animationDuration=(tom?0:Math.max(0.45,1.5-Math.abs(v)*0.12))+'s';
   });
-  B.forEach(function(b,i){
-    const e=brickor[i];
-    e.innerHTML='<i></i>'+b.t(s);
-    const n=b.n?b.n(s):Math.abs(parseFloat(b.t(s).replace(',','.')));
-    e.classList.toggle('noll',!(n>0.05));
-    /* Solbrickorna göms när panelerna inte ger något – på kvällen är de bara brus. */
-    e.classList.toggle('dold',b.typ==='sol'&&!(n>0.05));
-  });
-  const last=s.hus+s.bil+s.brev+s.snick+s.ute;
   const sol=s.solA+s.solB+s.solC+s.solD;
-  const fraNat=Math.max(0,s.nat);
-  document.getElementById('drar').innerHTML=kw(last).replace(' kW','')+'<small> kW</small>';
-  document.getElementById('eget').textContent=Math.round(Math.max(0,1-fraNat/last)*100)+' %';
+  const eget=Math.round(Math.max(0,1-Math.max(0,s.nat)/s.last)*100);
+  fyll(falt.sol,'Sol',sol,sol>=0.05?'4 tak':'ingen sol');
+  fyll(falt.batt,'Batteri',s.batt,s.soc+' % · '+(s.batt>0.05?'laddar ur':s.batt<-0.05?'laddar':'vilar'));
+  fyll(falt.last,'Förbrukning',s.last,eget+' % egen el');
+  fyll(falt.nat,'Elnät',s.nat,s.nat>0.05?'köper':s.nat<-0.05?'säljer':'–');
   document.querySelectorAll('#lagen button').forEach(function(x,i){x.classList.toggle('on',i===valt);});
 }
 document.getElementById('lagen').innerHTML=LAGEN.map(function(s,i){return '<button type="button" data-i="'+i+'">'+s.namn+'</button>';}).join('');
