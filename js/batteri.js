@@ -926,6 +926,7 @@ function openDetailKarna(which){
   }else if(which==='uterum'||which==='snickarboa'||which==='poolrum'||which==='vardagsrum'){title=ZK[which].lab;
     /* v736: rumsrutans popup – graf, läget nu och rummets enheter. Ritas om vid
        varje hämtning (_popupRebuild) och när en enhet växlas (rumPopupUppdatera). */
+    _zkVald=null;
     _popupRebuild=function(){return zkPopHTML(which);};_popupRebuild._zk=true;
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=zkPopHTML(which);};
     body=zkPopHTML(which);

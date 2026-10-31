@@ -631,6 +631,17 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
 .room-m b{color:var(--dim);font-weight:700}
 .room-bar{height:3px;border-radius:2px;background:var(--line);overflow:hidden}
 .room-bar i{display:block;height:100%;border-radius:2px;background:var(--gold);transition:width .5s ease}
+/* v774: enheterna i rumsrutornas popuper (Uterum m.fl.) som rumskort. Samma
+   rutnät som startsidan, men luften följer popupen. Den valda lampan, vars
+   ljusreglage visas under korten, får en blå ram. */
+.rooms.zk-kort{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));column-gap:10px;row-gap:10px;margin:4px 0 6px}
+/* auto-fill, inte auto-fit: ett ensamt kort (Poolvärme) blir lika stort som
+   de andra i stället för att dra ut över hela raden. Namnet står på egen rad
+   under ikonen och vippan och får gå på två ("Verkstad Belysning"). */
+.zk-kort .room-h{justify-content:space-between}
+.zk-kort .room-n{flex:none;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;margin-top:-2px}
+.room.zk-vald{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.zk-dim{margin:4px 0 10px}
 
 /* Enhetsraden i popupen. */
 .dv-row{display:flex;align-items:center;gap:10px;padding:9px var(--rum-h) 9px 0;border-bottom:1px solid var(--line-soft)}

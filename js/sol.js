@@ -651,12 +651,52 @@ function zkVal(k,s){_zkSer[k]=s;var b=$('dlg-body');if(b)b.innerHTML=zkPopHTML(k
 /* Lampor: samma regler som rumsvyn, men även de som rumsvyn döljer (Föröver,
    Styrbord) – här är det hela rummet som ska gå att styra. */
 function zkArLampa(d){return !!(RUM_LAMPA[d.id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');}
-function zkUttagRad(d){
-  var pa=capOf(d,'onoff')===true,w=rHar(d,'measure_power')?capOf(d,'measure_power'):null;
-  return '<div class="dv-row'+(pa?' on':'')+'">'
-    +'<span class="dv-ic">'+icon('plug')+'</span>'
-    +'<span class="dv-n">'+esc(rNamn(d))+((pa&&w!=null&&isFinite(w))?('<small>'+W(w)+'</small>'):(pa?'':'<small>av</small>'))+'</span>'
-    +'<button class="dv-sw'+(pa?' on':'')+'" onclick="devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button></div>';}
+/* Ett kort per enhet, i rumskortens form (.room). */
+function zkKortIkon(d){
+  if(zkArLampa(d))return 'lightbulb-filament';
+  var n=rNamn(d);
+  if(/fläkt/i.test(n))return 'fan';
+  if(/värme|varme/i.test(n))return 'flame';
+  return 'plug';}
+function zkKort(d){
+  var pa=capOf(d,'onoff')===true,lampa=zkArLampa(d);
+  var dim=(lampa&&rHar(d,'dim'))?capOf(d,'dim'):null;
+  var w=rHar(d,'measure_power')?capOf(d,'measure_power'):null;
+  var m,bar;
+  if(lampa){
+    m=pa?(dim!=null?'<b>'+Math.round(dim*100)+' %</b>':'tänd'):'släckt';
+    bar=pa?(dim!=null?dim:1):0;
+  }else{
+    m=pa?((w!=null&&isFinite(w))?'<b>'+W(w)+'</b>':'på'):'av';
+    bar=pa?1:0;
+  }
+  var vald=(_zkVald===d.id&&dim!=null);
+  return '<div class="room'+(pa?' on':'')+(vald?' zk-vald':'')+'" onclick="zkKortTryck(\''+d.id+'\')">'
+    /* Namnet på egen rad: lampnamnen är längre än rumsnamnen, och bredvid
+       ikonen och vippan fick de bara plats med fyra bokstäver på telefonen. */
+    +'<div class="room-h"><span class="room-ic">'+icon(zkKortIkon(d))+'</span>'
+    +'<button class="room-sw'+(pa?' on':'')+'" onclick="event.stopPropagation();devTanda(\''+d.id+'\')" aria-label="på/av"><i></i></button>'
+    +'</div>'
+    +'<div class="room-n">'+esc(rNamn(d))+'</div>'
+    +'<div class="room-m">'+m+'</div>'
+    +'<div class="room-bar"><i style="width:'+Math.round(bar*100)+'%"></i></div>'
+    +'</div>';}
+/* Rutnätet, och ljusreglaget för den valda lampan direkt under det. */
+function zkKortRutnat(lista){
+  var h='<div class="rooms zk-kort">'+lista.map(zkKort).join('')+'</div>';
+  var v=lista.find(function(d){return d.id===_zkVald;});
+  if(v&&rHar(v,'dim')){
+    var dv=capOf(v,'dim');dv=(dv==null?0.5:dv);
+    h+='<div class="zk-dim"><div class="sl-h">'+icon('sun-dim')+esc(rNamn(v))+'<b>'+Math.round(dv*100)+' %</b></div>'
+      +slxHTML(v.id,dv*100,'devDim')+'</div>';
+  }
+  return h;}
+function zkKortTryck(id){
+  var d=DATA[id];if(!d)return;
+  if(zkArLampa(d)&&rHar(d,'dim')){
+    _zkVald=(_zkVald===id)?null:id;
+    rumPopupUppdatera();return;}
+  devTanda(id);}
 function zkPopHTML(k){
   var Z=ZK[k];if(!Z)return '';
   var v=zkVarden(k),w=zkVarningar(k),cid='zk_'+k,P=PAL[curTheme]||PAL.dark;
@@ -702,11 +742,23 @@ function zkPopHTML(k){
     var hav=(typeof FEED!=='undefined')?FEED.sea:null,havT=(typeof _feedTs!=='undefined'&&_feedTs.sea)?_feedTs.sea:0;
     h+=dRow('Badtemp · '+esc(CONFIG.BATH_NAME||'havet'),hav==null?'–':num(hav,1)+' °C');
     if(hav!=null&&pv!=null)h+=dRow('Poolen mot havet',(pv-hav>=0?'+':'−')+num(Math.abs(pv-hav),1)+' °');}
-  var ens=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(rSort);
-  var pa=ens.filter(function(d){return capOf(d,'onoff')===true;}).length;
-  h+=dSec(Z.ser.p?'Styrning':(ens.length?('Enheter ('+pa+' av '+ens.length+' på)'):'Enheter'));
-  h+=ens.length?ens.map(function(d){return zkArLampa(d)?devRad(d):zkUttagRad(d);}).join('')
-    :'<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
+  /* v774: ENHETERNA SOM KORT, som rummen på startsidan – samma ruta, vippa,
+     undertext och stapel. Lamporna först, sedan övrigt (fläkt, värme, uttag)
+     i samma rutnät så att de passar in. Ett tryck på en dimbar lampa visar
+     dess ljusreglage under korten; på allt annat slår trycket av och på. */
+  /* Id:t tas ur DATA-nyckeln. Homey skickar det även som fält, men demodatan
+     gör det inte – och kortens onclick behöver det. */
+  var ens=Object.keys(DATA).filter(function(id){var d=DATA[id];return d&&d.zone===Z.zon&&rHar(d,'onoff');})
+    .map(function(id){var d=DATA[id];if(d.id==null)d.id=id;return d;}).sort(rSort);
+  var lj=ens.filter(zkArLampa),ov=ens.filter(function(d){return !zkArLampa(d);});
+  var ljPa=lj.filter(function(d){return capOf(d,'onoff')===true;}).length;
+  if(!ens.length){
+    h+=dSec(Z.ser.p?'Styrning':'Enheter');
+    h+='<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
+  }else{
+    if(lj.length){h+=dSec('Belysning ('+ljPa+' av '+lj.length+' tända)');h+=zkKortRutnat(lj);}
+    if(ov.length){h+=dSec(Z.ser.p?'Styrning':(lj.length?'Övrigt':'Enheter'));h+=zkKortRutnat(ov);}
+  }
   /* Poolknapparna ur knappavsnittet, som i Pool-popupen. */
   if(Z.ser.p&&CFG&&CFG.paNu){try{h+=popKnappar('pool');}catch(e){}}
   return h;}
