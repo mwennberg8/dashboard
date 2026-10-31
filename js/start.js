@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v793';
+const APP_VERSION='v794';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3222,10 +3222,6 @@ var HUS_GLASTAK=[
   {rum:'Uterum',tak:[[242,735,160,130]],sken:[322,815,175,140]},
   {rum:'Grovuterum',tak:[[112,697,130,113]],sken:[177,760,140,112]}
 ];
-/* Väggplattan: husbilden ska rymmas på skärmen även när fönstret ändrar storlek
-   eller plattan vrids (husPassa). fitScreen kör strax efter en ändring, så
-   ett andra varv en stund senare tar det läget. */
-try{window.addEventListener('resize',function(){try{husPassa();}catch(e){}setTimeout(function(){try{husPassa();}catch(e){}},300);});}catch(e){}
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 
