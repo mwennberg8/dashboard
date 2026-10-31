@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v805';
+const APP_VERSION='v806';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3113,8 +3113,8 @@ var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a
 var HUS_HUS_FARG={nat:'#c4505c',egen:'#5f9e4e',blandat:'#e08a3c'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
-  nat:  {x:20, y:20,  w:225,h:124, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
-  last: {x:20, y:154, w:225,h:124, typ:'last', pop:'energyfull'},   /* under Elnät */
+  nat:  {x:20, y:20,  w:225,h:148, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
+  last: {x:20, y:178, w:225,h:148, typ:'last', pop:'energyfull'},   /* under Elnät */
   /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
      tak), bilen under bilarna, batteriet under husbatteriet. */
   sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
@@ -3122,7 +3122,7 @@ var HUS_FALT={
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };
 /* LEDNINGARNA – ett litet elnät. Elnätet kommer ut ur Elnät-rutans högra
-   kortsida till en knutpunkt (300,82). Därifrån går huset ned, och skenan upp
+   kortsida till en knutpunkt (300,94). Därifrån går huset ned, och skenan upp
    och längs överkanten: bilen grenar av ned mellan bilarna, och längst till
    höger går skenan ned till elcentralen där solen och batteriet ansluter.
    Varje sträcka är ritad i den riktning strömmen oftast går; negativt värde
@@ -3146,10 +3146,10 @@ var HUS_LEDN=[
   {id:'sol4', typ:'sol', d:'M878,418 H900'},
   {id:'batt', typ:'batt',d:'M895,560 V430'},
   {id:'bussA',typ:'last',d:'M904,396 V12 H585'},
-  {id:'bussB',typ:'last',d:'M585,12 H300 V82'},
+  {id:'bussB',typ:'last',d:'M585,12 H300 V94'},
   {id:'bil',  typ:'bil', d:'M585,12 V282'},
-  {id:'nat',  typ:'nat', d:'M245,82 H300'},
-  {id:'hus',  typ:'last',d:'M300,82 V445'}
+  {id:'nat',  typ:'nat', d:'M245,94 H300'},
+  {id:'hus',  typ:'last',d:'M300,94 V445'}
 ];
 /* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
    12, övre mitten 8, höger tak 12. */
