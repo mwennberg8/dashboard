@@ -26,10 +26,17 @@ function husVarden(){
   var soc=cap(DEV.battery,'measure_battery');
   var bil=0;
   try{if(bilDrar())bil=chargerW()||0;}catch(e){}
-  /* Vilken bil som laddar: den som säger det själv, annars EX40 som står vid laddboxen. */
-  var bilId=DEV.car2;
-  try{if(carCharging(DEV.car)&&!carCharging(DEV.car2))bilId=DEV.car;}catch(e){}
-  return {sol:sol,nat:nat,last:last,batt:batt,soc:soc,bil:bil,
+  /* Vilken bil: den som laddar, annars den som är inkopplad, annars EX40.
+     Inkopplad räcker för att bilrutan ska synas – även innan laddningen
+     börjat. Laddboxen själv kan också säga att en kabel sitter i. */
+  var bilar=[DEV.car2,DEV.car],bilId=DEV.car2,inkopplad=false;
+  try{
+    bilId=bilar.filter(function(id){return carCharging(id);})[0]||bilar.filter(function(id){return carPlugged(id);})[0]||DEV.car2;
+    inkopplad=bilar.some(function(id){return carPlugged(id);});
+    var lb=String(cap(DEV.laddbox,'evcharger_charging_state')||'').toLowerCase();
+    if(lb.indexOf('plugged_in')>=0||lb.indexOf('connected')>=0)inkopplad=true;
+  }catch(e){}
+  return {sol:sol,nat:nat,last:last,batt:batt,soc:soc,bil:bil,inkopplad:inkopplad,
     bilNamn:(DATA[bilId]&&DATA[bilId].name)||'Bilen',bilSoc:cap(bilId,'measure_battery')};
 }
 
@@ -275,8 +282,9 @@ function husRita(){
   /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
   husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
   el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
+  /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   var laddar=v.bil>=50;
-  husFyllLiten(el._falt.bil,'bil',v.bil,v.bilSoc!=null?Math.round(v.bilSoc)+' %':'',null);
-  el._falt.bil.title=v.bilNamn+' laddar';
-  el._falt.bil.hidden=!laddar;
+  husFyllLiten(el._falt.bil,'bil',laddar?v.bil:0,v.bilSoc!=null?Math.round(v.bilSoc)+' %':'',null);
+  el._falt.bil.title=v.bilNamn+(laddar?' laddar':' inkopplad');
+  el._falt.bil.hidden=!(laddar||v.inkopplad);
 }
