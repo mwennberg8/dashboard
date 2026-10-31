@@ -231,11 +231,14 @@ function husRita(){
      mätare för hela anläggningen. Kedjan bär summan av ytorna före:
      vänster tak (D) → nedre mitten (C) → övre mitten (B) → höger tak (A) → elcentralen. */
   var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL,batt=v.batt||0;
-  /* Skenan från elcentralen bär det som inte kommer från nätet:
-     förbrukning − köpt (= sol + batteri). Negativ när nätet laddar batteriet.
-     Bilen grenar av på vägen, så biten närmast huset bär skenan minus bilen. */
+  /* Skenan från elcentralen bär det sol och batteri ger (urladdning +,
+     laddning −). Räknas från källorna själva, INTE som förbrukning − köpt:
+     förbrukningen och Pulse uppdateras i olika takt, och när lasten ändras
+     ligger de flera hundra watt isär några sekunder. Skillnaden tände då
+     skenan gul eller röd en kort stund fast varken sol eller batteri gav
+     något (31 okt, tomt batteri och natt). Bilen grenar av på vägen. */
   var bil=v.bil>=50?v.bil:0;
-  var bussA=(v.last!=null&&v.nat!=null)?(v.last-v.nat):(s+batt);
+  var bussA=s+batt;
   var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*(p.D+p.C+p.B),sol4:s,
     nat:v.nat||0,hus:Math.max(0,(v.last||0)-bil),batt:batt,bussA:bussA,bussB:bussA-bil,bil:bil};
   HUS_LEDN.forEach(function(l){
@@ -252,6 +255,12 @@ function husRita(){
     return w<0?HUS_FARG.nat:(s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt);}
   el._ledn.bussA.bas.style.stroke=skenfarg(bussA);
   el._ledn.bussB.bas.style.stroke=skenfarg(bussA-bil);
+  /* Ledningen in i huset: röd när allt kommer från nätet, grön när allt kommer
+     från sol och batteri, orange när det är en blandning. Avgörs av källorna
+     (ger sol/batteri något? köps något?) – inte av en kvot mellan två mätare
+     som uppdateras i olika takt, som skulle flimra mellan röd och orange. */
+  var egen=Math.max(0,s)+Math.max(0,batt)>=100,kop=(v.nat||0)>=100;
+  el._ledn.hus.bas.style.stroke=!egen&&kop?HUS_HUS_FARG.nat:(egen&&!kop?HUS_HUS_FARG.egen:(egen&&kop?HUS_HUS_FARG.blandat:HUS_FARG.last));
   /* Bilens gren syns bara när en bil laddar. */
   el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=bil?'':'none';
   var nat=v.nat,last=v.last;
