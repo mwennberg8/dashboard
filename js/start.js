@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v776';
+const APP_VERSION='v777';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3103,6 +3103,36 @@ var _swLage;
 var _pushLage='inte försökt';
 checkForUpdate();
 setInterval(checkForUpdate,60000);
+
+/* ---------- [huset.js] ---------- */
+/* Huset ovanifrån (index2.html, beta). Koordinater i bildens mått, 1040 × 1120
+   (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
+   före den här raden, och då ska husRita få undefined och inte ett fel. */
+var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0'};
+/* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
+var HUS_FALT={
+  nat:  {x:20, y:28,  w:225,h:124, typ:'nat',  pop:'grid'},
+  last: {x:255,y:28,  w:237,h:124, typ:'last', pop:'energyfull'},
+  bil:  {x:502,y:28,  w:184,h:124, typ:'bil',  pop:'cars'},
+  sol:  {x:470,y:440, w:230,h:100, typ:'sol',  pop:'sun'},
+  batt: {x:806,y:556, w:224,h:124, typ:'batt', pop:'batt'}
+};
+/* Ledningarna, ritade i strömmens normala riktning. Solpanelerna: vänster tak
+   → nedre mitten → övre mitten, högra taket in från sidan, och därifrån upp i
+   solfältet. Nätet från elcentralen upp mellan Breveden och förrådet och längs
+   överkanten, så att det aldrig korsar förbrukningens ledning. */
+var HUS_LEDN=[
+  {id:'sol1', typ:'sol', d:'M428,680 H512'},
+  {id:'sol2', typ:'sol', d:'M600,632 V612'},
+  {id:'sol3', typ:'sol', d:'M790,552 V582 H684'},
+  {id:'sol4', typ:'sol', d:'M592,552 V540'},
+  {id:'nat',  typ:'nat', d:'M904,396 V12 H132 V28'},
+  {id:'last', typ:'last',d:'M373,152 V445'},
+  {id:'batt', typ:'batt',d:'M910,522 V556'}
+];
+/* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
+   12, övre mitten 8, höger tak 12. */
+var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
 
 /* ---------- [styrning.js] ---------- */
 const rHar=(d,c)=>!!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]);

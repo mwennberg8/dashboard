@@ -1927,6 +1927,8 @@ function render(){
   const solarW=cap(DEV.solar,'measure_power'),houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battW=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),exporting=pulseW!=null&&pulseW<0;
   renderEnergy();
+  /* v777: huset ovanifrån – bara i index2.html, där #huspanel finns. */
+  try{husRita();}catch(e){}
   renderControls();
   try{renderRooms();}catch(e){}
 
