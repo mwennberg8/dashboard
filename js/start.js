@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v799';
+const APP_VERSION='v800';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3109,6 +3109,8 @@ setInterval(checkForUpdate,60000);
    (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
    före den här raden, och då ska husRita få undefined och inte ett fel. */
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0'};
+/* Ledningen in i huset: varifrån strömmen kommer. */
+var HUS_HUS_FARG={nat:'#c4505c',egen:'#5f9e4e',blandat:'#e08a3c'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
   nat:  {x:20, y:28,  w:225,h:124, typ:'nat',  pop:'grid'},
