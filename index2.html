@@ -3729,6 +3729,16 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
 :root:not([data-theme="light"]) .hus-falt .v small,
 :root:not([data-theme="light"]) .hus-falt .u{color:#cdd6e2}
 :root:not([data-theme="light"]) .hus-falt.noll .v{color:#8b93a3}
+/* index2: huset ersätter "förbrukning nu". Av energipanelen står bara
+   elprisskalan kvar, plus raden med väder, notisklocka och livepricken som
+   mobilTopp/wxRubrikRita lägger där (de har ingen annan plats på mobilen).
+   Elementen döljs i stället för att tas bort – koden skriver fortfarande i dem. */
+#view-flode .enpanel .en-hero-main,
+#view-flode .enpanel .en-spot,
+#view-flode .enpanel .en-mix,
+#view-flode .enpanel #en-del,
+#view-flode .enpanel #stats-energy,
+#view-flode .enpanel #sp-del{display:none!important}
 </style>
 </head>
 <body>
