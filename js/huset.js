@@ -69,7 +69,7 @@ function husBygg(el){
   el._falt={};
   Object.keys(HUS_FALT).forEach(function(k){
     var f=HUS_FALT[k],b=document.createElement('button');
-    b.type='button';b.className='hus-falt';b.style.setProperty('--f',HUS_FARG[f.typ]);
+    b.type='button';b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
     b.style.left=(f.x/1040*100)+'%';b.style.top=(f.y/1120*100)+'%';
     b.style.width=(f.w/1040*100)+'%';b.style.height=(f.h/1120*100)+'%';
     b.setAttribute('onclick',"openDetail('"+f.pop+"')");
@@ -204,6 +204,22 @@ function husFyll(b,rub,w,under){
     +(under?'<span class="u">'+esc(under)+'</span>':'');
   b.classList.toggle('noll',!(w!=null&&Math.abs(w)>=50));
 }
+/* Små rutor: en ikon, effekten och ev. en kort tilläggstext (laddnivån). */
+function husIkon(typ,niva){
+  var a=' viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  if(typ==='sol')return '<svg'+a+'><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>';
+  if(typ==='bil')return '<svg'+a+'><path d="M5 16.5h14M4 16.5v-3.2l2-4.8a2 2 0 0 1 1.8-1.2h8.4a2 2 0 0 1 1.8 1.2l2 4.8v3.2"/><path d="M4 13.3h16"/><circle cx="7.5" cy="16.8" r="1.6"/><circle cx="16.5" cy="16.8" r="1.6"/></svg>';
+  /* Batteriet fylls efter laddnivån. */
+  var n=(niva==null||!isFinite(niva))?0:Math.max(0,Math.min(100,niva)),fw=(12.6*n/100).toFixed(1);
+  return '<svg'+a+'><rect x="2.5" y="7" width="17" height="10" rx="2.2"/><path d="M21.5 10.5v3"/>'
+    +'<rect x="4.7" y="9.2" width="'+fw+'" height="5.6" rx="1" fill="currentColor" stroke="none"/></svg>';
+}
+function husFyllLiten(b,typ,w,extra,niva){
+  var t=husTal(w);
+  b.innerHTML='<span class="hik">'+husIkon(typ,niva)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
+    +(extra?'<span class="hx">'+esc(extra)+'</span>':'');
+  b.classList.toggle('noll',!(w!=null&&Math.abs(w)>=50));
+}
 function husRita(){
   var el=$('huspanel');if(!el)return;
   /* render() kan köras innan start.js hunnit till [huset.js]; då väntar vi. */
@@ -215,11 +231,13 @@ function husRita(){
      mätare för hela anläggningen. Kedjan bär summan av ytorna före:
      vänster tak (D) → nedre mitten (C) → övre mitten (B) → höger tak (A) → elcentralen. */
   var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL,batt=v.batt||0;
-  /* Bussen från elcentralen till huset bär det som inte kommer från nätet:
-     förbrukning − köpt (= sol + batteri). Negativ när nätet laddar batteriet. */
-  var buss=(v.last!=null&&v.nat!=null)?(v.last-v.nat):(s+batt);
+  /* Skenan från elcentralen bär det som inte kommer från nätet:
+     förbrukning − köpt (= sol + batteri). Negativ när nätet laddar batteriet.
+     Bilen grenar av på vägen, så biten närmast huset bär skenan minus bilen. */
+  var bil=v.bil>=50?v.bil:0;
+  var bussA=(v.last!=null&&v.nat!=null)?(v.last-v.nat):(s+batt);
   var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*(p.D+p.C+p.B),sol4:s,
-    nat:v.nat||0,last:v.last||0,batt:batt,buss:buss};
+    nat:v.nat||0,hus:Math.max(0,(v.last||0)-bil),batt:batt,bussA:bussA,bussB:bussA-bil,bil:bil};
   HUS_LEDN.forEach(function(l){
     if(l.ledare)return;
     var w=varden[l.id]||0,r=el._ledn[l.id],tom=Math.abs(w)<50,b=husBredd(w);
@@ -228,11 +246,14 @@ function husRita(){
     r.fl.setAttribute('class','hus-flod'+(tom?' av':'')+(w<0?' bak':''));
     r.fl.style.animationDuration=(tom?0:Math.max(0.45,1.5-Math.abs(w)/1000*0.12))+'s';
   });
-  /* Bussens färg: det som faktiskt flödar i den. Nätet när det går mot
-     elcentralen (laddar batteriet), annars den största av sol och batteri. */
-  var bf=buss<0?HUS_FARG.nat:(s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt);
-  if(Math.abs(buss)<50)bf=HUS_FARG.last;
-  el._ledn.buss.bas.style.stroke=bf;
+  /* Skenans färg: det som faktiskt flödar i den – nätet när strömmen går mot
+     elcentralen eller bilen, annars den största av sol och batteri. */
+  function skenfarg(w){if(Math.abs(w)<50)return HUS_FARG.last;
+    return w<0?HUS_FARG.nat:(s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt);}
+  el._ledn.bussA.bas.style.stroke=skenfarg(bussA);
+  el._ledn.bussB.bas.style.stroke=skenfarg(bussA-bil);
+  /* Bilens gren syns bara när en bil laddar. */
+  el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=bil?'':'none';
   var nat=v.nat,last=v.last;
   /* Andelen eget räknas som "självförsörjt" i energipanelen (renderEnergy):
      sol och batteri mot det som går in i huset, solen högst vad panelerna ger. */
@@ -241,13 +262,12 @@ function husRita(){
   var eget=(last==null)?null:Math.round((T>0&&last>0?(solIn+battIn)/T:(nat!=null&&nat<0?1:0))*100);
   husFyll(el._falt.nat,'Elnät',nat,nat==null?'':(nat>50?'köper':nat<-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
-  /* Under solens siffra: dagens produktion, om växelriktaren rapporterar den. */
-  var solDag=null;try{solDag=cap(DEV.solar,'meter_power.day');}catch(e){}
-  husFyll(el._falt.sol,'Sol',v.sol,(solDag!=null&&isFinite(solDag))?(String(Math.round(solDag*10)/10).replace('.',',')+' kWh i dag'):'');
-  /* Laddningen i rubriken, riktningen under – "46 % · laddar ur" fick inte plats. */
-  husFyll(el._falt.batt,'Batteri'+(v.soc==null?'':' '+Math.round(v.soc)+' %'),v.batt,
-    v.batt==null?'':(v.batt>50?'laddar ur':v.batt<-50?'laddar':'vilar'));
+  husFyllLiten(el._falt.sol,'sol',v.sol,'');
+  /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
+  husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
+  el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   var laddar=v.bil>=50;
-  husFyll(el._falt.bil,'Laddar',v.bil,v.bilNamn+(v.bilSoc!=null?' '+Math.round(v.bilSoc)+' %':''));
+  husFyllLiten(el._falt.bil,'bil',v.bil,v.bilSoc!=null?Math.round(v.bilSoc)+' %':'',null);
+  el._falt.bil.title=v.bilNamn+' laddar';
   el._falt.bil.hidden=!laddar;
 }
