@@ -284,7 +284,7 @@ function husRita(){
   el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   var laddar=v.bil>=50;
-  husFyllLiten(el._falt.bil,'bil',laddar?v.bil:0,v.bilSoc!=null?Math.round(v.bilSoc)+' %':'',null);
-  el._falt.bil.title=v.bilNamn+(laddar?' laddar':' inkopplad');
+  husFyllLiten(el._falt.bil,'bil',laddar?v.bil:0,'',null);
+  el._falt.bil.title=v.bilNamn+(laddar?' laddar':' inkopplad')+(v.bilSoc!=null?' · '+Math.round(v.bilSoc)+' %':'');
   el._falt.bil.hidden=!(laddar||v.inkopplad);
 }

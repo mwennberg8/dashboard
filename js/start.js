@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v801';
+const APP_VERSION='v802';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3116,9 +3116,9 @@ var HUS_FALT={
   nat:  {x:20, y:28,  w:225,h:124, typ:'nat',  pop:'grid'},
   last: {x:20, y:162, w:225,h:124, typ:'last', pop:'energyfull'},   /* under Elnät */
   /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
-     tak), bilen ovanför bilarna, batteriet under husbatteriet. */
+     tak), bilen under bilarna, batteriet under husbatteriet. */
   sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
-  bil:  {x:480,y:80,  w:210,h:56,  typ:'bil',  pop:'cars', liten:true},
+  bil:  {x:500,y:282, w:170,h:56,  typ:'bil',  pop:'cars', liten:true},
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };
 /* LEDNINGARNA – ett litet elnät. Överkanten är en samlingsskena: elnätet
@@ -3131,7 +3131,8 @@ var HUS_FALT={
    - hus:   avgreningen ned i huset (husets förbrukning utom bilen).
    - bussB: bilens avgrening → husets avgrening (det som kommer från
             elcentralens sida, minus bilen).
-   - bil:   bilens avgrening ned till bilrutan (bara när en bil laddar).
+   - bil:   bilens avgrening ned mellan bilarna till bilrutan under dem
+            (bara när en bil laddar).
    - bussA: elcentralen → bilens avgrening (sol + batteri; negativt när
             nätet laddar batteriet).
    - sol1–4: solrutan på vänster tak → nedre mitten → övre mitten → höger tak
@@ -3145,7 +3146,7 @@ var HUS_LEDN=[
   {id:'batt', typ:'batt',d:'M895,560 V430'},
   {id:'bussA',typ:'last',d:'M904,396 V12 H585'},
   {id:'bussB',typ:'last',d:'M585,12 H262'},
-  {id:'bil',  typ:'bil', d:'M585,12 V80'},
+  {id:'bil',  typ:'bil', d:'M585,12 V282'},
   {id:'nat',  typ:'nat', d:'M132,28 V12 H262'},
   {id:'hus',  typ:'last',d:'M262,12 V445'}
 ];
