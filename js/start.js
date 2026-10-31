@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v774';
+const APP_VERSION='v775';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3155,6 +3155,7 @@ const RUM_TOPP={
 };
 const RUM_SIST={'04a44634-aa34-41ed-87c0-d1ab5ce4bedd':1};   /* Breveden */
 const RUM_SYNLIGA=4;                          /* hur många som står framme */
+const RUM_SYNLIGA_PLATTA=3;                   /* v775: på plattan, innan man fäller ut */
 /* Enheter som inte ska stå i rumsvyn alls. Föröver och Styrbord i uterummet
    styrs på annat sätt. De räknas inte heller in i "x av y tända". */
 const RUM_DOLJ_DEV={

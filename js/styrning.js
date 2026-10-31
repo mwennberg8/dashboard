@@ -507,6 +507,9 @@ function arVaggplattaVy(){
   try{return window.self!==window.top&&/[?&]ram=1(&|$)/.test(location.search||'');}catch(e){return false;}}
 function rumAvsnittPa(){return !arVaggplattaVy();}
 function rumVisaMer(){_rumUtfallt=!_rumUtfallt;renderRooms();}
+/* Hur många rum som står framme innan "Visa fler". Plattan (plattläget) visar
+   tre, telefonen fyra. */
+function rumSynliga(){return MOBILE?RUM_SYNLIGA:RUM_SYNLIGA_PLATTA;}
 function renderRooms(){
   const el=$('rooms'),sec=$('rooms-sec'),mer=$('rooms-mer');
   if(!el||!sec)return;
@@ -530,7 +533,7 @@ function renderRooms(){
     if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
     /* Korten bortom de fyra ritas alltid, men döljs med CSS. Att rita om hela
        listan vid varje utfällning skulle tappa rullningsläget i sidan. */
-    const dold=(!_rumUtfallt&&zs.indexOf(z)>=RUM_SYNLIGA);
+    const dold=(!_rumUtfallt&&zs.indexOf(z)>=rumSynliga());
     return '<div class="room'+(pa.length?' on':'')+(dold?' rum-dold':'')+'" onclick="openRum(\''+z.id+'\')">'
       +'<div class="room-h"><span class="room-ic">'+icon(rumIkon(z.name))+'</span>'
       +'<span class="room-n">'+esc(z.name)+'</span>'
@@ -540,7 +543,7 @@ function renderRooms(){
       +'<div class="room-bar"><i style="width:'+Math.round((medel==null?0:medel)*100)+'%"></i></div>'
       +'</div>';}).join('');
   if(mer){
-    const kvar=zs.length-RUM_SYNLIGA;
+    const kvar=zs.length-rumSynliga();
     mer.innerHTML=(kvar>0)
       ? ('<button class="rum-mer" onclick="rumVisaMer()" aria-expanded="'+(_rumUtfallt?'true':'false')+'">'
          +(_rumUtfallt?(icon('arrow-fat-up')+'Visa färre')
