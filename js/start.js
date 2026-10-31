@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v802';
+const APP_VERSION='v803';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
