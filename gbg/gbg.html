@@ -1107,7 +1107,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.86.0';
+const APP_VERSION = 'v1.87.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2563,8 +2563,6 @@ function rumKompRad(zs,ut){
     +'<span class="rk-s">'+t.join(' \u00b7 ')+'</span></span>'
     +'<span class="rk-pil ic-slot" data-ic="caret-down"></span></button>';
 }
-/* Hur många rum som står framme på plattan när rumsavsnittet är hopfällt. */
-const RUM_HOP_PLATTA=3;
 function renderRooms(){
   const el=$('rooms');if(!el)return;
   const zs=rumsZoner();
@@ -2573,38 +2571,29 @@ function renderRooms(){
   /* Lampkorten syns ÄVEN när rumslistan är hopfälld — de är ju poängen med att
      ha dem här, och rumsavsnittet är hopfällt som standard. Missade jag först:
      renderRooms returnerar tidigt i hopfällt läge, så korten ritades aldrig. */
-  /* v1.86.0: PÅ PLATTAN står de tre första rummen framme även hopfällt – där
-     finns plats, och det är dit man oftast ska. Telefonen visar bara
-     lampkorten, som förut. Bredden avgörs vid varje ritning, så en platta
-     som vrids följer med. */
-  if(hop){
-    const platta=!!(window.matchMedia&&window.matchMedia('(min-width:601px)').matches);
-    el.innerHTML=rumKompRad(zs,false)+lampKortHTML()+(platta?zs.slice(0,RUM_HOP_PLATTA).map(rumKortHTML).join(''):'');
-    initIcons(el);return;}
+  if(hop){el.innerHTML=rumKompRad(zs,false)+lampKortHTML();initIcons(el);return;}
   /* LAMPKORTEN ÖVERST. Samma form som rumskorten men i en egen rad, så de två
      tillsammans blir lika breda som rumsraden. Ett tryck öppnar rutan direkt;
      den lilla strömbrytaren tänder/släcker utan att öppna något. */
-  el.innerHTML=rumKompRad(zs,true)+lampKortHTML()+zs.map(rumKortHTML).join('');
+  el.innerHTML=rumKompRad(zs,true)+lampKortHTML()+zs.map(z=>{
+    const lj=ljusIZon(z.id),pa=lj.filter(d=>capOf(d,'onoff')===true);
+    const dimbara=pa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
+    const medel=dimbara.length?dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length:null;
+    const t=devsIZon(z.id).map(d=>capOf(d,'measure_temperature')).filter(v=>v!=null&&isFinite(v));
+    const ror=devsIZon(z.id).some(d=>capOf(d,'alarm_motion')===true);
+    const meta=[];
+    meta.push('<b>'+pa.length+'</b>/'+lj.length+' tända');
+    if(t.length)meta.push('<b>'+num(t[0],1)+'°</b>');
+    if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
+    return '<div class="room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
+      +'<div class="room-h"><span class="room-ic ic-slot" data-ic="'+(ZON_IC[z.name]||'lightbulb')+'"></span>'
+      +'<span class="room-n">'+esc(z.name)+'</span>'
+      +'<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();zonTanda(\''+z.id+'\')" aria-label="tänd/släck"><i></i></button></div>'
+      +'<div class="room-m">'+meta.join('')+'</div>'
+      +'<div class="room-bar"><i style="width:'+Math.round((medel==null?0:medel)*100)+'%"></i></div>'
+      +'</div>';}).join('');
   initIcons(el);
 }
-/* Ett rumskort. */
-function rumKortHTML(z){
-  const lj=ljusIZon(z.id),pa=lj.filter(d=>capOf(d,'onoff')===true);
-  const dimbara=pa.filter(d=>har(d,'dim')&&capOf(d,'dim')!=null);
-  const medel=dimbara.length?dimbara.reduce((s,d)=>s+capOf(d,'dim'),0)/dimbara.length:null;
-  const t=devsIZon(z.id).map(d=>capOf(d,'measure_temperature')).filter(v=>v!=null&&isFinite(v));
-  const ror=devsIZon(z.id).some(d=>capOf(d,'alarm_motion')===true);
-  const meta=[];
-  meta.push('<b>'+pa.length+'</b>/'+lj.length+' tända');
-  if(t.length)meta.push('<b>'+num(t[0],1)+'°</b>');
-  if(ror)meta.push('<span style="color:var(--warm)">rörelse</span>');
-  return '<div class="room'+(pa.length?' on':'')+'" onclick="openRum(\''+z.id+'\')">'
-    +'<div class="room-h"><span class="room-ic ic-slot" data-ic="'+(ZON_IC[z.name]||'lightbulb')+'"></span>'
-    +'<span class="room-n">'+esc(z.name)+'</span>'
-    +'<button class="room-sw'+(pa.length?' on':'')+'" onclick="event.stopPropagation();zonTanda(\''+z.id+'\')" aria-label="tänd/släck"><i></i></button></div>'
-    +'<div class="room-m">'+meta.join('')+'</div>'
-    +'<div class="room-bar"><i style="width:'+Math.round((medel==null?0:medel)*100)+'%"></i></div>'
-    +'</div>';}
 /* De två lampkorten. Egen rad i ett tvåkolumnsgrid: de ska fylla bredden
    tillsammans, inte flyta med bland rummen där antalet kolumner varierar med
    skärmbredden. */
