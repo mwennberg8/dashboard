@@ -113,6 +113,12 @@ function husLjusBygg(el,svg,NS){
   var fl=ny('filter',{id:'hus-mjuk',x:'-30%',y:'-30%',width:'160%',height:'160%'});
   fl.appendChild(ny('feGaussianBlur',{stdDeviation:'7'}));
   defs.appendChild(fl);
+  /* Taken som mask: vitt = ljus syns, svart (taken) = ljus döljs. */
+  var mk=ny('mask',{id:'hus-tak-mask',maskUnits:'userSpaceOnUse',x:'0',y:'0',width:'1040',height:'1120'});
+  mk.appendChild(ny('rect',{x:0,y:0,width:1040,height:1120,fill:'#fff'}));
+  (typeof HUS_TAK!=='undefined'?HUS_TAK:[]).forEach(function(t){
+    mk.appendChild(t.p?ny('polygon',{points:t.p,fill:'#000'}):ny('rect',{x:t.r[0],y:t.r[1],width:t.r[2],height:t.r[3],fill:'#000'}));});
+  defs.appendChild(mk);
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
   var ute=ny('g',{'class':'hus-ute'});
@@ -165,12 +171,14 @@ function husLjusBygg(el,svg,NS){
     fg.appendChild(ny('rect',{x:-2.5,y:-h,width:5,height:w,rx:1.5,fill:'#ffe6b3'}));
     g.appendChild(fg);
   }
+  /* Fönstren i en egen grupp som maskas av taken. */
+  var fonGrp=ny('g',{mask:'url(#hus-tak-mask)'});lj.appendChild(fonGrp);
   HUS_FONSTER.forEach(function(f){
     var grupper={};
     f.p.forEach(function(p){
       var egna=(p[4]&&p[4].length)?p[4]:null,nyckel=egna?egna.join('|'):'';
       if(!grupper[nyckel]){
-        var g=ny('g',{'class':'hus-fonster'});lj.appendChild(g);
+        var g=ny('g',{'class':'hus-fonster'});fonGrp.appendChild(g);
         var kalla=egna?{ids:egna.map(function(n){return HUS_LAMPOR[n];}).filter(Boolean)}:(HUS_RUM[f.rum]||{});
         grupper[nyckel]=g;kallor.push({kalla:kalla,g:g,fonster:true});}
       fonster(grupper[nyckel],p);});
