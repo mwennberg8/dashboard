@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v811';
+const APP_VERSION='v812';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3132,7 +3132,7 @@ var HUS_FALT={
    - bil:   avgreningen ned mellan bilarna till bilrutan (tänd när en bil
             laddar, blek när den bara är inkopplad).
    - sol1–4: solrutan på vänster tak → nedre mitten → övre mitten → höger tak
-            → elcentralen. Varje sträcka bär summan av panelerna före.
+            → elcentralen. Lika tjock hela vägen, efter hela soleffekten.
    - batt:  batteriet → elcentralen (urladdning +, laddning −). */
 var HUS_LEDN=[
   {id:'sol1', typ:'sol', d:'M423,656 H512'},
@@ -3157,9 +3157,6 @@ var HUS_YTOR=[
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
   {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'}
 ];
-/* Panelernas andel per yta (antal paneler av 48): vänster tak 16, nedre mitten
-   12, övre mitten 8, höger tak 12. */
-var HUS_SOL_ANDEL={D:16/48,C:12/48,B:8/48,A:12/48};
 /* LJUSET I NATTBILDEN (index2). Punkterna är Markus markeringar, omräknade
    till bildens koordinater (1040 × 1120) och rätade: lamporna längs
    parkeringen står på en linje utmed stenläggningen, Brevedens lampor och
