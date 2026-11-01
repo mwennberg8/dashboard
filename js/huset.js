@@ -121,7 +121,13 @@ function husLjusBygg(el,svg,NS){
   defs.appendChild(mk);
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
-  var ute=ny('g',{'class':'hus-ute'});
+  /* Utelamporna maskas också av taken: ljuset från en lampa nära ett hörn
+     tonar runt hörnet ute på marken, men aldrig uppe på taket – förut gick
+     kilarna rakt över Brevedens tak med en skarp kant. */
+  var ute=ny('g',{'class':'hus-ute',mask:'url(#hus-tak-mask)'});
+  /* Själva lamporna (de små ljusa punkterna) utanför masken – de sitter på
+     väggen och skulle annars klippas mitt itu. */
+  var karnor=ny('g',{'class':'hus-ute-karnor'});
   /* Väggens sken: ett halvt sken ut från väggen, ritat i lampans egna
      koordinater (ut = +x) med en gradient kring origo. */
   var gv=ny('radialGradient',{id:'hus-g-v',gradientUnits:'userSpaceOnUse',cx:'0',cy:'0',r:'46'});
@@ -145,11 +151,12 @@ function husLjusBygg(el,svg,NS){
           var a0=sp/2+k*15,a1=a0+15.5;
           mj.appendChild(ny('path',{d:hs>0?sektor(a0,a1):sektor(-a1,-a0),fill:'url(#hus-g-v)',opacity:o}));});
         vg.appendChild(mj);}
-      vg.appendChild(ny('circle',{cx:1.5,cy:0,r:4,fill:'#ffe6b0'}));
-      ute.appendChild(vg);return;}
+      ute.appendChild(vg);
+      karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));return;}
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
-    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));});
+    karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));});
   lj.appendChild(ute);
+  lj.appendChild(karnor);
   /* Glastaken först, så att fönstrens sken ligger ovanpå. */
   var kallor=HUS_GLASTAK.map(function(t){
     var g=ny('g',{'class':'hus-fonster'});
