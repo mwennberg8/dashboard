@@ -288,9 +288,10 @@ function husLjusRita(el){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
 }
-/* Kioskläget: menyn syns bara en stund efter att man rört skärmen. */
+/* Plattorna (även väggplattan): menyn syns bara en stund efter att man rört
+   skärmen. Telefonen har den alltid framme. */
 function husMenyVisa(){
-  var b=document.body;if(!b||!b.classList.contains('kiosk')||!b.classList.contains('hus-sida'))return;
+  var b=document.body;if(!b||b.classList.contains('mobile')||!b.classList.contains('hus-sida'))return;
   b.classList.add('meny-visas');
   clearTimeout(_husMenyT);_husMenyT=setTimeout(function(){b.classList.remove('meny-visas');},6000);
 }
