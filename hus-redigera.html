@@ -203,7 +203,7 @@ function ritaHandtag(){
   /* Fälten med siffror, som referens. */
   Object.keys(BAS.FALT).forEach(function(k){var f=BAS.FALT[k];
     svg.appendChild(ny('rect',{x:f.x,y:f.y,width:f.w,height:f.h,rx:14,'class':'faltruta','stroke-width':1.5*u}));
-    var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil (vid laddning)',sol:'Sol',batt:'Batteri'})[k]||k;svg.appendChild(t);});
+    var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil',sol:'Sol',batt:'Batteri',vader:'Väder'})[k]||k;svg.appendChild(t);});
   var efter=null,valdG=null;
   saker.forEach(function(s,i){
     var sel=i===valt,g=ny('g',{'class':'h'+(sel?' vald':''),'data-i':i});
