@@ -40,7 +40,11 @@ label.f{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--fa
 .karta.dag #ljus{display:none}
 .hus-ljus{mix-blend-mode:screen}
 .hus-glastak{opacity:.24}
-#handtag .h{touch-action:none;cursor:grab}
+/* Bara den valda punktens handtag går att dra (och blockerar skrollning).
+   Övriga punkter väljs med ett tryck – annars flyttades en punkt när man
+   råkade börja en svepning för att skrolla på den. */
+#handtag .h{touch-action:auto;cursor:pointer}
+#handtag .h.vald{touch-action:none;cursor:grab}
 #handtag .faltruta{fill:rgba(46,52,64,.28);stroke:rgba(236,239,244,.45);stroke-dasharray:6 6;pointer-events:none}
 #handtag .falttext{fill:rgba(236,239,244,.7);font:700 22px var(--sans);pointer-events:none}
 .karta.dag #handtag .faltruta{fill:rgba(255,255,255,.35);stroke:rgba(46,52,64,.45)}
@@ -200,9 +204,9 @@ function ritaHandtag(){
   Object.keys(BAS.FALT).forEach(function(k){var f=BAS.FALT[k];
     svg.appendChild(ny('rect',{x:f.x,y:f.y,width:f.w,height:f.h,rx:14,'class':'faltruta','stroke-width':1.5*u}));
     var t=ny('text',{x:f.x+12,y:f.y+28,'class':'falttext'});t.textContent=({nat:'Elnät',last:'Förbrukning',bil:'Bil (vid laddning)',sol:'Sol',batt:'Batteri'})[k]||k;svg.appendChild(t);});
-  var efter=null;
+  var efter=null,valdG=null;
   saker.forEach(function(s,i){
-    var sel=i===valt,g=ny('g',{'class':'h','data-i':i});
+    var sel=i===valt,g=ny('g',{'class':'h'+(sel?' vald':''),'data-i':i});
     var farg=s.typ==='ute'?'#fff3d0':(s.lampor&&s.lampor.length?'#a3be8c':'#ffb54d');
     if(s.typ==='fonster'){
       /* Fönstret som en linje längs väggen. */
@@ -227,13 +231,13 @@ function ritaHandtag(){
     }
     g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:20*u,fill:'transparent'}));   /* större träffyta */
     g.appendChild(ny('circle',{cx:s.x,cy:s.y,r:(sel?9:7)*u,fill:sel?'#88c0d0':'rgba(46,52,64,.55)',stroke:sel?'#eceff4':farg,'stroke-width':2.2*u}));
-    svg.appendChild(g);
+    svg.appendChild(g);if(sel)valdG=g;
     /* Den valda punktens vrid- och breddhandtag ritas sist, överst – annars
        tar grannarnas träffytor över när punkterna ligger tätt. */
     if(sel&&(s.typ==='fonster'||s.v!=null))efter=function(){
       var D=Math.max(46*u,40),kx=s.x+Math.cos(s.v*Math.PI/180)*D,ky=s.y+Math.sin(s.v*Math.PI/180)*D;
       svg.appendChild(ny('line',{x1:s.x,y1:s.y,x2:kx,y2:ky,stroke:'#88c0d0','stroke-width':2*u,'stroke-dasharray':(4*u)+' '+(4*u),'pointer-events':'none'}));
-      var k=ny('g',{'class':'h','data-i':i,'data-vrid':'1'});
+      var k=ny('g',{'class':'h vald','data-i':i,'data-vrid':'1'});
       k.appendChild(ny('circle',{cx:kx,cy:ky,r:20*u,fill:'transparent'}));
       k.appendChild(ny('circle',{cx:kx,cy:ky,r:7*u,fill:'#eceff4',stroke:'#88c0d0','stroke-width':2.5*u}));
       svg.appendChild(k);
@@ -244,13 +248,16 @@ function ritaHandtag(){
       [-1,1].forEach(function(sg){
         var ex=s.x+ax*E*sg,ey=s.y+ay*E*sg;
         if(E>s.b/2)svg.appendChild(ny('line',{x1:s.x+ax*s.b/2*sg,y1:s.y+ay*s.b/2*sg,x2:ex,y2:ey,stroke:'#88c0d0','stroke-width':1.5*u,'stroke-dasharray':(3*u)+' '+(3*u),'pointer-events':'none'}));
-        var bg=ny('g',{'class':'h','data-i':i,'data-bredd':sg});
+        var bg=ny('g',{'class':'h vald','data-i':i,'data-bredd':sg});
         bg.appendChild(ny('circle',{cx:ex,cy:ey,r:18*u,fill:'transparent'}));
         bg.appendChild(ny('rect',{x:ex-q,y:ey-q,width:2*q,height:2*q,rx:1.5*u,fill:'#eceff4',stroke:'#88c0d0','stroke-width':2.5*u,
           transform:'rotate('+s.v+' '+ex+' '+ey+')'}));
         svg.appendChild(bg);});
     };
   });
+  /* Den valda punkten överst, så att en granne med överlappande träffyta
+     inte tar trycket. */
+  if(valdG)svg.appendChild(valdG);
   if(efter)efter();
 }
 function rita(){if(!BAS)return;ritaLjus();ritaHandtag();ritaVald();ritaUt();spara();}
@@ -369,9 +376,15 @@ function punkt(e){var svg=$('handtag'),pt=svg.createSVGPoint();pt.x=e.clientX;pt
 $('handtag').addEventListener('pointerdown',function(e){
   var g=e.target.closest&&e.target.closest('.h');
   if(!g){if(valt>=0){valt=-1;ritaHandtag();ritaVald();}return;}
-  e.preventDefault();
   var i=+g.getAttribute('data-i'),p=punkt(e);
-  if(valt!==i){valt=i;senasteRum=saker[i].rum||senasteRum;ritaHandtag();ritaVald();}
+  /* Ett tryck på en ovald punkt väljer den NÄRMASTE punkten – träffytorna
+     är stora och överlappar där punkterna ligger tätt. */
+  if(!g.classList.contains('vald')){var bi=i,bd=1e9;
+    saker.forEach(function(s,j){var d=Math.hypot(s.x-p.x,s.y-p.y);if(d<bd){bd=d;bi=j;}});i=bi;}
+  /* En punkt som inte är vald väljs bara – den flyttas inte förrän man tar i
+     den igen. Ett svep som börjar på den skrollar sidan som vanligt. */
+  if(valt!==i){valt=i;senasteRum=saker[i].rum||senasteRum;ritaHandtag();ritaVald();return;}
+  e.preventDefault();
   drag={i:i,vrid:g.hasAttribute('data-vrid'),bredd:+(g.getAttribute('data-bredd')||0),p0:p,x0:saker[i].x,y0:saker[i].y,b0:saker[i].b,
     fore:JSON.stringify(saker),flyttat:false};
   try{this.setPointerCapture(e.pointerId);}catch(x){}
@@ -379,6 +392,8 @@ $('handtag').addEventListener('pointerdown',function(e){
 $('handtag').addEventListener('pointermove',function(e){
   if(!drag)return;e.preventDefault();
   var s=saker[drag.i],p=punkt(e);
+  /* Små skakningar vid ett tryck flyttar inget: minst 3 skärmpixlar först. */
+  if(!drag.flyttat&&Math.hypot(p.x-drag.p0.x,p.y-drag.p0.y)<3*enhet())return;
   if(drag.bredd){
     /* Bredden ändras lika mycket åt båda håll: dubbla förflyttningen längs väggen. */
     var ar=s.v*Math.PI/180,ax=-Math.sin(ar),ay=Math.cos(ar);
