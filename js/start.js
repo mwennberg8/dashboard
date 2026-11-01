@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v816';
+const APP_VERSION='v817';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3172,7 +3172,7 @@ var HUS_YTOR=[
 var HUS_UTE=[[455,60],[455,212],[455,362],
   /* Breveden: på väggarna nära hörnen, ljuset tonar runt hörnet mot norr respektive söder. */
   [690,112,180,180,1],[830,112,0,180,-1],[690,278,180,180,-1],[830,278,0,180,1],
-  [902,370,315,270],[598,444,270],   /* elcentralen: på poolrummets nordöstra hörn */
+  [902,370,315,270],[536,444,270],   /* elcentralen: på poolrummets nordöstra hörn */
   /* Altanen: en vid vardagsrummet, två utmed poolrummets vägg och en på dess sydöstra hörn. */
   [492,744,90],[740,744,90],[820,744,90],[900,744,45,270]];
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
@@ -3233,12 +3233,12 @@ var HUS_LAMPOR={
    Justeras enklast i hus-redigera.html, som kopierar ut listan i det här
    formatet. Kontorets och lekrummets östfönster lyser ut över poolrummets tak. */
 var HUS_FONSTER=[
-  {rum:'Kök',p:[[523,435,335,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[472,433,210,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[232,510,180,48,['Kök/Köksbord','Kök/Vitrin']],[498,421,270,30]]},
-  {rum:'Vardagsrum',p:[[467,740,90,30,['Vardagsrum/Fönster 1']],[424,740,90,28,['Vardagsrum/Fönster 1']],[234,636,180,44,['Vardagsrum/Fönster 3']],[599,742,90,30]]},
-  {rum:'Kontor',p:[[535,742,90,30],[662,742,90,30],[701,648,0,26]]},
-  {rum:'Hall',p:[[650,445,270,30]]},
+  {rum:'Kök',p:[[445,433,335,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[396,433,210,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[232,510,180,48,['Kök/Köksbord','Kök/Vitrin']],[421,422,270,30]]},
+  {rum:'Vardagsrum',p:[[467,740,90,30,['Vardagsrum/Fönster 1']],[424,740,90,28,['Vardagsrum/Fönster 1']],[234,636,180,44,['Vardagsrum/Fönster 3']]]},
+  {rum:'Kontor',p:[[599,742,90,30],[535,742,90,30],[662,742,90,30],[701,648,0,26]]},
+  {rum:'Hall',p:[[588,445,270,30]]},
   {rum:'Lekrum',p:[[701,506,0,26]]},
-  {rum:'Snickarboa',p:[[148,481,27,22]]},
+  {rum:'Snickarboa',p:[[144,479,27,22]]},
   {rum:'Breveden',p:[[798,93,270,24],[690,145,180,22],[690,232,180,22],[830,145,0,22],[830,232,0,22],[720,94,270,30]]},
   /* Uterummets glasdörrar: ut mot altanen och framåt. */
   {rum:'Uterum',p:[[402,788,0,44],[402,838,0,44],[372,869,90,56],[316,869,90,48],[265,869,90,30],[244,838,180,30]]}
