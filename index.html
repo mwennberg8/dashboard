@@ -3709,6 +3709,22 @@ body.kiosk.hus-sida .flikrad{position:fixed;left:10px;right:10px;bottom:10px;z-i
   transition:transform .25s ease,opacity .25s ease;transform:translateY(140%);opacity:0;pointer-events:none;
   box-shadow:0 10px 30px -10px rgba(0,0,0,.55)}
 body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
+/* LIGGANDE PLATTA (inte väggplattan, inte telefonen): husbilden står fast till
+   vänster, så hög som skärmen tillåter, och rutorna – elpris, väder, rummen –
+   ligger till höger och skrollar förbi. Huset ligger överst i en rad som
+   sträcker sig över alla rader till höger (span), och sticky håller det kvar. */
+@media (orientation:landscape){
+  body.hus-sida:not(.mobile):not(.kiosk){
+    /* Höjden som blir över: sidans kant (2 × 12), raden ovanför huset (~60)
+       och menyn nederst (~90). Bredden följer bildens proportioner. */
+    --hus-w:min(calc((100vh - 175px) * 1040 / 1120),58%)}
+  body.hus-sida:not(.mobile):not(.kiosk) #view-flode{display:grid;
+    grid-template-columns:var(--hus-w) minmax(0,1fr);column-gap:var(--pg-gap,15px);
+    grid-auto-rows:min-content;align-items:start}
+  body.hus-sida:not(.mobile):not(.kiosk) #view-flode>*{grid-column:2;min-width:0}
+  body.hus-sida:not(.mobile):not(.kiosk) #view-flode>#huspanel{grid-column:1;grid-row:1 / span 40;
+    position:sticky;top:12px;margin-bottom:0}
+}
 /* Raden ovanför husbilden: väder och soltider till vänster, notisklockan och
    livepricken till höger (mobilTopp flyttar hit #en-hogra). */
 /* Raden ovanför huset (väder, soltider, klocka, prick) i en egen ruta – samma
