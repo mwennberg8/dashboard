@@ -3702,28 +3702,36 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
    redan 2 px på mobilen). */
 body.mobile:not(.kiosk) #hus-topp{margin-top:max(0px,calc(var(--pg-gap-y,3px) - 2px))}
 #huspanel .hus-karta{border-radius:22px}
-/* KIOSKLÄGET: huset överst – utan notisklocka och liveprick – och
-   menyn dold tills man rör skärmen (husMenyVisa). Då glider den upp en stund. */
-body.kiosk.hus-sida #hus-topp{display:none!important}
-body.kiosk.hus-sida .flikrad{position:fixed;left:10px;right:10px;bottom:10px;z-index:45;margin:0;
-  transition:transform .25s ease,opacity .25s ease;transform:translateY(140%);opacity:0;pointer-events:none;
-  box-shadow:0 10px 30px -10px rgba(0,0,0,.55)}
-body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
+/* MENYN PÅ PLATTORNA (alla, även väggplattan i kiosk): samma stil som på
+   telefonen – fast längst ned, kant i kant – men lite lägre och dold tills man
+   rör skärmen (husMenyVisa). Då glider den upp en stund. */
+body.hus-sida:not(.mobile) .flikrad{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;margin:0;
+  border:0;border-radius:0;background:var(--panel-a);border-top:1px solid var(--line);
+  padding:3px 6px calc(3px + env(safe-area-inset-bottom,0px));
+  box-shadow:0 -8px 20px -14px rgba(0,0,0,.35);
+  transition:transform .25s ease,opacity .25s ease;transform:translateY(110%);opacity:0;pointer-events:none}
+body.hus-sida:not(.mobile).meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
+body.hus-sida:not(.mobile) .flik{min-height:46px;font-size:11.5px}
+body.hus-sida:not(.mobile) .flik .ic{width:22px;height:22px;margin-bottom:2px}
 /* LIGGANDE PLATTA (inte väggplattan, inte telefonen): husbilden står fast till
    vänster, så hög som skärmen tillåter, och rutorna – elpris, väder, rummen –
    ligger till höger och skrollar förbi. Huset ligger överst i en rad som
    sträcker sig över alla rader till höger (span), och sticky håller det kvar. */
 @media (orientation:landscape){
   body.hus-sida:not(.mobile):not(.kiosk){
-    /* Höjden som blir över: sidans kant (2 × 12) och menyn nederst (~90).
-       Bredden följer bildens proportioner. */
-    --hus-w:min(calc((100vh - 120px) * 1040 / 1120),58%)}
+    /* Hälften så mycket luft mellan och runt rutorna som i stående. */
+    --pg-gap:7px;--pg-gap-y:7px;
+    /* Huset fyller hela skärmens höjd (menyn är dold och glider in ovanpå);
+       bredden följer bildens proportioner. */
+    --hus-w:min(calc((100vh - 14px) * 1040 / 1120),70%)}
+  body.hus-sida:not(.mobile):not(.kiosk){padding:0}
+  body.hus-sida:not(.mobile):not(.kiosk) .wrap{padding:7px;max-width:none}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode{display:grid;
-    grid-template-columns:var(--hus-w) minmax(0,1fr);column-gap:var(--pg-gap,15px);
+    grid-template-columns:var(--hus-w) minmax(0,1fr);column-gap:var(--pg-gap);
     grid-auto-rows:min-content;align-items:start}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode>*{grid-column:2;min-width:0}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode>#huspanel{grid-column:1;grid-row:1 / span 40;
-    position:sticky;top:12px;margin-bottom:0}
+    position:sticky;top:7px;margin-bottom:0}
 }
 /* Raden ovanför husbilden: väder och soltider till vänster, notisklockan och
    livepricken till höger (mobilTopp flyttar hit #en-hogra). */
