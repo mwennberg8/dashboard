@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v827';
+const APP_VERSION='v828';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3251,6 +3251,12 @@ var HUS_GLASTAK=[
   {rum:'Uterum',tak:[[242,735,160,130]],sken:[322,815,175,140]},
   {rum:'Grovuterum',tak:[[112,697,130,113]],sken:[177,760,140,112]}
 ];
+/* Väggplattan: orörd en minut → upp till toppen igen (husViloKoll). Varje
+   beröring, tangent eller skrollning med fingret räknas som aktivitet. */
+var HUS_VILA_MS=60000,_husAktiv=Date.now();
+try{['pointerdown','touchstart','keydown','wheel'].forEach(function(t){
+  document.addEventListener(t,function(){_husAktiv=Date.now();},{capture:true,passive:true});});
+  setInterval(function(){try{husViloKoll();}catch(e){}},5000);}catch(e){}
 /* Kioskläget: en beröring var som helst visar menyn en stund. */
 var _husMenyT=null;
 try{document.addEventListener('pointerdown',function(){try{husMenyVisa();}catch(e){}},true);}catch(e){}
