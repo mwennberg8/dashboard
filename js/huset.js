@@ -282,11 +282,18 @@ function husLjusRita(el){
   try{husUteRita(el);}catch(e){}
   var fs=husFonsterStyrka();
   (el._fonster||[]).forEach(function(f){
-    var l=husKallaLjus(f.kalla),pa=l!=null,k=pa?0.4+0.6*l:1;
-    var ff=f.fonster?fs:1;
-    if(f.fonster&&ff>1)k*=Math.sqrt(ff);
+    /* v835: ljuset följer dimningen tydligare. Förut gav 1 % och 12 % nästan
+       samma sken (0,26 mot 0,34 i styrka). Nu en kurva som liknar hur en
+       dimmad lampa upplevs: 1 % ≈ 0,06, 12 % ≈ 0,28, 50 % ≈ 0,66, 100 % = 1.
+       Utelamporna (bara på/av) påverkas inte. */
+    var l=husKallaLjus(f.kalla),pa=l!=null,u=pa?Math.pow(Math.max(0,Math.min(1,l)),0.6):1;
+    var k=pa?0.35+0.65*u:1;
+    /* Styrkan i inställningarna gäller fönster, glasdörrar och glastaken –
+       förut inte glastaken, som därför lyste starkare än fönstren. */
+    var ff=(f.kalla&&f.kalla.baraPa)?1:fs;
+    if(ff>1)k*=Math.sqrt(ff);
     f.g.classList.toggle('pa',pa);
-    f.g.style.opacity=pa?String(Math.min(1,(0.25+0.75*l)*ff)):'';
+    f.g.style.opacity=pa?String(Math.min(1,Math.max(0.06,u)*ff)):'';
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-l]'),function(c){
       c.setAttribute('transform','scale('+k.toFixed(3)+',1)');});
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){

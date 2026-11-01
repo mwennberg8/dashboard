@@ -1526,7 +1526,7 @@ function openConfig(){
   h+='<div class="cfg-sec">Husbilden</div>';
   h+=stepRow('Ljus från fönstren','cfgnum-husfon',Math.round(husFonsterStyrka()*100)+' %','cfgHusFonster');
   h+=stepRow('Ljus från utelamporna','cfgnum-husute',Math.round(husUteStyrka()*100)+' %','cfgHusUte');
-  h+='<div class="cfg-hint">Skenet från fönster, glasdörrar och utelampor i nattbilden. Under 100 % lyser de svagare, över 100 % starkare och längre ut.</div>';
+  h+='<div class="cfg-hint">Skenet från fönster, glasdörrar, glastaken och utelampor i nattbilden. Under 100 % lyser de svagare, över 100 % starkare och längre ut.</div>';
   h+='<div class="cfg-menu" style="margin-top:8px">'+cfgMi("window.open('hus-redigera.html','_blank','noopener')",'lamp','Flytta fönster och lampor','Redigeraren öppnas i en ny flik')+'</div>';
   h+='<div class="cfg-sec">Köpt/sålt-rutan</div>';
   h+=krcOpRow();
