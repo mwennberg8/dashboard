@@ -122,21 +122,27 @@ function husLjusBygg(el,svg,NS){
   fl2.appendChild(ny('feGaussianBlur',{stdDeviation:'3'}));
   defs.appendChild(fl2);
   /* Taken som mask: vitt = ljus syns, svart (taken) = ljus döljs. */
-  var mk=ny('mask',{id:'hus-tak-mask',maskUnits:'userSpaceOnUse',x:'0',y:'0',width:'1040',height:'1120'});
-  mk.appendChild(ny('rect',{x:0,y:0,width:1040,height:1120,fill:'#fff'}));
-  (typeof HUS_TAK!=='undefined'?HUS_TAK:[]).forEach(function(t){
-    mk.appendChild(t.p?ny('polygon',{points:t.p,fill:'#000'}):ny('rect',{x:t.r[0],y:t.r[1],width:t.r[2],height:t.r[3],fill:'#000'}));});
-  defs.appendChild(mk);
+  /* Två masker: fönstren döljs av HUS_TAK, utelamporna dessutom av de lägre
+     taken (poolrummet), som fönstren i stora huset lyser ut över. */
+  function takMask(id,lista){
+    var mk=ny('mask',{id:id,maskUnits:'userSpaceOnUse',x:'0',y:'0',width:'1040',height:'1120'});
+    mk.appendChild(ny('rect',{x:0,y:0,width:1040,height:1120,fill:'#fff'}));
+    lista.forEach(function(t){
+      mk.appendChild(t.p?ny('polygon',{points:t.p,fill:'#000'}):ny('rect',{x:t.r[0],y:t.r[1],width:t.r[2],height:t.r[3],fill:'#000'}));});
+    defs.appendChild(mk);}
+  var tak=typeof HUS_TAK!=='undefined'?HUS_TAK:[],lag=typeof HUS_TAK_LAG!=='undefined'?HUS_TAK_LAG:[];
+  takMask('hus-tak-mask',tak);
+  takMask('hus-tak-mask-ute',tak.concat(lag));
   svg.appendChild(defs);
   var lj=ny('g',{'class':'hus-ljus'});
   /* Utelamporna maskas också av taken: ljuset från en lampa nära ett hörn
      tonar runt hörnet ute på marken, men aldrig uppe på taket – förut gick
      kilarna rakt över Brevedens tak med en skarp kant. */
-  var ute=ny('g',{'class':'hus-ute',mask:'url(#hus-tak-mask)'});
+  var ute=ny('g',{'class':'hus-ute',mask:'url(#hus-tak-mask-ute)'});
   /* Själva lamporna (de små ljusa punkterna) ligger också under taken: en
      lampa på väggen syns som en halv punkt ut från väggen, en lampa som sitter
      lite in under taket syns inte alls – precis som fönstren. */
-  var karnor=ny('g',{'class':'hus-ute-karnor',mask:'url(#hus-tak-mask)'});
+  var karnor=ny('g',{'class':'hus-ute-karnor',mask:'url(#hus-tak-mask-ute)'});
   /* Väggens sken: ett halvt sken ut från väggen, ritat i lampans egna
      koordinater (ut = +x) med en gradient kring origo. */
   var gv=ny('radialGradient',{id:'hus-g-v',gradientUnits:'userSpaceOnUse',cx:'0',cy:'0',r:'46'});

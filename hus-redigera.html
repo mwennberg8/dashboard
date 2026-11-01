@@ -150,8 +150,8 @@ fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then
   var a=t.indexOf('/* ---------- [huset.js] ---------- */'),b=t.indexOf('/* ---------- [',a+10);
   if(a<0||b<0)throw new Error('Hittar inte [huset.js] i start.js');
   var sek=t.slice(a,b);BAS_ID=hash(sek);
-  BAS=new Function(sek+';return {UTE:HUS_UTE,FONSTER:HUS_FONSTER,GLASTAK:HUS_GLASTAK,RUM:HUS_RUM,FALT:HUS_FALT,LAMPOR:HUS_LAMPOR,TAK:(typeof HUS_TAK!=="undefined"?HUS_TAK:[])};')();
-  window.HUS_RUM=BAS.RUM;window.HUS_GLASTAK=BAS.GLASTAK;window.HUS_LAMPOR=BAS.LAMPOR;window.HUS_TAK=BAS.TAK;
+  BAS=new Function(sek+';return {UTE:HUS_UTE,FONSTER:HUS_FONSTER,GLASTAK:HUS_GLASTAK,RUM:HUS_RUM,FALT:HUS_FALT,LAMPOR:HUS_LAMPOR,TAK:(typeof HUS_TAK!=="undefined"?HUS_TAK:[]),TAKLAG:(typeof HUS_TAK_LAG!=="undefined"?HUS_TAK_LAG:[])};')();
+  window.HUS_RUM=BAS.RUM;window.HUS_GLASTAK=BAS.GLASTAK;window.HUS_LAMPOR=BAS.LAMPOR;window.HUS_TAK=BAS.TAK;window.HUS_TAK_LAG=BAS.TAKLAG;
   $('prova').innerHTML='<option value="">Allt tänt</option>'+Object.keys(BAS.LAMPOR).map(function(n){
     return '<option value="'+esc(n)+'">'+esc(n.replace('/',' · '))+'</option>';}).join('');
   var sparat=null;try{sparat=JSON.parse(localStorage.getItem(NYCKEL)||'null');}catch(e){}
