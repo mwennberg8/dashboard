@@ -14,11 +14,14 @@ function husVarden(){
   if(sol==null)sol=cap(DEV.consume,'measure_power.solar');
   var nat=cap(DEV.pulse,'measure_power');
   var last=houseNowW();
-  /* Batteriet: Modbus-registren (laddning − urladdning) i första hand, som
-     resten av dashboarden; annars husbatteriets effekt och läge. */
-  var batt=null,bn=null;
-  try{bn=battNettoW();}catch(e){}
-  if(bn!=null&&isFinite(bn))batt=-bn;
+  /* Batteriet: samma källa som resten av dashboarden (battVal i grund.js –
+     Husbatteri, eller Modbus när Husbatteri hängt sig). Förut lästes Modbus
+     direkt här, och när Modbus slutade uppdateras stod effekten och ledningen
+     still medan laddnivån (som redan gick via valet) rörde sig.
+     energy_power har tecken: + = laddar. Här gäller + = laddar ur. */
+  var batt=null,en=null;
+  try{en=cap(DEV.battery,'energy_power');}catch(e){}
+  if(en!=null&&isFinite(en))batt=-en;
   else{
     var bw=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state');
     if(bw!=null)batt=(bs==='charging')?-Math.abs(bw):(bs==='discharging'?Math.abs(bw):0);
