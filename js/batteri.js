@@ -1025,7 +1025,8 @@ function flikradBygg(){
   hallInne(nav.querySelector('[data-flik="flode"]'),function(){openConfig();});
   flikradAktiv();
   mobilTopp(mob);
-  if(mob)flikSkroll();
+  /* v833: med husbilden glider menyn undan vid skrollning även på plattorna. */
+  if(mob||document.body.classList.contains('hus-sida'))flikSkroll();
 }
 /* TOPPRADEN BORT I MOBILLÄGET (v676). Vyerna finns i flikraden; klockan och
    liveprickan flyttar in i energirutan, till höger om brickorna Självförsörjt

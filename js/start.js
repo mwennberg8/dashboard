@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v832';
+const APP_VERSION='v833';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3158,7 +3158,9 @@ var HUS_YTOR=[
   {pop:'uterum',r:[242,735,160,130]},     /* uterummet */
   {pop:'uterum',r:[112,697,130,113]},     /* den inglasade delen bredvid */
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
-  {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'}
+  {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'},
+  /* Äppelträdet: håll inne för inställningarna (väggplattan har ingen meny). */
+  {hall:'openConfig()',c:[381,147,40]}
 ];
 /* LJUSET I NATTBILDEN. Punkterna är Markus markeringar, omräknade
    till bildens koordinater (1040 × 1120) och rätade: lamporna längs
@@ -3260,9 +3262,6 @@ var HUS_VILA_MS=60000,_husAktiv=Date.now();
 try{['pointerdown','touchstart','keydown','wheel'].forEach(function(t){
   document.addEventListener(t,function(){_husAktiv=Date.now();},{capture:true,passive:true});});
   setInterval(function(){try{husViloKoll();}catch(e){}},5000);}catch(e){}
-/* Plattorna: en beröring var som helst visar menyn en stund. */
-var _husMenyT=null;
-try{document.addEventListener('pointerdown',function(){try{husMenyVisa();}catch(e){}},true);}catch(e){}
 /* TAKEN, för fönsterljuset: ljuset från fönster och glasdörrar ritas bara
    utanför taken, så att ett fönster som ligger lite indraget hamnar under
    taket med sitt sken. Polygon (punkter) eller rektangel [x,y,b,h].

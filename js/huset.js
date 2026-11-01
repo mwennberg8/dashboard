@@ -68,14 +68,19 @@ function husBygg(el){
   var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
   el.insertAdjacentHTML('beforeend',h);
   var svg=$('hus-svg'),karta=$('hus-karta');
-  try{document.body.classList.add('hus-sida');}catch(e){}
+  try{document.body.classList.add('hus-sida');
+    document.body.classList.toggle('vaggplatta',!!arVaggplattaVy());}catch(e){}
   /* Tryckytorna: solpanelerna, uterummet, Breveden, Snickarboa. */
   var yt=$('hus-ytor');
   (typeof HUS_YTOR!=='undefined'?HUS_YTOR:[]).forEach(function(y){
-    var e=y.p?document.createElementNS(NS,'polygon'):document.createElementNS(NS,'rect');
+    var e=y.p?document.createElementNS(NS,'polygon'):(y.c?document.createElementNS(NS,'circle'):document.createElementNS(NS,'rect'));
     if(y.p)e.setAttribute('points',y.p);
+    else if(y.c){e.setAttribute('cx',y.c[0]);e.setAttribute('cy',y.c[1]);e.setAttribute('r',y.c[2]);}
     else{e.setAttribute('x',y.r[0]);e.setAttribute('y',y.r[1]);e.setAttribute('width',y.r[2]);e.setAttribute('height',y.r[3]);e.setAttribute('rx',8);}
-    e.setAttribute('class','hus-yta');e.setAttribute('onclick',"openDetail('"+y.pop+"')");
+    e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':''));
+    if(y.pop)e.setAttribute('onclick',"openDetail('"+y.pop+"')");
+    /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
+    if(y.hall)try{hallInne(e,new Function(y.hall));}catch(x){}
     yt.appendChild(e);});
   husLjusBygg(el,svg,NS);
   el._ledn={};
@@ -288,13 +293,6 @@ function husLjusRita(el){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
 }
-/* Plattorna (även väggplattan): menyn syns bara en stund efter att man rört
-   skärmen. Telefonen har den alltid framme. */
-function husMenyVisa(){
-  var b=document.body;if(!b||b.classList.contains('mobile')||!b.classList.contains('hus-sida'))return;
-  b.classList.add('meny-visas');
-  clearTimeout(_husMenyT);_husMenyT=setTimeout(function(){b.classList.remove('meny-visas');},6000);
-}
 /* Väggplattan (kiosk): har ingen rört skärmen på HUS_VILA_MS skrollar sidan
    mjukt upp till huset igen. Inte medan en popup är öppen. */
 function husViloKoll(){
@@ -303,6 +301,9 @@ function husViloKoll(){
   try{if(!arVaggplattaVy())return;}catch(e){return;}
   if(Date.now()-_husAktiv<HUS_VILA_MS)return;
   var bk=document.getElementById('dlg-back');if(bk&&bk.classList.contains('open'))return;
+  /* Står väggplattan på en annan vy (Väder via väderkortet) går den hem –
+     den har ingen meny att gå tillbaka med. */
+  try{var hem=document.getElementById('view-flode');if(hem&&hem.classList.contains('hidden')){goHome();return;}}catch(e){}
   if((window.scrollY||document.documentElement.scrollTop||0)>0){
     try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}}
 }
