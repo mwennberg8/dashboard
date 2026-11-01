@@ -3697,7 +3697,10 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
    Ritas av husRita() i js/huset.js. */
 /* Huset ligger inte i en ruta: kartan går ut till samma bredd som panelerna. */
 #view-flode>#huspanel.panel{padding:0;background:none;border:0;box-shadow:none;
-  display:flex;flex-direction:column;gap:10px}
+  display:flex;flex-direction:column;gap:var(--pg-gap-y,var(--pg-gap,7px))}
+/* Raden överst har samma luft över sig som mellan rutorna (sidans kant har
+   redan 2 px på mobilen). */
+body.mobile:not(.kiosk) #hus-topp{margin-top:max(0px,calc(var(--pg-gap-y,3px) - 2px))}
 #huspanel .hus-karta{border-radius:22px}
 /* KIOSKLÄGET: huset överst – utan notisklocka och liveprick – och
    menyn dold tills man rör skärmen (husMenyVisa). Då glider den upp en stund. */
