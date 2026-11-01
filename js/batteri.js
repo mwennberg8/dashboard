@@ -1017,6 +1017,9 @@ function flikradBygg(){
   if(nav.parentElement!==hem)hem.appendChild(nav);
   var flikar=FLIKAR.slice();
   if(gbgKnappSyns())flikar.push(['gbg','arrows-left-right','Göteborg','husVaxla()']);
+  /* Med husbilden ligger klockan och pricken i menyn (mobilTopp). Rädda dem
+     innan menyn ritas om – innerHTML skulle annars ta bort dem. */
+  var hh=document.getElementById('en-hogra');if(hh&&nav.contains(hh))document.body.appendChild(hh);
   nav.innerHTML=flikar.map(function(f){return '<button type="button" class="flik" data-flik="'+f[0]+'" onclick="'+f[3]+'">'
     +icon(f[1])+'<span>'+f[2]+'</span></button>';}).join('');
   hallInne(nav.querySelector('[data-flik="flode"]'),function(){openConfig();});
@@ -1035,7 +1038,14 @@ function mobilTopp(mob){
      i #hus-topp i stället för i energipanelen. Finns ingen sådan plats
      (index.html) gäller allt nedan som förut. */
   var husTopp=document.getElementById('hus-topp');
-  if(husTopp){if(h.parentElement!==husTopp)husTopp.appendChild(h);
+  if(husTopp){
+    /* v830: notisklockan och livepricken ligger sist i menyn (flikraden).
+       Raden ovanför huset används inte längre. */
+    var nav=document.getElementById('flikrad'),mal=husTopp;
+    if(nav){var f=document.getElementById('flik-status');
+      if(!f||f.parentElement!==nav){f=document.createElement('div');f.id='flik-status';f.className='flik-status';nav.appendChild(f);}
+      mal=f;}
+    if(h.parentElement!==mal)mal.appendChild(h);
     document.body.classList.add('topp-flyttad');return;}
   /* ALTERNATIV A (v678): två fasta rader. Rad 1 = förbrukningen och, till
      höger, klockan och pricken. Rad 2 = Självförsörjt och elpriset, lika

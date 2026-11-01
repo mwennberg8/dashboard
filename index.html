@@ -3715,9 +3715,9 @@ body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:
    sträcker sig över alla rader till höger (span), och sticky håller det kvar. */
 @media (orientation:landscape){
   body.hus-sida:not(.mobile):not(.kiosk){
-    /* Höjden som blir över: sidans kant (2 × 12), raden ovanför huset (~60)
-       och menyn nederst (~90). Bredden följer bildens proportioner. */
-    --hus-w:min(calc((100vh - 175px) * 1040 / 1120),58%)}
+    /* Höjden som blir över: sidans kant (2 × 12) och menyn nederst (~90).
+       Bredden följer bildens proportioner. */
+    --hus-w:min(calc((100vh - 120px) * 1040 / 1120),58%)}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode{display:grid;
     grid-template-columns:var(--hus-w) minmax(0,1fr);column-gap:var(--pg-gap,15px);
     grid-auto-rows:min-content;align-items:start}
@@ -3733,6 +3733,29 @@ body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:
   background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);border-radius:var(--r);
   box-shadow:inset 0 1px 0 var(--panel-inset),var(--panel-shadow);padding:9px 12px}
 .hus-topp:empty{display:none}
+/* v830: raden ovanför huset används inte – klockan och pricken ligger i menyn,
+   vädret i väderkortet i husbilden. */
+body.hus-sida #hus-topp{display:none!important}
+body.hus-sida .en-wxrad{display:none!important}
+/* Plattan: väderavsnittet på startsidan behövs inte – väderkortet i huset tar
+   dess plats och leder till Väder-sidan. */
+body.hus-sida:not(.mobile) #view-flode>[data-sec="weather"]{display:none!important}
+/* Klockan och pricken sist i menyn. */
+.flikrad .flik-status{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 10px 0 4px}
+.flikrad .flik-status .en-hogra{display:flex!important;align-items:center;gap:8px;margin:0!important}
+/* Väderkortet i husbilden. */
+.hus-falt.hus-vader{gap:.6cqw;padding:1.2cqw 1.8cqw 1.2cqw 2.7cqw}
+.hus-vader .hv-rad{display:flex;align-items:center;gap:1.2cqw;white-space:nowrap}
+.hus-vader .hv-ic{display:inline-flex;width:4.6cqw;height:4.6cqw;color:var(--gold,#d9a521);flex:0 0 auto}
+.hus-vader .hv-ic svg{width:100%;height:100%}
+.hus-vader .hv-t{font:800 4.8cqw/1 var(--sans,inherit);letter-spacing:-.02em}
+.hus-vader .hv-sma{font:700 2.4cqw/1.25 var(--sans,inherit)}
+.hus-vader .hv-hl{white-space:pre}
+.hus-vader .hv-hl i{font-style:normal;opacity:.6;margin-right:.3cqw}
+.hus-vader .hv-vind{display:inline-flex;align-items:center;gap:.6cqw}
+.hus-vader .hv-vind small{font-size:1.9cqw;opacity:.65}
+.hus-vader .wx-arrow{display:inline-flex;width:2.6cqw;height:2.6cqw;color:var(--f)}
+.hus-vader .wx-arrow svg{width:100%;height:100%}
 .hus-topp .en-hogra{flex:1 1 auto!important;justify-content:flex-end;margin:0!important}
 .hus-topp .en-wxrad{margin-right:auto}
 .hus-karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;

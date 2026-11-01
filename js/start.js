@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v829';
+const APP_VERSION='v830';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3108,7 +3108,7 @@ setInterval(checkForUpdate,60000);
 /* Huset ovanifrån (startsidan, index.html; förut betan index2, till v825). Koordinater i bildens mått, 1040 × 1120
    (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
    före den här raden, och då ska husRita få undefined och inte ett fel. */
-var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0'};
+var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0',vader:'#6f9fc8'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
   nat:  {x:20, y:20,  w:225,h:148, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
@@ -3116,6 +3116,9 @@ var HUS_FALT={
   /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
      tak), bilen under bilarna, batteriet under husbatteriet. */
   sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
+  /* Väderkortet nere till höger: väder, temperatur, lägst/högst i dag och vind
+     med riktningspil. Tryck öppnar Väder-sidan. */
+  vader:{x:760,y:946, w:260,h:154, typ:'vader',fn:'openVader()'},   /* 20 från kanterna, som Elnät */
   bil:  {x:500,y:282, w:170,h:56,  typ:'bil',  pop:'cars', liten:true},
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true}
 };

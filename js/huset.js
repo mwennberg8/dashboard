@@ -93,7 +93,8 @@ function husBygg(el){
     b.type='button';b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
     b.style.left=(f.x/1040*100)+'%';b.style.top=(f.y/1120*100)+'%';
     b.style.width=(f.w/1040*100)+'%';b.style.height=(f.h/1120*100)+'%';
-    b.setAttribute('onclick',"openDetail('"+f.pop+"')");
+    b.setAttribute('onclick',f.fn||("openDetail('"+f.pop+"')"));
+    if(f.typ==='vader')b.className+=' hus-vader';
     karta.appendChild(b);el._falt[k]=b;
   });
   el._byggd=true;
@@ -302,6 +303,21 @@ function husViloKoll(){
   if((window.scrollY||document.documentElement.scrollTop||0)>0){
     try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}}
 }
+/* Väderkortet: ikon och temperatur, lägst/högst i dag och vind med pil –
+   samma värden som väderkortet på Väder-sidan (buildWeatherCompactHTML). */
+function husVaderFyll(b){
+  if(!b)return;
+  var sit=cap(DEV.smhi,'measure_weather_situation_cp'),t=cap(DEV.outdoor,'measure_temperature');
+  var ex={min:null,max:null};try{ex=tempExtremes(t)||ex;}catch(e){}
+  var ws=null;try{ws=vindMs();}catch(e){}
+  var wd=cap(DEV.windNet,'measure_wind_angle');if(wd==null)wd=cap(DEV.smhi,'measure_wind_direction_cp');
+  var g=function(v){return v==null||!isFinite(v)?'–':num(v,0)+'°';};
+  b.innerHTML='<span class="hv-rad"><span class="hv-ic">'+icon(wxIcon(sit))+'</span>'
+    +'<span class="hv-t">'+(t==null?'–':num(t,1)+'°')+'</span></span>'
+    +'<span class="hv-rad hv-sma"><span class="hv-hl"><i>↓</i>'+g(ex.min)+'  <i>↑</i>'+g(ex.max)+'</span></span>'
+    +'<span class="hv-rad hv-sma"><span class="hv-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,1))+'<small> m/s</small></span></span>';
+  b.title=(sit||'Väder')+' – öppna Väder';
+}
 function husFyll(b,rub,w,under){
   var t=husTal(w);
   b.innerHTML='<span class="rub"><i></i>'+esc(rub)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
@@ -407,6 +423,7 @@ function husRita(){
   husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
   el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
+  try{husVaderFyll(el._falt.vader);}catch(e){}
   var laddar=v.bil>=50;
   husFyllLiten(el._falt.bil,'bil',laddar?v.bil:0,'',null);
   el._falt.bil.title=v.bilNamn+(laddar?' laddar':' inkopplad')+(v.bilSoc!=null?' · '+Math.round(v.bilSoc)+' %':'');
