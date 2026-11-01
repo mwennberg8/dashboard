@@ -113,6 +113,10 @@ function husLjusBygg(el,svg,NS){
   var fl=ny('filter',{id:'hus-mjuk',x:'-30%',y:'-30%',width:'160%',height:'160%'});
   fl.appendChild(ny('feGaussianBlur',{stdDeviation:'7'}));
   defs.appendChild(fl);
+  /* Mildare suddning för utelamporna nära ett hörn – deras sken är litet. */
+  var fl2=ny('filter',{id:'hus-mjuk-l',x:'-30%',y:'-30%',width:'160%',height:'160%'});
+  fl2.appendChild(ny('feGaussianBlur',{stdDeviation:'3'}));
+  defs.appendChild(fl2);
   /* Taken som mask: vitt = ljus syns, svart (taken) = ljus döljs. */
   var mk=ny('mask',{id:'hus-tak-mask',maskUnits:'userSpaceOnUse',x:'0',y:'0',width:'1040',height:'1120'});
   mk.appendChild(ny('rect',{x:0,y:0,width:1040,height:1120,fill:'#fff'}));
@@ -142,12 +146,15 @@ function husLjusBygg(el,svg,NS){
       function sektor(a0,a1){var r0=a0*Math.PI/180,r1=a1*Math.PI/180;
         return 'M0,0 L'+(R*Math.cos(r0)).toFixed(1)+','+(R*Math.sin(r0)).toFixed(1)
           +' A'+R+','+R+' 0 '+((a1-a0)>180?1:0)+' 1 '+(R*Math.cos(r1)).toFixed(1)+','+(R*Math.sin(r1)).toFixed(1)+' Z';}
-      vg.appendChild(ny('path',{d:sektor(-sp/2,sp/2),fill:'url(#hus-g-v)'}));
       /* Nära ett hörn (femte värdet ±1): ljuset fortsätter mjukt runt hörnet
-         på den sidan, i smala kilar som tonar ut över 90°. */
+         på den sidan, i smala kilar som tonar ut över 90°. Halvcirkeln ligger
+         då i samma suddade grupp som kilarna – annars syns ett skarpt hopp
+         där de möts nedanför hörnet. Mot taken klipper takmasken ändå skarpt. */
       var hs=p[4]===1||p[4]===-1?p[4]:0;
-      if(hs){var mj=ny('g',{filter:'url(#hus-mjuk)'});
-        [.78,.58,.42,.28,.17,.08].forEach(function(o,k){
+      var huvud=ny('path',{d:sektor(-sp/2,sp/2),fill:'url(#hus-g-v)'});
+      if(!hs)vg.appendChild(huvud);
+      if(hs){var mj=ny('g',{filter:'url(#hus-mjuk-l)'});mj.appendChild(huvud);
+        [.88,.68,.5,.34,.2,.09].forEach(function(o,k){
           var a0=sp/2+k*15,a1=a0+15.5;
           mj.appendChild(ny('path',{d:hs>0?sektor(a0,a1):sektor(-a1,-a0),fill:'url(#hus-g-v)',opacity:o}));});
         vg.appendChild(mj);}
