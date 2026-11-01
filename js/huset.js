@@ -57,9 +57,10 @@ function husBygg(el){
   if(el._byggd)return;
   var NS='http://www.w3.org/2000/svg';
   var h='<div class="hus-karta" id="hus-karta">'
-    /* Två bilder: dag i ljust tema, kväll/natt i mörkt (CSS väljer efter data-theme). */
-    +'<img class="hus-natt" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån">'
-    +'<img class="hus-dag" src="bild/hus-ovanifran.webp" alt="">'
+    /* Två bilder: dag i ljust tema, kväll/natt i mörkt (CSS väljer efter
+       data-theme). Årstiden (och snön) avgör vilket par – husRita byter. */
+    +'<img class="hus-natt" id="hus-img-natt" src="bild/hus-'+husBildNamn()+'-natt.webp" alt="Huset ovanifrån">'
+    +'<img class="hus-dag" id="hus-img-dag" src="bild/hus-'+husBildNamn()+'.webp" alt="">'
     +'<svg viewBox="0 0 1040 1120" class="hus-ytor" id="hus-ytor"></svg>'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
   /* Efter det som redan står i panelen (index2: raden #hus-topp överst). En
@@ -141,7 +142,23 @@ function husLjusBygg(el,svg,NS){
   [['0','1'],['.3','.6'],['1','0']].forEach(function(st){
     gv.appendChild(ny('stop',{offset:st[0],'stop-color':'#ffd48a','stop-opacity':st[1]}));});
   defs.appendChild(gv);
+  /* En utelampa kan följa en lampa i Homey (sjätte värdet, t.ex.
+     'Breveden/Utebelysning'): då lyser den bara när lampan är på. Annars
+     lyser den alltid i nattbilden (de tänds automatiskt på kvällen). */
+  var uteKallor=[];
   HUS_UTE.forEach(function(p){
+    var nyckel=p[5],id=nyckel&&HUS_LAMPOR[nyckel];
+    var ute0=ute,karnor0=karnor;
+    if(id){
+      var gu=ny('g',{'class':'hus-fonster'}),gk=ny('g',{'class':'hus-fonster'});
+      ute0.appendChild(gu);karnor0.appendChild(gk);
+      uteKallor.push({kalla:{ids:[id],baraPa:true},g:gu},{kalla:{ids:[id],baraPa:true},g:gk});
+      ute=gu;karnor=gk;
+    }
+    ritaUte(p);
+    ute=ute0;karnor=karnor0;
+  });
+  function ritaUte(p){
     if(p.length>2&&p[2]!=null){
       var vg=ny('g',{transform:'translate('+p[0]+','+p[1]+') rotate('+p[2]+')'});
       /* En sektor kring riktningen: 180° på en vägg, 270° på ett hörn. */
@@ -164,7 +181,7 @@ function husLjusBygg(el,svg,NS){
       ute.appendChild(vg);
       karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));return;}
     ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
-    karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));});
+    karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));}
   lj.appendChild(ute);
   lj.appendChild(karnor);
   /* Glastaken först, så att fönstrens sken ligger ovanpå. */
@@ -200,7 +217,7 @@ function husLjusBygg(el,svg,NS){
         grupper[nyckel]=g;kallor.push({kalla:kalla,g:g,fonster:true});}
       fonster(grupper[nyckel],p);});
   });
-  el._fonster=kallor;
+  el._fonster=kallor.concat(uteKallor);
   svg.appendChild(lj);
 }
 /* Ljuset från en källa, 0–1, eller null om ingen lampa lyser: den starkast
@@ -215,6 +232,8 @@ function husKallaLjus(k){
     var d=DATA[id];if(!d)return;
     /* Uttryckligen valda lampor: precis de, oavsett typ. */
     if(k.ids){if(k.ids.indexOf(id)<0||cap(id,'onoff')!==true)return;
+      /* Utelamporna: på eller av räcker (Utebelysning rapporterar dim 0 när den är på). */
+      if(k.baraPa){max=1;return;}
       var di=cap(id,'dim');di=(di==null||!isFinite(di))?1:Math.max(0,Math.min(1,di));
       max=Math.max(max==null?0:max,di);return;}
     if(HUS_EJ_FONSTER[id])return;
@@ -275,11 +294,48 @@ function husFyllLiten(b,typ,w,extra,niva){
     +(extra?'<span class="hx">'+esc(extra)+'</span>':'');
   b.classList.toggle('noll',!(w!=null&&Math.abs(w)>=50));
 }
+/* ÅRSTIDEN efter kalendern: vår mars–maj, sommar juni–augusti, höst
+   september–november, vinter december–februari. Snöbilden bara när det ligger
+   snö – då även utanför vintermånaderna; annars vintern utan snö. */
+function husArstid(d){var m=(d||new Date()).getMonth();
+  return m>=2&&m<=4?'var':(m>=5&&m<=7?'sommar':(m>=8&&m<=10?'host':'vinter'));}
+function husBildNamn(){
+  if(husSnoNu())return 'vinter';
+  var a=husArstid();return a==='vinter'?'vinter-utan-sno':a;}
+/* Ligger det snö? Snödjupet från Open-Meteo (minst 1 cm, högst sex timmar
+   gammalt), eller dashboardens egen snödetektor som sett snö på panelerna i dag. */
+function husSnoNu(){
+  try{if(isDemo())return false;}catch(e){}
+  var c=_husSno;
+  if(c&&c.m!=null&&isFinite(c.m)&&Date.now()-c.t<6*3600000&&c.m>=0.01)return true;
+  try{var o=snowGet(),e=o[dayKey()];if(e&&e[0]>0)return true;}catch(e){}
+  return false;}
+/* Hämtar snödjupet (meter) för timmen närmast nu, högst var 30:e minut. */
+function husSnoHamta(){
+  if(_husSnoBusy||Date.now()-_husSnoForsok<30*60000)return;
+  try{if(isDemo())return;}catch(e){}
+  _husSnoBusy=true;_husSnoForsok=Date.now();
+  var url='https://api.open-meteo.com/v1/forecast?latitude='+CONFIG.LAT+'&longitude='+CONFIG.LON
+    +'&hourly=snow_depth&past_days=1&forecast_days=1&timeformat=unixtime&timezone=UTC';
+  fetch(url,{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    var t=j&&j.hourly&&j.hourly.time,v=j&&j.hourly&&j.hourly.snow_depth;if(!t||!v)return;
+    var nu=Date.now()/1000,bi=-1,bd=1e12;
+    for(var i=0;i<t.length;i++){if(v[i]==null||!isFinite(v[i]))continue;var dd=Math.abs(t[i]-nu);if(dd<bd){bd=dd;bi=i;}}
+    if(bi<0)return;
+    _husSno={t:Date.now(),m:+v[bi]};
+    try{localStorage.setItem('husSno_v1',JSON.stringify(_husSno));}catch(e){}
+    try{husRita();}catch(e){}
+  }).catch(function(){}).then(function(){_husSnoBusy=false;});}
 function husRita(){
   var el=$('huspanel');if(!el)return;
   /* render() kan köras innan start.js hunnit till [huset.js]; då väntar vi. */
   if(typeof HUS_LEDN==='undefined'||!HUS_LEDN||typeof HUS_FONSTER==='undefined'||!HUS_FONSTER)return;
   husBygg(el);
+  /* Årstidens bild (och snön). Byts bara när namnet ändras. */
+  try{husSnoHamta();}catch(e){}
+  var bn=husBildNamn();
+  if(el._bild!==bn){var bnat=$('hus-img-natt'),bdag=$('hus-img-dag');
+    if(bnat)bnat.src='bild/hus-'+bn+'-natt.webp';if(bdag)bdag.src='bild/hus-'+bn+'.webp';el._bild=bn;}
   try{husLjusRita(el);}catch(e){}
   var v=husVarden();
   /* Solen: vänster tak → nedre mitten → övre mitten → höger tak → elcentralen. */

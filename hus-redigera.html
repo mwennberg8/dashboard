@@ -96,7 +96,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12.5px;font-weight:700
       <select id="prova" onchange="prova=this.value;ritaLjus()"><option value="">Allt tänt</option></select></label></div>
     <div class="ram" id="ram">
       <div class="karta" id="karta">
-        <img id="bild" src="bild/hus-ovanifran-natt.webp" alt="Huset ovanifrån" draggable="false">
+        <img id="bild" src="" alt="Huset ovanifrån" draggable="false">
         <svg id="ljus" viewBox="0 0 1040 1120" aria-hidden="true"></svg>
         <svg id="handtag" viewBox="0 0 1040 1120"></svg>
       </div>
@@ -141,7 +141,7 @@ function hash(t){var h=0;for(var i=0;i<t.length;i++){h=(h*31+t.charCodeAt(i))|0;
 /* ---- inläsning ---- */
 function franBas(){
   var s=[];
-  BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1],v:(p.length>2&&p[2]!=null)?p[2]:null,sp:p[3]||180,hs:(p[4]===1||p[4]===-1)?p[4]:0});});
+  BAS.UTE.forEach(function(p){s.push({typ:'ute',x:p[0],y:p[1],v:(p.length>2&&p[2]!=null)?p[2]:null,sp:p[3]||180,hs:(p[4]===1||p[4]===-1)?p[4]:0,lampa:p[5]||null});});
   BAS.FONSTER.forEach(function(f){f.p.forEach(function(p){
     s.push({typ:'fonster',rum:f.rum,x:p[0],y:p[1],v:p[2],b:p[3]||28,lampor:(p[4]&&p[4].length)?p[4].slice():null});});});
   return s;
@@ -164,7 +164,10 @@ fetch('js/start.js',{cache:'no-store'}).then(function(r){return r.text();}).then
 function tillData(){
   var ute=[],per={},ordning=[];
   saker.forEach(function(s){
-    if(s.typ==='ute'){ute.push(s.v==null?[s.x,s.y]:(s.hs?[s.x,s.y,s.v,s.sp||180,s.hs]:((s.sp||180)!==180?[s.x,s.y,s.v,s.sp]:[s.x,s.y,s.v])));return;}
+    if(s.typ==='ute'){
+      /* Följer lampan en lampa i Homey kommer den sist (sjätte värdet). */
+      if(s.lampa){ute.push([s.x,s.y,s.v==null?null:s.v,s.sp||180,s.hs||0,s.lampa]);return;}
+      ute.push(s.v==null?[s.x,s.y]:(s.hs?[s.x,s.y,s.v,s.sp||180,s.hs]:((s.sp||180)!==180?[s.x,s.y,s.v,s.sp]:[s.x,s.y,s.v])));return;}
     if(!per[s.rum]){per[s.rum]=[];ordning.push(s.rum);}
     per[s.rum].push(s.lampor&&s.lampor.length?[s.x,s.y,s.v,s.b,s.lampor.slice()]:[s.x,s.y,s.v,s.b]);});
   return {ute:ute,fonster:ordning.map(function(r){return {rum:r,p:per[r]};})};
@@ -275,7 +278,10 @@ function ritaVald(){
       +'<button class="'+(lage==='vagg'?'pa':'')+'" onclick="pavagg(\'vagg\')">På vägg – lyser ut från väggen</button>'
       +'<button class="'+(lage==='nara'?'pa':'')+'" onclick="pavagg(\'nara\')">Nära hörn – tonar runt hörnet</button>'
       +'<button class="'+(lage==='horn'?'pa':'')+'" onclick="pavagg(\'horn\')">På hörn – lyser runt hörnet</button>'
-      +(lage==='nara'?'<button onclick="bytHornsida()">Hörnet på andra sidan</button>':'')+'</div><div class="rad">';
+      +(lage==='nara'?'<button onclick="bytHornsida()">Hörnet på andra sidan</button>':'')+'</div>'
+      +'<label class="f">Tänds av<select onchange="uteLampa(this.value)"><option value="">Tänds automatiskt på kvällen (alltid i nattbilden)</option>'
+      +Object.keys(BAS.LAMPOR).map(function(n){return '<option value="'+esc(n)+'"'+(n===s.lampa?' selected':'')+'>'+esc(n.replace('/',' · '))+'</option>';}).join('')
+      +'</select></label><div class="rad">';
   }
   if(s.typ==='fonster')h+='</div>'+lampvalHTML(s)+'<div class="rad">';
   h+='</div><div class="rad"><div class="pilar">'
@@ -332,6 +338,8 @@ function satt(k,v){var s=saker[valt];if(!s)return;if(k!=='rum'&&!isFinite(v))ret
 /* En lampa som sätts på en vägg börjar lysa nedåt i bilden; vrid sedan. */
 /* Fristående, på vägg (180°) eller på hörn (270°, ljuset går runt hörnet).
    Riktningen pekar ut från huset; på ett hörn rakt ut från hörnet. */
+/* En utelampa kan följa en lampa i Homey; tom = alltid tänd i nattbilden. */
+function uteLampa(v){var s=saker[valt];if(!s||s.typ!=='ute')return;minns();s.lampa=v||null;rita();}
 function pavagg(lage){var s=saker[valt];if(!s||s.typ!=='ute')return;minns();
   if(lage==='fri'){s.v=null;s.sp=180;s.hs=0;}
   else{if(s.v==null)s.v=lage==='horn'?315:90;s.sp=lage==='horn'?270:180;
@@ -393,7 +401,11 @@ $('handtag').addEventListener('pointercancel',slapp);
 window.addEventListener('resize',function(){if(BAS)ritaHandtag();});
 
 function vaxlaDag(){dagbild=!dagbild;$('karta').classList.toggle('dag',dagbild);
-  $('bild').src=dagbild?'bild/hus-ovanifran.webp':'bild/hus-ovanifran-natt.webp';$('b-dag').classList.toggle('pa',dagbild);}
+  visaBild();$('b-dag').classList.toggle('pa',dagbild);}
+/* Årstidens bild, som i dashboarden (utan snökontroll – vintern utan snö). */
+function arstid(){var m=new Date().getMonth();return m>=2&&m<=4?'var':(m>=5&&m<=7?'sommar':(m>=8&&m<=10?'host':'vinter-utan-sno'));}
+function visaBild(){$('bild').src='bild/hus-'+arstid()+(dagbild?'':'-natt')+'.webp';}
+visaBild();
 function vaxlaZoom(){zoom=!zoom;$('karta').classList.toggle('zoom',zoom);$('b-zoom').classList.toggle('pa',zoom);
   $('b-zoom').textContent=zoom?'Zooma ut':'Zooma';ritaHandtag();}
 
@@ -401,7 +413,7 @@ function vaxlaZoom(){zoom=!zoom;$('karta').classList.toggle('zoom',zoom);$('b-zo
 function ritaUt(){
   var d=tillData();
   var t='/* Husljus från hus-redigera.html, '+new Date().toLocaleString('sv-SE')+' */\n'
-    +'var HUS_UTE=['+d.ute.map(function(p){return '['+p.join(',')+']';}).join(',')+'];\n'
+    +'var HUS_UTE=['+d.ute.map(function(p){return '['+p.map(function(x){return typeof x==='string'?"'"+x+"'":(x===null?'null':x);}).join(',')+']';}).join(',')+'];\n'
     +'var HUS_FONSTER=[\n'+d.fonster.map(function(f){
       return "  {rum:'"+f.rum+"',p:["+f.p.map(function(p){
         return '['+p.slice(0,4).join(',')+(p[4]?",["+p[4].map(function(n){return "'"+n+"'";}).join(',')+']':'')+']';}).join(',')+']}';}).join(',\n')+'\n];';

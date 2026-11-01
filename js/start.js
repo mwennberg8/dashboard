@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v819';
+const APP_VERSION='v820';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3170,8 +3170,10 @@ var HUS_YTOR=[
    betyder att lampan sitter NÄRA ett hörn: ljuset går mjukt runt hörnet på den
    sidan och tonar ut (1 = medurs från riktningen, -1 = moturs). */
 var HUS_UTE=[[455,60],[455,212],[455,362],
-  /* Breveden: på väggarna nära hörnen, ljuset tonar runt hörnet mot norr respektive söder. */
-  [690,112,180,180,1],[830,112,0,180,-1],[690,278,180,180,-1],[830,278,0,180,1],
+  /* Breveden: på väggarna nära hörnen, ljuset tonar runt hörnet mot norr
+     respektive söder. Följer Utebelysning i Homey (sjätte värdet). */
+  [690,112,180,180,1,'Breveden/Utebelysning'],[830,112,0,180,-1,'Breveden/Utebelysning'],
+  [690,278,180,180,-1,'Breveden/Utebelysning'],[830,278,0,180,1,'Breveden/Utebelysning'],
   [902,370,315,270],[536,444,270],   /* elcentralen: på poolrummets nordöstra hörn */
   /* Altanen: en vid vardagsrummet (nära hörnet), två utmed poolrummets vägg och en på dess sydöstra hörn. */
   [486,744,90,180,1],[740,744,90],[820,744,90],[900,744,45,270]];
@@ -3264,6 +3266,10 @@ var HUS_TAK=[
   {r:[912,257,88,88]},                                      /* boden */
   {p:'89,345 190,399 131,514 27,449'}                       /* Snickarboa */
 ];
+/* Snödjupet från Open-Meteo för husbildens vinter (husSnoHamta), sparat så
+   att en omladdning inte visar fel årstid innan svaret kommer. */
+var _husSno=null,_husSnoBusy=false,_husSnoForsok=0;
+try{_husSno=JSON.parse(localStorage.getItem('husSno_v1')||'null');}catch(e){}
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 
