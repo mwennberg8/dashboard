@@ -3702,15 +3702,18 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
    redan 2 px på mobilen). */
 body.mobile:not(.kiosk) #hus-topp{margin-top:max(0px,calc(var(--pg-gap-y,3px) - 2px))}
 #huspanel .hus-karta{border-radius:22px}
-/* MENYN PÅ PLATTORNA (alla, även väggplattan i kiosk): samma stil som på
-   telefonen – fast längst ned, kant i kant – men lite lägre och dold tills man
-   rör skärmen (husMenyVisa). Då glider den upp en stund. */
+/* MENYN PÅ PLATTORNA: samma som på telefonen – fast längst ned, kant i kant,
+   lite lägre – och den glider undan när man skrollar ned och kommer tillbaka
+   när man skrollar upp (flikSkroll). Väggplattan har ingen meny alls;
+   inställningarna nås genom att hålla inne på äppelträdet i husbilden. */
 body.hus-sida:not(.mobile) .flikrad{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:45;margin:0;
   border:0;border-radius:0;background:var(--panel-a);border-top:1px solid var(--line);
   padding:3px 6px calc(3px + env(safe-area-inset-bottom,0px));
-  box-shadow:0 -8px 20px -14px rgba(0,0,0,.35);
-  transition:transform .25s ease,opacity .25s ease;transform:translateY(110%);opacity:0;pointer-events:none}
-body.hus-sida:not(.mobile).meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
+  box-shadow:0 -8px 20px -14px rgba(0,0,0,.35);transition:transform .22s ease}
+body.hus-sida:not(.mobile) .flikrad.dold{transform:translateY(110%)}
+body.hus-sida.vaggplatta .flikrad{display:none!important}
+/* Plats under sidan för menyn, så att den inte täcker det sista. */
+body.hus-sida:not(.mobile):not(.vaggplatta){padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))}
 body.hus-sida:not(.mobile) .flik{min-height:46px;font-size:11.5px}
 body.hus-sida:not(.mobile) .flik .ic{width:22px;height:22px;margin-bottom:2px}
 /* LIGGANDE PLATTA (inte väggplattan, inte telefonen): husbilden står fast till
@@ -3724,7 +3727,7 @@ body.hus-sida:not(.mobile) .flik .ic{width:22px;height:22px;margin-bottom:2px}
     /* Huset fyller hela skärmens höjd (menyn är dold och glider in ovanpå);
        bredden följer bildens proportioner. */
     --hus-w:min(calc((100vh - 14px) * 1040 / 1120),70%)}
-  body.hus-sida:not(.mobile):not(.kiosk){padding:0}
+  body.hus-sida:not(.mobile):not(.kiosk){padding:0 0 calc(56px + env(safe-area-inset-bottom,0px))}
   body.hus-sida:not(.mobile):not(.kiosk) .wrap{padding:7px;max-width:none}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode{display:grid;
     grid-template-columns:var(--hus-w) minmax(0,1fr);column-gap:var(--pg-gap);
