@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v812';
+const APP_VERSION='v813';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3252,6 +3252,17 @@ var HUS_GLASTAK=[
 /* Kioskläget i index2: en beröring var som helst visar menyn en stund. */
 var _husMenyT=null;
 try{document.addEventListener('pointerdown',function(){try{husMenyVisa();}catch(e){}},true);}catch(e){}
+/* TAKEN, för fönsterljuset: ljuset från fönster och glasdörrar ritas bara
+   utanför taken, så att ett fönster som ligger lite indraget hamnar under
+   taket med sitt sken. Polygon (punkter) eller rektangel [x,y,b,h]. */
+var HUS_TAK=[
+  {p:'233,445 702,445 702,748 485,748 485,737 233,737'},   /* stora huset */
+  {r:[632,367,268,374]},                                    /* poolrummet */
+  {r:[242,735,160,130]},{r:[112,697,130,113]},              /* uterummets glastak */
+  {r:[690,93,140,204]},                                     /* Breveden (inte altanen) */
+  {r:[912,257,88,88]},                                      /* boden */
+  {p:'89,345 190,399 131,514 27,449'}                       /* Snickarboa */
+];
 /* Utebelysningen står i Brevedens zon men lyser inte genom något fönster. */
 var HUS_EJ_FONSTER={'e8a72bb3-bb7b-4022-b6f3-6981fff72bfe':1};
 
