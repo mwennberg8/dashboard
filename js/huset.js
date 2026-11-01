@@ -133,9 +133,10 @@ function husLjusBygg(el,svg,NS){
      tonar runt hörnet ute på marken, men aldrig uppe på taket – förut gick
      kilarna rakt över Brevedens tak med en skarp kant. */
   var ute=ny('g',{'class':'hus-ute',mask:'url(#hus-tak-mask)'});
-  /* Själva lamporna (de små ljusa punkterna) utanför masken – de sitter på
-     väggen och skulle annars klippas mitt itu. */
-  var karnor=ny('g',{'class':'hus-ute-karnor'});
+  /* Själva lamporna (de små ljusa punkterna) ligger också under taken: en
+     lampa på väggen syns som en halv punkt ut från väggen, en lampa som sitter
+     lite in under taket syns inte alls – precis som fönstren. */
+  var karnor=ny('g',{'class':'hus-ute-karnor',mask:'url(#hus-tak-mask)'});
   /* Väggens sken: ett halvt sken ut från väggen, ritat i lampans egna
      koordinater (ut = +x) med en gradient kring origo. */
   var gv=ny('radialGradient',{id:'hus-g-v',gradientUnits:'userSpaceOnUse',cx:'0',cy:'0',r:'46'});
