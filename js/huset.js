@@ -299,6 +299,8 @@ function husMenyVisa(){
    mjukt upp till huset igen. Inte medan en popup är öppen. */
 function husViloKoll(){
   var b=document.body;if(!b||!b.classList.contains('kiosk')||!b.classList.contains('hus-sida'))return;
+  /* Bara väggplattan – andra plattor står kvar där man skrollat. */
+  try{if(!arVaggplattaVy())return;}catch(e){return;}
   if(Date.now()-_husAktiv<HUS_VILA_MS)return;
   var bk=document.getElementById('dlg-back');if(bk&&bk.classList.contains('open'))return;
   if((window.scrollY||document.documentElement.scrollTop||0)>0){

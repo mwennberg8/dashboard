@@ -3748,6 +3748,12 @@ body.hus-sida .en-wxrad{display:none!important}
 /* Plattan: väderavsnittet på startsidan behövs inte – väderkortet i huset tar
    dess plats och leder till Väder-sidan. */
 body.hus-sida:not(.mobile) #view-flode>[data-sec="weather"]{display:none!important}
+/* RUMMEN: två kolumner (två rader med två innan man fäller ut), och samma
+   luft mellan och runt korten som mellan rutorna i rutavsnittet. */
+body.hus-sida #rooms{grid-template-columns:repeat(2,minmax(0,1fr));
+  column-gap:calc(8px*var(--kk,1));row-gap:calc(8px*var(--kk,1))}
+body.hus-sida #rooms-sec{padding:calc(8px*var(--kk,1))}
+body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
 /* Klockan och pricken sist i menyn. */
 .flikrad .flik-status{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 10px 0 4px}
 .flikrad .flik-status .en-hogra{display:flex!important;align-items:center;gap:8px;margin:0!important}
