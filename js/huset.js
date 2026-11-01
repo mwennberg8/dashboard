@@ -257,15 +257,15 @@ function husRita(){
   husBygg(el);
   try{husLjusRita(el);}catch(e){}
   var v=husVarden();
-  /* Solen per panelyta, i proportion till antalet paneler – det finns bara en
-     mätare för hela anläggningen. Kedjan bär summan av ytorna före:
-     vänster tak (D) → nedre mitten (C) → övre mitten (B) → höger tak (A) → elcentralen. */
-  var s=Math.max(0,v.sol||0),p=HUS_SOL_ANDEL,batt=v.batt||0;
+  /* Solen: vänster tak → nedre mitten → övre mitten → höger tak → elcentralen. */
+  var s=Math.max(0,v.sol||0),batt=v.batt||0;
   /* Nätets ledning: Elnät → bilens avgrening bär det som köps (säljs = −);
      avgreningen → elcentralen bär nätet minus det bilen tar. Båda från
      Pulse och laddboxen – sol och batteri har egna ledningar in i elcentralen. */
   var bil=v.bil>=50?v.bil:0,nat0=v.nat||0;
-  var varden={sol1:s*p.D,sol2:s*(p.D+p.C),sol3:s*(p.D+p.C+p.B),sol4:s,
+  /* Solens ledning är lika tjock hela vägen: varje sträcka visar hela
+     soleffekten (det finns ändå bara en mätare för alla paneler). */
+  var varden={sol1:s,sol2:s,sol3:s,sol4:s,
     nat:nat0,natB:nat0-bil,batt:batt,bil:bil};
   HUS_LEDN.forEach(function(l){
     if(l.ledare)return;
