@@ -1522,7 +1522,7 @@ function openConfig(){
     +'<b id="sakr-v" style="min-width:44px;display:inline-block;text-align:center">'+fasSakring()+' A</b>'
     +'<button class="dbtn" onclick="sakringStep(1)">+</button></span>');
   h+='</div>';
-  /* Husbilden högst upp på startsidan (index2): hur mycket fönstren lyser. */
+  /* Husbilden högst upp på startsidan: hur mycket fönstren lyser. */
   h+='<div class="cfg-sec">Husbilden</div>';
   h+=stepRow('Ljus från fönstren','cfgnum-husfon',Math.round(husFonsterStyrka()*100)+' %','cfgHusFonster');
   h+=stepRow('Ljus från utelamporna','cfgnum-husute',Math.round(husUteStyrka()*100)+' %','cfgHusUte');
@@ -1937,7 +1937,7 @@ function render(){
   const solarW=cap(DEV.solar,'measure_power'),houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battW=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),exporting=pulseW!=null&&pulseW<0;
   renderEnergy();
-  /* v777: huset ovanifrån – bara i index2.html, där #huspanel finns. */
+  /* v777: huset ovanifrån – bara där #huspanel finns (index.html sedan v826). */
   try{husRita();}catch(e){}
   renderControls();
   try{renderRooms();}catch(e){}

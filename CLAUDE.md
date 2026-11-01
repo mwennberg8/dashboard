@@ -32,6 +32,16 @@ plattramen och husvakten. All annan kod ligger i `js/`:
 Funktionerna är globala och anropas från `onclick` i HTML-strängar. Escapa
 text som hamnar i HTML med `esc()`.
 
+### Husbilden (sedan v826)
+
+Startsidan börjar med huset ovanifrån (`#huspanel`, ritas av `js/huset.js`,
+geometrin under `[huset.js]` i `js/start.js`, bilderna i `bild/`). Ägaren
+flyttar fönster och lampor i `hus-redigera.html` och skickar listorna som text.
+
+- `index-backup.html` är startsidan som den såg ut före husbilden (v825). Den
+  delar `js/` med `index.html` men har ingen `#huspanel`. Ändra den inte.
+- `index2.html` var betan och skickar nu vidare till `index.html`.
+
 ## Göteborg: `gbg/gbg.html`
 
 En fil. Höj `APP_VERSION` (`v1.81.0` → `v1.82.0`) vid varje ändring.

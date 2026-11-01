@@ -1031,7 +1031,7 @@ function flikradBygg(){
 function mobilTopp(mob){
   var h=document.getElementById('en-hogra');if(!h)return;
   ['en-notis','en-status'].forEach(function(id){var e=document.getElementById(id);if(e&&e.parentElement!==h)h.appendChild(e);});
-  /* index2: raden (väder, soltider, klockan, pricken) står ovanför husbilden
+  /* Med husbilden står raden (väder, soltider, klockan, pricken) ovanför den
      i #hus-topp i stället för i energipanelen. Finns ingen sådan plats
      (index.html) gäller allt nedan som förut. */
   var husTopp=document.getElementById('hus-topp');

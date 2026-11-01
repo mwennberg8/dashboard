@@ -3692,9 +3692,113 @@ body.mobile:not(.kiosk) .statusbar{padding-top:max(10px,env(safe-area-inset-top)
 .fl-tiles>.stat{padding:var(--avd-pad)}
 body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt){align-items:center}
 body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:center}
+/* HUSET OVANIFRÅN överst på startsidan. Bilden, SVG:n och fälten
+   delar koordinater (1040 × 1120); fälttexten skalas med kartans bredd (cqw).
+   Ritas av husRita() i js/huset.js. */
+/* Huset ligger inte i en ruta: kartan går ut till samma bredd som panelerna. */
+#view-flode>#huspanel.panel{padding:0;background:none;border:0;box-shadow:none;
+  display:flex;flex-direction:column;gap:10px}
+#huspanel .hus-karta{border-radius:22px}
+/* KIOSKLÄGET: huset överst – utan notisklocka och liveprick – och
+   menyn dold tills man rör skärmen (husMenyVisa). Då glider den upp en stund. */
+body.kiosk.hus-sida #hus-topp{display:none!important}
+body.kiosk.hus-sida .flikrad{position:fixed;left:10px;right:10px;bottom:10px;z-index:45;margin:0;
+  transition:transform .25s ease,opacity .25s ease;transform:translateY(140%);opacity:0;pointer-events:none;
+  box-shadow:0 10px 30px -10px rgba(0,0,0,.55)}
+body.kiosk.hus-sida.meny-visas .flikrad{transform:none;opacity:1;pointer-events:auto}
+/* Raden ovanför husbilden: väder och soltider till vänster, notisklockan och
+   livepricken till höger (mobilTopp flyttar hit #en-hogra). */
+/* Raden ovanför huset (väder, soltider, klocka, prick) i en egen ruta – samma
+   utseende och höjd som elprisrutan under huset. */
+.hus-topp{display:flex;align-items:center;justify-content:flex-end;min-height:0;
+  background:linear-gradient(180deg,var(--panel-a),var(--panel-b));border:1px solid var(--line);border-radius:var(--r);
+  box-shadow:inset 0 1px 0 var(--panel-inset),var(--panel-shadow);padding:9px 12px}
+.hus-topp:empty{display:none}
+.hus-topp .en-hogra{flex:1 1 auto!important;justify-content:flex-end;margin:0!important}
+.hus-topp .en-wxrad{margin-right:auto}
+.hus-karta{position:relative;width:100%;aspect-ratio:1040/1120;border-radius:20px;overflow:hidden;
+  container-type:inline-size}
+.hus-karta>img{position:absolute;inset:0;width:100%;height:100%;display:block;transition:opacity .8s}
+/* Mörkt tema (även auto efter solnedgång): nattbilden och mörka fält. */
+.hus-karta{background:#1c222b}
+.hus-karta .hus-dag{opacity:0}
+:root[data-theme="light"] .hus-karta{background:#dfe6ee}
+:root[data-theme="light"] .hus-karta .hus-dag{opacity:1}
+.hus-karta>svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+/* Tryckytorna (solpaneler, uterum, Breveden, Snickarboa): osynliga, en svag
+   ljus ton när man trycker. Själva SVG:n släpper igenom, ytorna tar emot. */
+.hus-yta{fill:transparent;pointer-events:all;cursor:pointer;transition:fill .15s;-webkit-tap-highlight-color:transparent}
+.hus-yta:active{fill:rgba(255,255,255,.14)}
+@media (hover:hover){.hus-yta:hover{fill:rgba(255,255,255,.07)}}
+.hus-bas{fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:.85;transition:stroke-width .4s,opacity .4s}
+.hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
+  animation:husflod 1.1s linear infinite}
+.hus-flod.bak{animation-direction:reverse}
+.hus-flod.av{animation:none;stroke-dasharray:none;opacity:0}
+@keyframes husflod{to{stroke-dashoffset:-32}}
+/* Ljuset i nattbilden: bara i mörkt tema. Fönstren tänds per zon (.pa). */
+.hus-ljus{opacity:0;transition:opacity .8s;mix-blend-mode:screen}
+:root:not([data-theme="light"]) .hus-ljus{opacity:1}
+.hus-fonster{opacity:0;transition:opacity .6s}
+.hus-fonster:not(.pa){opacity:0!important}
+/* Uterummets glastak: en svag, varm ton – ränderna i glaset syns igenom. */
+.hus-glastak{opacity:.24}
+@media (prefers-reduced-motion:reduce){.hus-flod{animation:none;stroke-dasharray:none}}
+/* RUTORNA. Halvgenomskinliga och suddar bilden bakom sig, så att de hör till
+   bilden i stället för att ligga ovanpå den. Färgen sitter i en kant till
+   vänster och i rubriken; siffran är det som syns först. */
+.hus-falt{appearance:none;-webkit-appearance:none;margin:0;text-align:left;cursor:pointer;
+  position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:.3cqw;
+  background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(7px) saturate(1.25);backdrop-filter:blur(7px) saturate(1.25);
+  color:#2e3440;border:1px solid rgba(46,52,64,.10);border-radius:2.2cqw;overflow:hidden;
+  padding:1.1cqw 1.8cqw 1.1cqw 2.7cqw;box-shadow:0 1cqw 2.6cqw -1.4cqw rgba(30,35,45,.5);transition:opacity .3s;font-family:inherit}
+.hus-falt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.8cqw;background:var(--f)}
+.hus-falt[hidden]{display:none}
+.hus-falt>*{flex:0 0 auto}   /* raderna krymper inte – annars klipps g:n i "eget" */
+.hus-falt .rub{display:block;font:750 2.3cqw/1.3 var(--sans,inherit);letter-spacing:.01em;
+  color:var(--f);color:color-mix(in srgb,var(--f) 78%,#2e3440);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hus-falt .rub i{display:none}
+.hus-falt .v{font:800 5.1cqw/1 var(--sans,inherit);letter-spacing:-.025em;white-space:nowrap;font-variant-numeric:tabular-nums}
+.hus-falt .v small{font-size:2.6cqw;font-weight:700;letter-spacing:0;opacity:.62}
+.hus-falt .u{font:650 2.15cqw/1.35 var(--sans,inherit);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hus-falt.noll .v{opacity:.45}
+.hus-falt:active{transform:scale(.98)}
+:root:not([data-theme="light"]) .hus-falt{background:rgba(26,31,40,.58);color:#eceff4;border-color:rgba(236,239,244,.10);
+  box-shadow:0 1cqw 3cqw -1.2cqw rgba(0,0,0,.75)}
+:root:not([data-theme="light"]) .hus-falt .rub{color:var(--f);color:color-mix(in srgb,var(--f) 70%,#ffffff)}
+/* SMÅ RUTOR (sol, bil, batteri): bara ikon och effekt, som en pille.
+   Samma glas som de stora, men färgen sitter i kanten och ikonen. */
+.hus-falt.liten{flex-direction:row;align-items:center;justify-content:center;gap:.9cqw;
+  padding:0 1.5cqw;border-radius:99px;border:1.5px solid var(--f);
+  border-color:color-mix(in srgb,var(--f) 70%,transparent)}
+.hus-falt.liten::before{display:none}
+.hus-falt.liten .hik{position:static;display:inline-flex;width:3cqw;height:3cqw;flex:0 0 auto;color:var(--f)}
+.hus-falt.liten .hik svg{width:100%;height:100%}
+.hus-falt.liten .v{font-size:3.5cqw}
+.hus-falt.liten .v small{font-size:2.1cqw}
+.hus-falt.liten .hx{font:700 2.1cqw/1 var(--sans,inherit);opacity:.65;white-space:nowrap}
+/* Etikettlinjen från Sol-rutan till panelerna: tunn och streckad, inget flöde. */
+.hus-ledare{fill:none;stroke-width:2.5;stroke-dasharray:2 7;stroke-linecap:round;opacity:.7}
+/* Huset ersätter "förbrukning nu". Av energipanelen står bara
+   elprisskalan kvar, plus raden med väder, notisklocka och livepricken som
+   mobilTopp/wxRubrikRita lägger där (de har ingen annan plats på mobilen).
+   Elementen döljs i stället för att tas bort – koden skriver fortfarande i dem. */
+#view-flode .enpanel .en-hero,
+#view-flode .enpanel .en-hero-main,
+#view-flode .enpanel .en-spot,
+#view-flode .enpanel .en-mix,
+#view-flode .enpanel #en-del,
+#view-flode .enpanel #stats-energy,
+#view-flode .enpanel #sp-del,
+#view-flode .enpanel .en-body{display:none!important}
+/* Kvar i panelen är bara elprisskalan: ingen luft ovanför (den skilde skalan
+   från förbrukningen som stod här) och lika mycket kant upptill som nedtill,
+   så att skalan står mitt i en låg ruta. */
+#view-flode .enpanel #sp-plats{padding-top:0!important;margin-top:0!important}
+#view-flode>.enpanel{padding-top:11px;padding-bottom:11px;justify-content:center}
 </style>
 </head>
-<body>
+<body class="hus-sida">
 <div class="wrap">
 
   <section class="view" id="view-flode">
@@ -3702,6 +3806,10 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
       <section class="panel statusbar" data-sec="status">
         <div class="en-top"><button class="en-cmp en-hem" id="house-hero" title="Håll inne för inställningar"><span class="en-cmp-ic ic-slot" data-ic="house"></span>Hem</button><span class="en-hist" id="en-hist"></span><button class="en-cmp en-doljhist" onclick="openInsikter()" title="Insikter om hemmet"><span class="en-cmp-ic ic-slot" data-ic="sparkle"></span>Insikter</button><button class="en-cmp en-doljhist" onclick="openCompare()" title="Jämför energi med tidigare år"><span class="en-cmp-ic ic-slot" data-ic="chart-line"></span>Jämför</button><button class="en-cmp en-doljhist" onclick="openVader()" title="Väder i detalj"><span class="en-cmp-ic ic-slot" data-ic="cloud-sun"></span>Väder</button><button class="en-cmp en-notis" id="en-notis" onclick="notisEllerLive()" title="Sammanfattningar"><span class="en-cmp-ic ic-slot" data-ic="bell"></span></button><div class="en-status en-cmp en-status-btn" id="en-status"><button id="ds-livebtn" onclick="exitTimeMode()">Live</button><span class="dot cache" id="dot"></span><span id="status-text">startar…</span><span class="rel" id="rel"></span></div></div>
       </section>
+
+      <!-- Huset ovanifrån. Inget data-sec – står fast under
+           statusraden, före de avsnitt som går att flytta. -->
+      <section class="panel huspanel" id="huspanel"><div class="hus-topp" id="hus-topp"></div></section>
 
       <section class="panel enpanel" data-sec="energy">
         <div class="en-body">

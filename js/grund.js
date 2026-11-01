@@ -1537,7 +1537,7 @@ function applyKiosk(){
      platta med rumsavsnittet (v745) rann de sex rutorna in under rummen. Andra
      plattor än väggplattan (och plattramen, som visar väggplattan) får samma
      utseende men skrollar när innehållet är högre än skärmen. */
-  /* index2 (sidan har husbilden): även väggplattan skrollar, så att huset får
+  /* Sidan har husbilden: även väggplattan skrollar, så att huset får
      fylla hela bredden och resten ligger under. */
   const rull=on&&!tabprev&&(!arVaggplattaVy()||!!document.getElementById('huspanel'));
   document.body.classList.toggle('rull',rull);
