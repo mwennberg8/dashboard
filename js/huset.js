@@ -1,11 +1,11 @@
-/* js/huset.js — Huset ovanifrån: toppen av startsidan i index2.html (beta).
+/* js/huset.js — Huset ovanifrån: toppen av startsidan (index.html).
  *
  * Bilden av huset med fält för Elnät, Förbrukning, Sol, Batteri och – när en
  * bil laddar – bilen, och vinkelräta ledningar där prickarna rör sig åt det håll
  * strömmen går. Geometrin (HUS_FALT, HUS_LEDN) står i start.js under [huset.js].
  *
  * Filen innehåller BARA funktionsdeklarationer. Allt ritas av husRita(), som
- * render() anropar; finns ingen #huspanel på sidan (index.html) gör den ingenting.
+ * render() anropar; finns ingen #huspanel på sidan (index-backup.html) gör den ingenting.
  */
 
 /* Värdena just nu, i W. Tecken: nat + = köper, batt + = laddar ur, bil + = laddar. */
@@ -63,7 +63,7 @@ function husBygg(el){
     +'<img class="hus-dag" id="hus-img-dag" src="bild/hus-'+husBildNamn()+'.webp" alt="">'
     +'<svg viewBox="0 0 1040 1120" class="hus-ytor" id="hus-ytor"></svg>'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
-  /* Efter det som redan står i panelen (index2: raden #hus-topp överst). En
+  /* Efter det som redan står i panelen (raden #hus-topp överst). En
      halvbyggd karta från ett avbrutet försök tas bort först. */
   var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
   el.insertAdjacentHTML('beforeend',h);
@@ -287,7 +287,7 @@ function husLjusRita(el){
       c.setAttribute('rx',(+c.getAttribute('data-rx')*k).toFixed(1));
       c.setAttribute('ry',(+c.getAttribute('data-ry')*k).toFixed(1));});});
 }
-/* Kioskläget i index2: menyn syns bara en stund efter att man rört skärmen. */
+/* Kioskläget: menyn syns bara en stund efter att man rört skärmen. */
 function husMenyVisa(){
   var b=document.body;if(!b||!b.classList.contains('kiosk')||!b.classList.contains('hus-sida'))return;
   b.classList.add('meny-visas');

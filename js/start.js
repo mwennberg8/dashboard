@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v825';
+const APP_VERSION='v826';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3105,7 +3105,7 @@ checkForUpdate();
 setInterval(checkForUpdate,60000);
 
 /* ---------- [huset.js] ---------- */
-/* Huset ovanifrån (index2.html, beta). Koordinater i bildens mått, 1040 × 1120
+/* Huset ovanifrån (startsidan, index.html; förut betan index2, till v825). Koordinater i bildens mått, 1040 × 1120
    (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
    före den här raden, och då ska husRita få undefined och inte ett fel. */
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0'};
@@ -3157,7 +3157,7 @@ var HUS_YTOR=[
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
   {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'}
 ];
-/* LJUSET I NATTBILDEN (index2). Punkterna är Markus markeringar, omräknade
+/* LJUSET I NATTBILDEN. Punkterna är Markus markeringar, omräknade
    till bildens koordinater (1040 × 1120) och rätade: lamporna längs
    parkeringen står på en linje utmed stenläggningen, Brevedens lampor och
    fönster symmetriskt runt huset.
@@ -3251,7 +3251,7 @@ var HUS_GLASTAK=[
   {rum:'Uterum',tak:[[242,735,160,130]],sken:[322,815,175,140]},
   {rum:'Grovuterum',tak:[[112,697,130,113]],sken:[177,760,140,112]}
 ];
-/* Kioskläget i index2: en beröring var som helst visar menyn en stund. */
+/* Kioskläget: en beröring var som helst visar menyn en stund. */
 var _husMenyT=null;
 try{document.addEventListener('pointerdown',function(){try{husMenyVisa();}catch(e){}},true);}catch(e){}
 /* TAKEN, för fönsterljuset: ljuset från fönster och glasdörrar ritas bara
