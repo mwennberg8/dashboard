@@ -420,7 +420,9 @@ function husRita(){
   var natIn=Math.max(0,nat||0),battIn=Math.max(0,v.batt||0);
   var solIn=Math.max(0,Math.min(s,(last||0)-natIn-battIn)),T=natIn+battIn+solIn;
   var eget=(last==null)?null:Math.round((T>0&&last>0?(solIn+battIn)/T:(nat!=null&&nat<0?1:0))*100);
-  husFyll(el._falt.nat,'Elnät',nat,nat==null?'':(nat>50?'köper':nat<-50?'säljer':'–'));
+  /* Under 50 W åt något håll visas 0: när batteriet täcker förbrukningen
+     pendlar Pulse några watt kring noll. */
+  husFyll(el._falt.nat,'Elnät',(nat!=null&&Math.abs(nat)<50)?0:nat,nat==null?'':(nat>=50?'köper':nat<=-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
   husFyllLiten(el._falt.sol,'sol',v.sol,'');
   /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
