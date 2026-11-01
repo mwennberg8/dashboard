@@ -153,6 +153,8 @@ function husLjusBygg(el,svg,NS){
      'Breveden/Utebelysning'): då lyser den bara när lampan är på. Annars
      lyser den alltid i nattbilden (de tänds automatiskt på kvällen). */
   var uteKallor=[];
+  /* Skenen skalas med utelampornas styrka (husUteRita): grundtransform + scale. */
+  el._uteSken=[];el._uteGrupp=ute;
   HUS_UTE.forEach(function(p){
     var nyckel=p[5],id=nyckel&&HUS_LAMPOR[nyckel];
     var ute0=ute,karnor0=karnor;
@@ -185,9 +187,11 @@ function husLjusBygg(el,svg,NS){
           var a0=sp/2+k*15,a1=a0+15.5;
           mj.appendChild(ny('path',{d:hs>0?sektor(a0,a1):sektor(-a1,-a0),fill:'url(#hus-g-v)',opacity:o}));});
         vg.appendChild(mj);}
-      ute.appendChild(vg);
+      ute.appendChild(vg);el._uteSken.push({e:vg,t:vg.getAttribute('transform')});
       karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));return;}
-    ute.appendChild(ny('circle',{cx:p[0],cy:p[1],r:36,fill:'url(#hus-g-u)'}));
+    var fg=ny('g',{transform:'translate('+p[0]+','+p[1]+')'});
+    fg.appendChild(ny('circle',{cx:0,cy:0,r:36,fill:'url(#hus-g-u)'}));
+    ute.appendChild(fg);el._uteSken.push({e:fg,t:fg.getAttribute('transform')});
     karnor.appendChild(ny('circle',{cx:p[0],cy:p[1],r:4,fill:'#ffe6b0'}));}
   lj.appendChild(ute);
   lj.appendChild(karnor);
@@ -259,7 +263,17 @@ function husKallaLjus(k){
    standard. Under 100 blir skenet svagare, över 100 både starkare och längre. */
 function husFonsterStyrka(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husFonster!=null)?+CFG.husFonster:75;
   return isFinite(v)?Math.max(0.2,Math.min(1.5,v/100)):0.75;}
+/* Utelampornas styrka, i procent (Inställningar → Utseende). 100 som standard.
+   Under 100 blir skenet svagare, över 100 både starkare och större. */
+function husUteStyrka(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husUte!=null)?+CFG.husUte:100;
+  return isFinite(v)?Math.max(0.2,Math.min(1.5,v/100)):1;}
+function husUteRita(el){
+  var u=husUteStyrka(),k=u>1?Math.sqrt(u):1;
+  if(el._uteGrupp)el._uteGrupp.style.opacity=String(Math.min(1,u));
+  (el._uteSken||[]).forEach(function(x){x.e.setAttribute('transform',x.t+(k!==1?' scale('+k.toFixed(3)+')':''));});
+}
 function husLjusRita(el){
+  try{husUteRita(el);}catch(e){}
   var fs=husFonsterStyrka();
   (el._fonster||[]).forEach(function(f){
     var l=husKallaLjus(f.kalla),pa=l!=null,k=pa?0.4+0.6*l:1;
