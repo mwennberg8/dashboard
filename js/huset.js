@@ -293,6 +293,15 @@ function husMenyVisa(){
   b.classList.add('meny-visas');
   clearTimeout(_husMenyT);_husMenyT=setTimeout(function(){b.classList.remove('meny-visas');},6000);
 }
+/* Väggplattan (kiosk): har ingen rört skärmen på HUS_VILA_MS skrollar sidan
+   mjukt upp till huset igen. Inte medan en popup är öppen. */
+function husViloKoll(){
+  var b=document.body;if(!b||!b.classList.contains('kiosk')||!b.classList.contains('hus-sida'))return;
+  if(Date.now()-_husAktiv<HUS_VILA_MS)return;
+  var bk=document.getElementById('dlg-back');if(bk&&bk.classList.contains('open'))return;
+  if((window.scrollY||document.documentElement.scrollTop||0)>0){
+    try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){window.scrollTo(0,0);}}
+}
 function husFyll(b,rub,w,under){
   var t=husTal(w);
   b.innerHTML='<span class="rub"><i></i>'+esc(rub)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
