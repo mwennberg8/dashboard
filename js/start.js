@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v821';
+const APP_VERSION='v822';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3265,6 +3265,11 @@ var HUS_TAK=[
   {r:[690,93,140,204]},                                     /* Breveden (inte altanen) */
   {r:[912,257,88,88]},                                      /* boden */
   {p:'89,345 190,399 131,514 27,449'}                       /* Snickarboa */
+];
+/* Lägre tak: döljer utelampornas sken och punkter (lamporna runt poolrummet,
+   framför och på hörnen), men inte fönsterljuset från stora huset. */
+var HUS_TAK_LAG=[
+  {r:[632,367,268,374]}                                     /* poolrummet */
 ];
 /* Snödjupet från Open-Meteo för husbildens vinter (husSnoHamta), sparat så
    att en omladdning inte visar fel årstid innan svaret kommer. */
