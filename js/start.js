@@ -2611,7 +2611,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v837';
+const APP_VERSION='v838';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3111,32 +3111,30 @@ setInterval(checkForUpdate,60000);
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0',vader:'#6f9fc8'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
-  nat:  {x:20, y:20,  w:225,h:148, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
-  last: {x:20, y:178, w:225,h:148, typ:'last', pop:'energyfull'},   /* under Elnät */
-  /* Små rutor (bara effekten): sol och batteri staplade bredvid Elnät –
-     tillsammans lika höga som Elnät-rutan – och bilen under bilarna. */
-  sol:  {x:255,y:20,  w:215,h:70,  typ:'sol',  pop:'sun',  liten:true},
-  batt: {x:255,y:98,  w:215,h:70,  typ:'batt', pop:'batt', liten:true},
+  /* v838: fyra lika rutor i två rader uppe till vänster – Elnät och Sol
+     överst, Förbrukning och Batteri under. Lite lägre och smalare än förut. */
+  nat:  {x:20, y:20,  w:218,h:138, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
+  sol:  {x:248,y:20,  w:218,h:138, typ:'sol',  pop:'sun'},
+  last: {x:20, y:168, w:218,h:138, typ:'last', pop:'energyfull'},
+  batt: {x:248,y:168, w:218,h:138, typ:'batt', pop:'batt'},
   /* Väderkortet nere till höger: väder, temperatur, lägst/högst i dag och vind
      med riktningspil. Tryck öppnar Väder-sidan. */
   vader:{x:760,y:946, w:260,h:154, typ:'vader',fn:'openVader()'},   /* 20 från kanterna, som Elnät */
   bil:  {x:500,y:282, w:170,h:56,  typ:'bil',  pop:'cars', liten:true}
 };
-/* LEDNINGARNA. Elnätet kommer in rakt uppifrån, utanför bilden (v837 – förut
-   från Elnät-rutan), och går längs överkanten till bildens högra kant – 15
-   in från både överkant och högerkant, hörnet följer bildens rundning – ned
-   längs kanten och in i elcentralen från höger. Svängarna är rundade, utom
-   där bilen ansluter. Bilen grenar av ned mellan bilarna. Solen kommer in i
-   elcentralen från vänster och batteriet har en egen kort ledning dit.
+/* LEDNINGARNA (v838). Elnätet kommer in uppifrån utanför bilden, längs
+   högerkanten (15 in) ned till elcentralen och in från höger. Bilen grenar av
+   uppe i hörnet och går längs överkanten och ned mellan bilarna. Solen kommer
+   in i elcentralen från vänster och batteriet har en egen kort ledning dit.
    Varje sträcka är ritad i den riktning strömmen oftast går; negativt värde
    vänder prickarna, så att de alltid visar varifrån strömmen kommer och vart
    den går.
    - nat:   nätet (utanför bilden) → bilens avgrening. Köper = in, säljer = ut.
-   - natB:  bilens avgrening → elcentralen (nätet minus det bilen tar).
-   - bil:   avgreningen ned mellan bilarna till bilrutan (tänd när en bil
+   - natB:  avgreningen → elcentralen (nätet minus det bilen tar).
+   - bil:   avgreningen längs överkanten och ned till bilrutan (tänd när en bil
             laddar, blek när den bara är inkopplad).
-   - sol1–4: solrutan på vänster tak → nedre mitten → övre mitten → höger tak
-            → elcentralen. Lika tjock hela vägen, efter hela soleffekten.
+   - sol1–4: vänster tak → nedre mitten → övre mitten → höger tak →
+            elcentralen. Lika tjock hela vägen, efter hela soleffekten.
    - batt:  batteriet → elcentralen (urladdning +, laddning −). */
 var HUS_LEDN=[
   {id:'sol1', typ:'sol', d:'M432,656 H512'},          /* från vänstra takets paneler */
@@ -3144,9 +3142,9 @@ var HUS_LEDN=[
   {id:'sol3', typ:'sol', d:'M684,582 H780 A10,10 0 0 0 790,572 V552'},
   {id:'sol4', typ:'sol', d:'M878,418 H900'},
   {id:'batt', typ:'batt',d:'M925,489 H955 A10,10 0 0 0 965,479 V444 A10,10 0 0 0 955,434 H921'},
-  {id:'natB', typ:'nat', d:'M585,15 H984 A41,41 0 0 1 1025,56 V394 A14,14 0 0 1 1011,408 H921'},
-  {id:'bil',  typ:'bil', d:'M585,15 V282'},
-  {id:'nat',  typ:'nat', d:'M490,-20 V1 A14,14 0 0 0 504,15 H585'}   /* nätet kommer in rakt uppifrån, strax höger om sol- och batterirutorna */
+  {id:'natB', typ:'nat', d:'M1025,15 V394 A14,14 0 0 1 1011,408 H921'},
+  {id:'bil',  typ:'bil', d:'M1025,15 H599 A14,14 0 0 0 585,29 V282'},
+  {id:'nat',  typ:'nat', d:'M1025,-20 V15'}
 ];
 /* TRYCKYTOR i bilden: ett tryck öppnar popupen. Rektanglar [x,y,b,h] eller
    en polygon (Snickarboa står snett). Ligger under ljuset och ledningarna och
