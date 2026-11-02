@@ -431,10 +431,10 @@ function husRita(){
      pendlar Pulse några watt kring noll. */
   husFyll(el._falt.nat,'Elnät',(nat!=null&&Math.abs(nat)<50)?0:nat,nat==null?'':(nat>=50?'köper':nat<=-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
-  husFyllLiten(el._falt.sol,'sol',v.sol,'');
+  husFyll(el._falt.sol,'Sol',v.sol,'');
   /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
-  husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
-  el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
+  husFyll(el._falt.batt,'Batteri',v.batt,(v.soc==null?'':Math.round(v.soc)+' % · ')
+    +(v.batt==null?'':(v.batt>50?'laddar ur':v.batt<-50?'laddar':'vilar')));
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   try{husVaderFyll(el._falt.vader);}catch(e){}
   var laddar=v.bil>=50;
