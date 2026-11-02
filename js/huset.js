@@ -397,14 +397,13 @@ function husRita(){
   var v=husVarden();
   /* Solen: vänster tak → nedre mitten → övre mitten → höger tak → elcentralen. */
   var s=Math.max(0,v.sol||0),batt=v.batt||0;
-  /* Nätets ledning: Elnät → bilens avgrening bär det som köps (säljs = −);
-     avgreningen → elcentralen bär nätet minus det bilen tar. Båda från
-     Pulse och laddboxen – sol och batteri har egna ledningar in i elcentralen. */
+  /* Nätets ledning bär det som köps (säljs = −), från Pulse. Bilen har en
+     egen ledning ut från elcentralen; sol och batteri har egna ledningar in. */
   var bil=v.bil>=50?v.bil:0,nat0=v.nat||0;
   /* Solens ledning är lika tjock hela vägen: varje sträcka visar hela
      soleffekten (det finns ändå bara en mätare för alla paneler). */
   var varden={sol1:s,sol2:s,sol3:s,sol4:s,
-    nat:nat0,natB:nat0-bil,batt:batt,bil:bil};
+    nat:nat0,batt:batt,bil:bil};
   HUS_LEDN.forEach(function(l){
     if(l.ledare)return;
     var w=varden[l.id]||0,r=el._ledn[l.id],tom=Math.abs(w)<50,b=husBredd(w);
@@ -413,11 +412,10 @@ function husRita(){
     r.fl.setAttribute('class','hus-flod'+(tom?' av':'')+(w<0?' bak':''));
     r.fl.style.animationDuration=(tom?0:Math.max(0.45,1.5-Math.abs(w)/1000*0.12))+'s';
   });
-  /* Nätets färg efter det som flödar: köpt el (in) = nätets färg, el ut från
-     elcentralen (till bilen eller ut på nätet) = den största av sol och batteri. */
+  /* Nätets färg efter det som flödar: köpt el (in) = nätets färg, såld el
+     (ut från elcentralen) = den största av sol och batteri. */
   function natfarg(w){if(w>-50)return HUS_FARG.nat;return s>=Math.max(0,batt)?HUS_FARG.sol:HUS_FARG.batt;}
   el._ledn.nat.bas.style.stroke=natfarg(nat0);
-  el._ledn.natB.bas.style.stroke=natfarg(nat0-bil);
   /* Bilens gren: tänd när en bil laddar, tunn och blek när en bil bara är
      inkopplad (som de andra ledningarna utan flöde), borta utan bil. */
   el._ledn.bil.bas.style.display=el._ledn.bil.fl.style.display=(bil||v.inkopplad)?'':'none';
@@ -431,10 +429,10 @@ function husRita(){
      pendlar Pulse några watt kring noll. */
   husFyll(el._falt.nat,'Elnät',(nat!=null&&Math.abs(nat)<50)?0:nat,nat==null?'':(nat>=50?'köper':nat<=-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
-  husFyll(el._falt.sol,'Sol',v.sol,'');
+  husFyllLiten(el._falt.sol,'sol',v.sol,'');
   /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
-  husFyll(el._falt.batt,'Batteri',v.batt,(v.soc==null?'':Math.round(v.soc)+' % · ')
-    +(v.batt==null?'':(v.batt>50?'laddar ur':v.batt<-50?'laddar':'vilar')));
+  husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
+  el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   try{husVaderFyll(el._falt.vader);}catch(e){}
   var laddar=v.bil>=50;
