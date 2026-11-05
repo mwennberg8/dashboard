@@ -1722,6 +1722,7 @@ function avlUpp(e){
 function dayChart(series,fonster){
   var cid=(fonster&&fonster.cid)||'g2-day';
   var pctSerie=(fonster&&fonster.pct)||null;
+  var tempSerie=(fonster&&fonster.temp)||null;   /* v843: batteriets temperatur, egen skala */
   var dromNoll=!!(fonster&&fonster.dromNoll);
   /* Ett fönster är ett fönster först när det har en tidsgräns. Anropet från
      förbrukning nu skickar bara pct och ska ha dygnsbeteendet. */
@@ -1811,7 +1812,28 @@ function dayChart(series,fonster){
       segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
     }
   }
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+'</svg>';
+  /* v843: TEMPERATUREN i samma bild, på en egen skala (minst 4 grader hög, så
+     att en halv grads svängning inte ser dramatisk ut). Prickad linje så att
+     den inte förväxlas med laddnivåns streckade. Skalan står inte på axeln –
+     avläsningen och förklaringen säger °C. */
+  var tempLinje='';
+  if(tempSerie&&tempSerie.pts&&tempSerie.pts.length){
+    var tseg=klipp(tempSerie.pts);
+    if(tseg&&tseg.length>1){
+      var tv=tseg.map(function(q){return q.v;}),tlo=Math.min.apply(null,tv),thi=Math.max.apply(null,tv);
+      if(thi-tlo<4){var tm=(thi+tlo)/2;tlo=tm-2;thi=tm+2;}
+      var tpad=(thi-tlo)*0.12;tlo-=tpad;thi+=tpad;
+      var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
+      var tk=tempSerie.key,ton=(!active||sel[tk]);
+      tempLinje='<path data-k="'+tk+'" data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+tempSerie.col
+        +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-dasharray="1 3.5" stroke-linejoin="round" stroke-linecap="round"'
+        +' vector-effect="non-scaling-stroke" style="opacity:'+(ton?0.95:0.09)+'"/>';
+      if(ton)avlSer.push({namn:tempSerie.label,farg:tempSerie.col,pts:tseg,Y:YT,
+        fmt:function(v){return num(v,1)+' °C';}});
+      segs.push({s:tempSerie,seg:tseg});
+    }
+  }
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+tempLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
   var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
