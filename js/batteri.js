@@ -702,7 +702,8 @@ async function battSparaTryck(){
   setTimeout(function(){try{load();}catch(e){}},1500);
 }
 function byggBatt(){
-  var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr();
+  var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr(),bTemp=cap(BATT_MODBUS,'measure_temperature.battery');
+  if(bTemp==null&&SOURCE==='demo-data')bTemp=12.5;   /* demon har ingen Modbus-enhet */
   return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
       'Skalan är watt. Effekten är positiv och grön när batteriet laddas, negativ '
       +'och gul när det matar ut. Den streckade kurvan är laddnivån på egen 0–100-skala. Dra '
@@ -714,6 +715,13 @@ function byggBatt(){
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
+    /* v841: batteriets temperatur bor här i stället för i temperaturgrafen. */
+    +dRow('Temperatur',bTemp==null?'–':num(bTemp,1)+' °C')
+    +grafRubrik('batttemp','Batteriets temperatur',infoBlock('batttemp',
+      'Temperaturen i husbatteriet enligt växelriktaren (Modbus). Kallt batteri '
+      +'laddar långsammare. Dra i grafen för att läsa av vid en viss tidpunkt.'))
+    +histSVG('t_batt',{unit:'°C',icon:'thermometer',label:'Batteriets temperatur',demo:12.5},'batttemp')
+    +grafTidsval('batttemp')
     +regelHTML();
     /* Ladda bor i batteriets popup när knappavsnittet är gömt (v688).
        v708: Spara ligger bredvid; utan Ladda i popupen står den ensam.

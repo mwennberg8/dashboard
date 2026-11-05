@@ -1726,7 +1726,7 @@ function histSVG(key,cfg,cid){const e=learnGet()[key];let pts=e&&e.s?e.s.slice()
   if(cid)_grafByggare[cid]={titel:(cfg&&cfg.label)||'Historik',
     full:function(c){return histSVG(key,cfg,c||cid);}};
   const fen=cid?grafFonster(cid):null;
-  if(pts.length<4&&SOURCE==='demo-data'){const base=metricNumber(cfg);const b=(base==null||!isFinite(base))?100:base;pts=[];for(let i=48;i>=0;i--){const t=now-i*1800000;const wob=1+0.35*Math.sin(i/4)+0.12*Math.sin(i*1.3)+(Math.random()-0.5)*0.1;pts.push([t,Math.max(0,b*wob)]);}}
+  if(pts.length<4&&SOURCE==='demo-data'){const base=(cfg&&cfg.demo!=null)?cfg.demo:metricNumber(cfg);   /* v841: cfg.demo = demovärde när enheten saknas i demon */const b=(base==null||!isFinite(base))?100:base;pts=[];for(let i=48;i>=0;i--){const t=now-i*1800000;const wob=1+0.35*Math.sin(i/4)+0.12*Math.sin(i*1.3)+(Math.random()-0.5)*0.1;pts.push([t,Math.max(0,b*wob)]);}}
   if(pts.length<4)return '<div class="viz-empty">Samlar in data… grafen fylls på efter hand.</div>';
   const cut=fen?fen.t0:(now-48*3600000);let seg=pts.filter(p=>p[0]>=cut);if(seg.length<4&&!fen)seg=pts.slice(-48);
   if(seg.length<2)return '<div class="viz-empty">För få mätvärden i det valda fönstret.</div>';
