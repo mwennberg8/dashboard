@@ -277,7 +277,13 @@ function paNuLista(){
   try{var L0=regelLage(),Rb=_regel||{},nuB=Date.now(),sp0=null,bs0=null;
     try{sp0=battSparaLage();}catch(e){}
     try{bs0=battStartAktiv();}catch(e){}
-    var sparTill=(sp0&&sp0.aktiv&&sp0.till)?(' till '+regelKl(sp0.till)):'';
+    /* Homeys battladd_start i första hand (bokat från vilken enhet som helst),
+       den lokala ekot i andra – som batterirutans egen läsning. */
+    var bst=(Rb.start>nuB)?Rb.start:((bs0&&bs0>nuB)?bs0:0);
+    /* v842: en bricka per sak – sparar batteriet i väntan på en bokad
+       laddning står laddtiden i samma bricka ("Batteriet sparar · laddar
+       21:00"). Förut tog spara-brickan platsen och bokningen syntes inte. */
+    var sparTill=bst?(' · laddar '+bilKlText(bst)):((sp0&&sp0.aktiv&&sp0.till)?(' till '+regelKl(sp0.till)):'');
     var laddTill='';
     /* v749: Ladda på = markören eller knappens läge, inte bara registret. Precis
        efter start står Modbus ofta still → läget "oklart", och då föll brickan
@@ -295,9 +301,6 @@ function paNuLista(){
       else if(L0.lage==='spara')lagg('Batteriet sparar'+sparTill,'batt');}
     /* Bokat men inte påbörjat: före "styrs – egenförbrukning", som inte säger
        något man behöver veta. */
-    /* Homeys battladd_start i första hand (bokat från vilken enhet som helst),
-       den lokala ekot i andra – som batterirutans egen läsning. */
-    var bst=(Rb.start>nuB)?Rb.start:((bs0&&bs0>nuB)?bs0:0);
     /* Kort – brickan ska rymmas på en telefon. Resten står i batterirutan. */
     if(bst)lagg('Batteriet laddar '+bilKlText(bst),'batt',true);
     else if(Rb.spara>nuB)lagg('Batteriet sparar från '+regelKl(Rb.spara),'batt',true);
