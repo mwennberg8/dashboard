@@ -273,7 +273,18 @@ function battGrafHTML(cid){
     [{key:'battpow',pts:histV('battpow',cid,battPowSerie()),col:(P.green||'#7bc47f'),col2:(P.gold||'#ebcb8b'),label:'Effekt'}],
     /* v687: nollinjen tillbaka — laddnivån har 0 % på samma linje. */
     {t0:t0,t1:t1,cid:cid,
-     pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'}});
+     pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'},
+     /* v843: batteriets temperatur (Modbus) på egen skala i samma graf. */
+     temp:{key:'t_batt',pts:battTempSerie(cid),col:(P.hot||'#bf616a'),label:'Temperatur'}});
+}
+/* Demon har ingen Modbus-enhet – en lugn kurva kring 12,5 °C i stället för ingen. */
+function battTempSerie(cid){
+  var pts=histV('t_batt',cid);
+  if((!pts||pts.length<2)&&SOURCE==='demo-data'){
+    var nu=Date.now();pts=[];
+    for(var i=96;i>=0;i--)pts.push({t:nu-i*900000,v:12.5+0.9*Math.sin(i/14)+0.25*Math.sin(i/3.1)});
+  }
+  return pts||[];
 }
 function infoBlock(id,text){
   var op=_infoOppen[id]?' open':'';
