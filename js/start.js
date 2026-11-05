@@ -1622,11 +1622,10 @@ var TEMPS=[
   {k:'kallare',   lab:'Källare',    c:'blue',   ser:function(c){return histV('t_kallare',c);},    val:function(){return cap(DEV.kallare,'measure_temperature');}},
   {k:'snickarboa',lab:'Snickarboa', c:'green',  ser:function(c){return histV('t_snickarboa',c);}, val:function(){return cap(DEV.snickarboa,'measure_temperature');}},
   {k:'breveden',  lab:'Breveden',   c:'violet', ser:function(c){return histV('t_breveden',c);},   val:function(){return cap(DEV.attefall,'measure_temperature');}},
-  /* Ute och batteri. Ute ligger sist bland de mätta rummen eftersom den
-     nästan alltid är kallast och drar ner skalan — den som vill jämföra rum
-     mot rum stänger av den med ett tryck. */
-  {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(c){return histV('t_ute',c);},      val:function(){return cap(DEV.outdoor,'measure_temperature');}},
-  {k:'batteri',   lab:'Batteri',    c:'hot',     ser:function(c){return histV('t_batt',c);},     val:function(){return cap(BATT_MODBUS,'measure_temperature.battery');}}
+  /* Ute ligger sist bland de mätta rummen eftersom den nästan alltid är
+     kallast och drar ner skalan — den som vill jämföra rum mot rum stänger av
+     den med ett tryck. Batteriets temperatur visas sedan v841 i batteripopupen. */
+  {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(c){return histV('t_ute',c);},      val:function(){return cap(DEV.outdoor,'measure_temperature');}}
 ];
 
 /* ---------- [batteri.js] ---------- */
@@ -2611,7 +2610,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v840';
+const APP_VERSION='v841';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
