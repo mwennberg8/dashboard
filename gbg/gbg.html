@@ -1113,13 +1113,13 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.90.0';
+const APP_VERSION = 'v1.91.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
      webbläsaren — filen ska kunna ligga publikt på GitHub Pages. */
   HOMEY_URL: "", TOKEN: "",
-  REFRESH_SECONDS: 15,
+  REFRESH_SECONDS: 5,   /* v1.91.0: var 5:e sekund (förut 15) */
   /* Göteborg, Mandolingatan. Fast punkt med flit: bilen flyttar sig, och en
      väderprognos som byter ort när man kör iväg är inte till hjälp. */
   LAT: 57.6570, LON: 11.9176,
@@ -1588,7 +1588,17 @@ async function hamtaEnheter(base){
    fungerar; först när DEN slutar svara provas listan om. Att prova lokalt varje
    gång kostar en timeout var 15:e sekund när man är borta. */
 let _baseAt=0;
+/* v1.91.0: EN HÄMTNING I TAGET – med 5 s mellan uppdateringarna kunde en
+   långsam hämtning annars få nästa att starta innan den var klar. Hänger den
+   mer än 30 s räknas den som död. I en dold flik räcker var 30:e sekund. */
+let _loadPagar=0;
 async function load(){
+  if(_loadPagar&&Date.now()-_loadPagar<30000)return;
+  try{if(document.hidden&&lastUpdate&&Date.now()-lastUpdate<30000)return;}catch(e){}
+  _loadPagar=Date.now();
+  try{return await loadKarna();}finally{_loadPagar=0;}
+}
+async function loadKarna(){
   credTillCONFIG();
   if(!credFinns()){setupVisa();return;}
   let map=null;

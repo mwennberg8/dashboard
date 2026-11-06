@@ -1688,7 +1688,7 @@ function openConfig(){
       +'Utan offlinestöd måste sidan hämtas från nätet varje gång. Kräver att '
       +'<code>sw.js</code> ligger bredvid <code>index.html</code>, och https.</div>';
     h+='<div class="cfg-row"><span class="cfg-row-l">Uppdateringar</span><span class="cfg-num">var '
-      +(CONFIG.REFRESH_SECONDS||15)+' s</span></div>';
+      +(CONFIG.REFRESH_SECONDS||5)+' s</span></div>';
     h+='<div class="cfg-hint" style="margin-top:6px">Ikoner: Phosphor Icons (MIT).</div>';
 
     h+='<div class="cfg-sec" style="margin-top:16px">Rotation</div>';
@@ -1712,7 +1712,7 @@ function openConfig(){
   }else if(_cfgSec==='uppd'){
     h+=cfgBack();
     h+='<div class="cfg-sec">Uppdatering</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Uppdatering</span><select class="cfg-sel" onchange="cfgInterval(this.value)">'+[15,30,60,120].map(s=>'<option value="'+s+'"'+((CONFIG.REFRESH_SECONDS||15)===s?' selected':'')+'>'+s+' s</option>').join('')+'</select></div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Uppdatering</span><select class="cfg-sel" onchange="cfgInterval(this.value)">'+[5,10,15,30,60,120].map(s=>'<option value="'+s+'"'+((CONFIG.REFRESH_SECONDS||5)===s?' selected':'')+'>'+s+' s</option>').join('')+'</select></div>';
   /* v691: På nu-raden och knapparna i rutornas popuper. Av = knappavsnittet
      som förut. */
   h+='<div class="cfg-row"><span class="cfg-row-l">På nu-raden (knappar i rutornas popuper)</span><select class="cfg-sel" onchange="cfgPaNu(this.value)"><option value="on"'+(CFG.paNu!==false?' selected':'')+'>På</option><option value="off"'+(CFG.paNu===false?' selected':'')+'>Av – knappavsnittet</option></select></div>';
@@ -1804,7 +1804,7 @@ function cfgBatt(d){CFG.battkwh=Math.max(3,Math.min(40,(CFG.battkwh||10)+d));sav
 function cfgNclock(v){CFG.nclock=(v==='on')?'on':'off';saveCfg();nightClockTick();}
 function nclockOffLabel(){const m=(CFG&&CFG.nclockOffset)||0;if(m===0)return 'vid solnedgång';return (m>0?'+':'−')+Math.abs(m)+' min';}
 function cfgNclockOff(d){CFG.nclockOffset=Math.max(-120,Math.min(120,((CFG.nclockOffset||0)+d*15)));saveCfg();const n=$('cfgnum-nclockoff');if(n)n.textContent=nclockOffLabel();render();}
-function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||15;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
+function cfgInterval(val){CONFIG.REFRESH_SECONDS=parseInt(val,10)||5;if(_refreshTimer)clearInterval(_refreshTimer);_refreshTimer=setInterval(load,CONFIG.REFRESH_SECONDS*1000);}
 function cfgWxRubrik(v){if(szMobile())CFG.wxRubrik=(v!=='off');else CFG.wxRubrikPl=(v!=='off');saveCfg();try{renderWeather();applySecOrder();}catch(e){}}
 function cfgPaNu(v){CFG.paNu=(v!=='off');saveCfg();try{rutorPaNu();}catch(e){}try{renderTiles('flode');renderControls();render();}catch(e){}}
 /* RUTORNA FÖR KNAPPARNAS POPUPER (v691), en gång. Med På nu-raden ligger
@@ -2457,7 +2457,17 @@ function liveVanta(pa){
 }
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 function statusLive(){const d=$('dot');return !!(d&&d.classList&&d.classList.contains('live'));}
+/* v853: EN HÄMTNING I TAGET. Med 5 s mellan uppdateringarna kunde en långsam
+   hämtning (upp till 8 s per väg) annars få nästa att starta innan den var
+   klar, och ett äldre svar skriva över ett nyare. Hänger en hämtning mer än
+   30 s räknas den som död. I en dold flik räcker var 30:e sekund. */
 async function load(){
+  if(_loadPagar&&Date.now()-_loadPagar<30000)return;
+  try{if(document.hidden&&lastUpdate&&Date.now()-lastUpdate<30000)return;}catch(e){}
+  _loadPagar=Date.now();
+  try{return await loadKarna();}finally{_loadPagar=0;}
+}
+async function loadKarna(){
   credTillCONFIG();
   /* GUL MEDAN DET LADDAS. Regeln är: rött = ingen kontakt, gult = sparad data
      eller hämtning pågår, grönt = färska värden från Homey. Utan det här stod
