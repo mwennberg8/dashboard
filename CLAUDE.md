@@ -14,8 +14,9 @@ Kommentarer, namn och commits skrivs på svenska.
 
 ## Gottskär: `index.html` och `js/`
 
-`index.html` har bara HTML, CSS och tre små inline-skript: manifestet,
-plattramen och husvakten. All annan kod ligger i `js/`:
+`index.html` har bara HTML, CSS och fyra små inline-skript: manifestet,
+plattramen, skissen (den senaste bilden av sidan, suddig tills den är live) och
+husvakten. All annan kod ligger i `js/`:
 
 - **Ämnesfilerna** (`grund.js`, `grafer.js`, `vader.js`, `batteri.js`,
   `installningar.js` med flera) innehåller **bara funktionsdeklarationer**.

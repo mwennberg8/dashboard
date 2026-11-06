@@ -885,6 +885,11 @@ body{--rum-luft:calc(var(--pg-gap) * 3);--rum-h:19px}
    popuperna rörs inte. Ingen tryckning går igenom medan det är suddigt. */
 .wrap{transition:filter .35s ease,opacity .35s ease}
 body.vantar-live .wrap{filter:blur(5px) saturate(.75);opacity:.7;pointer-events:none}
+/* v852: SKISSEN. Innan koden hunnit ladda visas den senaste bilden av sidan
+   (sparad av skissSpara när den var live), suddig, ovanpå den riktiga sidan
+   som är osynlig under tiden. Tas bort när första live-svaret kommit. */
+body.har-skiss .wrap:not(#skiss){visibility:hidden}
+#skiss{position:absolute;left:0;right:0;top:0;filter:blur(5px) saturate(.75);opacity:.7;pointer-events:none}
 #live-vant{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translate(-50%,-6px);z-index:46;
   display:flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:var(--panel-a);
   border:1px solid var(--line);box-shadow:0 6px 18px -8px rgba(0,0,0,.45);font-size:12px;font-weight:750;color:var(--dim);
@@ -4014,6 +4019,19 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
   <div id="nightdim"></div>
   <div id="nightclock" onclick="ncWake()"><div id="nc-time">–</div><div id="nc-date"></div><div id="nc-temp"></div><div id="nc-info"></div></div>
 
+<script>/* skiss 1.0 (v852): senaste bilden av sidan, suddig tills den är live.
+   Läggs EFTER den riktiga sidan så att getElementById alltid hittar den riktiga
+   först. Sparas av skissSpara och tas bort av skissDolj (js/sidan.js). */
+(function(){try{
+  if(/[?&]demo=1/.test(location.search))return;
+  var s=JSON.parse(localStorage.getItem('skiss_v1')||'null');
+  if(!s||!s.h||s.h.length<200)return;
+  var w=document.querySelector('.wrap');if(!w)return;
+  if(s.tema)document.documentElement.setAttribute('data-theme',s.tema);
+  if(s.kl)s.kl.split(' ').forEach(function(k){if(k&&k!=='vantar-live'&&k!=='har-skiss')document.body.classList.add(k);});
+  var d=document.createElement('div');d.className='wrap';d.id='skiss';d.setAttribute('aria-hidden','true');d.innerHTML=s.h;
+  w.parentNode.insertBefore(d,w.nextSibling);document.body.classList.add('har-skiss');
+}catch(e){}})();</script>
 <!-- Dashboardens kod ligger i js/. Ämnesfilerna innehåller bara funktioner och
      kan stå i vilken ordning som helst; start.js måste komma sist. Ny fil? Lägg
      till den här och i SKAL i sw.js. -->

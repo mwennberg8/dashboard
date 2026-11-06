@@ -2451,6 +2451,7 @@ function liveVanta(pa){
     }else{
       clearTimeout(_liveVantaT);_liveVantaT=null;
       b.classList.remove('vantar-live');
+      try{skissDolj();}catch(e){}   /* v852 */
     }
   }catch(e){}
 }
@@ -2528,6 +2529,7 @@ async function load(){
     try{var _rp=regelHamta(true);if(_rp)await Promise.race([_rp,new Promise(function(r){setTimeout(r,REGEL_VANTA_MS);})]);}catch(e){}}
   render();tickRel();setT('foot-src',footKalla());footVia();
   liveVanta(false);   /* v723: färska värden – eller inget svar alls: skärp sidan */
+  try{skissSpara();}catch(e){}   /* v852: bilden till nästa start */
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();prisVarHamta();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
     /* Krönikelistan hämtas HÄR, inte bara när Insikter ritas. Notisknappen sitter
        i toppraden på startsidan, och utan det här stod den tom tills man råkat
