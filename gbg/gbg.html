@@ -125,6 +125,10 @@ window.pwaTryFileManifest();
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
+/* Ingen rullist till höger: sidan rullar som förut med finger, mus och tangenter,
+   men listen tar ingen plats och syns inte. */
+html,body{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 /* Ingen textmarkering, ingen förstoringslupp och ingen länkmeny vid långtryck.
    Dashboarden är en tavla man trycker på, inte en text man läser — och långtryck
    är numera en egen gest här (inställningar, knappredigering). Fält där man
@@ -1107,7 +1111,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.88.0';
+const APP_VERSION = 'v1.89.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
