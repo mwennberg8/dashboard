@@ -462,3 +462,11 @@ async function checkForUpdate(){try{
     location.reload();
   }
 }catch(e){}}
+/* INGEN ZOOM. Safari på iPad/iPhone bryr sig inte om user-scalable=no, så
+   nyp-gesten stoppas här. Ctrl+hjul och Ctrl +/−/0 stoppas på dator. */
+function zoomSparr(){try{
+  document.addEventListener('gesturestart',function(e){e.preventDefault();},{passive:false});
+  document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});
+  document.addEventListener('wheel',function(e){if(e.ctrlKey)e.preventDefault();},{passive:false});
+  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&/^(\+|-|=|0)$/.test(e.key))e.preventDefault();});
+}catch(e){}}
