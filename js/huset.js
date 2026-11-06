@@ -160,6 +160,11 @@ function husLjusBygg(el,svg,NS){
       mk.appendChild(t.p?ny('polygon',{points:t.p,fill:'#000'}):ny('rect',{x:t.r[0],y:t.r[1],width:t.r[2],height:t.r[3],fill:'#000'}));});
     defs.appendChild(mk);}
   var tak=typeof HUS_TAK!=='undefined'?HUS_TAK:[],lag=typeof HUS_TAK_LAG!=='undefined'?HUS_TAK_LAG:[];
+  /* v854: de små taken (burspråket) döljer också fönsterljuset – fönstren går
+     in under taket och skenet syns bara utanför takfoten. Konturen tas ur
+     HUS_SMATAK, så masken alltid följer taket. */
+  try{tak=tak.concat((typeof HUS_SMATAK!=='undefined'?HUS_SMATAK:[]).map(function(t){
+    var k=t.v.split(' '),h=t.h.split(' ');return {p:[k[0],k[1],h[0],h[1]].join(' ')};}));}catch(e){}
   takMask('hus-tak-mask',tak);
   takMask('hus-tak-mask-ute',tak.concat(lag));
   svg.appendChild(defs);
