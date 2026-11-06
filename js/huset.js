@@ -82,6 +82,7 @@ function husBygg(el){
     /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
     if(y.hall)try{hallInne(e,new Function(y.hall));}catch(x){}
     yt.appendChild(e);});
+  try{husTakBygg(svg,NS);}catch(e){}   /* v850: burspråkets tak, under ljuset */
   husLjusBygg(el,svg,NS);
   el._ledn={};
   HUS_LEDN.forEach(function(l){
@@ -100,12 +101,34 @@ function husBygg(el){
     b.style.width=(f.w/1040*100)+'%';b.style.height=(f.h/1120*100)+'%';
     b.setAttribute('onclick',f.fn||("openDetail('"+f.pop+"')"));
     if(f.typ==='vader')b.className+=' hus-vader';
+    if(f.hoger)b.className+=' hoger';   /* v850: spegelvänd */
     karta.appendChild(b);el._falt[k]=b;
   });
   el._byggd=true;
 }
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
+/* v850: små tak (HUS_SMATAK) – tre plan, kant och skugga, klippta vid husets
+   takkant så att de ligger under hustaket. Färgerna sätts i CSS per tema. */
+function husTakBygg(svg,NS){
+  if(typeof HUS_SMATAK==='undefined'||!HUS_SMATAK)return;
+  var defs=document.createElementNS(NS,'defs');svg.appendChild(defs);
+  HUS_SMATAK.forEach(function(t,i){
+    var id='hus-tak-klipp-'+i,cp=document.createElementNS(NS,'clipPath');cp.setAttribute('id',id);
+    var r=document.createElementNS(NS,'rect');r.setAttribute('x','0');r.setAttribute('y','0');
+    r.setAttribute('width','1040');r.setAttribute('height',String(t.kant));cp.appendChild(r);defs.appendChild(cp);
+    var g=document.createElementNS(NS,'g');g.setAttribute('class','hus-tak');g.setAttribute('clip-path','url(#'+id+')');
+    var poly=function(kl,pts,extra){var p=document.createElementNS(NS,'polygon');p.setAttribute('class',kl);p.setAttribute('points',pts);
+      if(extra)p.setAttribute('transform',extra);g.appendChild(p);};
+    poly('tak-skugga',t.skugga,'translate(2.5,3)');
+    poly('tak-v',t.v);poly('tak-f',t.f);poly('tak-h',t.h);
+    var k=t.v.split(' '),hh=t.h.split(' ');
+    poly('tak-kant',[k[0],k[1],hh[0],hh[1]].join(' '));
+    var ras=document.createElementNS(NS,'path');ras.setAttribute('class','tak-ras');
+    ras.setAttribute('d','M'+k[1]+' L'+k[2]+' L'+hh[0]);g.appendChild(ras);
+    svg.appendChild(g);
+  });
+}
 function husLjusBygg(el,svg,NS){
   function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
   var defs=ny('defs',{});
