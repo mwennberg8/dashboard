@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Göteborg</title>
 <meta name="theme-color" content="#2e3440">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -128,6 +128,8 @@ html{-webkit-text-size-adjust:100%}
 /* Ingen rullist till höger: sidan rullar som förut med finger, mus och tangenter,
    men listen tar ingen plats och syns inte. */
 html,body{scrollbar-width:none;-ms-overflow-style:none}
+/* Ingen zoom: rulla går, nyp och dubbeltryck zoomar inte. */
+html{touch-action:pan-x pan-y}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 /* Ingen textmarkering, ingen förstoringslupp och ingen länkmeny vid långtryck.
    Dashboarden är en tavla man trycker på, inte en text man läser — och långtryck
@@ -1111,7 +1113,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.89.0';
+const APP_VERSION = 'v1.90.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -5630,6 +5632,14 @@ function gbgSwReg(){try{
   navigator.serviceWorker.register('../sw.js',{scope:'../',updateViaCache:'none'}).then(r=>{try{r.update();}catch(e){}},()=>{});
 }catch(e){}}
 
+/* INGEN ZOOM. Safari på iPad/iPhone bryr sig inte om user-scalable=no, så
+   nyp-gesten stoppas här. Ctrl+hjul och Ctrl +/−/0 stoppas på dator. */
+function zoomSparr(){try{
+  document.addEventListener('gesturestart',function(e){e.preventDefault();},{passive:false});
+  document.addEventListener('touchmove',function(e){if(e.touches&&e.touches.length>1)e.preventDefault();},{passive:false});
+  document.addEventListener('wheel',function(e){if(e.ctrlKey)e.preventDefault();},{passive:false});
+  document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&/^(\+|-|=|0)$/.test(e.key))e.preventDefault();});
+}catch(e){}}
 /* ================= start ================= */
 function start(){
   try{const t=localStorage.getItem('gbgtema_v1');if(t)CONFIG.THEME=t;}catch(e){}
@@ -5699,6 +5709,7 @@ function start(){
   applySekt();
   if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches)document.body.classList.add('mobile');
 }
+zoomSparr();   /* v1.90.0: ingen zoom */
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
 else start();
 </script>

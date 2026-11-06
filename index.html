@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Dashboard</title>
 <!-- Färgen på Chromes header. Sattes till #0e1726/#f4f6fb, som inte finns i något
      av temana – därav att headern aldrig matchade appen. Nu står appens egen
@@ -208,6 +208,8 @@ html{-webkit-text-size-adjust:100%}
 /* Ingen rullist till höger: sidan rullar som förut med finger, mus och tangenter,
    men listen tar ingen plats och syns inte. */
 html,body{scrollbar-width:none;-ms-overflow-style:none}
+/* Ingen zoom: rulla går, nyp och dubbeltryck zoomar inte. */
+html{touch-action:pan-x pan-y}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 body{font-family:var(--sans);color:var(--ink);min-height:100vh;line-height:1.42;
   padding:clamp(13px,2.4vw,34px);font-variant-numeric:tabular-nums;letter-spacing:-.006em;
