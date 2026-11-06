@@ -470,3 +470,24 @@ function zoomSparr(){try{
   document.addEventListener('wheel',function(e){if(e.ctrlKey)e.preventDefault();},{passive:false});
   document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&/^(\+|-|=|0)$/.test(e.key))e.preventDefault();});
 }catch(e){}}
+/* SKISSEN (v852). En bild av startsidan sparas när den visar livevärden – högst
+   var femte minut, och bara när ingen ruta är öppen – så att nästa start kan
+   visa den suddig direkt (inline-skriptet i index.html), i stället för sidans
+   tomma grundskick. */
+var SKISS_KEY='skiss_v1',SKISS_MS=5*60000;
+function skissSpara(){try{
+  if(isDemo()||!statusLive())return;
+  var bk=$('dlg-back');if(bk&&bk.classList.contains('open'))return;
+  var fl=$('view-flode');if(!fl||fl.classList.contains('hidden'))return;
+  var w=document.querySelector('.wrap:not(#skiss)');if(!w)return;
+  var f=null;try{f=JSON.parse(localStorage.getItem(SKISS_KEY)||'null');}catch(e){}
+  if(f&&f.at&&Date.now()-f.at<SKISS_MS&&f.v===APP_VERSION)return;
+  var kl=String(document.body.className||'').split(/\s+/).filter(function(k){return k&&k!=='vantar-live'&&k!=='har-skiss';}).join(' ');
+  var h=w.innerHTML;if(h.length>1500000)return;   /* aldrig mer än ~1,5 MB */
+  localStorage.setItem(SKISS_KEY,JSON.stringify({at:Date.now(),v:APP_VERSION,tema:curTheme||'',kl:kl,h:h}));
+}catch(e){}}
+function skissDolj(){try{
+  var d=document.getElementById('skiss');if(d&&d.parentNode)d.parentNode.removeChild(d);
+  document.body.classList.remove('har-skiss');
+}catch(e){}}
+
