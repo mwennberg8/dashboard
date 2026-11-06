@@ -1107,7 +1107,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.87.0';
+const APP_VERSION = 'v1.88.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1516,6 +1516,9 @@ async function homeyGet(path,base){
 /* Skrivning provar ALLA vägar, inte bara den som senast lästes. Ett tryck ska
    inte vara dött för att den lokala vägen råkar vara borta just nu. */
 async function homeySkriv(path,body){
+  /* v1.88.0: demoläget skickar aldrig något till Homey – inte heller via
+     sparade inloggningsuppgifter (vagar()). Förut stoppade bara satt(). */
+  if(DEMO){toast('Demoläge – inget skickas till Homey');return true;}
   const lista=(BASE?[BASE].concat(vagar().filter(v=>v!==BASE)):vagar());
   let sistFel=null;
   for(const b of lista){
@@ -1535,6 +1538,7 @@ async function homeySkriv(path,body){
   }
   throw new Error(sistFel||'ingen kontakt');}
 async function homeyPost(path){
+  if(DEMO){toast('Demoläge – inget skickas till Homey');return true;}   /* v1.88.0 */
   const lista=(BASE?[BASE].concat(vagar().filter(v=>v!==BASE)):vagar());
   let sistFel=null;
   for(const b of lista){
@@ -1655,7 +1659,8 @@ function applyTheme(){
   return sc;
 }
 const hhmm=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
+/* v1.88.0: avrunda till hela minuter först – 7,995 blev annars "07:60". */
+const hm=h=>{if(h==null||!isFinite(h))return '–';const m=Math.round(h*60);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(((m%60)+60)%60).padStart(2,'0');};
 /* FLIKRADEN GÖMS NÄR MAN SKROLLAR NEDÅT och kommer tillbaka uppåt eller nära
    toppen. Små rörelser (under 8 px) räknas inte, så den inte fladdrar. Samma
    som Gottskärs flikSkroll. (v1.74.0 – ersätter den fastnande toppraden.) */
@@ -2405,7 +2410,7 @@ function lampZonDimSlx(id,v){
 function lampDimVisa(v){const e=$('lm-dimv');if(e)e.textContent=v+' %';}
 function openLampor(vilka){
   const titel=(vilka==='tak')?'Taklampor':'Myslampor';
-  DLG_OM['lamp'+vilka]=()=>{const b=$('dlg-body');if(b)b.innerHTML=lampPopHTML(vilka);};
+  DLG_OM['lamp'+vilka]=()=>dlgSatt(lampPopHTML(vilka));   /* v1.88.0: ikoner och rullläge behålls */
   openDlg(titel,(vilka==='tak')?'lightbulb':'lamp',lampPopHTML(vilka),'lamp'+vilka);
 }
 function alltLampor(){
@@ -2777,6 +2782,7 @@ async function appHamta(){
    ändringar som är dess egna, och (2) loggen kan laddas ner som en fil. */
 function appAvsikt(id,c){
   try{
+    if(DEMO)return;   /* v1.88.0 */
     const b=(BASE||vagar()[0]||'').replace(/\/$/,'');
     if(!b||!CONFIG.TOKEN)return;
     const t=withTimeout(5000);
@@ -4605,6 +4611,7 @@ async function kurvaSpara(){
   kurvaRita();
 }
 async function homeySkapaVar(namn,varde){
+  if(DEMO)return true;   /* v1.88.0: demoläget skriver inget */
   const lista=(BASE?[BASE].concat(vagar().filter(function(v){return v!==BASE;})):vagar());
   for(const b of lista){
     const t=withTimeout(9000);
@@ -5594,7 +5601,30 @@ async function setupProva(){
   credSet({token:tok,homeyId:id,lan:lan,kamera:c.kamera});
   credTillCONFIG();
   sag('Ansluten via '+esc(lyckad.replace(/^https?:\/\//,''))+'. Läser in…');
-  setTimeout(()=>{setupDolj();start();},600);}
+  /* v1.88.0: ladda om i stället för start() – start() en andra gång
+     registrerade alla timrar och lyssnare dubbelt. */
+  setTimeout(()=>{setupDolj();location.reload();},600);}
+
+/* v1.88.0: SJÄLVOMLADDNING. Samma princip som Gottskärs checkForUpdate:
+   filen hämtas utan cache, och har den ändrats laddas sidan om – men inte
+   mitt i en öppen ruta. */
+var _gbgSig=null;
+async function gbgUppdKoll(){try{
+  if(!location.href||location.href.indexOf('http')!==0)return;
+  const t=withTimeout(7000);
+  const r=await fetch(location.href,{cache:'no-store',signal:t.signal});t.clear();
+  if(!r.ok)return;const txt=await r.text();if(!txt||txt.length<500)return;
+  let h=0;for(let i=0;i<txt.length;i++){h=(h*31+txt.charCodeAt(i))|0;}
+  const sig=h+':'+txt.length;
+  if(_gbgSig==null){_gbgSig=sig;return;}
+  if(sig!==_gbgSig){const bk=$('dlg-back');if(bk&&bk.classList.contains('open'))return;location.reload();}
+}catch(e){}}
+/* v1.88.0: service workern (../sw.js, delad med Gottskär) registreras även
+   härifrån. Bara på https och inte i en ram. */
+function gbgSwReg(){try{
+  if(location.protocol!=='https:'||!('serviceWorker' in navigator)||window.self!==window.top)return;
+  navigator.serviceWorker.register('../sw.js',{scope:'../',updateViaCache:'none'}).then(r=>{try{r.update();}catch(e){}},()=>{});
+}catch(e){}}
 
 /* ================= start ================= */
 function start(){
@@ -5632,6 +5662,10 @@ function start(){
   setInterval(()=>{appHamta();},120000);
   setInterval(()=>{klockan();tickRel();applyTheme();},1000);
   setInterval(()=>{fetchSmhi();},5*60000);
+  /* v1.88.0: ladda om sig själv efter en push (som Gottskär) och fungera
+     offline även på enheter som aldrig öppnat Gottskär. */
+  gbgUppdKoll();setInterval(gbgUppdKoll,60000);
+  gbgSwReg();
   /* Tillbaka i förgrunden: hämta direkt i stället för att vänta ut intervallet. */
   document.addEventListener('visibilitychange',()=>{if(!document.hidden){load();fetchSmhi();}});
   /* Huset: kort tryck går överst och uppdaterar, långt tryck öppnar
@@ -5665,7 +5699,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.8.0 =====
+/* ===== husvakt 1.8.1 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -5758,9 +5792,13 @@ else start();
   }
   function hoppa(h,varfor){
     if(!HUS[h]||h===jag())return false;
-    var n=parseInt(ss(HOPP)||'0',10)||0;
+    /* 1.8.1: räknaren bär sin tid ("n:ms") och nollställs efter 10 min, så att
+       en flik som lever länge (kioskplatta, PWA) kan byta hus igen. Två byten
+       inom 10 min är fortfarande gränsen – aldrig en loop. */
+    var hv=String(ss(HOPP)||'0').split(':'),n=parseInt(hv[0],10)||0,ht=Number(hv[1])||0;
+    if(n&&Date.now()-ht>600000)n=0;
     if(n>=2)return false;               /* två byten per session räcker; sedan aldrig en loop */
-    ssSet(HOPP,String(n+1));
+    ssSet(HOPP,String(n+1)+':'+Date.now());
     lsSet(SIST,h);
     API.navigera(url(h),varfor);
     return true;
