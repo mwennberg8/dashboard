@@ -418,7 +418,7 @@ function regelLasLokal(){
       max:null,lokal:true};}catch(e){return null;}}
 function regelHamta(tvinga){
   if(_regelLaddar)return _regelP;
-  if(!tvinga&&Date.now()-_regelAt<30000)return null;
+  if(!tvinga&&Date.now()-_regelAt<15000)return null;   /* v853: var 15:e sekund (förut 30) – alla Logic-variabler, ~90 kB, är för mycket var 5:e */
   _regelLaddar=true;
   return _regelP=Promise.resolve().then(logicList).then(function(list){
     var r={};

@@ -143,7 +143,7 @@ const CONFIG = {
      credTillCONFIG(), som kors innan nagot annat. */
   HOMEY_URL: "",
   TOKEN: "",
-  REFRESH_SECONDS: 15, HISTORY_HOURS: 24, LAT: 57.43, LON: 11.93,
+  REFRESH_SECONDS: 5, HISTORY_HOURS: 24,   /* v853: var 5:e sekund (förut 15) */ LAT: 57.43, LON: 11.93,
   BATTERY_WARN: 10,
   BATH_LAT: 57.391, BATH_LON: 12.019, BATH_NAME: "Gottskär",
   TRAFIKVERKET_KEY: "",
@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v852';
+const APP_VERSION='v853';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -2713,6 +2713,7 @@ var _baseAt=0,_baseByte=0;
    Bara enhetslistan cachas. HIST och inställningar ligger redan i localStorage
    och läses som förut. */
 var CACHE_KEY='datacache_v1', _cacheAt=0, VISAR_CACHE=false;
+var _loadPagar=0;   /* v853: tidsstämpel för hämtningen som pågår (0 = ingen) */
 /* ===== SUDDIGT TILLS LIVE (v723) =====
    Vid öppning visas sparade värden direkt (cachen), men suddiga, tills första
    färska svaret kommit från Homey. Då skärps sidan. Svarar Homey inte alls
@@ -3045,7 +3046,7 @@ if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener(
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',function(){try{setTimeout(wxRubrikPassa,60);}catch(e){}});
 try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){try{wxRubrikPassa();}catch(e){}});}catch(e){}
 if(typeof window!=='undefined'&&window.visualViewport&&window.visualViewport.addEventListener)window.visualViewport.addEventListener('resize',function(){try{fitScreen();}catch(e){}});
-_refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||15)*1000);
+_refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||5)*1000);
 setInterval(tickRel,1000);
 /* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
    sekund och det vore fyrtio gånger fler anrop än nödvändigt. */
