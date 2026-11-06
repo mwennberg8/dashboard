@@ -205,6 +205,10 @@ window.pwaTryFileManifest();
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%}
+/* Ingen rullist till höger: sidan rullar som förut med finger, mus och tangenter,
+   men listen tar ingen plats och syns inte. */
+html,body{scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
 body{font-family:var(--sans);color:var(--ink);min-height:100vh;line-height:1.42;
   padding:clamp(13px,2.4vw,34px);font-variant-numeric:tabular-nums;letter-spacing:-.006em;
   background:var(--bg);position:relative;overflow-x:hidden;transition:background-color .7s ease,color .7s ease}
