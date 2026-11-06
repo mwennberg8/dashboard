@@ -21,7 +21,7 @@
  *  färska eller misslyckas — en cachad temperatur är värre än ingen.
  */
 
-const CACHE = 'dashboard-v4';
+const CACHE = 'dashboard-v5';
 
 /* Det som behövs för att sidan ska kunna starta. Ikonerna har versionslösa
    namn men byts sällan; blir de fel räcker en avinstallation. */
@@ -58,6 +58,20 @@ const SKAL = [
   './icon-kvall.png',
   './icon-sammanfattning.png',
   './badge-96.png',
+  /* Husbilderna (456 kB tillsammans): utan dem blev husbilden trasig om sidan
+     startade offline innan bilden hämtats en gång. */
+  './bild/hus-host-natt.webp',
+  './bild/hus-host.webp',
+  './bild/hus-ovanifran-natt.webp',
+  './bild/hus-ovanifran.webp',
+  './bild/hus-sommar-natt.webp',
+  './bild/hus-sommar.webp',
+  './bild/hus-var-natt.webp',
+  './bild/hus-var.webp',
+  './bild/hus-vinter-natt.webp',
+  './bild/hus-vinter-utan-sno-natt.webp',
+  './bild/hus-vinter-utan-sno.webp',
+  './bild/hus-vinter.webp',
 ];
 
 self.addEventListener('install', (e) => {

@@ -367,6 +367,7 @@ function antalNull(d){
     : ('inga brukbara värden av '+v.length);
 }
 async function insGet(path,ms){
+  if(!BASE)return {fel:'ingen Homey (demo)'};   /* v847 */
   var c=new AbortController(),id=setTimeout(function(){c.abort();},ms||25000);
   try{
     var r=await fetch(BASE.replace(/\/$/,'')+path,{headers:{Authorization:'Bearer '+CONFIG.TOKEN},signal:c.signal});

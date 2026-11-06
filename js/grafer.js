@@ -23,7 +23,7 @@ function progIdag(){
   if(!_prog||!_prog.dagar)return null;
   var e=_prog.dagar[_prog.idag];
   return (e&&e.summa_prognos!=null)?e:null;}
-function progDagKey(off){return dayKey(new Date(dayStart()+(off||0)*86400000));}
+function progDagKey(off){return dagNyckelPlus(off||0);}   /* v847: kalenderdagar */
 function progDagE(off){
   if(!_prog||!_prog.dagar)return null;
   var e=_prog.dagar[progDagKey(off)];

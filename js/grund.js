@@ -319,7 +319,8 @@ function recordHist(){const now=Date.now(),cut=now-CONFIG.HISTORY_HOURS*3600*100
   TRACK.forEach(([k,fn])=>{const v=fn();if(v==null)return;HIST[k]=HIST[k]||[];const last=HIST[k][HIST[k].length-1];
     if(!last||now-last.t>=110000)HIST[k].push({t:now,v:Number(v)});HIST[k]=HIST[k].filter(p=>p.t>=cut);});saveHist();}
 
-async function homeyGet(path){const c=new AbortController(),id=setTimeout(()=>c.abort(),8000);
+async function homeyGet(path){if(!BASE)return null;   /* v847: demoläget (BASE='') frågade sajtens egen adress och fick 404 */
+  const c=new AbortController(),id=setTimeout(()=>c.abort(),8000);
   try{const r=await fetch(BASE.replace(/\/$/,'')+path,{headers:{Authorization:'Bearer '+CONFIG.TOKEN},signal:c.signal});clearTimeout(id);if(r.ok)return await r.json();}catch(e){clearTimeout(id);}return null;}
 async function loadZones(){if(zonesDone||!BASE)return;const z=await homeyGet('/api/manager/zones/zone/');if(z){ZONES=z;zonesDone=true;render();}}
 function findLog(logs,devId,m){const owner='homey:device:'+devId,arr=Array.isArray(logs)?logs:Object.values(logs||{});
@@ -512,6 +513,10 @@ function bilStromVal(){
   return (v>=BIL_A_MIN&&v<=BIL_A_MAX)?v:0;
 }
 function bilKlText(ms){
+  /* v847: samma klocka som batteriets bokningar (regelKl): svensk tid, och
+     "imorgon" bara för nästa dag – längre fram står veckodagen. Förut räknades
+     enhetens lokala tid och allt som inte var i dag blev "imorgon". */
+  try{return regelKl(ms);}catch(e){}
   var d=new Date(ms),i=new Date();
   return battKlAv(ms)+((d.getDate()!==i.getDate()||d.getMonth()!==i.getMonth())?' imorgon':'');
 }

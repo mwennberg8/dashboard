@@ -779,8 +779,7 @@ function openDetailKarna(which){
        kan rita om just den här vyn. */
     _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
-    body=byggGrid();
-      +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
+    body=byggGrid();   /* v847: raderna som stod här (ett fristående uttryck som räknades och kastades) finns redan i byggGrid */
   }else if(which==='batt'){title='Husbatteri';
     _grafByggare['g2-batt']={titel:'Husbatteri',full:function(cid){return battGrafHTML(cid||'g2-batt');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
