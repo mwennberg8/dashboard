@@ -70,7 +70,7 @@ function husBygg(el){
   var svg=$('hus-svg'),karta=$('hus-karta');
   try{document.body.classList.add('hus-sida');
     document.body.classList.toggle('vaggplatta',!!arVaggplattaVy());}catch(e){}
-  /* Tryckytorna: solpanelerna, uterummet, Breveden, Snickarboa. */
+  /* Tryckytorna: solpanelerna, uterummet, Breveden, Snickarboa, bilarna. */
   var yt=$('hus-ytor');
   (typeof HUS_YTOR!=='undefined'?HUS_YTOR:[]).forEach(function(y){
     var e=y.p?document.createElementNS(NS,'polygon'):(y.c?document.createElementNS(NS,'circle'):document.createElementNS(NS,'rect'));
