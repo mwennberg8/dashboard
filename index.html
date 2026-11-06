@@ -3816,6 +3816,22 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
   color:#2e3440;border:1px solid rgba(46,52,64,.10);border-radius:2.2cqw;overflow:hidden;
   padding:1.1cqw 1.8cqw 1.1cqw 2.7cqw;box-shadow:0 1cqw 2.6cqw -1.4cqw rgba(30,35,45,.5);transition:opacity .3s;font-family:inherit}
 .hus-falt::before{content:"";position:absolute;left:0;top:0;bottom:0;width:.8cqw;background:var(--f)}
+/* v850: spegelvänd ruta – färgkanten till höger, texten högerställd. */
+.hus-falt.hoger{text-align:right;align-items:flex-end;padding:1.1cqw 2.7cqw 1.1cqw 1.8cqw}
+.hus-falt.hoger::before{left:auto;right:0}
+.hus-falt.hus-vader.hoger{padding:1.2cqw 2.7cqw 1.2cqw 1.8cqw}
+.hus-vader.hoger .hv-rad{justify-content:flex-end}
+/* v850: taket över burspråket (HUS_SMATAK). Dagbildens och nattbildens takfärger. */
+.tak-skugga{fill:rgba(20,30,45,.28);filter:blur(1.5px)}
+.tak-v{fill:#c3cedb}.tak-f{fill:#d9e1ea}.tak-h{fill:#b6c3d1}
+.tak-kant{fill:none;stroke:#94a6ba;stroke-width:1.2;stroke-linejoin:round}
+.tak-ras{fill:none;stroke:#a7b6c7;stroke-width:.9;stroke-linecap:round}
+:root:not([data-theme="light"]) .tak-skugga{fill:rgba(0,0,0,.45)}
+:root:not([data-theme="light"]) .tak-v{fill:#3a5175}
+:root:not([data-theme="light"]) .tak-f{fill:#455d82}
+:root:not([data-theme="light"]) .tak-h{fill:#31466a}
+:root:not([data-theme="light"]) .tak-kant{stroke:#243652}
+:root:not([data-theme="light"]) .tak-ras{stroke:#2b3f5f}
 .hus-falt[hidden]{display:none}
 .hus-falt>*{flex:0 0 auto}   /* raderna krymper inte – annars klipps g:n i "eget" */
 .hus-falt .rub{display:block;font:750 2.15cqw/1.3 var(--sans,inherit);letter-spacing:.01em;
