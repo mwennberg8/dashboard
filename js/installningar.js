@@ -1621,7 +1621,6 @@ function openConfig(){
   h+='<pre class="cfg-diag" id="sync-logg">Varje skrivning mot Homey antecknas här: enhet, tidpunkt, antal nycklar och om det var ett tryck eller automatiken.</pre>';
   h+='<div class="cfg-hint" style="margin-top:0">Ändrar du en knapp eller layouten skickas det till Homey automatiskt efter några sekunder. Andra enheter hämtar in det vid nästa uppdatering.</div>';
     h+='<div class="cfg-sec">Homey-variabler</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Årsdata · Homey-variabel</span><input class="cfg-inp" style="width:150px;font-size:12px;text-align:left" type="text" autocomplete="off" value="'+esc(CFG.yearVar!=null?CFG.yearVar:'energi_arsdata')+'" placeholder="t.ex. energi_arsdata" onchange="cfgYearVar(this.value)"></div>';
   h+='<div class="cfg-row"><span class="cfg-row-l">Lägg till / uppdatera</span><div class="cfg-step"><input id="yh-year" class="cfg-inp" style="width:56px" type="number" inputmode="numeric" placeholder="år"><input id="yh-total" class="cfg-inp" style="width:72px" type="number" inputmode="numeric" placeholder="total"><input id="yh-sol" class="cfg-inp" style="width:62px" type="number" inputmode="numeric" placeholder="sol"><button class="cfg-pm wide" onclick="yhSave()">Spara</button></div></div>';
   }else if(_cfgSec==='system'){
     h+=cfgBack();
@@ -1833,7 +1832,6 @@ function rutorPaNu(){
 function cfgAutoReload(v){CFG.autoreload=(v!=='off');saveCfg();if(CFG.autoreload&&_selfSig==null)checkForUpdate();}
 function cfgKiosk(val){CONFIG.KIOSK=val;applyKiosk();}
 function cfgTabPrev(v){CFG.tabPrev=(v!=='off');saveCfg();applyKiosk();if(typeof setTimeout==='function')setTimeout(fitScreen,60);}
-function cfgYearVar(v){CFG.yearVar=(v||'').trim();saveCfg();_yearFetch=0;try{yearDataMaybe(true);}catch(e){}}
 function yhListHtml(){const a=yearHistGet().slice().sort((x,y)=>y.year-x.year);if(!a.length)return '';let h='';a.forEach(function(y){h+='<div class="cfg-row"><span class="cfg-row-l">'+y.year+(y.manual?'':' · auto')+(y.partial?' · delår':'')+'</span><span style="color:var(--dim);font-size:12px">'+Math.round(y.total||0)+' kWh · sol '+Math.round(y.sol||0)+' <button class="cfg-pm" style="margin-left:6px" onclick="yhRemove('+y.year+')">×</button></span></div>';});return h;}
 function yhSave(){const yv=$('yh-year'),tv=$('yh-total'),sv=$('yh-sol');if(!yv)return;const yr=parseInt(yv.value,10),tot=parseFloat(tv.value),sol=parseFloat(sv.value);if(!yr||isNaN(tot))return;yearHistUpsert(yr,tot,isNaN(sol)?0:sol,{manual:true});yv.value='';tv.value='';sv.value='';const l=$('yh-list');if(l)l.innerHTML=yhListHtml();}
 function yhRemove(yr){yearHistRemove(yr);const l=$('yh-list');if(l)l.innerHTML=yhListHtml();}
@@ -1865,7 +1863,6 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
   return items.slice(0,3).map(w=>'<div class="nc-warn '+(w[0]==='crit'?'crit':'warn')+'"><span class="nc-wi">'+icon(w[1]||'warning')+'</span><span>'+w[2]+(w[3]?' · '+w[3]:'')+'</span></div>').join('');}
 
 function render(){
-  try{yearDataMaybe();}catch(e){}
   try{paNuRita();}catch(e){}
   try{regelHamta(false);regelRadRita();}catch(e){}
   /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
@@ -2145,7 +2142,6 @@ function credRensa(){try{localStorage.removeItem(CRED_KEY);}catch(e){}}
 /* Gottskärsdashboarden får inte köras mot Markus's Homey i Göteborg - den har
    sin egen dashboard (gbg/). Samma adress, så en lösenordshanterare kan fylla
    i fel uppgifter här också. */
-var GBG_HOMEY_ID='65857c585f407045e73ddfdc';
 function credFinns(){var c=credGet();return !!(c.token&&c.homeyId&&String(c.homeyId).trim().toLowerCase()!==GBG_HOMEY_ID);}
 /* Molnadressen ar alltid tillganglig, aven hemifran. Den lokala bara pa LAN. */
 function credMoln(){var c=credGet();

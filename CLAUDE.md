@@ -48,7 +48,7 @@ En fil. Höj `APP_VERSION` (`v1.81.0` → `v1.82.0`) vid varje ändring.
 
 ## Husvakten
 
-Blocket `husvakt 1.8.0` sist i både `index.html` och `gbg/gbg.html` väljer vilket
+Blocket `husvakt 1.8.1` sist i både `index.html` och `gbg/gbg.html` väljer vilket
 hus som visas. Det ska vara **tecken för tecken identiskt** i båda filerna.
 Ändras det på ett ställe ändras det på båda, och versionen i rubriken höjs.
 

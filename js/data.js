@@ -8,7 +8,9 @@
  */
 
 function apiBase(){return (BASE||(candidates()[0])||CONFIG.HOMEY_URL||'').replace(/\/$/,'');}
-async function logicList(){const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
+async function logicList(){
+  if(!apiBase())throw new Error('ingen Homey (demo)');   /* v847: demoläget frågade sajtens egen adress (404) */
+  const tk=CONFIG.WRITE_TOKEN||CONFIG.TOKEN,t=withTimeout(20000);
   const r=await fetch(apiBase()+'/api/manager/logic/variable/',{headers:{Authorization:'Bearer '+tk},signal:t.signal});t.clear();
   if(!r.ok)throw new Error('HTTP '+r.status);return await r.json();}
 function logicArr(list){return Array.isArray(list)?list:Object.values(list||{});}

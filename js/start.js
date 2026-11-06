@@ -227,6 +227,8 @@ ZK.vardagsrum={zon:'9eb2975d-49ea-4033-8db0-105a3e982117',sensor:function(){retu
 var ZK_CO2_VARN=1000,ZK_CO2_LARM=1400,ZK_BATT=15;
 
 let DATA={},ZONES={},SOURCE='demo',seeded=false,zonesDone=false,BASE='',_gid=0,lastUpdate=0,curTheme='',lastInsight=0,_refreshTimer=null,_suppressClick=false,_online=false;
+/* v847: Göteborgs Homey-id (flyttat från installningar.js – ämnesfilerna har bara funktioner). */
+var GBG_HOMEY_ID='65857c585f407045e73ddfdc';
 const $=id=>document.getElementById(id);
 let _timeActive=false,_timeMap=null,_timeInfo=null;
 const capRaw=(id,c)=>{const d=DATA[id];if(!(d&&d.capabilitiesObj&&d.capabilitiesObj[c]))return null;const v=d.capabilitiesObj[c].value;return (typeof v==='number'&&!isFinite(v))?null:v;};
@@ -310,17 +312,21 @@ const capOf=(d,c)=>d&&d.capabilitiesObj&&d.capabilitiesObj[c]?d.capabilitiesObj[
 
    Tusental med hårt mellanslag så talet inte bryts över raden, decimalkomma. */
 const num=(v,d=0)=>{
-  if(v==null||isNaN(v))return '–';
+  /* v847: Infinity gav "Infinity", och −0,04 med en decimal gav "-0,0". */
+  if(v==null||isNaN(v)||!isFinite(Number(v)))return '–';
   const t=Number(v).toFixed(d);
   const p=t.split('.');
-  const neg=p[0].charAt(0)==='-';
-  const heltal=neg?p[0].slice(1):p[0];
+  const neg=p[0].charAt(0)==='-'&&/[1-9]/.test(t);
+  const heltal=p[0].replace('-','');
   const grupp=heltal.replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
   return (neg?'-':'')+grupp+(p[1]?(','+p[1]):'');};
-const W=v=>(v==null||!isFinite(v))?'–':(Math.abs(v)>=1000?(v/1000).toFixed(Math.abs(v)%1000===0?0:1)+' kW':Math.round(v)+' W');
+/* v847: decimalkomma som resten av sidan ("2,3 kW", inte "2.3 kW"), och
+   999,7 W blir "1,0 kW" i stället för "1000 W". */
+const W=v=>(v==null||!isFinite(v))?'–':(Math.abs(v)>=999.5?num(v/1000,Math.abs(v)%1000===0?0:1)+' kW':Math.round(v)+' W');
 const grp=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0');
 const fmtKwh=v=>(v==null||!isFinite(v))?'–':(v<100?num(v,1):grp(Math.round(v)))+' <small>kWh</small>';
-const hm=h=>h==null?'–':String(Math.floor(h)).padStart(2,'0')+':'+String(Math.round((h%1)*60)).padStart(2,'0');
+/* v847: avrunda till hela minuter först – 7,995 blev annars "07:60". */
+const hm=h=>{if(h==null||!isFinite(h))return '–';const m=Math.round(h*60);return String(Math.floor(m/60)%24).padStart(2,'0')+':'+String(((m%60)+60)%60).padStart(2,'0');};
 const setT=(id,t)=>{const e=$(id);if(e)e.textContent=t;};
 const esc=s=>(''+s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const zoneName=id=>{const z=ZONES[id];return z&&z.name?z.name:'';};
@@ -2610,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v846';
+const APP_VERSION='v847';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3445,3 +3451,8 @@ const AMBI_DEV='15fdcee6-0d9d-479c-8692-db892747899a';
   document.addEventListener('keydown',slxTangent);
 })();
 
+/* v847: RITA OM NÄR ALLT ÄR DEFINIERAT. cacheVisa() och första load() körs
+   mitt i den här filen, innan husbildens konstanter (HUS_LEDN, HUS_FONSTER)
+   och rumskortens (rSort, RUM_*) finns. Då ritades sparad data utan husbilden
+   och rumskorten tills nästa render. Nu ritas sidan en gång till här, sist. */
+try{if(VISAR_CACHE||Object.keys(DATA).length)render();}catch(e){}

@@ -4012,7 +4012,7 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
 <script src="js/huset.js"></script>
 <script src="js/start.js"></script>
 <script>
-/* ===== husvakt 1.8.0 =====
+/* ===== husvakt 1.8.1 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -4105,9 +4105,13 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
   }
   function hoppa(h,varfor){
     if(!HUS[h]||h===jag())return false;
-    var n=parseInt(ss(HOPP)||'0',10)||0;
+    /* 1.8.1: räknaren bär sin tid ("n:ms") och nollställs efter 10 min, så att
+       en flik som lever länge (kioskplatta, PWA) kan byta hus igen. Två byten
+       inom 10 min är fortfarande gränsen – aldrig en loop. */
+    var hv=String(ss(HOPP)||'0').split(':'),n=parseInt(hv[0],10)||0,ht=Number(hv[1])||0;
+    if(n&&Date.now()-ht>600000)n=0;
     if(n>=2)return false;               /* två byten per session räcker; sedan aldrig en loop */
-    ssSet(HOPP,String(n+1));
+    ssSet(HOPP,String(n+1)+':'+Date.now());
     lsSet(SIST,h);
     API.navigera(url(h),varfor);
     return true;

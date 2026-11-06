@@ -812,7 +812,7 @@ function priceLogTick(){const pr=elprisNow();if(pr==null)return;const now=new Da
     try{localStorage.setItem('plog_v1',JSON.stringify(o));}catch(e){}}}
 function prisDygn(offset){
   if(!_prisJ||!_prisJ.d)return null;
-  var key=dayKey(new Date(Date.now()+(offset||0)*86400000));
+  var key=dagNyckelPlus(offset||0);   /* v847: kalenderdagar */
   var rad=_prisJ.d[key];
   if(!Array.isArray(rad))return null;
   /* UPPLÖSNINGEN LÄSES UR ANTALET VÄRDEN.
@@ -1244,7 +1244,7 @@ function pgUpp(e){
 function dayPriceGraphSVG(offset){offset=offset||0;
   var franTibber=prisDygn(offset);
   if(franTibber)franTibber=prisKalibrera(franTibber,offset);
-  var o=plogDays(),key=dayKey(new Date(Date.now()+offset*86400000));
+  var o=plogDays(),key=dagNyckelPlus(offset||0);   /* v847 */
   var pts=franTibber?franTibber:(o.days[key]||[]).slice();
   if((pts.length<3)&&SOURCE==='demo-data'&&offset===0){pts=[];for(var hh=0;hh<=23.5;hh+=0.5)pts.push([hh,0.55+0.5*Math.sin((hh-3)/24*2*Math.PI)+(hh>16&&hh<21?0.75:0)+0.12*Math.sin(hh*1.7)]);}
   if(pts.length<2){
@@ -1406,7 +1406,12 @@ function daysGet(){try{return JSON.parse(localStorage.getItem('days_v1')||'{}');
 function dayKey(d){d=d||new Date();
   try{return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
   catch(e){var z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}}
-function dayKeyAgo(n){return dayKey(new Date(Date.now()-n*86400000));}
+/* v847: dagens datumnyckel ± n KALENDERDAGAR. "Nu ± 24 h" blev fel dygn vid
+   sommartidsbytet: 23:30 före en 23-timmarsdag gav dagen efter i morgon, och
+   00:30 en 25-timmarsdag gav samma dag som "i morgon". */
+function dagNyckelPlus(n){var p=dayKey().split('-');
+  return new Date(Date.UTC(+p[0],+p[1]-1,+p[2]+(n||0),12)).toISOString().slice(0,10);}
+function dayKeyAgo(n){return dagNyckelPlus(-n);}
 function progLogGet(){try{const o=JSON.parse(localStorage.getItem(PROGLOG_KEY)||'{}');
   return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
 function progLogTick(){
