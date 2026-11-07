@@ -3735,6 +3735,16 @@ body.hus-sida:not(.mobile) .flikrad{display:flex;position:fixed;left:0;right:0;b
   box-shadow:0 -8px 20px -14px rgba(0,0,0,.35);transition:transform .22s ease}
 body.hus-sida:not(.mobile) .flikrad.dold{transform:translateY(110%)}
 body.hus-sida.vaggplatta .flikrad{display:none!important}
+/* v863: TILLBAKA-KNAPPEN på väggplattan (#vp-hem). Väderkortet öppnar Väder,
+   och utan meny fanns ingen väg tillbaka förrän plattan gick hem själv efter en
+   minut (husViloKoll). Flyter nere till vänster, där menyn sitter på andra plattor. */
+#vp-hem{display:none}
+body.vaggplatta.cmp-open #vp-hem{display:flex;align-items:center;gap:10px;position:fixed;z-index:46;
+  left:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));padding:14px 24px 14px 18px;border-radius:999px;
+  border:1px solid var(--line);background:var(--panel-a);color:var(--ink);font:750 17px/1 var(--sans,inherit);
+  box-shadow:0 10px 26px -10px rgba(0,0,0,.45);cursor:pointer;-webkit-tap-highlight-color:transparent}
+body.vaggplatta.cmp-open #vp-hem svg{width:22px;height:22px}
+body.vaggplatta.cmp-open #vp-hem:active{transform:scale(.96)}
 /* Plats under sidan för menyn, så att den inte täcker det sista. */
 body.hus-sida:not(.mobile):not(.vaggplatta){padding-bottom:calc(56px + env(safe-area-inset-bottom,0px))}
 body.hus-sida:not(.mobile) .flik{min-height:46px;font-size:11.5px}
@@ -4108,6 +4118,8 @@ body.vaggplatta .hus-flod{animation:none!important}
   <div class="dlg-back" id="dlg-back" onclick="closeDetail(event)"><div class="dlg" id="dlg" role="dialog" aria-modal="true"><button class="dlg-x" onclick="closeDetail(event)" aria-label="stäng"><span class="ic-slot" data-ic="close"></span></button><div class="dlg-h"><span class="dlg-ic ic-slot" id="dlg-ic"></span><span id="dlg-title">–</span></div><div class="dlg-body" id="dlg-body"></div></div></div>
   <div id="nightdim"></div>
   <div id="nightclock" onclick="ncWake()"><div id="nc-time">–</div><div id="nc-date"></div><div id="nc-temp"></div><div id="nc-info"></div></div>
+  <!-- v863: väggplattan har ingen meny – tillbaka till startsidan från Väder (och de andra vyerna). Syns bara där (CSS). -->
+  <button type="button" id="vp-hem" onclick="goHome()" aria-label="Tillbaka till startsidan"><svg viewBox="0 0 256 256" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H59.31l58.35,58.34a8,8,0,0,1-11.32,11.32l-72-72a8,8,0,0,1,0-11.32l72-72a8,8,0,0,1,11.32,11.32L59.31,120H216A8,8,0,0,1,224,128Z" fill="currentColor"/></svg><span>Startsidan</span></button>
 
 <script>/* skiss 1.0 (v852): senaste bilden av sidan, suddig tills den är live.
    Läggs EFTER den riktiga sidan så att getElementById alltid hittar den riktiga
