@@ -3836,6 +3836,40 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 .hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
   animation:husflod 1.1s linear infinite}
 .hus-flod.bak{animation-direction:reverse}
+/* v858: bilarna på parkeringen (husBilarBygg). */
+.bil-skugga{fill:rgba(20,28,40,.22);filter:blur(2.2px)}
+.bil-linje{fill:none;stroke-width:.7;stroke-linecap:round}
+.bil-ljus{fill:none;stroke-width:1.6;stroke-linecap:round}
+.bil-bak{fill:none;stroke:#d24b4b;stroke-width:2;stroke-linecap:round}
+.bil-reling{fill:#3a3f47}
+/* EX40 svart */
+.bil-ex40 .bil-kaross{fill:#1d2128}.bil-ex40 .bil-skuldra{fill:#2a3039}.bil-ex40 .bil-linje{stroke:#3b424c}
+.bil-ex40 .bil-glas{fill:#0d1218}.bil-ex40 .bil-tak{fill:#13171d}.bil-ex40 .bil-pano{fill:#202a36}
+.bil-ex40 .bil-spegel{fill:#1d2128}.bil-ex40 .bil-ljus{stroke:#e8eef5}
+/* XC60 vit */
+.bil-xc60 .bil-kaross{fill:#dfe3e9}.bil-xc60 .bil-skuldra{fill:#f6f7f9}.bil-xc60 .bil-linje{stroke:#c7cdd6}
+.bil-xc60 .bil-glas{fill:#2b3542}.bil-xc60 .bil-tak{fill:#eef0f3}.bil-xc60 .bil-pano{fill:#2b3542}
+.bil-xc60 .bil-spegel{fill:#e4e8ed}.bil-xc60 .bil-ljus{stroke:#9aa6b4}
+/* Natt: samma bilar i nattbildens ljus */
+:root:not([data-theme="light"]) .bil-skugga{fill:rgba(0,0,0,.35)}
+:root:not([data-theme="light"]) .bil-ex40 .bil-kaross{fill:#141a24}
+:root:not([data-theme="light"]) .bil-ex40 .bil-skuldra{fill:#1d2533}
+:root:not([data-theme="light"]) .bil-ex40 .bil-linje{stroke:#2a3546}
+:root:not([data-theme="light"]) .bil-ex40 .bil-glas{fill:#0a0e15}
+:root:not([data-theme="light"]) .bil-ex40 .bil-tak{fill:#0f141c}
+:root:not([data-theme="light"]) .bil-ex40 .bil-pano{fill:#18212d}
+:root:not([data-theme="light"]) .bil-ex40 .bil-spegel{fill:#141a24}
+:root:not([data-theme="light"]) .bil-ex40 .bil-ljus{stroke:#8ea2bd}
+:root:not([data-theme="light"]) .bil-xc60 .bil-kaross{fill:#4a5f82}
+:root:not([data-theme="light"]) .bil-xc60 .bil-skuldra{fill:#566c90}
+:root:not([data-theme="light"]) .bil-xc60 .bil-linje{stroke:#435674}
+:root:not([data-theme="light"]) .bil-xc60 .bil-glas{fill:#18212f}
+:root:not([data-theme="light"]) .bil-xc60 .bil-tak{fill:#526688}
+:root:not([data-theme="light"]) .bil-xc60 .bil-pano{fill:#18212f}
+:root:not([data-theme="light"]) .bil-xc60 .bil-spegel{fill:#4f6487}
+:root:not([data-theme="light"]) .bil-xc60 .bil-ljus{stroke:#6f86a8}
+:root:not([data-theme="light"]) .bil-bak{stroke:#9e3c46}
+:root:not([data-theme="light"]) .bil-reling{fill:#1e2633}
 /* v856: ledningarna i eget lager (husBygg) – ritas om utan ljuset under. */
 #hus-ledn-svg{will-change:transform}
 /* v856: väggplattan driver flödet med husFlodTakt i stället (färre omräkningar). */
