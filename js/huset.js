@@ -452,11 +452,18 @@ function husVaderFyll(b){
   var g=function(v){return v==null||!isFinite(v)?'–':num(v,0)+'°';};
   var nu=Date.now(),fc=(typeof FORECAST!=='undefined'&&FORECAST?FORECAST:[]).filter(function(f){return f.t>=nu-1800000;});
   var ik=fc.length?vpIkon(vpSym(fc[0])[0]):icon(wxIcon(sit));
-  var h='<span class="hv2-topp"><span class="hv2-ic">'+ik+'</span>'
-    +'<span class="hv2-t">'+(t==null?'–':num(t,1)+'°')+'</span>'
-    +'<span class="hv2-sid"><span class="hv2-hl"><i>↓</i>'+g(ex.min)+' <i>↑</i>'+g(ex.max)+'</span>'
-    +'<span class="hv2-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small class="hv2-enh"> m/s</small></span></span></span>'
-    +'<span class="hv2-sit">'+esc(sit||'Väder')+(kn!=null&&isFinite(kn)?' · känns '+num(kn,0)+'°':'')+'</span>';
+  /* v865: väder | vind, lika stora, avdelare emellan; "känns" under vädret,
+     lägst/högst i dag under vinden. */
+  var h='<span class="hv2-topp">'
+    +'<span class="hv2-kol"><span class="hv2-rad"><span class="hv2-ic">'+ik+'</span>'
+    +'<span class="hv2-t">'+(t==null?'–':num(t,1)+'°')+'</span></span>'
+    +'<span class="hv2-sit"><span class="hv2-sitT">'+esc(sit||'Väder')+(kn!=null&&isFinite(kn)?'\u00a0·\u00a0':'')+'</span>'
+    +(kn!=null&&isFinite(kn)?'<span class="hv2-kn">känns '+num(kn,0)+'°</span>':'')+'</span></span>'
+    +'<span class="hv2-av"></span>'
+    +'<span class="hv2-kol"><span class="hv2-rad"><span class="hv2-vic">'+windArrow(wd,null,null)+'</span>'
+    +'<span class="hv2-t">'+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small class="hv2-enh">m/s</small></span></span>'
+    +'<span class="hv2-sit hv2-hl"><i>↓</i>'+g(ex.min)+' <i>↑</i>'+g(ex.max)+'</span></span>'
+    +'</span>';
   /* De närmaste timmarna: nästa hela timme och fyra till. */
   var tim=fc.filter(function(f){return f.t>nu;}).slice(0,5);
   if(tim.length){
@@ -484,9 +491,15 @@ function husVaderFyll(b){
    är i cqw och följer rutan, så ett steg som räcker gäller i alla storlekar. */
 function husVaderPassa(b){
   try{
-    b.classList.remove('tat1','tat2','tat3','tat4','tat5');
-    var r=b.querySelector('.hv2-topp');if(!r||!r.clientWidth)return;
-    for(var k=1;k<=5&&r.scrollWidth>r.clientWidth+1;k++)b.classList.add('tat'+k);
+    b.classList.remove('tat1','tat2','tat3','tat4','utan-sit');
+    /* v865: två halvor – var och en ska rymma sin rad (väder resp. vind). */
+    var rader=b.querySelectorAll('.hv2-rad');if(!rader.length||!rader[0].parentNode.clientWidth)return;
+    var for_=function(){for(var i=0;i<rader.length;i++){if(rader[i].scrollWidth>rader[i].parentNode.clientWidth+1)return true;}return false;};
+    for(var k=1;k<=4&&for_();k++)b.classList.add('tat'+k);
+    /* Ryms inte väderläget helt ("Växlande molnighet") står bara "känns" kvar –
+       ikonen visar redan läget, och ett avhugget ord säger ingenting. */
+    b.classList.remove('utan-sit');
+    var st=b.querySelector('.hv2-sitT');if(st&&st.scrollWidth>st.clientWidth+1)b.classList.add('utan-sit');
   }catch(e){}
 }
 
