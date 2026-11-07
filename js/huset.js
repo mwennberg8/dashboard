@@ -171,15 +171,20 @@ function husBilarBygg(svg,NS){
 function husFlodTakt(){
   if(window._husFlodTakt||!document.body.classList.contains('vaggplatta'))return;
   try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){}
+  /* v859: ledningarna och deras fart/riktning läses varannan sekund, inte i
+     varje steg (querySelectorAll och stilläsningen var den största posten i
+     profilen), och bara ändrade värden skrivs. */
+  var lista=[],last=-1e9;
   window._husFlodTakt=setInterval(function(){
     if(document.hidden)return;
-    var t=performance.now()/1000;
-    document.querySelectorAll('#hus-ledn-svg .hus-flod').forEach(function(e){
-      if(e.classList.contains('av'))return;
-      var d=parseFloat(e.style.animationDuration)||1.1,f=(t/d)%1;
-      if(e.classList.contains('bak'))f=1-f;
-      e.style.strokeDashoffset=(-32*f).toFixed(1);
-    });
+    var nu=performance.now();
+    if(nu-last>2000){last=nu;lista=[];
+      document.querySelectorAll('#hus-ledn-svg .hus-flod').forEach(function(e){
+        if(e.classList.contains('av'))return;
+        lista.push({e:e,d:parseFloat(e.style.animationDuration)||1.1,bak:e.classList.contains('bak'),v:null});});}
+    var t=nu/1000;
+    for(var i=0;i<lista.length;i++){var o=lista[i],f=(t/o.d)%1;if(o.bak)f=1-f;
+      var v=String(Math.round(-32*f));if(v!==o.v){o.v=v;o.e.style.strokeDashoffset=v;}}
   },Math.round(1000/HUS_FLOD_FPS));
 }
 /* v850: små tak (HUS_SMATAK) – tre plan, kant och skugga, klippta vid husets

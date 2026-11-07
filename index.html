@@ -222,6 +222,10 @@ body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none
     radial-gradient(38% 34% at 18% 92%, var(--blob-d), transparent 72%);
   filter:blur(36px);animation:float 40s ease-in-out infinite alternate}
 @keyframes float{from{transform:translate(-1.5%,-1%)}to{transform:translate(1.5%,1.5%)}}
+/* v859: VÄGGPLATTAN står still i bakgrunden. Glidningen (±1,5 % på 40 s) syns
+   knappt men tvingade fram en ny bildruta av hela skärmen 60 gånger i sekunden,
+   dygnet runt – den största enskilda lasten på den äldre plattan. */
+body.vaggplatta::before{animation:none}
 .wrap{max-width:1180px;margin:0 auto}
 /* ===== v288: ETT avstånd mellan rutor – samma på alla sidor, per läge ===== */
 /* Avståndet mellan innehåll och avdelare, gemensamt för Väder/Vind och för
@@ -901,9 +905,11 @@ body.vantar-live #live-vant{opacity:1;transform:translate(-50%,0)}
 body.tappat-live .wrap{filter:blur(5px) saturate(.75);opacity:.7}
 body.tappat-live #live-vant{opacity:1;transform:translate(-50%,0)}
 body.tappat-live #live-vant .lv-prick{background:var(--hot)}
-#live-vant .lv-prick{width:8px;height:8px;border-radius:50%;background:var(--warm);animation:lvPuls 1.1s ease-in-out infinite}
+#live-vant .lv-prick{width:8px;height:8px;border-radius:50%;background:var(--warm)}
+/* v859: prickan pulserar bara när rutan syns – annars höll den igång bildtakten i onödan. */
+body.vantar-live #live-vant .lv-prick,body.tappat-live #live-vant .lv-prick{animation:lvPuls 1.1s ease-in-out infinite}
 @keyframes lvPuls{0%,100%{opacity:1}50%{opacity:.3}}
-@media (prefers-reduced-motion:reduce){.wrap,#live-vant{transition:none}#live-vant .lv-prick{animation:none}}
+@media (prefers-reduced-motion:reduce){.wrap,#live-vant{transition:none}#live-vant .lv-prick{animation:none!important}}
 /* Telefonen: tre rutor i bredd ger ~55 px text – bara ikonen och tiden. */
 body.mobile:not(.kiosk) .stat-bok .bok-lang{display:none}
 body.mobile:not(.kiosk) .stat-bok .bok-kort{display:inline}

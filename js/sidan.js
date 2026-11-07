@@ -445,16 +445,22 @@ async function checkForUpdate(){try{
   if(CFG.autoreload===false)return;
   if(typeof location==='undefined'||!location.href||location.href.indexOf('http')!==0)return;
   const c=new AbortController(),id=setTimeout(()=>c.abort(),7000);
-  const r=await fetch(location.href,{cache:'no-store',signal:c.signal});if(!r.ok){clearTimeout(id);return;}
-  let txt=await r.text();if(!txt||txt.length<500){clearTimeout(id);return;}
-  /* Koden ligger i js/ – en ändring där syns inte i HTML-filen. Ta med varje
-     skriptfil sidan pekar på. no-cache frågar servern varje gång men får 304
-     när filen är oförändrad, så det blir inte en hel nedladdning i minuten. */
-  for(const m of txt.matchAll(/<script src="([^"]+)"/g)){
-    const r2=await fetch(new URL(m[1],location.href),{cache:'no-cache',signal:c.signal});
-    if(!r2.ok){clearTimeout(id);return;}
-    txt+=await r2.text();}
-  clearTimeout(id);const sig=fileSig(txt);
+  /* v859: VERSIONSMÄRKNINGEN i stället för innehållet. Förut lästes sidan och
+     alla skriptfiler (~600 kB) och räknades tecken för tecken varje minut –
+     en av de största posterna på väggplattan. Nu räcker serverns ETag eller
+     Last-Modified; bara om den saknas räknas innehållet som förut. Skriptlistan
+     tas ur sidan själv – läggs en fil till ändras index.html, och det syns. */
+  const marke=async(u,lage)=>{u=new URL(u,location.href);u.searchParams.set('uppd','1');   /* förbi service workern (sw.js) */
+    const r=await fetch(u,{cache:lage,signal:c.signal});if(!r.ok)throw new Error('http');
+    const h=r.headers.get('etag')||r.headers.get('last-modified');
+    if(h){try{if(r.body&&r.body.cancel)r.body.cancel();}catch(e){}return h;}
+    const t=await r.text();return fileSig(t);};
+  const delar=[];
+  try{
+    delar.push(await marke(location.href,'no-store'));
+    for(const s of document.querySelectorAll('script[src]'))delar.push(await marke(new URL(s.getAttribute('src'),location.href),'no-cache'));
+  }catch(e){clearTimeout(id);return;}
+  clearTimeout(id);const sig=delar.join('|');
   if(_selfSig==null){_selfSig=sig;return;}
   if(sig!==_selfSig){
     const bk=$('dlg-back'),dlgOpen=bk&&bk.classList&&bk.classList.contains('open');
