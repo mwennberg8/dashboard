@@ -86,6 +86,7 @@ function husBygg(el){
     /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
     if(y.hall)try{hallInne(e,new Function(y.hall));}catch(x){}
     yt.appendChild(e);});
+  try{husBilarBygg(svg,NS);}catch(e){}   /* v858: bilarna, under ljuset */
   try{husTakBygg(svg,NS);}catch(e){}   /* v850: burspråkets tak, under ljuset */
   husLjusBygg(el,svg,NS);
   el._ledn={};
@@ -114,6 +115,54 @@ function husBygg(el){
 }
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
+/* v858: BILARNA OVANIFRÅN (HUS_BILAR). bilSvg ritar en bil med skugga,
+   kaross, rutor, speglar och lampor; färgerna sätts i CSS per modell och tema.
+   Ligger under ljuset, så att parkeringslamporna lyser på dem. */
+function bilSvg(m,cx,cy){
+  var W=m.W,L=m.L,x0=cx-W/2,y0=cy-L/2,p=function(d,kl){return '<path class="'+kl+'" d="'+d+'"/>';};
+  var r=function(x,y,w,h,rx,kl){return '<rect class="'+kl+'" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+rx+'"/>';};
+  var g='<g class="hus-bil '+m.kl+'" transform="translate('+x0+','+y0+')">';
+  g+=r(-1,4,W+2,L,m.rx+2,'bil-skugga');
+  /* Kaross: rundad nos, rakare bak. */
+  g+=p('M'+m.rx+',0 H'+(W-m.rx)+' Q'+W+',0 '+W+','+m.rx+' V'+(L-m.rb)+' Q'+W+','+L+' '+(W-m.rb)+','+L+' H'+m.rb+' Q0,'+L+' 0,'+(L-m.rb)+' V'+m.rx+' Q0,0 '+m.rx+',0 Z','bil-kaross');
+  /* Skuldror: ljusare mittparti så karossen får form. */
+  g+=r(4,6,W-8,L-12,m.rx-3,'bil-skuldra');
+  /* Motorhuv-linjer. */
+  g+=p('M'+(W*0.3)+',4 Q'+(W*0.32)+','+(m.vr*0.5)+' '+(W*0.33)+','+(m.vr-2)+' M'+(W*0.7)+',4 Q'+(W*0.68)+','+(m.vr*0.5)+' '+(W*0.67)+','+(m.vr-2),'bil-linje');
+  /* Vindruta, tak, bakruta. */
+  g+=p('M7,'+m.vr+' Q'+(W/2)+','+(m.vr-5)+' '+(W-7)+','+m.vr+' L'+(W-9)+','+m.tak+' H9 Z','bil-glas');
+  g+=r(8,m.tak,W-16,m.bak-m.tak,5,'bil-tak');
+  if(m.pano)g+=r(11,m.tak+3,W-22,m.bak-m.tak-6,4,'bil-pano');
+  if(m.lucka)g+=r(13,m.tak+4,W-26,13,3,'bil-pano');
+  if(m.reling){g+=r(9.5,m.tak+2,1.6,m.bak-m.tak-4,.8,'bil-reling');g+=r(W-11.1,m.tak+2,1.6,m.bak-m.tak-4,.8,'bil-reling');}
+  g+=p('M9,'+m.bak+' H'+(W-9)+' L'+(W-8)+','+(m.bak+m.br)+' Q'+(W/2)+','+(m.bak+m.br+3)+' 8,'+(m.bak+m.br)+' Z','bil-glas');
+  /* Sidorutor som tunna band längs taket. */
+  g+=r(5.5,m.vr+3,2.4,m.bak-m.vr-2,1.2,'bil-glas');g+=r(W-7.9,m.vr+3,2.4,m.bak-m.vr-2,1.2,'bil-glas');
+  /* Speglar. */
+  g+='<ellipse class="bil-spegel" cx="-1.8" cy="'+(m.vr+1)+'" rx="2.8" ry="1.8"/><ellipse class="bil-spegel" cx="'+(W+1.8)+'" cy="'+(m.vr+1)+'" rx="2.8" ry="1.8"/>';
+  /* Lampor fram och bak. */
+  g+=m.fram(W,L);g+=m.bakl(W,L);
+  return g+'</g>';
+}
+function husBilModell(namn){
+  var M={
+  ex40:{kl:'bil-ex40',W:50,L:116,rx:13,rb:10,vr:30,tak:47,bak:88,br:10,pano:true,
+  /* "Thors hammare": T-formade ljus i framhörnen. */
+  fram:function(W){return '<path class="bil-ljus" d="M4,7.5 Q5,4 10.5,3.4 M5.2,6.2 H11 M'+(W-4)+',7.5 Q'+(W-5)+',4 '+(W-10.5)+',3.4 M'+(W-5.2)+',6.2 H'+(W-11)+'"/>';},
+  /* Smala, höga baklampor i hörnen. */
+  bakl:function(W,L){return '<path class="bil-bak" d="M1.6,'+(L-16)+' V'+(L-5)+' Q2,'+(L-2)+' 5,'+(L-1.3)+' M'+(W-1.6)+','+(L-16)+' V'+(L-5)+' Q'+(W-2)+','+(L-2)+' '+(W-5)+','+(L-1.3)+'"/>';}},
+  xc60:{kl:'bil-xc60',W:52,L:122,rx:12,rb:8,vr:32,tak:50,bak:93,br:10,reling:true,
+  fram:function(W){return '<path class="bil-ljus" d="M3.5,8 Q4.5,3.5 12,2.8 M'+(W-3.5)+',8 Q'+(W-4.5)+',3.5 '+(W-12)+',2.8"/>';},
+  /* Första generationens höga baklampor som går upp över skuldrorna. */
+  bakl:function(W,L){return '<path class="bil-bak" d="M1.4,'+(L-24)+' V'+(L-6)+' Q1.8,'+(L-1.6)+' 7,'+(L-1.2)+' M'+(W-1.4)+','+(L-24)+' V'+(L-6)+' Q'+(W-1.8)+','+(L-1.6)+' '+(W-7)+','+(L-1.2)+'"/>';}}
+  };
+  return M[namn]||null;
+}
+function husBilarBygg(svg,NS){
+  if(typeof HUS_BILAR==='undefined'||!HUS_BILAR)return;
+  var h='';HUS_BILAR.forEach(function(b){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy);});
+  var g=document.createElementNS(NS,'g');g.setAttribute('class','hus-bilar');g.innerHTML=h;svg.appendChild(g);
+}
 /* v856: FLÖDET PÅ VÄGGPLATTAN. En CSS-animation räknas om i varje bildruta;
    på den äldre plattan blev det lagg. Där drivs flödet i stället härifrån med
    HUS_FLOD_FPS steg i sekunden (samma fart och riktning: animationDuration och
