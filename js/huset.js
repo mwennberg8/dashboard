@@ -147,16 +147,18 @@ function bilSvg(m,cx,cy,tand){
   /* Motorhuv-linjer. */
   g+=p('M'+(W*0.3)+',4 Q'+(W*0.32)+','+(m.vr*0.5)+' '+(W*0.33)+','+(m.vr-2)+' M'+(W*0.7)+',4 Q'+(W*0.68)+','+(m.vr*0.5)+' '+(W*0.67)+','+(m.vr-2),'bil-linje');
   /* Vindruta, tak, bakruta. */
-  g+=p('M7,'+m.vr+' Q'+(W/2)+','+(m.vr-5)+' '+(W-7)+','+m.vr+' L'+(W-9)+','+m.tak+' H9 Z','bil-glas');
+  g+=p('M7,'+m.vr+' Q'+(W/2)+','+(m.vr-(m.vrBue||5))+' '+(W-7)+','+m.vr+' L'+(W-9)+','+m.tak+' H9 Z','bil-glas');
   g+=r(8,m.tak,W-16,m.bak-m.tak,5,'bil-tak');
   if(m.pano)g+=r(11,m.tak+3,W-22,m.bak-m.tak-6,4,'bil-pano');
   if(m.lucka)g+=r(13,m.tak+4,W-26,13,3,'bil-pano');
   if(m.reling){g+=r(9.5,m.tak+2,1.6,m.bak-m.tak-4,.8,'bil-reling');g+=r(W-11.1,m.tak+2,1.6,m.bak-m.tak-4,.8,'bil-reling');}
-  g+=p('M9,'+m.bak+' H'+(W-9)+' L'+(W-8)+','+(m.bak+m.br)+' Q'+(W/2)+','+(m.bak+m.br+3)+' 8,'+(m.bak+m.br)+' Z','bil-glas');
+  if(m.br>0)g+=p('M9,'+m.bak+' H'+(W-9)+' L'+(W-8)+','+(m.bak+m.br)+' Q'+(W/2)+','+(m.bak+m.br+3)+' 8,'+(m.bak+m.br)+' Z','bil-glas');
+  if(m.extra)g+=m.extra(W,L);   /* v875: modellens egna detaljer (XC60: bakruta, bromsljuslist) */
   /* Sidorutor som tunna band längs taket. */
   g+=r(5.5,m.vr+3,2.4,m.bak-m.vr-2,1.2,'bil-glas');g+=r(W-7.9,m.vr+3,2.4,m.bak-m.vr-2,1.2,'bil-glas');
   /* Speglar. */
-  g+='<ellipse class="bil-spegel" cx="-1.8" cy="'+(m.vr+1)+'" rx="2.8" ry="1.8"/><ellipse class="bil-spegel" cx="'+(W+1.8)+'" cy="'+(m.vr+1)+'" rx="2.8" ry="1.8"/>';
+  var sy=(m.spegelY!=null?m.spegelY:m.vr+1);
+  g+='<ellipse class="bil-spegel" cx="-1.8" cy="'+sy+'" rx="2.8" ry="1.8"/><ellipse class="bil-spegel" cx="'+(W+1.8)+'" cy="'+sy+'" rx="2.8" ry="1.8"/>';
   /* Lampor fram och bak. */
   g+=m.fram(W,L);g+=m.bakl(W,L);
   return g+'</g>';
@@ -173,10 +175,17 @@ function husBilModell(namn){
   c40:{kl:'bil-c40',W:50,L:116,rx:13,rb:11,vr:30,tak:46,bak:80,br:17,pano:true,
   fram:function(W){return '<path class="bil-ljus" d="M4,7.5 Q5,4 10.5,3.4 M5.2,6.2 H11 M'+(W-4)+',7.5 Q'+(W-5)+',4 '+(W-10.5)+',3.4 M'+(W-5.2)+',6.2 H'+(W-11)+'"/>';},
   bakl:function(W,L){return '<path class="bil-bak" d="M1.6,'+(L-17)+' V'+(L-5)+' Q2,'+(L-2)+' 5,'+(L-1.3)+' H11 M'+(W-1.6)+','+(L-17)+' V'+(L-5)+' Q'+(W-2)+','+(L-2)+' '+(W-5)+','+(L-1.3)+' H'+(W-11)+'"/>';}},
-  xc60:{kl:'bil-xc60',W:52,L:122,rx:12,rb:8,vr:32,tak:50,bak:93,br:10,reling:true,
-  fram:function(W){return '<path class="bil-ljus" d="M3.5,8 Q4.5,3.5 12,2.8 M'+(W-3.5)+',8 Q'+(W-4.5)+',3.5 '+(W-12)+',2.8"/>';},
-  /* Första generationens höga baklampor som går upp över skuldrorna. */
-  bakl:function(W,L){return '<path class="bil-bak" d="M1.4,'+(L-24)+' V'+(L-6)+' Q1.8,'+(L-1.6)+' 7,'+(L-1.2)+' M'+(W-1.4)+','+(L-24)+' V'+(L-6)+' Q'+(W-1.8)+','+(L-1.6)+' '+(W-7)+','+(L-1.2)+'"/>';}}
+  /* v875: XC60 2012 efter ovanbilden: lång motorhuv (~23 %), stor välvd
+     vindruta, långt tak med silverfärgade takrails (ingen taklucka), en vit
+     baklucka med ett tunt bromsljus tvärs över och den mörka bakrutan längst
+     bak. Speglarna sitter en bit bakom vindrutans början; baklamporna är korta
+     och kraftiga i hörnen och viker in en bit över bakluckan. */
+  xc60:{kl:'bil-xc60',W:50,L:122,rx:12,rb:7,vr:28,vrBue:8,tak:51,bak:107,br:0,reling:true,spegelY:38,
+  fram:function(W){return '<path class="bil-ljus" d="M3.2,9 Q4,4 11,2.6 M'+(W-3.2)+',9 Q'+(W-4)+',4 '+(W-11)+',2.6"/>';},
+  bakl:function(W,L){return '<path class="bil-bak" d="M1.5,'+(L-15)+' V'+(L-6)+' Q1.9,'+(L-1.8)+' 8.5,'+(L-1.6)+' M'+(W-1.5)+','+(L-15)+' V'+(L-6)+' Q'+(W-1.9)+','+(L-1.8)+' '+(W-8.5)+','+(L-1.6)+'"/>';},
+  extra:function(W,L){
+    return '<rect class="bil-glas" x="7.5" y="'+(L-8.2)+'" width="'+(W-15)+'" height="5.2" rx="2"/>'
+      +'<path class="bil-bak bil-bromsljus" d="M'+(W*0.24)+','+(L-12.2)+' H'+(W*0.76)+'"/>';}}
   };
   return M[namn]||null;
 }
