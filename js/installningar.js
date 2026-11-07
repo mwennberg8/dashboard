@@ -2455,6 +2455,22 @@ function liveVanta(pa){
     }
   }catch(e){}
 }
+/* v855: suddigt när inget live-svar kommit på LIVE_TAPP_MS. ok = senaste
+   hämtningen gav färska värden. Sidan utan inloggning (demo) rörs inte. */
+function liveTappKoll(ok){try{
+  var b=document.body;if(!b||!b.classList)return;
+  if(ok){_sistLive=Date.now();if(b.classList.contains('tappat-live')){b.classList.remove('tappat-live');var e0=document.getElementById('live-vant');if(e0&&e0._tappTxt){e0.innerHTML=e0._tappTxt;e0._tappTxt=null;}}return;}
+  /* Bara utan inloggning (demo valt i startrutan). isDemo() duger inte: den
+     är sann också när sidan aldrig fått kontakt och fallit tillbaka på demodata. */
+  if(!credFinns())return;
+  if(!_sistLive)_sistLive=Date.now();
+  if(Date.now()-_sistLive<LIVE_TAPP_MS||b.classList.contains('tappat-live'))return;
+  var el=document.getElementById('live-vant');
+  if(!el){el=document.createElement('div');el.id='live-vant';el.setAttribute('role','status');b.appendChild(el);}
+  el._tappTxt=el.innerHTML||'<span class="lv-prick"></span><span>Hämtar live\u2026</span>';
+  el.innerHTML='<span class="lv-prick"></span><span>Ingen kontakt med Homey\u2026</span>';
+  b.classList.add('tappat-live');
+}catch(e){}}
 function setStatus(s,t){const d=$('dot');if(d)d.className='dot '+s;setT('status-text',t);try{syncCmpHeader();}catch(e){}}
 function statusLive(){const d=$('dot');return !!(d&&d.classList&&d.classList.contains('live'));}
 /* v853: EN HÄMTNING I TAGET. Med 5 s mellan uppdateringarna kunde en långsam
@@ -2539,6 +2555,7 @@ async function loadKarna(){
     try{var _rp=regelHamta(true);if(_rp)await Promise.race([_rp,new Promise(function(r){setTimeout(r,REGEL_VANTA_MS);})]);}catch(e){}}
   render();tickRel();setT('foot-src',footKalla());footVia();
   liveVanta(false);   /* v723: färska värden – eller inget svar alls: skärp sidan */
+  try{liveTappKoll(!!map);}catch(e){}   /* v855 */
   try{skissSpara();}catch(e){}   /* v852: bilden till nästa start */
   if(map&&BASE&&!CONFIG.DATA_URL){priceVarFetch();prisVarHamta();loadZones();if(!seeded)seedHistory();appSerierHamta();windInsFetch();
     /* Krönikelistan hämtas HÄR, inte bara när Insikter ritas. Notisknappen sitter

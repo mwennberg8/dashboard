@@ -895,6 +895,12 @@ body.har-skiss .wrap:not(#skiss){visibility:hidden}
   border:1px solid var(--line);box-shadow:0 6px 18px -8px rgba(0,0,0,.45);font-size:12px;font-weight:750;color:var(--dim);
   opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
 body.vantar-live #live-vant{opacity:1;transform:translate(-50%,0)}
+/* v855: INGEN KONTAKT EN LÄNGRE STUND. Liveprickan i menyn är borta; i stället
+   blir sidan suddig (samma som vid öppning) när inget live-svar kommit på en
+   minut, och skärps vid nästa svar. */
+body.tappat-live .wrap{filter:blur(5px) saturate(.75);opacity:.7}
+body.tappat-live #live-vant{opacity:1;transform:translate(-50%,0)}
+body.tappat-live #live-vant .lv-prick{background:var(--hot)}
 #live-vant .lv-prick{width:8px;height:8px;border-radius:50%;background:var(--warm);animation:lvPuls 1.1s ease-in-out infinite}
 @keyframes lvPuls{0%,100%{opacity:1}50%{opacity:.3}}
 @media (prefers-reduced-motion:reduce){.wrap,#live-vant{transition:none}#live-vant .lv-prick{animation:none}}
@@ -3771,17 +3777,43 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
 /* Klockan och pricken sist i menyn. */
 .flikrad .flik-status{flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0 10px 0 4px}
 .flikrad .flik-status .en-hogra{display:flex!important;align-items:center;gap:8px;margin:0!important}
-/* Väderkortet i husbilden. */
-.hus-falt.hus-vader{gap:.6cqw;padding:1.2cqw 1.8cqw 1.2cqw 2.7cqw}
-.hus-vader .hv-rad{display:flex;align-items:center;gap:1.2cqw;white-space:nowrap}
-.hus-vader .hv-ic{display:inline-flex;width:4.6cqw;height:4.6cqw;color:var(--gold,#d9a521);flex:0 0 auto}
-.hus-vader .hv-ic svg{width:100%;height:100%}
-.hus-vader .hv-t{font:800 4.8cqw/1 var(--sans,inherit);letter-spacing:-.02em}
-.hus-vader .hv-sma{font:700 2.4cqw/1.25 var(--sans,inherit)}
-.hus-vader .hv-hl{white-space:pre}
-.hus-vader .hv-hl i{font-style:normal;opacity:.6;margin-right:.3cqw}
-.hus-vader .hv-vind{display:inline-flex;align-items:center;gap:.6cqw}
-.hus-vader .hv-vind small{font-size:1.9cqw;opacity:.65}
+/* v855: NOTISERNA SOM EN FLIK. Samma form som de andra flikarna (ikon och
+   text), olästa visas med en prick på klockan. Liveprickan är borta ur menyn –
+   sidan blir suddig i stället när kontakten är borta en längre stund. */
+.flikrad .flik-status{flex:1 1 0;min-width:0;padding:0}
+.flikrad .flik-status .en-hogra{width:100%;justify-content:center;gap:0}
+.flikrad .flik-status .en-status{display:none!important}
+body.topp-flyttad:not(.histmod) .flikrad .en-hogra .en-notis:not(.en-live){display:flex;flex-direction:column;align-items:center;justify-content:center;
+  width:100%;height:auto;min-height:50px;padding:2px 0;margin:0;border:0!important;border-radius:0;background:none!important;
+  box-shadow:none!important;animation:none!important;color:var(--faint)!important;font-size:10.5px;font-weight:700;gap:0}
+body.topp-flyttad:not(.mobile):not(.histmod) .flikrad .en-hogra .en-notis:not(.en-live){min-height:46px;font-size:11.5px}
+body:not(.histmod) .flikrad .en-hogra .en-notis:not(.en-live) .en-cmp-ic{width:22px;height:22px;margin-bottom:3px;position:relative}
+body:not(.histmod) .flikrad .en-hogra .en-notis:not(.en-live):not(.bak)::after{content:"Notiser"}
+.flikrad .en-hogra .en-notis .en-notis-n{display:none!important}
+body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:"";position:absolute;top:-1px;right:-3px;width:9px;height:9px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 0 2px var(--panel-a)}
+/* Väderkortet i husbilden (v855, omgjort – ingen färgkant). */
+.hus-falt.hus-vader{padding:1.5cqw 2cqw 1.3cqw;gap:.75cqw;border-radius:3.2cqw;justify-content:flex-start;align-items:stretch;text-align:left}
+.hus-falt.hus-vader::before{display:none}
+.hv2-topp{display:flex;align-items:center;gap:1.1cqw}
+.hv2-ic{display:inline-flex;width:5.8cqw;height:5.8cqw;flex:0 0 auto;color:var(--gold,#d9a521)}
+.hv2-ic svg{width:100%;height:100%}
+.hv2-t{font:800 5.3cqw/1 var(--sans,inherit);letter-spacing:-.03em;flex:1 1 auto;white-space:nowrap}
+.hv2-sid{display:flex;flex-direction:column;align-items:flex-end;gap:.55cqw;font:750 1.95cqw/1.1 var(--sans,inherit);white-space:nowrap}
+.hv2-hl i{font-style:normal;opacity:.55;margin:0 .2cqw 0 .5cqw}
+.hv2-vind{display:inline-flex;align-items:center;gap:.45cqw}
+.hv2-vind svg{width:2.2cqw;height:2.2cqw}
+.hv2-vind small{font-size:1.55cqw;opacity:.6}
+.hv2-sit{font:650 1.85cqw/1.2 var(--sans,inherit);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hv2-tim{display:flex;justify-content:space-between;gap:.5cqw;padding-top:.85cqw;border-top:1px solid rgba(46,52,64,.12)}
+:root:not([data-theme="light"]) .hv2-tim{border-top-color:rgba(236,239,244,.12)}
+.hv2-h{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:.3cqw}
+.hv2-hk{font:700 1.55cqw/1 var(--sans,inherit);opacity:.6}
+.hv2-hi{display:inline-flex;width:3.2cqw;height:3.2cqw}.hv2-hi svg{width:100%;height:100%}
+.hv2-ht{font:800 2.05cqw/1 var(--sans,inherit)}
+.hv2-tom{justify-content:center;font:650 1.7cqw/1.2 var(--sans,inherit);opacity:.6;padding-top:1.4cqw}
+.hv2-hp{font:700 1.4cqw/1 var(--sans,inherit);color:#5e81ac;min-height:1.4cqw}
+:root:not([data-theme="light"]) .hv2-hp{color:#88c0d0}
 .hus-vader .wx-arrow{display:inline-flex;width:2.6cqw;height:2.6cqw;color:var(--f)}
 .hus-vader .wx-arrow svg{width:100%;height:100%}
 .hus-topp .en-hogra{flex:1 1 auto!important;justify-content:flex-end;margin:0!important}
@@ -3826,8 +3858,6 @@ body.hus-sida #rooms-sec .rum-mer{margin-top:calc(8px*var(--kk,1))}
 /* v850: spegelvänd ruta – färgkanten till höger, texten högerställd. */
 .hus-falt.hoger{text-align:right;align-items:flex-end;padding:1.1cqw 2.7cqw 1.1cqw 1.8cqw}
 .hus-falt.hoger::before{left:auto;right:0}
-.hus-falt.hus-vader.hoger{padding:1.2cqw 2.7cqw 1.2cqw 1.8cqw}
-.hus-vader.hoger .hv-rad{justify-content:flex-end}
 /* v850: taket över burspråket (HUS_SMATAK). Dagbildens och nattbildens takfärger. */
 .tak-skugga{fill:rgba(20,30,45,.28);filter:blur(1.5px)}
 .tak-v{fill:#c3cedb}.tak-f{fill:#d9e1ea}.tak-h{fill:#b6c3d1}
