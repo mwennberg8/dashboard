@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v856';
+const APP_VERSION='v857';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3047,6 +3047,9 @@ if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener(
 if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('resize',function(){try{setTimeout(wxRubrikPassa,60);}catch(e){}});
 try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){try{wxRubrikPassa();}catch(e){}});}catch(e){}
 if(typeof window!=='undefined'&&window.visualViewport&&window.visualViewport.addEventListener)window.visualViewport.addEventListener('resize',function(){try{fitScreen();}catch(e){}});
+/* v857: väggplattan (äldre platta) uppdaterar var 10:e sekund – varje omritning
+   ger ett kort ryck där. Övriga enheter var 5:e. */
+try{if(arVaggplattaVy())CONFIG.REFRESH_SECONDS=10;}catch(e){}
 _refreshTimer=setInterval(load,(CONFIG.REFRESH_SECONDS||5)*1000);
 setInterval(tickRel,1000);
 /* Krönikan kollas för sig, inte i den vanliga uppdateringen — den går var 15:e
