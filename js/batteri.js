@@ -513,6 +513,14 @@ function regelLage(){
     return full?{txt:'Batteriet fullt',lage:'fullt',fjarr:true,varn:null}
                :{txt:'Läget oklart – Modbus står still',lage:'oklart',fjarr:true,varn:null};
   if(L.lage==='ladda'&&full&&!(w!=null&&w>BATT_TROSKEL_W))return {txt:'Batteriet fullt',lage:'fullt',fjarr:true,varn:null};
+  /* v860: REGISTRET SLÄPAR EFTER ETT SLÄPP. Växelriktarens läge (4/1) står kvar
+     flera minuter efter att spara släppts (2026-11-07 15:22: bilvakten släppte,
+     batteriet gav 4 kW, men dashboarden sa "Sparar – men laddar ur 4 kW" tills
+     registret hann ikapp). Laddar batteriet ur och inget spara är bokat
+     (battladd_stopp framåt) är det normal drift. Varningen står kvar när ett
+     bokat spara faktiskt inte håller. */
+  if(L.lage==='spara'&&w!=null&&isFinite(w)&&w<-BATT_VARN_W&&_regel&&!(Number(_regel.stopp)>Date.now()))
+    return {txt:'Normal drift',lage:'normal',fjarr:false,varn:null,bedomd:true};
   if((L.lage==='spara'||L.lage==='ladda')&&w!=null&&isFinite(w)&&w<-BATT_VARN_W)
     L.varn='laddar ur '+(Math.abs(w)>=1000?num(Math.abs(w)/1000,1)+' kW':Math.round(Math.abs(w))+' W');
   return L;
