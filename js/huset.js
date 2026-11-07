@@ -110,6 +110,18 @@ function husBygg(el){
     b.setAttribute('onclick',f.fn||("openDetail('"+f.pop+"')"));
     if(f.typ==='vader')b.className+=' hus-vader';
     if(f.hoger)b.className+=' hoger';   /* v850: spegelvänd */
+    /* v867: ELRUTAN – Elnät och Förbrukning i samma ruta, var sin halva med
+       avdelare (som väderrutan). Halvorna fylls som de gamla rutorna (husFyll
+       via el._falt.nat/.last) och öppnar var sin popup. */
+    if(f.typ==='el'){
+      b.className+=' hus-el';b.removeAttribute('onclick');
+      (f.delar||[]).forEach(function(d,i){
+        if(i)b.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
+        var h=document.createElement('span');h.className='hel-h';h.style.setProperty('--f',HUS_FARG[d.typ]);
+        h.setAttribute('onclick',"openDetail('"+d.pop+"')");b.appendChild(h);el._falt[d.typ]=h;});
+    }
+    /* v867: håll inne – väderrutan ligger över äppelträdet (inställningarna). */
+    if(f.hall)try{hallInne(b,new Function(f.hall));}catch(x){}
     karta.appendChild(b);el._falt[k]=b;
   });
   el._byggd=true;

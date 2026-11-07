@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v866';
+const APP_VERSION='v867';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3123,18 +3123,20 @@ setInterval(checkForUpdate,60000);
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0',vader:'#6f9fc8'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
-  /* Elnät och Förbrukning uppe till vänster, lite lägre och smalare sedan v838. */
-  nat:  {x:20, y:20,  w:218,h:138, typ:'nat',  pop:'grid'},       /* i hörnet, lika långt från överkant och vänsterkant */
-  last: {x:20, y:168, w:218,h:138, typ:'last', pop:'energyfull'},   /* under Elnät */
+  /* v867: Elnät och Förbrukning i EN ruta nere till höger (förut två rutor
+     uppe till vänster, v838–v866). Halvorna öppnar var sin popup. */
+  el:   {x:640,y:952, w:380,h:148, typ:'el',
+         delar:[{typ:'nat',pop:'grid'},{typ:'last',pop:'energyfull'}]},
   /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
      tak), batteriet under husbatteriet och bilen under bilarna – i höjd med
      gången mellan Breveden och poolrummet, där bilens ledning går. */
   sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true},
-  /* Väderkortet nere till höger (v855, omgjort): ikon, temperatur, lägst/högst,
-     vind med byar, väderläget och SMHI:s närmaste fem timmar. Ingen färgkant.
-     Tryck öppnar Väder-sidan. */
-  vader:{x:640,y:878, w:380,h:222, typ:'vader',fn:'openVader()'},   /* 20 från kanterna, som Elnät */
+  /* Väderkortet uppe till vänster (v867; nere till höger v855–v866): väder och
+     vind, känns, lägst/högst och SMHI:s närmaste fem timmar. Tryck öppnar
+     Väder-sidan; håll inne öppnar inställningarna – rutan ligger över
+     äppelträdet som gjorde det förut (väggplattan har ingen meny). */
+  vader:{x:20, y:20,  w:380,h:222, typ:'vader',fn:'openVader()',hall:'openConfig()'},   /* 20 från kanterna */
   bil:  {x:500,y:304, w:170,h:56,  typ:'bil',  pop:'cars', liten:true}
 };
 /* LEDNINGARNA (v839). Elnätet kommer in uppifrån utanför bilden, längs
