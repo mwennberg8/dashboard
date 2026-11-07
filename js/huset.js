@@ -460,7 +460,8 @@ function husVaderFyll(b){
   /* De närmaste timmarna: nästa hela timme och fyra till. */
   var tim=fc.filter(function(f){return f.t>nu;}).slice(0,5);
   if(tim.length){
-    h+='<span class="hv2-tim">';
+    var torr=!tim.some(function(f){return f.p!=null&&f.p>=0.1;});
+    h+='<span class="hv2-tim'+(torr?' torr':'')+'">';
     tim.forEach(function(f){var d=new Date(f.t),sy=vpSym(f);
       h+='<span class="hv2-h"><span class="hv2-hk">'+('0'+d.getHours()).slice(-2)+'</span>'
         +'<span class="hv2-hi">'+vpIkon(sy[0])+'</span>'
@@ -483,9 +484,9 @@ function husVaderFyll(b){
    är i cqw och följer rutan, så ett steg som räcker gäller i alla storlekar. */
 function husVaderPassa(b){
   try{
-    b.classList.remove('tat1','tat2','tat3');
+    b.classList.remove('tat1','tat2','tat3','tat4','tat5');
     var r=b.querySelector('.hv2-topp');if(!r||!r.clientWidth)return;
-    for(var k=1;k<=3&&r.scrollWidth>r.clientWidth+1;k++)b.classList.add('tat'+k);
+    for(var k=1;k<=5&&r.scrollWidth>r.clientWidth+1;k++)b.classList.add('tat'+k);
   }catch(e){}
 }
 
