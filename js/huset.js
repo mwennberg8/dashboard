@@ -221,6 +221,25 @@ function husTakBygg(svg,NS){
   if(typeof HUS_SMATAK==='undefined'||!HUS_SMATAK)return;
   var defs=document.createElementNS(NS,'defs');svg.appendChild(defs);
   HUS_SMATAK.forEach(function(t,i){
+    /* v869: LAPPEN. Bilden har ett eget målat burspråk i väggen ovanför
+       hustaket; när taket dras in under hustaket skulle det synas. Det täcks
+       med samma bild flyttad dx i sidled – väggen bredvid, med samma paneler.
+       Dag- och nattbilden följer temat som bilderna under (husLappBild). */
+    if(t.lapp){
+      /* Mjuka kanter: en mask med lätt oskärpa i stället för en hård klippning. */
+      var lid='hus-lapp-mask-'+i,lm=document.createElementNS(NS,'mask');lm.setAttribute('id',lid);
+      lm.setAttribute('maskUnits','userSpaceOnUse');lm.setAttribute('x','0');lm.setAttribute('y','0');lm.setAttribute('width','1040');lm.setAttribute('height','1120');
+      var lf=document.createElementNS(NS,'filter');lf.setAttribute('id',lid+'-f');lf.setAttribute('x','-20%');lf.setAttribute('y','-20%');lf.setAttribute('width','140%');lf.setAttribute('height','140%');
+      var fb=document.createElementNS(NS,'feGaussianBlur');fb.setAttribute('stdDeviation',String(t.lapp.mjuk||1.6));lf.appendChild(fb);defs.appendChild(lf);
+      var lr=document.createElementNS(NS,'rect');lr.setAttribute('x',t.lapp.r[0]);lr.setAttribute('y',t.lapp.r[1]);
+      lr.setAttribute('width',t.lapp.r[2]);lr.setAttribute('height',t.lapp.r[3]);lr.setAttribute('fill','#fff');lr.setAttribute('filter','url(#'+lid+'-f)');
+      lm.appendChild(lr);defs.appendChild(lm);
+      var lg=document.createElementNS(NS,'g');lg.setAttribute('class','hus-lapp');lg.setAttribute('mask','url(#'+lid+')');
+      ['natt','dag'].forEach(function(v){var im=document.createElementNS(NS,'image');
+        im.setAttribute('class','hus-lapp-'+v);im.setAttribute('x',String(t.lapp.dx));im.setAttribute('y','0');
+        im.setAttribute('width','1040');im.setAttribute('height','1120');im.setAttribute('preserveAspectRatio','none');lg.appendChild(im);});
+      svg.appendChild(lg);husLappBild();
+    }
     var id='hus-tak-klipp-'+i,cp=document.createElementNS(NS,'clipPath');cp.setAttribute('id',id);
     var r=document.createElementNS(NS,'rect');r.setAttribute('x','0');r.setAttribute('y','0');
     r.setAttribute('width','1040');r.setAttribute('height',String(t.kant));cp.appendChild(r);defs.appendChild(cp);
@@ -235,6 +254,13 @@ function husTakBygg(svg,NS){
     ras.setAttribute('d','M'+k[1]+' L'+k[2]+' L'+hh[0]);g.appendChild(ras);
     svg.appendChild(g);
   });
+}
+/* v869: lappens bilder följer årstidens bildpar (husRita byter vid behov). */
+function husLappBild(){
+  var bn=husBildNamn();
+  document.querySelectorAll('#hus-svg .hus-lapp image').forEach(function(im){
+    var u='bild/hus-'+bn+(im.getAttribute('class')==='hus-lapp-natt'?'-natt':'')+'.webp';
+    if(im.getAttribute('href')!==u)im.setAttribute('href',u);});
 }
 function husLjusBygg(el,svg,NS){
   function ny(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
@@ -578,7 +604,8 @@ function husRita(){
   try{husSnoHamta();}catch(e){}
   var bn=husBildNamn();
   if(el._bild!==bn){var bnat=$('hus-img-natt'),bdag=$('hus-img-dag');
-    if(bnat)bnat.src='bild/hus-'+bn+'-natt.webp';if(bdag)bdag.src='bild/hus-'+bn+'.webp';el._bild=bn;}
+    if(bnat)bnat.src='bild/hus-'+bn+'-natt.webp';if(bdag)bdag.src='bild/hus-'+bn+'.webp';el._bild=bn;
+    try{husLappBild();}catch(e){}}
   try{husLjusRita(el);}catch(e){}
   var v=husVarden();
   /* Solen: vänster tak → nedre mitten → övre mitten → höger tak → elcentralen. */
