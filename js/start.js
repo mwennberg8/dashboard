@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v855';
+const APP_VERSION='v856';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3162,6 +3162,8 @@ var HUS_LEDN=[
    takkant. kant = takkantens y: allt nedanför klipps bort, så taket går in
    UNDER hustaket och skuggan aldrig hamnar på det. (Inte HUS_TAK – det namnet
    är takmaskerna för ljuset längre ned.) */
+/* v856: flödets steg per sekund på väggplattan (husFlodTakt). */
+var HUS_FLOD_FPS=12;
 var HUS_SMATAK=[
   {namn:'Burspråk',kant:445,
    v:'386,447 397,414 420,446', f:'397,414 443,414 420,446', h:'443,414 455,447 420,446',
