@@ -3809,23 +3809,27 @@ body:not(.histmod) .flikrad .en-hogra .en-notis:not(.en-live):not(.bak)::after{c
 body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:"";position:absolute;top:-1px;right:-3px;width:9px;height:9px;border-radius:50%;
   background:var(--gold);box-shadow:0 0 0 2px var(--panel-a)}
 /* Väderkortet i husbilden (v855, omgjort – ingen färgkant). */
-.hus-falt.hus-vader{padding:1.5cqw 2cqw 1.3cqw;gap:.75cqw;border-radius:3.2cqw;justify-content:flex-start;align-items:stretch;text-align:left}
+.hus-falt.hus-vader{padding:1.5cqw 2cqw 1.3cqw;gap:.6cqw;border-radius:3.2cqw;justify-content:flex-start;align-items:stretch;text-align:left}
 .hus-falt.hus-vader::before{display:none}
 .hv2-topp{display:flex;align-items:center;gap:.9cqw}
 .hv2-ic{display:inline-flex;width:5cqw;height:5cqw;flex:0 0 auto;color:var(--gold,#d9a521)}
 .hv2-ic svg{width:100%;height:100%}
 .hv2-t{font:800 4.7cqw/1 var(--sans,inherit);letter-spacing:-.035em;flex:1 1 auto;white-space:nowrap}
-.hv2-sid{display:flex;flex-direction:column;align-items:flex-end;gap:.7cqw;font:780 2.55cqw/1.05 var(--sans,inherit);white-space:nowrap}   /* v861: större (förut 1.95); temperaturen och ikonen något mindre för att ge plats */
+.hv2-sid{display:flex;flex-direction:column;align-items:flex-end;gap:.6cqw;font:780 3.2cqw/1.02 var(--sans,inherit);white-space:nowrap}   /* v864: som spotprisets tal (v861: 2.55, förut 1.95) */
 .hv2-hl i{font-style:normal;opacity:.55;margin:0 .15cqw 0 .45cqw}
 .hv2-vind{display:inline-flex;align-items:center;gap:.45cqw}
-.hv2-vind svg{width:2.8cqw;height:2.8cqw}
-.hv2-vind small{font-size:1.8cqw;opacity:.6}
-/* v861: husVaderPassa – stegen när topraden inte ryms (kyla och blåst). */
-.hus-vader.tat1 .hv2-t{font-size:3.9cqw}.hus-vader.tat1 .hv2-ic{width:4.2cqw;height:4.2cqw}
+.hv2-vind svg{width:3.3cqw;height:3.3cqw}
+.hv2-vind small{font-size:2.1cqw;opacity:.6}
+/* v861/v864: husVaderPassa – stegen när toppraden inte ryms. Först lite mindre
+   huvudtemperatur, sedan utan "m/s", sedan mindre temperatur igen och sist
+   mindre hög/låg och vind (kyla och blåst). */
+.hus-vader.tat1 .hv2-t{font-size:4.3cqw}.hus-vader.tat1 .hv2-ic{width:4.6cqw;height:4.6cqw}
 .hus-vader.tat2 .hv2-enh{display:none}
-.hus-vader.tat3 .hv2-topp{gap:.45cqw}.hus-vader.tat3 .hv2-hl i{margin:0 0 0 .3cqw}.hus-vader.tat3 .hv2-sid{font-size:2.1cqw}.hus-vader.tat3 .hv2-vind svg{width:2.4cqw;height:2.4cqw}
+.hus-vader.tat3 .hv2-t{font-size:3.9cqw}.hus-vader.tat3 .hv2-ic{width:4.2cqw;height:4.2cqw}
+.hus-vader.tat4 .hv2-topp{gap:.45cqw}.hus-vader.tat4 .hv2-hl i{margin:0 0 0 .3cqw}.hus-vader.tat4 .hv2-sid{font-size:2.6cqw}
+.hus-vader.tat5 .hv2-sid{font-size:2.1cqw}.hus-vader.tat5 .hv2-vind svg{width:2.4cqw;height:2.4cqw}
 .hv2-sit{font:650 1.85cqw/1.2 var(--sans,inherit);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hv2-tim{display:flex;justify-content:space-between;gap:.5cqw;padding-top:.85cqw;border-top:1px solid rgba(46,52,64,.12)}
+.hv2-tim{display:flex;justify-content:space-between;gap:.5cqw;padding-top:.6cqw;border-top:1px solid rgba(46,52,64,.12)}
 :root:not([data-theme="light"]) .hv2-tim{border-top-color:rgba(236,239,244,.12)}
 .hv2-h{flex:1 1 0;display:flex;flex-direction:column;align-items:center;gap:.3cqw}
 .hv2-hk{font:700 1.55cqw/1 var(--sans,inherit);opacity:.6}
@@ -3833,6 +3837,7 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 .hv2-ht{font:800 2.05cqw/1 var(--sans,inherit)}
 .hv2-tom{justify-content:center;font:650 1.7cqw/1.2 var(--sans,inherit);opacity:.6;padding-top:1.4cqw}
 .hv2-hp{font:700 1.4cqw/1 var(--sans,inherit);color:#5e81ac;min-height:1.4cqw}
+.hv2-tim.torr .hv2-hp{display:none}   /* v864: ingen nederbörd de närmaste timmarna – raden tar ingen plats */
 :root:not([data-theme="light"]) .hv2-hp{color:#88c0d0}
 .hus-vader .wx-arrow{display:inline-flex;width:2.6cqw;height:2.6cqw;color:var(--f)}
 .hus-vader .wx-arrow svg{width:100%;height:100%}
