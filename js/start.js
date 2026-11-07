@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v869';
+const APP_VERSION='v870';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3225,11 +3225,11 @@ var HUS_YTOR=[
 var HUS_UTE=[[455,60],[455,212],[455,362],
   /* Breveden: på väggarna nära hörnen, ljuset tonar runt hörnet. Följer
      Utebelysning i Homey (sjätte värdet). */
-  [690,112,180,180,1,'Breveden/Utebelysning'],[830,112,0,180,-1,'Breveden/Utebelysning'],
-  [690,278,180,180,-1,'Breveden/Utebelysning'],[830,278,0,180,1,'Breveden/Utebelysning'],
-  [898,370,315,270],[536,444,270],   /* elcentralen: på poolrummets nordöstra hörn */
+  [694,112,180,180,1,'Breveden/Utebelysning'],[826,112,0,180,-1,'Breveden/Utebelysning'],
+  [694,278,180,180,-1,'Breveden/Utebelysning'],[826,278,0,180,1,'Breveden/Utebelysning'],
+  [898,370,315,270],[536,448,270],   /* elcentralen: på poolrummets nordöstra hörn */
   /* Altanen: en vid vardagsrummet (nära hörnet), två utmed poolrummets vägg och en på dess sydöstra hörn. */
-  [486,744,90,180,1],[720,740,90],[796,740,90],[868,740,90,180,-1]];
+  [490,744,90,180,1],[720,738,90],[796,738,90],[868,738,90,180,-1]];   /* v870: från hus-redigera 2026-11-07 17:28 */
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
    utan), bara = en enda lampa. Verkstad belysning sitter i grovuterummet (den
    inglasade delen till vänster om uterummet) och tänder bara det. */
