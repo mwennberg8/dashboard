@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v854';
+const APP_VERSION='v855';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -2723,6 +2723,7 @@ var _loadPagar=0;   /* v853: tidsstämpel för hämtningen som pågår (0 = inge
    inloggning berörs inte. */
 var REGEL_VANTA_MS=2500;
 var LIVE_VANTA_MAX=12000,LIVE_VANTA_DOLD=60000,_liveVantaT=null;
+var LIVE_TAPP_MS=60000,_sistLive=0;   /* v855: suddigt efter en minut utan live */
 var _liveDoldSedan=0;
 try{document.addEventListener('visibilitychange',function(){
   if(document.hidden){_liveDoldSedan=Date.now();return;}
@@ -3127,10 +3128,10 @@ var HUS_FALT={
      gången mellan Breveden och poolrummet, där bilens ledning går. */
   sol:  {x:253,y:628, w:170,h:56,  typ:'sol',  pop:'sun',  liten:true},
   batt: {x:815,y:560, w:215,h:56,  typ:'batt', pop:'batt', liten:true},
-  /* Väderkortet nere till höger: väder, temperatur, lägst/högst i dag och vind
-     med riktningspil. Tryck öppnar Väder-sidan. v850: spegelvänt (hoger) –
-     färgkanten till höger och texten högerställd, mot bildens högerkant. */
-  vader:{x:760,y:946, w:260,h:154, typ:'vader',fn:'openVader()',hoger:true},   /* 20 från kanterna, som Elnät */
+  /* Väderkortet nere till höger (v855, omgjort): ikon, temperatur, lägst/högst,
+     vind med byar, väderläget och SMHI:s närmaste fem timmar. Ingen färgkant.
+     Tryck öppnar Väder-sidan. */
+  vader:{x:640,y:878, w:380,h:222, typ:'vader',fn:'openVader()'},   /* 20 från kanterna, som Elnät */
   bil:  {x:500,y:304, w:170,h:56,  typ:'bil',  pop:'cars', liten:true}
 };
 /* LEDNINGARNA (v839). Elnätet kommer in uppifrån utanför bilden, längs

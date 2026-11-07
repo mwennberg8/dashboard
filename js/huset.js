@@ -344,19 +344,39 @@ function husViloKoll(){
 }
 /* Väderkortet: ikon och temperatur, lägst/högst i dag och vind med pil –
    samma värden som väderkortet på Väder-sidan (buildWeatherCompactHTML). */
+/* v855: VÄDERKORTET, omgjort. Rad 1: ikon (SMHI:s symbol för timmen, annars
+   Homeys väderläge), temperatur, lägst/högst och vind med byar. Rad 2:
+   väderläget och upplevd temperatur. Rad 3: de närmaste fem timmarna. */
 function husVaderFyll(b){
   if(!b)return;
   var sit=cap(DEV.smhi,'measure_weather_situation_cp'),t=cap(DEV.outdoor,'measure_temperature');
+  var kn=cap(DEV.smhi,'air_temperature_feels_like_cp');
   var ex={min:null,max:null};try{ex=tempExtremes(t)||ex;}catch(e){}
-  var ws=null;try{ws=vindMs();}catch(e){}
+  var ws=null,by=null;try{ws=vindMs();by=byMs();}catch(e){}
   var wd=cap(DEV.windNet,'measure_wind_angle');if(wd==null)wd=cap(DEV.smhi,'measure_wind_direction_cp');
   var g=function(v){return v==null||!isFinite(v)?'–':num(v,0)+'°';};
-  b.innerHTML='<span class="hv-rad"><span class="hv-ic">'+icon(wxIcon(sit))+'</span>'
-    +'<span class="hv-t">'+(t==null?'–':num(t,1)+'°')+'</span></span>'
-    +'<span class="hv-rad hv-sma"><span class="hv-hl"><i>↓</i>'+g(ex.min)+'  <i>↑</i>'+g(ex.max)+'</span></span>'
-    +'<span class="hv-rad hv-sma"><span class="hv-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,1))+'<small> m/s</small></span></span>';
+  var nu=Date.now(),fc=(typeof FORECAST!=='undefined'&&FORECAST?FORECAST:[]).filter(function(f){return f.t>=nu-1800000;});
+  var ik=fc.length?vpIkon(vpSym(fc[0])[0]):icon(wxIcon(sit));
+  var h='<span class="hv2-topp"><span class="hv2-ic">'+ik+'</span>'
+    +'<span class="hv2-t">'+(t==null?'–':num(t,1)+'°')+'</span>'
+    +'<span class="hv2-sid"><span class="hv2-hl"><i>↓</i>'+g(ex.min)+' <i>↑</i>'+g(ex.max)+'</span>'
+    +'<span class="hv2-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small> m/s</small></span></span></span>'
+    +'<span class="hv2-sit">'+esc(sit||'Väder')+(kn!=null&&isFinite(kn)?' · känns '+num(kn,0)+'°':'')+'</span>';
+  /* De närmaste timmarna: nästa hela timme och fyra till. */
+  var tim=fc.filter(function(f){return f.t>nu;}).slice(0,5);
+  if(tim.length){
+    h+='<span class="hv2-tim">';
+    tim.forEach(function(f){var d=new Date(f.t),sy=vpSym(f);
+      h+='<span class="hv2-h"><span class="hv2-hk">'+('0'+d.getHours()).slice(-2)+'</span>'
+        +'<span class="hv2-hi">'+vpIkon(sy[0])+'</span>'
+        +'<span class="hv2-ht">'+(f.temp==null?'–':num(f.temp,0)+'°')+'</span>'
+        +'<span class="hv2-hp">'+(f.p!=null&&f.p>=0.1?num(f.p,1):'')+'</span></span>';});
+    h+='</span>';
+  }else h+='<span class="hv2-tim hv2-tom">Prognosen hämtas från SMHI\u2026</span>';
+  b.innerHTML=h;
   b.title=(sit||'Väder')+' – öppna Väder';
 }
+
 function husFyll(b,rub,w,under){
   var t=husTal(w);
   b.innerHTML='<span class="rub"><i></i>'+esc(rub)+'</span><span class="v">'+t[0]+'<small> '+t[1]+'</small></span>'
