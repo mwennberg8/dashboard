@@ -131,10 +131,14 @@ function husBygg(el){
 /* v858: BILARNA OVANIFRÅN (HUS_BILAR). bilSvg ritar en bil med skugga,
    kaross, rutor, speglar och lampor; färgerna sätts i CSS per modell och tema.
    Ligger under ljuset, så att parkeringslamporna lyser på dem. */
-function bilSvg(m,cx,cy){
+function bilSvg(m,cx,cy,tand){
   var W=m.W,L=m.L,x0=cx-W/2,y0=cy-L/2,p=function(d,kl){return '<path class="'+kl+'" d="'+d+'"/>';};
   var r=function(x,y,w,h,rx,kl){return '<rect class="'+kl+'" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="'+rx+'"/>';};
-  var g='<g class="hus-bil '+m.kl+'" transform="translate('+x0+','+y0+')">';
+  var g='<g class="hus-bil '+m.kl+(tand?' tand':'')+'" transform="translate('+x0+','+y0+')">';
+  /* v874: OLÅST – lamporna lyser: sken på marken framför och bakom bilen
+     (under karossen), och ljusare lampor (CSS .tand). */
+  if(tand)g+='<ellipse class="bil-sken-fram" cx="'+(W/2)+'" cy="-16" rx="'+(W*0.8)+'" ry="24" fill="url(#bil-g-fram)"/>'
+    +'<ellipse class="bil-sken-bak" cx="'+(W/2)+'" cy="'+(L+9)+'" rx="'+(W*0.62)+'" ry="13" fill="url(#bil-g-bak)"/>';
   g+=r(-1,4,W+2,L,m.rx+2,'bil-skugga');
   /* Kaross: rundad nos, rakare bak. */
   g+=p('M'+m.rx+',0 H'+(W-m.rx)+' Q'+W+',0 '+W+','+m.rx+' V'+(L-m.rb)+' Q'+W+','+L+' '+(W-m.rb)+','+L+' H'+m.rb+' Q0,'+L+' 0,'+(L-m.rb)+' V'+m.rx+' Q0,0 '+m.rx+',0 Z','bil-kaross');
@@ -186,8 +190,16 @@ function husBilarUppd(){
   var g=document.querySelector('#hus-svg .hus-bilar');if(!g)return;
   var c40=false;
   try{c40=!!(DEV.car&&DATA[DEV.car]&&carHome(DEV.car))&&typeof HUS_BILAR_TRE!=='undefined';}catch(e){}
-  if(g._c40===c40)return;g._c40=c40;
-  var h='';(c40?HUS_BILAR_TRE:HUS_BILAR).forEach(function(b){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy);});
+  var lista=c40?HUS_BILAR_TRE:HUS_BILAR;
+  /* v874: lamporna tänds när bilen är olåst – bara när den är hemma (annars
+     står den inte på uppfarten). Bilar utan Homey-enhet (XC60) lyser aldrig. */
+  var tand=lista.map(function(b){try{var id=b.enhet&&DEV[b.enhet];
+    return !!(id&&DATA[id]&&cap(id,'locked')===false&&carHome(id));}catch(e){return false;}});
+  var nyckel=(c40?'3':'2')+tand.map(function(t){return t?1:0;}).join('');
+  if(g._nyckel===nyckel)return;g._nyckel=nyckel;
+  var h='<defs><radialGradient id="bil-g-fram"><stop offset="0" stop-color="#fff2c8" stop-opacity=".85"/><stop offset=".55" stop-color="#fff2c8" stop-opacity=".3"/><stop offset="1" stop-color="#fff2c8" stop-opacity="0"/></radialGradient>'
+    +'<radialGradient id="bil-g-bak"><stop offset="0" stop-color="#ff3b3b" stop-opacity=".6"/><stop offset="1" stop-color="#ff3b3b" stop-opacity="0"/></radialGradient></defs>';
+  lista.forEach(function(b,i){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy,tand[i]);});
   g.innerHTML=h;
   try{document.querySelectorAll('.hus-yta-c40').forEach(function(e){e.style.display=c40?'':'none';});}catch(e){}
 }
