@@ -439,7 +439,7 @@ function husVaderFyll(b){
   var h='<span class="hv2-topp"><span class="hv2-ic">'+ik+'</span>'
     +'<span class="hv2-t">'+(t==null?'–':num(t,1)+'°')+'</span>'
     +'<span class="hv2-sid"><span class="hv2-hl"><i>↓</i>'+g(ex.min)+' <i>↑</i>'+g(ex.max)+'</span>'
-    +'<span class="hv2-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small> m/s</small></span></span></span>'
+    +'<span class="hv2-vind">'+windArrow(wd,null,null)+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small class="hv2-enh"> m/s</small></span></span></span>'
     +'<span class="hv2-sit">'+esc(sit||'Väder')+(kn!=null&&isFinite(kn)?' · känns '+num(kn,0)+'°':'')+'</span>';
   /* De närmaste timmarna: nästa hela timme och fyra till. */
   var tim=fc.filter(function(f){return f.t>nu;}).slice(0,5);
@@ -452,8 +452,25 @@ function husVaderFyll(b){
         +'<span class="hv2-hp">'+(f.p!=null&&f.p>=0.1?num(f.p,1):'')+'</span></span>';});
     h+='</span>';
   }else h+='<span class="hv2-tim hv2-tom">Prognosen hämtas från SMHI\u2026</span>';
+  /* v861: oförändrat innehåll ritas inte om (husVaderFyll körs vid varje
+     uppdatering). Bara när rutan syns räknas den som klar – annars kan inte
+     raden mätas. */
+  if(b._hv===h&&b.clientWidth)return;
   b.innerHTML=h;
   b.title=(sit||'Väder')+' – öppna Väder';
+  husVaderPassa(b);
+  b._hv=b.clientWidth?h:null;
+}
+/* v861: TOPPRADEN SKA RYMMAS. I kyla och blåst (−12,3°, ↓−15° ↑−10°, 14 (22) m/s)
+   gick hög/låg och vinden utanför rutan. Ett steg i taget: huvudtemperaturen och
+   ikonen mindre, sedan utan "m/s", sedan hög/låg och vind något mindre. Måtten
+   är i cqw och följer rutan, så ett steg som räcker gäller i alla storlekar. */
+function husVaderPassa(b){
+  try{
+    b.classList.remove('tat1','tat2','tat3');
+    var r=b.querySelector('.hv2-topp');if(!r||!r.clientWidth)return;
+    for(var k=1;k<=3&&r.scrollWidth>r.clientWidth+1;k++)b.classList.add('tat'+k);
+  }catch(e){}
 }
 
 function husFyll(b,rub,w,under){
