@@ -3836,6 +3836,10 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 .hus-flod{fill:none;stroke:#fff;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0 16;opacity:.95;
   animation:husflod 1.1s linear infinite}
 .hus-flod.bak{animation-direction:reverse}
+/* v856: ledningarna i eget lager (husBygg) – ritas om utan ljuset under. */
+#hus-ledn-svg{will-change:transform}
+/* v856: väggplattan driver flödet med husFlodTakt i stället (färre omräkningar). */
+body.vaggplatta .hus-flod{animation:none!important}
 .hus-flod.av{animation:none;stroke-dasharray:none;opacity:0}
 @keyframes husflod{to{stroke-dashoffset:-32}}
 /* Ljuset i nattbilden: bara i mörkt tema. Fönstren tänds per zon (.pa). */

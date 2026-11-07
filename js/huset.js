@@ -62,7 +62,11 @@ function husBygg(el){
     +'<img class="hus-natt" id="hus-img-natt" src="bild/hus-'+husBildNamn()+'-natt.webp" alt="Huset ovanifrån">'
     +'<img class="hus-dag" id="hus-img-dag" src="bild/hus-'+husBildNamn()+'.webp" alt="">'
     +'<svg viewBox="0 0 1040 1120" class="hus-ytor" id="hus-ytor"></svg>'
-    +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg></div>';
+    +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg>'
+    /* v856: ledningarna i ett eget lager ovanpå. Flödet ritas om i varje
+       bildruta; i samma SVG som ljuset (maskar, oskärpa, blandning) ritades då
+       hela ljuset om också. Uppmätt ~40 % mindre ritarbete. */
+    +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-ledn-svg"></svg></div>';
   /* Efter det som redan står i panelen (raden #hus-topp överst). En
      halvbyggd karta från ett avbrutet försök tas bort först. */
   var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
@@ -85,14 +89,16 @@ function husBygg(el){
   try{husTakBygg(svg,NS);}catch(e){}   /* v850: burspråkets tak, under ljuset */
   husLjusBygg(el,svg,NS);
   el._ledn={};
+  var lsvg=$('hus-ledn-svg')||svg;   /* v856: eget lager */
   HUS_LEDN.forEach(function(l){
     var bas=document.createElementNS(NS,'path');bas.setAttribute('d',l.d);
     bas.setAttribute('class',l.ledare?'hus-ledare':'hus-bas');
-    bas.style.stroke=HUS_FARG[l.typ];svg.appendChild(bas);
+    bas.style.stroke=HUS_FARG[l.typ];lsvg.appendChild(bas);
     if(l.ledare)return;   /* etikettlinje: inget flöde */
     var fl=document.createElementNS(NS,'path');fl.setAttribute('d',l.d);fl.setAttribute('class','hus-flod');
-    svg.appendChild(fl);el._ledn[l.id]={bas:bas,fl:fl};
+    lsvg.appendChild(fl);el._ledn[l.id]={bas:bas,fl:fl};
   });
+  try{husFlodTakt();}catch(e){}   /* v856: väggplattan */
   el._falt={};
   Object.keys(HUS_FALT).forEach(function(k){
     var f=HUS_FALT[k],b=document.createElement('button');
@@ -108,6 +114,25 @@ function husBygg(el){
 }
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
+/* v856: FLÖDET PÅ VÄGGPLATTAN. En CSS-animation räknas om i varje bildruta;
+   på den äldre plattan blev det lagg. Där drivs flödet i stället härifrån med
+   HUS_FLOD_FPS steg i sekunden (samma fart och riktning: animationDuration och
+   .bak som husRita sätter), och står still när sidan inte syns. CSS stänger av
+   animationen (body.vaggplatta .hus-flod). Andra enheter rörs inte. */
+function husFlodTakt(){
+  if(window._husFlodTakt||!document.body.classList.contains('vaggplatta'))return;
+  try{if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;}catch(e){}
+  window._husFlodTakt=setInterval(function(){
+    if(document.hidden)return;
+    var t=performance.now()/1000;
+    document.querySelectorAll('#hus-ledn-svg .hus-flod').forEach(function(e){
+      if(e.classList.contains('av'))return;
+      var d=parseFloat(e.style.animationDuration)||1.1,f=(t/d)%1;
+      if(e.classList.contains('bak'))f=1-f;
+      e.style.strokeDashoffset=(-32*f).toFixed(1);
+    });
+  },Math.round(1000/HUS_FLOD_FPS));
+}
 /* v850: små tak (HUS_SMATAK) – tre plan, kant och skugga, klippta vid husets
    takkant så att de ligger under hustaket. Färgerna sätts i CSS per tema. */
 function husTakBygg(svg,NS){
