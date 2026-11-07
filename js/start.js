@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v862';
+const APP_VERSION='v863';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3177,7 +3177,7 @@ var HUS_BILAR=[
    står kvar på sina platser: bilden har egna målade bilar under dem som annars
    skulle synas. */
 var HUS_BILAR_TRE=[
-  {modell:'c40',cx:534.5,cy:74},
+  {modell:'c40',cx:534.5,cy:52},   /* v863: längre upp – huven får gå utanför bilden */
   {modell:'ex40',cx:534.5,cy:201},
   {modell:'xc60',cx:633,cy:207.5}
 ];
@@ -3203,7 +3203,7 @@ var HUS_YTOR=[
   /* v844: bilarna på parkeringen öppnar bilpopupen. */
   {pop:'cars',r:[506,140,58,124]},
   {pop:'cars',r:[602,145,62,126]},
-  {pop:'cars',r:[506,12,58,124],c40:true},   /* v862: C40 framför EX40 – bara när den står där */
+  {pop:'cars',r:[506,0,58,112],c40:true},   /* v862: C40 framför EX40 – bara när den står där */
   /* Äppelträdet: håll inne för inställningarna (väggplattan har ingen meny). */
   {hall:'openConfig()',c:[381,147,40]}
 ];
