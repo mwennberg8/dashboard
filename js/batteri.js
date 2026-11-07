@@ -251,21 +251,15 @@ function paNuLista(){
      batteri, bil) räknas en gång, det mest beskrivande först — enhetens eget
      läge ("Breveden värmer") går före knappens namn ("Breveden"). */
   var lagg=function(txt,pop,gul,varn){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul,varn:!!varn});};
-  try{var ph0=cap(DEV.poolheat,'onoff');if(ph0===true||ph0==='on')lagg('Poolvärme','pool');}catch(e){}
-  /* BREVEDEN (v692): bara när den faktiskt värmer eller kyler. Läget "Värm 15"
-     betyder bara att den FÅR värma — rutan sa "inget behövs" medan raden sa
-     "Breveden värmer". Skriptets bild (brvState.aktiv) gäller; utan den
-     effekten (över 150 W). */
-  try{var B0=(typeof brvState==='function')?brvState():null;
-    if(B0&&!brvGammal(B0)){if(B0.aktiv)lagg('Breveden '+(B0.lage==='cool'?'kyler':'värmer'),'breveden');}
-    else{var w0=Number(cap(DEV.attefall,'measure_power'));var md0=String(cap(DEV.attefall,'thermostat_mode')||'');
-      if(cap(DEV.attefall,'onoff')===true&&w0>150)lagg('Breveden '+(md0==='cool'?'kyler':'värmer'),'breveden');}}catch(e){}
-  sett['breveden']=1;   /* knappens namn ska aldrig bli en egen bricka */
+  /* v873: BARA BOKNINGAR, BATTERIET OCH VARNINGAR. Det som bara är igång –
+     poolvärme, Breveden värmer, disk pågår, bilen laddar, påslagna knappar –
+     syns redan i sina rutor och i husbilden och står inte längre här. */
+  sett['pool']=1;sett['breveden']=1;
   /* DISKEN (v693): bara när den faktiskt diskar eller är bokad med
      diskknappen — samma regler som diskknappen (diskKor/diskBokad). Att
      maskinen står påslagen betyder ingenting: diskKor ser på hur framsteg och
      tid RÖR sig, och ett stillastående tal räknas som att den bara står på. */
-  try{if(typeof diskKor==='function'&&diskKor())lagg('Disk pågår','dish');
+  try{if(typeof diskKor==='function'&&diskKor()){}   /* v873: pågår – ingen bricka */
     else if(typeof diskBokad==='function'&&diskBokad())lagg('Disk bokad'+((typeof diskNar==='function'&&diskNar())?' '+diskNar():''),'dish',true);}catch(e){}
   sett['dish']=1;
   /* v704: vad batteriet faktiskt gör, och en varning när läget och effekten
@@ -313,23 +307,15 @@ function paNuLista(){
      v710: bara när bilen FAKTISKT drar ström (bilDrar). Läget "manuell" ligger
      kvar i energistyr upp till 18 h och sa "laddar manuellt" utan någon
      kontroll alls, även när laddboxen stod i SuspendedEV med 1 W. */
-  try{var bs=bilStyrLage();
-    if(bilDrar()){
-      if(bs&&bs.lage==='sol')lagg('Bilen laddar på sol','cars');
-      else if(bs&&bs.lage==='billig')lagg('Bilen laddar billigt','cars');
-      else if(bs&&bs.lage==='manuell')lagg('Bilen laddar manuellt','cars');
-      else lagg('Bilen laddar','cars');}}catch(e){}
+  /* v873: bilen som laddar syns i husbilden (bilrutan) – ingen bricka här. */
   try{(CONFIG.BUTTONS||[]).forEach(function(b){
     if(!b||!btnState(b))return;
     var l=String(b.label||'').trim();
     var dst=knappTill(b);
     if(dst==='batt')lagg('Laddar max'+((_regel&&_regel.stopp>Date.now())?' · fullt sparas till '+regelKl(_regel.stopp):''),'batt');
-    else if(dst==='breveden')lagg('Breveden','breveden');
     else if(dst==='dish')lagg('Disk bokad','dish',true);
-    else if(dst==='pool')lagg('Poolvärme','pool');
-    else if(CONFIG.BUTTONS.indexOf(b)===ljusKnapp())return;   /* v773: belysningsrutan visar redan Tänt – ingen bricka */
-    else if(/^auto$/i.test(l))return;            /* v693: Auto är grundläget — ingen bricka */
-    else lagg(l.replace(/\s+\d+([,.]\d+)?°.*$/,''),'hem');});}catch(e){}
+    /* v873: övriga påslagna knappar (Breveden, poolvärme, ljus, Auto …) ger ingen bricka. */
+    });}catch(e){}
   return ut;
 }
 function paNuRita(){
