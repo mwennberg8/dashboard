@@ -1404,7 +1404,8 @@ function daysGet(){try{return JSON.parse(localStorage.getItem('days_v1')||'{}');
 /* Lokal datumnyckel. toISOString() är UTC – med svensk sommartid bytte dygnet
    först kl 02:00, så kvällens värden hamnade fel dygn. */
 function dayKey(d){d=d||new Date();
-  try{return new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'}).format(d);}
+  /* v859: formateraren skapas en gång (att skapa den var dyrt och dayKey anropas ofta). */
+  try{if(!dayKey._f)dayKey._f=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Stockholm',year:'numeric',month:'2-digit',day:'2-digit'});return dayKey._f.format(d);}
   catch(e){var z=new Date(d.getTime()-d.getTimezoneOffset()*60000);return z.toISOString().slice(0,10);}}
 /* v847: dagens datumnyckel ± n KALENDERDAGAR. "Nu ± 24 h" blev fel dygn vid
    sommartidsbytet: 23:30 före en 23-timmarsdag gav dagen efter i morgon, och

@@ -116,6 +116,10 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== self.location.origin) return;
   const bas = self.location.pathname.replace(/[^/]*$/, '');
   if (url.pathname.indexOf(bas) !== 0) return;
+  /* Uppdateringskontrollen (checkForUpdate, ?uppd=1) går förbi: den ska jämföra
+     med servern, aldrig med cachen. Ett cachat svar efter en tidsgräns gav
+     annars ett annat versionsmärke och en omladdning i onödan. */
+  if (url.searchParams.has('uppd')) return;
 
   e.respondWith((async () => {
     try {

@@ -1414,6 +1414,12 @@ function scl(v){return (1+(v||0)*0.06).toFixed(3);}
 function applyGrpVars(el,pre,grp){
   if(!el||!el.style)return;
   grp={};   /* v727: inga storleksinställningar – alltid grundmåtten */
+  /* v859: måtten beror bara på lägesklasserna och fönsterbredden. Har ingen av
+     dem ändrats sedan förra gången räknas inget om – läsningen av den beräknade
+     stilen efter varje omritning var en av de största posterna på väggplattan. */
+  var nyckel=pre+'|'+(document.body?document.body.className:'')+'|'+(window.innerWidth||0)+'x'+(window.innerHeight||0);
+  if(el._grpNyckel===nyckel&&el.style.getPropertyValue(pre+'-v-px'))return;
+  el._grpNyckel=nyckel;
   ['ic','v','name','desc'].forEach(function(k){
     el.style.setProperty(pre+'-'+k,scl(grp[k]));
   });
