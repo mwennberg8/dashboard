@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v868';
+const APP_VERSION='v869';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3186,9 +3186,10 @@ var HUS_BILAR_TRE=[
 /* v856: flödets steg per sekund på väggplattan (husFlodTakt). */
 var HUS_FLOD_FPS=6;   /* v859: 6 (förut 12) – flödet var ~70 % av plattans arbete */
 var HUS_SMATAK=[
-  {namn:'Burspråk',kant:445,   /* v868: 6 nedåt – längre in under hustaket */
-   v:'386,453 397,420 420,452', f:'397,420 443,420 420,452', h:'443,420 455,453 420,452',
-   skugga:'386,454 397,421 443,421 456,454'}
+  {namn:'Burspråk',kant:445,   /* v869: 14 nedåt sedan v867 – längre in under hustaket */
+   v:'386,461 397,428 420,460', f:'397,428 443,428 420,460', h:'443,428 455,461 420,460',
+   skugga:'386,462 397,429 443,429 456,462',
+   lapp:{r:[384,413,72,34],dx:80,mjuk:1.6}}   /* täcker bildens egna målade burspråk (väggen 80 till vänster) */
 ];
 /* TRYCKYTOR i bilden: ett tryck öppnar popupen. Rektanglar [x,y,b,h] eller
    en polygon (Snickarboa står snett). Ligger under ljuset och ledningarna och
@@ -3287,7 +3288,7 @@ var HUS_LAMPOR={
    Justeras enklast i hus-redigera.html, som kopierar ut listan i det här
    formatet. Kontorets och lekrummets östfönster lyser ut över poolrummets tak. */
 var HUS_FONSTER=[
-  {rum:'Kök',p:[[445,439,335,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[396,439,210,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[236,510,180,48,['Kök/Köksbord','Kök/Vitrin']],[421,428,270,30,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']]]},
+  {rum:'Kök',p:[[445,447,335,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[396,447,210,22,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']],[236,510,180,48,['Kök/Köksbord','Kök/Vitrin']],[421,436,270,30,['Kök/Tak','Kök/Burspråk','Kök/Bardisk']]]},
   {rum:'Vardagsrum',p:[[467,734,90,30,['Vardagsrum/Fönster 1']],[424,734,90,28,['Vardagsrum/Fönster 1']],[236,636,180,44,['Vardagsrum/Fönster 3']]]},
   {rum:'Kontor',p:[[599,742,90,30],[535,742,90,30],[662,742,90,30],[699,648,0,26]]},
   {rum:'Hall',p:[[588,447,270,30]]},
