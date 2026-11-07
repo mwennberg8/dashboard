@@ -462,7 +462,7 @@ function husVaderFyll(b){
     +'<span class="hv2-av"></span>'
     +'<span class="hv2-kol"><span class="hv2-rad"><span class="hv2-vic">'+windArrow(wd,null,null)+'</span>'
     +'<span class="hv2-t">'+(ws==null?'–':num(ws,0))+(by!=null&&isFinite(by)?'<small>('+num(by,0)+')</small>':'')+'<small class="hv2-enh">m/s</small></span></span>'
-    +'<span class="hv2-sit hv2-hl"><i>↓</i>'+g(ex.min)+' <i>↑</i>'+g(ex.max)+'</span></span>'
+    +'<span class="hv2-sit hv2-hl"><span class="hv2-lag"><i>↓</i>'+g(ex.min)+'</span>\u2002<span class="hv2-hog"><i>↑</i>'+g(ex.max)+'</span></span></span>'
     +'</span>';
   /* De närmaste timmarna: nästa hela timme och fyra till. */
   var tim=fc.filter(function(f){return f.t>nu;}).slice(0,5);
