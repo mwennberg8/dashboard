@@ -3801,15 +3801,19 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 /* Väderkortet i husbilden (v855, omgjort – ingen färgkant). */
 .hus-falt.hus-vader{padding:1.5cqw 2cqw 1.3cqw;gap:.75cqw;border-radius:3.2cqw;justify-content:flex-start;align-items:stretch;text-align:left}
 .hus-falt.hus-vader::before{display:none}
-.hv2-topp{display:flex;align-items:center;gap:1.1cqw}
-.hv2-ic{display:inline-flex;width:5.8cqw;height:5.8cqw;flex:0 0 auto;color:var(--gold,#d9a521)}
+.hv2-topp{display:flex;align-items:center;gap:.9cqw}
+.hv2-ic{display:inline-flex;width:5cqw;height:5cqw;flex:0 0 auto;color:var(--gold,#d9a521)}
 .hv2-ic svg{width:100%;height:100%}
-.hv2-t{font:800 5.3cqw/1 var(--sans,inherit);letter-spacing:-.03em;flex:1 1 auto;white-space:nowrap}
-.hv2-sid{display:flex;flex-direction:column;align-items:flex-end;gap:.55cqw;font:750 1.95cqw/1.1 var(--sans,inherit);white-space:nowrap}
-.hv2-hl i{font-style:normal;opacity:.55;margin:0 .2cqw 0 .5cqw}
+.hv2-t{font:800 4.7cqw/1 var(--sans,inherit);letter-spacing:-.035em;flex:1 1 auto;white-space:nowrap}
+.hv2-sid{display:flex;flex-direction:column;align-items:flex-end;gap:.7cqw;font:780 2.55cqw/1.05 var(--sans,inherit);white-space:nowrap}   /* v861: större (förut 1.95); temperaturen och ikonen något mindre för att ge plats */
+.hv2-hl i{font-style:normal;opacity:.55;margin:0 .15cqw 0 .45cqw}
 .hv2-vind{display:inline-flex;align-items:center;gap:.45cqw}
-.hv2-vind svg{width:2.2cqw;height:2.2cqw}
-.hv2-vind small{font-size:1.55cqw;opacity:.6}
+.hv2-vind svg{width:2.8cqw;height:2.8cqw}
+.hv2-vind small{font-size:1.8cqw;opacity:.6}
+/* v861: husVaderPassa – stegen när topraden inte ryms (kyla och blåst). */
+.hus-vader.tat1 .hv2-t{font-size:3.9cqw}.hus-vader.tat1 .hv2-ic{width:4.2cqw;height:4.2cqw}
+.hus-vader.tat2 .hv2-enh{display:none}
+.hus-vader.tat3 .hv2-topp{gap:.45cqw}.hus-vader.tat3 .hv2-hl i{margin:0 0 0 .3cqw}.hus-vader.tat3 .hv2-sid{font-size:2.1cqw}.hus-vader.tat3 .hv2-vind svg{width:2.4cqw;height:2.4cqw}
 .hv2-sit{font:650 1.85cqw/1.2 var(--sans,inherit);opacity:.72;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .hv2-tim{display:flex;justify-content:space-between;gap:.5cqw;padding-top:.85cqw;border-top:1px solid rgba(46,52,64,.12)}
 :root:not([data-theme="light"]) .hv2-tim{border-top-color:rgba(236,239,244,.12)}
