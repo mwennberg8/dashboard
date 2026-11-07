@@ -81,7 +81,8 @@ function husBygg(el){
     if(y.p)e.setAttribute('points',y.p);
     else if(y.c){e.setAttribute('cx',y.c[0]);e.setAttribute('cy',y.c[1]);e.setAttribute('r',y.c[2]);}
     else{e.setAttribute('x',y.r[0]);e.setAttribute('y',y.r[1]);e.setAttribute('width',y.r[2]);e.setAttribute('height',y.r[3]);e.setAttribute('rx',8);}
-    e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':''));
+    e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':'')+(y.c40?' hus-yta-c40':''));
+    if(y.c40)e.style.display='none';   /* v862: visas av husBilarUppd när C40 står där */
     if(y.pop)e.setAttribute('onclick',"openDetail('"+y.pop+"')");
     /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
     if(y.hall)try{hallInne(e,new Function(y.hall));}catch(x){}
@@ -151,6 +152,11 @@ function husBilModell(namn){
   fram:function(W){return '<path class="bil-ljus" d="M4,7.5 Q5,4 10.5,3.4 M5.2,6.2 H11 M'+(W-4)+',7.5 Q'+(W-5)+',4 '+(W-10.5)+',3.4 M'+(W-5.2)+',6.2 H'+(W-11)+'"/>';},
   /* Smala, höga baklampor i hörnen. */
   bakl:function(W,L){return '<path class="bil-bak" d="M1.6,'+(L-16)+' V'+(L-5)+' Q2,'+(L-2)+' 5,'+(L-1.3)+' M'+(W-1.6)+','+(L-16)+' V'+(L-5)+' Q'+(W-2)+','+(L-2)+' '+(W-5)+','+(L-1.3)+'"/>';}},
+  /* v862: C40 – coupé-taklinje: kortare tak, längre sluttande bakruta,
+     glastak, Thors hammare fram och L-formade baklampor. */
+  c40:{kl:'bil-c40',W:50,L:116,rx:13,rb:11,vr:30,tak:46,bak:80,br:17,pano:true,
+  fram:function(W){return '<path class="bil-ljus" d="M4,7.5 Q5,4 10.5,3.4 M5.2,6.2 H11 M'+(W-4)+',7.5 Q'+(W-5)+',4 '+(W-10.5)+',3.4 M'+(W-5.2)+',6.2 H'+(W-11)+'"/>';},
+  bakl:function(W,L){return '<path class="bil-bak" d="M1.6,'+(L-17)+' V'+(L-5)+' Q2,'+(L-2)+' 5,'+(L-1.3)+' H11 M'+(W-1.6)+','+(L-17)+' V'+(L-5)+' Q'+(W-2)+','+(L-2)+' '+(W-5)+','+(L-1.3)+' H'+(W-11)+'"/>';}},
   xc60:{kl:'bil-xc60',W:52,L:122,rx:12,rb:8,vr:32,tak:50,bak:93,br:10,reling:true,
   fram:function(W){return '<path class="bil-ljus" d="M3.5,8 Q4.5,3.5 12,2.8 M'+(W-3.5)+',8 Q'+(W-4.5)+',3.5 '+(W-12)+',2.8"/>';},
   /* Första generationens höga baklampor som går upp över skuldrorna. */
@@ -160,8 +166,18 @@ function husBilModell(namn){
 }
 function husBilarBygg(svg,NS){
   if(typeof HUS_BILAR==='undefined'||!HUS_BILAR)return;
-  var h='';HUS_BILAR.forEach(function(b){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy);});
-  var g=document.createElementNS(NS,'g');g.setAttribute('class','hus-bilar');g.innerHTML=h;svg.appendChild(g);
+  var g=document.createElementNS(NS,'g');g.setAttribute('class','hus-bilar');svg.appendChild(g);
+  husBilarUppd();
+}
+/* v862: C40 på uppfarten när den är hemma. Ritas bara om när det ändras. */
+function husBilarUppd(){
+  var g=document.querySelector('#hus-svg .hus-bilar');if(!g)return;
+  var c40=false;
+  try{c40=!!(DEV.car&&DATA[DEV.car]&&carHome(DEV.car))&&typeof HUS_BILAR_TRE!=='undefined';}catch(e){}
+  if(g._c40===c40)return;g._c40=c40;
+  var h='';(c40?HUS_BILAR_TRE:HUS_BILAR).forEach(function(b){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy);});
+  g.innerHTML=h;
+  try{document.querySelectorAll('.hus-yta-c40').forEach(function(e){e.style.display=c40?'':'none';});}catch(e){}
 }
 /* v856: FLÖDET PÅ VÄGGPLATTAN. En CSS-animation räknas om i varje bildruta;
    på den äldre plattan blev det lagg. Där drivs flödet i stället härifrån med
@@ -579,6 +595,7 @@ function husRita(){
   el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   try{husVaderFyll(el._falt.vader);}catch(e){}
+  try{husBilarUppd();}catch(e){}
   var laddar=v.bil>=50;
   husFyllLiten(el._falt.bil,'bil',laddar?v.bil:0,'',null);
   el._falt.bil.title=v.bilNamn+(laddar?' laddar':' inkopplad')+(v.bilSoc!=null?' · '+Math.round(v.bilSoc)+' %':'');
