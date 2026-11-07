@@ -2616,7 +2616,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v870';
+const APP_VERSION='v871';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3228,6 +3228,7 @@ var HUS_UTE=[[455,60],[455,212],[455,362],
   [694,112,180,180,1,'Breveden/Utebelysning'],[826,112,0,180,-1,'Breveden/Utebelysning'],
   [694,278,180,180,-1,'Breveden/Utebelysning'],[826,278,0,180,1,'Breveden/Utebelysning'],
   [898,370,315,270],[536,448,270],   /* elcentralen: på poolrummets nordöstra hörn */
+  [203,416,225,270],   /* v871: husets nordvästra hörn mot Snickarboa – som elcentralens, spegelvänd */
   /* Altanen: en vid vardagsrummet (nära hörnet), två utmed poolrummets vägg och en på dess sydöstra hörn. */
   [490,744,90,180,1],[720,738,90],[796,738,90],[868,738,90,180,-1]];   /* v870: från hus-redigera 2026-11-07 17:28 */
 /* RUMMEN som ljuset hämtas från, per namn. zon = alla lampor i zonen (utom
