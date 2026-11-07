@@ -3918,6 +3918,11 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 :root:not([data-theme="light"]) .bil-c40 .bil-ljus{stroke:#8ea2bd}
 :root:not([data-theme="light"]) .bil-bak{stroke:#9e3c46}
 :root:not([data-theme="light"]) .bil-reling{fill:#1e2633}
+/* v874: OLÅST BIL – lamporna lyser (husBilarUppd, klassen .tand). */
+#hus-svg .hus-bil.tand .bil-ljus{stroke:#fffbe6;stroke-width:2.1;filter:drop-shadow(0 0 1.6px #fff1b8) drop-shadow(0 0 3px #ffe58a)}
+#hus-svg .hus-bil.tand .bil-bak{stroke:#ff4a4a;filter:drop-shadow(0 0 1.6px #ff3030) drop-shadow(0 0 3px #ff3030)}
+.bil-sken-fram,.bil-sken-bak{mix-blend-mode:screen}
+:root[data-theme="light"] .bil-sken-fram{opacity:.55}:root[data-theme="light"] .bil-sken-bak{opacity:.6}
 /* v856: ledningarna i eget lager (husBygg) – ritas om utan ljuset under. */
 #hus-ledn-svg{will-change:transform}
 /* v856: väggplattan driver flödet med husFlodTakt i stället (färre omräkningar). */
