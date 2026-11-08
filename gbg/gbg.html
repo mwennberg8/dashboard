@@ -1113,7 +1113,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.91.0';
+const APP_VERSION = 'v1.92.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3516,6 +3516,17 @@ function dSec(t){return '<div class="dsec">'+esc(t)+'</div>';}
    Ett id som saknas i listan har skriptet aldrig sett - da visas ingen prick
    alls, vilket ar riktigare an att gissa. */
 var ADAPT=null,_adaptAt=0;
+/* v1.92.0: BARA FÄRSKT LÄGE. Flödet som skriver adaptiv_lage försvann 27/10
+   och variabeln stod still i elva dagar — dashboarden visade ändå "adaptiv"
+   och "manuell" ur den, alltså läget från en kväll långt bort. Är läget äldre
+   än ADAPT_MAX_MS visas inga markeringar alls; inget är riktigare än fel. */
+const ADAPT_MAX_MS=5*60000;
+function adaptL(){
+  if(!ADAPT||!ADAPT.l)return null;
+  if(!(typeof ADAPT.ts==='number'&&Date.now()-ADAPT.ts<ADAPT_MAX_MS))return null;
+  return ADAPT.l;
+}
+function adaptAlder(){return (ADAPT&&typeof ADAPT.ts==='number')?Date.now()-ADAPT.ts:null;}
 async function adaptHamta(){
   if(_adaptAt&&Date.now()-_adaptAt<45000)return;
   _adaptAt=Date.now();
@@ -3532,7 +3543,7 @@ async function adaptHamta(){
   }catch(e){/* variabeln saknas eller ar otolkbar - da visas ingen prick */}
 }
 function adaptRa(id){
-  const l=ADAPT&&ADAPT.l&&ADAPT.l[id];
+  const L=adaptL(),l=L&&L[id];
   return l?l.s:null;
 }
 /* GRUPPER SVARAR FOR SINA MEDLEMMAR.
@@ -3550,12 +3561,12 @@ function adaptSum(id){
   const d=DATA[id];
   const med=(d&&arGrupp(d))?grpMedlemmar(d):[];
   if(!med.length){
-    const s=adaptRa(id),l=ADAPT&&ADAPT.l&&ADAPT.l[id];
+    const s=adaptRa(id),L=adaptL(),l=L&&L[id];
     return {s:s,till:(l&&l.till)||0,man:0,adapt:s==='a'?1:0,antal:1};
   }
   let man=0,adapt=0,till=0;
   med.forEach(function(m){
-    const s=adaptRa(m.id),l=ADAPT&&ADAPT.l&&ADAPT.l[m.id];
+    const s=adaptRa(m.id),L=adaptL(),l=L&&L[m.id];
     if(s==='m'){man++;if(l&&l.till>till)till=l.till;}
     else if(s==='a')adapt++;
   });
@@ -4456,8 +4467,10 @@ async function adaptAterstall(){
   if(_adaptWait)return;
   _adaptWait=true;
   try{
-    await startaFlow('standard','ab4b4f37-88e0-4f01-af0b-a2957877f81d');
-    toast('Alla lampor \u00e5ter adaptiva \u2013 sl\u00e5r igenom inom en minut');
+    /* v1.92.0: flödet "återställ alla" (ab4b4f37) finns inte längre i Homey,
+       så knappen gav fel. Samma signal som lampkortens knappar, utan gruppprefix
+       = alla lampor. Belysningsskriptet gör resten inom en minut. */
+    await nollstallLas(null);
     _adaptAt=0;setTimeout(function(){adaptHamta().then(function(){try{render();}catch(e){}});},1500);
   }catch(e){toast('Kunde inte n\u00e5 Homey');}
   _adaptWait=false;
@@ -4465,8 +4478,9 @@ async function adaptAterstall(){
 /* Hur manga lampor som ar manuellt lasta just nu - sa att knappen kan saga vad
    ett tryck faktiskt kommer att gora. */
 function adaptManuella(){
-  if(!ADAPT||!ADAPT.l)return null;
-  return Object.keys(ADAPT.l).filter(function(k){return ADAPT.l[k].s==='m';}).length;
+  const L=adaptL();
+  if(!L)return null;
+  return Object.keys(L).filter(function(k){return L[k].s==='m';}).length;
 }
 /* ===== KURVREDIGERAREN =====
    Belysningsskriptets KURVA ligger som en konstant i flodeskoden. For att
@@ -5077,6 +5091,10 @@ function openInst(){
     +(man===null?'Tvinga alla till adaptivt'
       :(man?('Tvinga alla till adaptivt \u00b7 '+man+' l\u00e5sta nu'):'Tvinga alla till adaptivt \u00b7 inga l\u00e5sta nu'))
     +'</button>'
+    +dRow('Adaptivt läge',(function(){const a=adaptAlder();
+      if(a==null)return '<span style="color:var(--dim)">–</span>';
+      if(a<ADAPT_MAX_MS)return '<span style="color:var(--ok)">uppdaterat '+(a<60000?'nyss':Math.round(a/60000)+' min sedan')+'</span>';
+      return '<span style="color:var(--hot)">gammalt – '+esc(new Date(ADAPT.ts).toLocaleString('sv-SE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}))+'</span>';})())
     +dRow('Version',APP_VERSION)
     +dRow('Väg',BASE?('<span style="color:'+(moln?'var(--gold)':'var(--ok)')+'">'+(moln?'molnet':'lokalt')+'</span>'):'ingen')
     +dRow('Adress','<span style="font-size:11px;opacity:.75">'+esc(BASE.replace(/^https?:\/\//,'')||'–')+'</span>')
