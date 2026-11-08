@@ -1748,15 +1748,21 @@ function dayChart(series,fonster){
   var tr=(t1-t0)||1,W=300,H=132,padT=8,padB=6;
   var vs=[];segs.forEach(function(o){o.seg.forEach(function(p){vs.push(p.v);});});
   var vmax=niceMax(Math.max.apply(null,vs)),vmin=niceMin(Math.min.apply(null,vs));
+  /* v882: TÄT SKALA (rummens temperaturer): från lägsta till högsta med lite
+     luft, inte från noll – annars blir 23–25 °C ett platt streck. */
+  var tat=!!(fonster&&fonster.tat);
+  if(tat){var lo=Math.min.apply(null,vs),hi=Math.max.apply(null,vs),ms=(fonster.minSpan||2);
+    if(hi-lo<ms){var mid=(hi+lo)/2;lo=mid-ms/2;hi=mid+ms/2;}
+    var pad=(hi-lo)*0.12;vmin=lo-pad;vmax=hi+pad;}
   /* v769: marginal i sidled som elnätsgrafen, så avläsningspricken får plats. */
   var X=function(t){return 5+(t-t0)/tr*(W-10);};
   var Y=function(v){return H-padB-((v-vmin)/((vmax-vmin)||1))*(H-padT-padB);};
-  var ticks=(vmin<0)?[vmax,0,vmin]:[vmax,vmax/2,0];
+  var ticks=tat?[vmax,(vmax+vmin)/2,vmin]:((vmin<0)?[vmax,0,vmin]:[vmax,vmax/2,0]);
   var sel=_chartSel[cid]||{},active=Object.keys(sel).length>0;
   /* Samma stil som jämförelsesidan: mjuk kurva + gradient-yta, inga punkter.
      Ytan läggs på huvudserien (sol) – eller på den serie man valt i förklaringen.
      Basen är nollinjen när skalan går under noll, så batteriets minus inte täcks. */
-  var yBase=(vmin<0)?Y(0):(H-padB);
+  var yBase=(!tat&&vmin<0)?Y(0):(H-padB);
   var defs='',areas='',lines='';
   segs.forEach(function(o){
     var seg=o.seg,pts=seg.map(function(p){return [X(p.t),Y(p.v)];});
@@ -1802,14 +1808,16 @@ function dayChart(series,fonster){
       var Y0=(vmin<0)?Y(0):(H-padB);
       var YP=function(v){return Y0-(Math.max(0,Math.min(100,v))/100)*(Y0-padT);};
       var ppts=pseg.map(function(q){return [X(q.t),YP(q.v)];});
-      var pk=pctSerie.key,pon=(!active||sel[pk]);
+      /* v882: med = linjen procenten hör till (Batteri och Batteri % är EN
+         knapp i förklaringen): samma nyckel, så att valet gäller båda. */
+      var pk=pctSerie.med||pctSerie.key,pon=(!active||sel[pk]);
       pctLinje='<path data-k="'+pk+'" data-bw="1.6" d="'+smoothPath(ppts)+'" fill="none" stroke="'+pctSerie.col
         +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"'
         +' vector-effect="non-scaling-stroke" style="opacity:'+(pon?0.95:0.09)+'"/>';
       /* EGEN Y i avläsningen — annars hade 62 % lästs av som 62 watt. */
       if(pon)avlSer.push({namn:pctSerie.label,farg:pctSerie.col,pts:pseg,Y:YP,
         fmt:function(v){return Math.round(Math.max(0,Math.min(100,v)))+' %';}});
-      segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
+      if(!pctSerie.med)segs.push({s:pctSerie,seg:pseg});     /* bara för förklaringen under grafen */
     }
   }
   /* v843: TEMPERATUREN i samma bild, på en egen skala (minst 4 grader hög, så
@@ -1817,22 +1825,26 @@ function dayChart(series,fonster){
      den inte förväxlas med laddnivåns streckade. Skalan står inte på axeln –
      avläsningen och förklaringen säger °C. */
   var tempLinje='';
-  if(tempSerie&&tempSerie.pts&&tempSerie.pts.length){
-    var tseg=klipp(tempSerie.pts);
-    if(tseg&&tseg.length>1){
-      var tv=tseg.map(function(q){return q.v;}),tlo=Math.min.apply(null,tv),thi=Math.max.apply(null,tv);
-      if(thi-tlo<4){var tm=(thi+tlo)/2;tlo=tm-2;thi=tm+2;}
-      var tpad=(thi-tlo)*0.12;tlo-=tpad;thi+=tpad;
-      var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
-      var tk=tempSerie.key,ton=(!active||sel[tk]);
-      tempLinje='<path data-k="'+tk+'" data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+tempSerie.col
-        +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-dasharray="1 3.5" stroke-linejoin="round" stroke-linecap="round"'
-        +' vector-effect="non-scaling-stroke" style="opacity:'+(ton?0.95:0.09)+'"/>';
-      if(ton)avlSer.push({namn:tempSerie.label,farg:tempSerie.col,pts:tseg,Y:YT,
-        fmt:function(v){return num(v,1)+' °C';}});
-      segs.push({s:tempSerie,seg:tseg});
-    }
-  }
+  /* v882: EXTRA SERIER PÅ EGEN SKALA – batteriets temperatur (v843) och
+     rummens fukt och CO₂. Varje serie får sin egen skala (minst minSpan hög),
+     egen streckning och sin enhet i avläsningen. */
+  var extra=((fonster&&fonster.extra)||[]).slice();
+  if(tempSerie)extra.unshift(Object.assign({minSpan:4,dash:'1 3.5',fmt:function(v){return num(v,1)+' °C';}},tempSerie));
+  extra.forEach(function(es){
+    if(!es||!es.pts||!es.pts.length)return;
+    var tseg=klipp(es.pts);
+    if(!(tseg&&tseg.length>1))return;
+    var tv=tseg.map(function(q){return q.v;}),tlo=Math.min.apply(null,tv),thi=Math.max.apply(null,tv),msp=es.minSpan||4;
+    if(thi-tlo<msp){var tm=(thi+tlo)/2;tlo=tm-msp/2;thi=tm+msp/2;}
+    var tpad=(thi-tlo)*0.12;tlo-=tpad;thi+=tpad;
+    var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
+    var tk=es.key,ton=(!active||sel[tk]);
+    tempLinje+='<path data-k="'+tk+'" data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+es.col
+      +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-dasharray="'+(es.dash||'1 3.5')+'" stroke-linejoin="round" stroke-linecap="round"'
+      +' vector-effect="non-scaling-stroke" style="opacity:'+(ton?0.95:0.09)+'"/>';
+    if(ton)avlSer.push({namn:es.label,farg:es.col,pts:tseg,Y:YT,fmt:es.fmt||function(v){return num(v,1);}});
+    segs.push({s:es,seg:tseg});
+  });
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+tempLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
   var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';

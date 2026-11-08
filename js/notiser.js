@@ -1596,7 +1596,9 @@ function energiSerier(kalla,cid){
       {key:'grid', pts:H['grid']||[], col:(P.blue||'#81a1c1'),col2:(P.green||'#a3be8c'),label:'Elnät',
        fmt:function(v){return (v<0?'säljer ':'köper ')+fmtW(Math.abs(v));}}
     ],
-    procent:{key:'battpct',pts:(H['batt']||[]),
+    /* v882: med:'batt' – en knapp "Batteri" i förklaringen för både effekten
+       och laddnivån. */
+    procent:{key:'battpct',med:'batt',pts:(H['batt']||[]),
              col:(P.cyan||'#57b6c2'),label:'Batteri %'}
   };
 }
