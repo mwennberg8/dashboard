@@ -114,6 +114,9 @@ function husBygg(el){
     b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
     b.style.left=(f.x/1040*100)+'%';b.style.top=(f.y/1120*100)+'%';
     b.style.width=(f.w/1040*100)+'%';b.style.height=(f.h/1120*100)+'%';
+    /* v886: elrutan längst ner står mot nederkanten och växer uppåt efter
+       innehållet – siffrorna har en lägsta storlek i px (telefonen). */
+    if(f.botten){b.style.top='auto';b.style.height='auto';b.style.bottom=((1120-(f.y+f.h))/1120*100)+'%';}
     b.setAttribute('onclick',f.fn||("openDetail('"+f.pop+"')"));
     if(f.typ==='vader')b.className+=' hus-vader';
     if(f.hoger)b.className+=' hoger';   /* v850: spegelvänd */
