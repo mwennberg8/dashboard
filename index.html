@@ -4010,7 +4010,19 @@ body.vaggplatta .hus-flod{animation:none!important}
 .hel-h.noll .v{opacity:.45}
 .hel-av{flex:0 0 1px;background:rgba(46,52,64,.14);margin:.6cqw 0}
 :root:not([data-theme="light"]) .hel-av{background:rgba(236,239,244,.14)}
-.hus-el .v{font-size:4.4cqw}.hus-el .rub{font-size:1.95cqw}.hus-el .u{font-size:1.85cqw}
+.hus-el .v{font-size:4.4cqw}
+/* v879: FYRA FÄLT (Elnät, Förbrukning, Sol, Batteri) i ett 2 × 2-rutnät med
+   tunna linjer emellan, i väderrutans storlek. */
+.hus-falt.hus-el.fyra{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:0;padding:1.1cqw 1.6cqw}
+.hus-el.fyra .hel-h{padding:.4cqw 1cqw .4cqw 2.2cqw}
+.hus-el.fyra .hel-h::before{left:.9cqw;top:1.1cqw;bottom:1.1cqw}
+.hus-el.fyra .hel-h:nth-child(odd){border-right:1px solid rgba(46,52,64,.14)}
+.hus-el.fyra .hel-h:nth-child(-n+2){border-bottom:1px solid rgba(46,52,64,.14)}
+:root:not([data-theme="light"]) .hus-el.fyra .hel-h:nth-child(odd){border-right-color:rgba(236,239,244,.14)}
+:root:not([data-theme="light"]) .hus-el.fyra .hel-h:nth-child(-n+2){border-bottom-color:rgba(236,239,244,.14)}
+.hus-el.fyra .hel-h{gap:.1cqw;justify-content:center}
+.hus-el.fyra .v{font-size:3.7cqw}.hus-el.fyra .v small{font-size:2.2cqw}
+.hus-el.fyra .rub{font-size:1.85cqw;line-height:1.15}.hus-el.fyra .u{font-size:1.75cqw;line-height:1.15}.hus-el .rub{font-size:1.95cqw}.hus-el .u{font-size:1.85cqw}
 .hus-falt:active{transform:scale(.98)}
 :root:not([data-theme="light"]) .hus-falt{background:rgba(26,31,40,.58);color:#eceff4;border-color:rgba(236,239,244,.10);
   box-shadow:0 1cqw 3cqw -1.2cqw rgba(0,0,0,.75)}
