@@ -4021,7 +4021,19 @@ body.vaggplatta .hus-flod{animation:none!important}
 :root:not([data-theme="light"]) .hus-el.fyra .hel-h:nth-child(odd){border-right-color:rgba(236,239,244,.14)}
 :root:not([data-theme="light"]) .hus-el.fyra .hel-h:nth-child(-n+2){border-bottom-color:rgba(236,239,244,.14)}
 .hus-el.fyra .hel-h{gap:.1cqw;justify-content:center}
-.hus-el.fyra .v{font-size:3.7cqw}.hus-el.fyra .v small{font-size:2.2cqw}
+.hus-el.fyra .v{font-size:3.7cqw}
+/* v881: ELRUTAN LÄNGST NER – fyra fält på en rad, spotbandet under. */
+.hus-falt.hus-el.botten{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:.9cqw;padding:1.3cqw 1.8cqw 1.1cqw;cursor:default;border-radius:3.2cqw}
+.hus-falt.hus-el.botten:active{transform:none}
+.hus-el.botten .hel-rad{display:grid;grid-template-columns:repeat(4,1fr);flex:0 0 auto}
+.hus-el.botten .hel-h{padding:0 1.2cqw 0 2.2cqw;cursor:pointer;gap:.15cqw}
+.hus-el.botten .hel-h::before{left:.8cqw;top:.3cqw;bottom:.3cqw}
+.hus-el.botten .hel-h:not(:last-child){border-right:1px solid rgba(46,52,64,.14)}
+:root:not([data-theme="light"]) .hus-el.botten .hel-h:not(:last-child){border-right-color:rgba(236,239,244,.14)}
+.hus-el.botten .rub{font-size:1.85cqw}.hus-el.botten .v{font-size:4cqw}.hus-el.botten .v small{font-size:2.2cqw}.hus-el.botten .u{font-size:1.75cqw}
+.hel-spot{border-top:1px solid rgba(46,52,64,.14);padding-top:.9cqw}
+:root:not([data-theme="light"]) .hel-spot{border-top-color:rgba(236,239,244,.14)}
+.hel-spot #pband{background:none!important;border:0!important;box-shadow:none!important;margin:0!important;padding:0 .6cqw!important;min-height:0!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;font-size:2.1cqw}.hus-el.fyra .v small{font-size:2.2cqw}
 .hus-el.fyra .rub{font-size:1.85cqw;line-height:1.15}.hus-el.fyra .u{font-size:1.75cqw;line-height:1.15}.hus-el .rub{font-size:1.95cqw}.hus-el .u{font-size:1.85cqw}
 .hus-falt:active{transform:scale(.98)}
 :root:not([data-theme="light"]) .hus-falt{background:rgba(26,31,40,.58);color:#eceff4;border-color:rgba(236,239,244,.10);

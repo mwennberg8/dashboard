@@ -165,6 +165,18 @@ function panelerLika(){
 function spotIn(){
   try{
     var pb=$('pband'), plats=$('sp-plats'), del=$('sp-del');
+    /* v881: elrutan längst ner i husbilden har en egen plats för bandet. */
+    var hus=null;try{hus=husElBotten()?$('hel-spot'):null;}catch(e){}
+    if(hus){if(pb&&pb.parentElement!==hus)hus.appendChild(pb);
+      if(pb)pb.classList.add('sp-inne','sp-hus');
+      if(plats)plats.style.display='none';if(del)del.style.display='none';
+      /* Energipanelen under husbilden har då bara laddregelns rad kvar – den
+         göms när raden är tom, i stället för att stå som ett tomt kort. */
+      var ep=document.querySelector('#view-flode .enpanel'),rr=$('regelrad');
+      var koll=function(){if(ep)ep.style.display=(rr&&rr.children.length)?'':'none';};
+      koll();
+      if(rr&&!rr._husObs&&typeof MutationObserver!=='undefined'){rr._husObs=new MutationObserver(koll);rr._husObs.observe(rr,{childList:true});}
+      return;}
     if(!pb||!plats)return;
     if(pb.parentElement!==plats)plats.appendChild(pb);
     /* Inne i panelen ska bandet inte se ut som ett eget kort. */
