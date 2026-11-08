@@ -3363,6 +3363,17 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
   border-radius:9px;color:var(--dim);cursor:pointer;padding:0}
 .graf-full .ic{width:16px;height:16px}
 .graf-full:active{transform:scale(.95)}
+/* v887: pilen bredvid helskärmen, och den korta raden (7 dygn, 12h, 6h, 3h). */
+.graf-pil{flex:0 0 auto;width:30px;height:30px;margin-left:6px;display:flex;align-items:center;
+  justify-content:center;background:var(--inset);border:1px solid var(--line);
+  border-radius:9px;color:var(--dim);cursor:pointer;padding:0}
+.graf-pil .ic{width:16px;height:16px}
+.graf-pil.on{color:var(--ink);border-color:var(--blue)}
+.graf-pil:active{transform:scale(.95)}
+.graf-kort .graf-tim{justify-content:flex-start}
+.graf-kort .graf-tim-b{max-width:none;min-height:32px;font-size:12px;letter-spacing:0;padding:5px 1px;flex:1 1 0}
+.graf-kort .graf-tim-b+.graf-tim-b{margin-left:5px}
+.graf-kort .graf-pil,.graf-kort .graf-full{height:32px}
 /* Helskärm i liggande läge. Enheten vrids till landskap via Fullscreen- +
    Orientation-API (ingen CSS-rotation). Layouten är ett GRID med tre rader:
    rubrik (auto), grafyta (1fr) och verktygsrad (auto). Grid i stället för flex

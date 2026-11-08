@@ -1541,6 +1541,10 @@ var _grafLage={};
 var GRAF_TIM_TXT={1:'senaste 1 h',3:'senaste 3 h',6:'senaste 6 h',12:'senaste 12 h',24:'senaste dygnet',
   '7d':'senaste 7 dygnen','30d':'senaste 30 dygnen',v:'denna vecka',m:'denna månad'};
 var _grafTim={};
+/* v887: den korta raden (alltid synlig) och vilka grafer som har den fulla
+   väljaren utfälld (pilen bredvid helskärmsknappen). */
+var GRAF_TIM_KORT=['7d',12,6,3];
+var _grafValUt={};
 /* ===== LÅNG HISTORIK (7d, 30d, vecka, månad) =====
    Dashboarden sparar själv ett dygn (HISTORY_HOURS), och appens serier täcker
    samma dygn. För längre perioder hämtas Insights med upplösningen last31Days,
@@ -2639,7 +2643,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v886';
+const APP_VERSION='v887';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
