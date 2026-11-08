@@ -668,6 +668,7 @@ function zkKortIkon(d){
   if(/markis/i.test(n))return 'umbrella';
   if(/laddbox|laddare/i.test(n))return 'charging-station';
   if(/dator/i.test(n))return 'desktop';
+  if(/diskmask/i.test(n))return 'dishwasher';   /* inte "Bardisk" */
   if(/uttag/i.test(n))return 'plug';
   if(/tak|pendel|köksbord|bardisk|burspråk|kök \d/i.test(n))return 'lamp-pendant';
   if(/fönster|bordslampa|fotolampa|golvlampa|lampa/i.test(n))return 'lamp';

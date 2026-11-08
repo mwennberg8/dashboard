@@ -701,20 +701,7 @@ function computeMetric(cfg){
         v:pt==null?'–':num(pt,1)+' <small>°C</small>',
         sub:wp?('<span class="zk-'+wp.niva+'">'+esc(wp.kort)+'</span>'):esc(subP),
         meta:wp?wp.txt:subP,det:'poolrum',varn:wp,varms:varmsP};}
-    case 'vardagsrum':{
-      /* v750: värdet är inne-medlet; under det rummen var för sig – eller
-         vardagsrumssensorns varning (temperatur, batteri). */
-      var Zv=ZK.vardagsrum,vv=zkVarden('vardagsrum'),wv=zkVarningar('vardagsrum')[0]||null,mv=indoorAvgTemp(),
-          kv=cap(DEV.vader,'measure_temperature'),dv=[];
-      /* Kort – "vard 25,3° · kök 25,9°" klipptes på telefonen. Första talet är
-         rutans eget rum. */
-      if(vv.t!=null)dv.push(num(vv.t,1));
-      if(kv!=null)dv.push('kök '+num(kv,1));
-      return {label:Zv.lab,icon:Zv.ic,icc:wv?(wv.niva==='larm'?'var(--hot)':'var(--warm)'):'',
-        v:mv==null?'–':num(mv,1)+' <small>°C</small>',
-        sub:wv?('<span class="zk-'+wv.niva+'">'+esc(wv.kort)+'</span>'):esc(dv.join(' · ')),
-        meta:wv?wv.txt:('medel inne · '+(dv.join(' · ')||'temperatur')),det:'vardagsrum',varn:wv};}
-    case 'uterum': case 'snickarboa':{
+    case 'uterum': case 'snickarboa': case 'vardagsrum': case 'kok':{   /* v878: vardagsrum och kök som de andra rummen */
       /* v736: rumsrutan. Värdet är temperaturen; under den fukt och CO₂ – eller
          den allvarligaste varningen, med ikonen i varningens färg. */
       var Zk=ZK[cfg.key],vk=zkVarden(cfg.key),wk=zkVarningar(cfg.key)[0]||null,dk=[];
