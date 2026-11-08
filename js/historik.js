@@ -535,17 +535,18 @@ function byggTemps(){
       'En kurva per zon. Tryck på en zon nedanför för att visa eller dölja '
       +'dess linje. Dra i grafen för att läsa av alla synliga zoner vid en viss '
       +'tidpunkt.'))
-    +multiTempSVG('temps')+grafTidsval('temps');
-  tb+='<div class="tg-leg">';
-  var waiting=0;
+    +multiTempSVG('temps');
+  /* v882: SAMMA KNAPPAR SOM FÖRBRUKNINGSGRAFEN – förklaringen under grafen
+     (färgstreck och namn) visar och döljer zonens linje. Värdena står som
+     rutor under Nu. */
+  var waiting=0,lg='',rutor='';
   for(var ti=0;ti<TEMPS.length;ti++){var T=TEMPS[ti],ov=T.val(),onx=tempOn(T.k),hd=tempHasData(T);
     if(!hd)waiting++;
-    tb+='<button class="tg-chip'+(onx?' on':'')+(hd?'':' nodata')+'" onclick="tempToggle(\''+T.k+'\')"'+(hd?'':' title="Väntar på mätpunkter"')+'>'
-      +'<span class="tg-top"><span class="tg-dot" style="background:'+tempCol(T)+'"></span>'
-      +'<span class="tg-l">'+esc(T.lab)+'</span></span>'
-      +'<b class="tg-v">'+(ov==null?'–':num(ov,1)+'<span class="tg-u">°</span>')+'</b>'
-      +(hd?'':'<span class="tg-wait">väntar på data</span>')+'</button>';}
-  tb+='</div>';
+    lg+='<span data-lk="'+T.k+'"'+(onx?'':' class="dim"')+' onclick="tempToggle(\''+T.k+'\')"'+(hd?'':' title="Väntar på mätpunkter"')+'>'
+      +'<i class="mc-sw" style="background:'+tempCol(T)+'"></i>'+esc(T.lab)+'</span>';
+    rutor+=dRow(T.lab,ov==null?'–':num(ov,1)+' °C');}
+  tb+='<div class="mchart-lg2 temps-lg">'+lg+'</div>'+grafTidsval('temps');   /* förklaringen direkt under grafen, som i förbrukning */
+  tb+=dSec('Nu')+rutor;
   /* Instruktionsraden och knapparna "Visa alla" / "Breveden · AC" borttagna i
      v655. Att chipsen går att trycka på syns på att de är knappar, och en genväg
      till en annan ruta hör inte hemma under en graf.

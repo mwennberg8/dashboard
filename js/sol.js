@@ -753,6 +753,20 @@ function zkKortTryck(id){
     _zkVald=(_zkVald===id)?null:id;
     rumPopupUppdatera();return;}
   devTanda(id);}
+/* v882: rumsgrafen. Temperaturserierna (°C) är huvudlinjerna, övriga
+   (fukt %, CO₂ ppm) extra serier på egen skala i dayChart. */
+function zkGrafRubrik(Z){
+  var u={};Object.keys(Z.ser).forEach(function(x){u[zkSerDef(Z,x).u]=1;});
+  return 'Temperatur'+(u['%']?(u.ppm?', fukt & CO₂':' & fukt'):(u.ppm?' & CO₂':''));}
+function zkGraf(k,cid){
+  var Z=ZK[k],P=PAL[curTheme]||PAL.dark,lines=[],extra=[];
+  (Z.ordning||['t','h','c']).filter(function(x){return !!Z.ser[x];}).forEach(function(x){
+    var S=zkSerDef(Z,x),o={key:x,pts:zkSerie(Z,x,cid)||[],col:(P[S.col]||P.blue),label:S.lab};
+    if(S.u==='°C'){o.fmt=function(v){return num(v,1)+' °C';};lines.push(o);}
+    else{o.fmt=function(v){return Math.round(v)+(S.u==='%'?' %':' '+S.u);};
+      o.minSpan=(S.u==='%')?10:200;o.dash=(S.u==='%')?'4 3':'1 3.5';extra.push(o);}});
+  var f=grafFonster(cid);
+  return dayChart(lines,{cid:cid,t0:f.t0,t1:f.t1,tat:true,minSpan:2,extra:extra});}
 function zkPopHTML(k){
   var Z=ZK[k];if(!Z)return '';
   var v=zkVarden(k),w=zkVarningar(k),cid='zk_'+k,P=PAL[curTheme]||PAL.dark;
@@ -760,16 +774,15 @@ function zkPopHTML(k){
   var h='';
   if(w.length)h+='<div class="zk-varnlista">'+w.map(function(x){
     return '<div class="zk-varnrad '+x.niva+'">'+icon('warning')+'<span>'+esc(x.txt)+'</span></div>';}).join('')+'</div>';
-  h+=grafRubrik(cid,S.lab,infoBlock('zkgraf',
-      'Välj kurva med knapparna under grafen. Dra i grafen för att läsa av vid en viss tidpunkt.'))
-    +ptsLineSVG(zkSerie(Z,val,cid),S.col,S.u,cid,HIST_H,Z.lab+' · '+S.lab)
-    +grafTidsval(cid);
-  var nyck=(Z.ordning||['t','h','c']).filter(function(x){return !!Z.ser[x];});
-  if(nyck.length>1){
-    h+='<div class="tg-leg">'+nyck.map(function(x){var SS=zkSerDef(Z,x),vv=zkSerieNu(k,x,v);
-      return '<button class="tg-chip'+(x===val?' on':'')+'" onclick="zkVal(\''+k+'\',\''+x+'\')">'
-        +'<span class="tg-top"><span class="tg-dot" style="background:'+(P[SS.col]||P.blue)+'"></span><span class="tg-l">'+SS.kort+'</span></span>'
-        +'<b class="tg-v">'+(vv==null||!isFinite(vv)?'–':num(vv,SS.dec)+'<span class="tg-u">'+(SS.u==='°C'?'°':x==='c'?'':SS.u)+'</span>')+'</b></button>';}).join('')+'</div>';}
+  /* v882: ALLA KURVOR I SAMMA GRAF, som förbrukningsgrafen: temperaturerna på
+     en gemensam skala, fukt och CO₂ på var sin egen (streckade). Knapparna är
+     förklaringen under grafen – tryck för att lyfta fram en kurva. Värdena
+     står bland rutorna under Nu. */
+  h+=grafRubrik(cid,zkGrafRubrik(Z),infoBlock('zkgraf',
+      'Temperaturerna delar skala. Fukt och CO₂ har var sin egen skala och är streckade. '
+      +'Tryck på en kurva under grafen för att lyfta fram den. Dra i grafen för att läsa av vid en viss tidpunkt.'))
+    +zkGraf(k,cid)+grafTidsval(cid);
+  _grafByggare[cid]={titel:Z.lab,full:function(c){return zkGraf(k,c||cid);}};
   h+=dSec('Nu');
   if(Z.ser.p){
     /* v740: poolvattnet först – samma rader som Pool-popupen. */
