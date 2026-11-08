@@ -171,19 +171,34 @@ function grafTidsval(id,utanFull,utanTim){
   var full=utanFull?'':('<button class="graf-full" onclick="grafHelskarm(\''+bas+'\')" aria-label="Helskärm">'
     +icon('corners-out')+'</button>');
   if(utanTim)return '<div class="graf-verktyg"><div class="graf-tim"></div>'+full+'</div>';
-  var lage=grafLage(bas),vald=grafTim(bas);
+  var lage=grafLage(bas),vald=grafTim(bas),ut=!!_grafValUt[bas];
+  var pil='<button class="graf-pil'+(ut?' on':'')+'" onclick="grafValFall(\''+bas+'\')" aria-expanded="'+ut+'" aria-label="'
+    +(ut?'Färre perioder':'Fler perioder')+'">'+icon(ut?'caret-up':'caret-down')+'</button>';
+  var knapp=function(t){var arg=(typeof t==='string')?('\''+t+'\''):String(t);
+    return '<button class="graf-tim-b'+(t===vald?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+arg+')">'+GRAF_TIM_LAB[t]+'</button>';};
+  /* v887: INFÄLLD är standard – fyra vanliga perioder, pilen och helskärmen på
+     en rad. Är något annat valt (t.ex. 24h) står det först, markerat, så det
+     syns vad grafen visar. */
+  if(!ut){
+    var kort=GRAF_TIM_KORT.slice();if(kort.indexOf(vald)<0)kort.unshift(vald);
+    return '<div class="graf-verktyg graf-kort"><div class="graf-tim">'+kort.map(knapp).join('')+'</div>'+pil+full+'</div>';
+  }
   var h='<div class="graf-verktyg graf-tva"><div class="graf-rad1"><div class="graf-lage" role="group" aria-label="Skala">'
     +'<button class="graf-lage-b'+(lage==='tim'?' on':'')+'" aria-pressed="'+(lage==='tim')+'" onclick="grafSattLage(\''+bas+'\',\'tim\')">Timmar</button>'
     +'<button class="graf-lage-b'+(lage==='dyg'?' on':'')+'" aria-pressed="'+(lage==='dyg')+'" onclick="grafSattLage(\''+bas+'\',\'dyg\')">Dygn</button>'
-    +'</div>'+full+'</div><div class="graf-tim">';
+    +'</div>'+pil+full+'</div><div class="graf-tim">';
   for(var i=0;i<GRAF_TIM.length;i++){
     var t=GRAF_TIM[i];
     if((typeof t==='string')!==(lage==='dyg'))continue;
-    var arg=(typeof t==='string')?('\''+t+'\''):String(t);
-    h+='<button class="graf-tim-b'+(t===vald?' on':'')+'" onclick="grafSattTim(\''+bas+'\','+arg+')">'
-      +GRAF_TIM_LAB[t]+'</button>';
+    h+=knapp(t);
   }
   return h+'</div></div>';
+}
+/* v887: pilen fäller ut och in hela väljaren (Timmar/Dygn och alla perioder). */
+function grafValFall(id){
+  var b=grafBasId(id);
+  if(_grafValUt[b])delete _grafValUt[b]; else _grafValUt[b]=1;
+  grafValRita();
 }
 function grafHelskarm(id){
   _grafFull=id;
