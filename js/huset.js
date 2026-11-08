@@ -137,7 +137,8 @@ function husBygg(el){
   if(husElBotten())try{spotIn();}catch(e){}   /* v881: spotbandet in i elrutan */
 }
 /* v881: elrutans läge – i hörnet (som väderrutan) eller längst ner med spotpriset. */
-function husElBotten(){return !!(typeof CFG!=='undefined'&&CFG&&CFG.husElLage==='botten'&&document.body.classList.contains('hus-sida'));}
+/* v883: längst ner är standard; "I hörnet" är valet. */
+function husElBotten(){return !!(typeof CFG!=='undefined'&&CFG&&CFG.husElLage!=='horn'&&document.body.classList.contains('hus-sida'));}
 function cfgHusElLage(v){CFG.husElLage=(v==='botten')?'botten':'horn';saveCfg();try{location.reload();}catch(e){}}
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
