@@ -2639,7 +2639,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v879';
+const APP_VERSION='v880';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3224,6 +3224,10 @@ var HUS_YTOR=[
   {pop:'sun',r:[508,628,186,100]},        /* nedre mitten */
   {pop:'sun',r:[498,548,190,66]},         /* övre mitten */
   {pop:'sun',r:[778,376,102,178]},        /* höger tak (poolrummet) */
+  /* v880: elcentralen (blixten) öppnar Elnät och batteriet sitt eget – sedan
+     pillren försvann (v879) är det bilden man trycker på. */
+  {pop:'grid',r:[895,392,32,52]},         /* elcentralen */
+  {pop:'batt',r:[895,452,36,74]},         /* husbatteriet */
   {pop:'uterum',r:[242,735,160,130]},     /* uterummet */
   {pop:'uterum',r:[112,697,130,113]},     /* den inglasade delen bredvid */
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
