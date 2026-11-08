@@ -652,18 +652,66 @@ function zkVal(k,s){_zkSer[k]=s;var b=$('dlg-body');if(b)b.innerHTML=zkPopHTML(k
    Styrbord) – här är det hela rummet som ska gå att styra. */
 function zkArLampa(d){return !!(RUM_LAMPA[d.id]||/fönster/i.test(rNamn(d))||rKlass(d)==='light');}
 /* Ett kort per enhet, i rumskortens form (.room). */
+/* v876: IKON EFTER VAD DET ÄR. AC:n visar sitt läge; annars namnet först
+   (taklampa, fönsterlampa, TV, förstärkare …) och klassen sist. */
 function zkKortIkon(d){
-  if(zkArLampa(d))return 'lightbulb-filament';
-  var n=rNamn(d);
+  var n=rNamn(d)||'',ac=(typeof AC_ENH!=='undefined')?AC_ENH[d.id]:null;
+  if(ac){var on=capOf(d,'onoff')===true,md=capOf(d,ac.lage);
+    return on?(BRV_MODE_IC[md]||'snowflake'):'snowflake';}
+  if(/lava/i.test(n))return 'lava-lamp';
+  if(/ambilight|^tv\b|television/i.test(n))return 'television';
+  if(/förstärk|denon|högtal|ljud/i.test(n))return 'speaker-high';
+  if(/skivspel/i.test(n))return 'music-note';
   if(/fläkt/i.test(n))return 'fan';
-  if(/värme|varme/i.test(n))return 'flame';
+  if(/poolv/i.test(n))return 'swimming-pool';
+  if(/värme|varme|element/i.test(n))return 'flame';
+  if(/markis/i.test(n))return 'umbrella';
+  if(/laddbox|laddare/i.test(n))return 'charging-station';
+  if(/dator/i.test(n))return 'desktop';
+  if(/uttag/i.test(n))return 'plug';
+  if(/tak|pendel|köksbord|bardisk|burspråk|kök \d/i.test(n))return 'lamp-pendant';
+  if(/fönster|bordslampa|fotolampa|golvlampa|lampa/i.test(n))return 'lamp';
+  if(/ute|utomhus|fasad/i.test(n))return 'sun-horizon';
+  if(zkArLampa(d))return 'lightbulb';
   return 'plug';}
+/* v876: AC-kortet: läget och inställd temperatur, tryck öppnar fjärrkontrollen. */
+function zkAcText(d){
+  var ac=AC_ENH[d.id],on=capOf(d,'onoff')===true,md=capOf(d,ac.lage),t=capOf(d,'target_temperature');
+  if(!on||md==='off')return 'av';
+  return '<b>'+esc(acModeSv(md,true)||'på')+'</b>'+(t!=null&&isFinite(t)?' '+num(t,0)+'°':'');}
+/* v876: DOLDA KORT. Håll inne på ett kort → Dölj. Listan ligger i CFG.zkDold
+   (synkas som övriga inställningar) och visas sist i popupen, där de kan tas
+   fram igen. */
+function zkDold(id){return !!(CFG&&CFG.zkDold&&CFG.zkDold[id]);}
+function zkDolj(id){CFG.zkDold=CFG.zkDold||{};CFG.zkDold[id]=1;_zkMeny=null;if(_zkVald===id)_zkVald=null;saveCfg();rumPopupUppdatera();}
+function zkVisaIgen(id){if(CFG&&CFG.zkDold){delete CFG.zkDold[id];saveCfg();}rumPopupUppdatera();}
+function zkMenyStang(){_zkMeny=null;rumPopupUppdatera();}
+function zkDoldaTog(){_zkDoldaOppen=!_zkDoldaOppen;rumPopupUppdatera();}
+/* Hålltrycket: en lyssnare på popupens kropp (den ritas om var 5:e sekund, så
+   lyssnare på korten själva hade försvunnit). */
+function zkHallInit(){
+  var b=$('dlg-body');if(!b||b._zkHall)return;b._zkHall=true;
+  var t=null,sx=0,sy=0;
+  b.addEventListener('pointerdown',function(e){
+    var k=e.target&&e.target.closest?e.target.closest('[data-zk]'):null;if(!k)return;
+    if(e.target.closest('.room-sw'))return;
+    sx=e.clientX||0;sy=e.clientY||0;clearTimeout(t);
+    var id=k.getAttribute('data-zk');
+    t=setTimeout(function(){t=null;_suppressClick=true;setTimeout(function(){_suppressClick=false;},700);
+      if(navigator.vibrate)try{navigator.vibrate(15);}catch(_){}
+      _zkMeny=id;rumPopupUppdatera();},550);});
+  var stopp=function(){if(t){clearTimeout(t);t=null;}};
+  b.addEventListener('pointermove',function(e){if(t&&(Math.abs((e.clientX||0)-sx)>10||Math.abs((e.clientY||0)-sy)>10))stopp();});
+  b.addEventListener('pointerup',stopp);b.addEventListener('pointercancel',stopp);b.addEventListener('pointerleave',stopp);
+  b.addEventListener('contextmenu',function(e){if(e.target&&e.target.closest&&e.target.closest('[data-zk]'))e.preventDefault();});
+}
 function zkKort(d){
-  var pa=capOf(d,'onoff')===true,lampa=zkArLampa(d);
+  var pa=capOf(d,'onoff')===true,lampa=zkArLampa(d),ac=(typeof AC_ENH!=='undefined')?AC_ENH[d.id]:null;
   var dim=(lampa&&rHar(d,'dim'))?capOf(d,'dim'):null;
   var w=rHar(d,'measure_power')?capOf(d,'measure_power'):null;
   var m,bar;
-  if(lampa){
+  if(ac){m=zkAcText(d);bar=pa?1:0;}
+  else if(lampa){
     m=pa?(dim!=null?'<b>'+Math.round(dim*100)+' %</b>':'tänd'):'släckt';
     bar=pa?(dim!=null?dim:1):0;
   }else{
@@ -671,7 +719,7 @@ function zkKort(d){
     bar=pa?1:0;
   }
   var vald=(_zkVald===d.id&&dim!=null);
-  return '<div class="room'+(pa?' on':'')+(vald?' zk-vald':'')+'" onclick="zkKortTryck(\''+d.id+'\')">'
+  return '<div class="room'+(pa?' on':'')+(vald?' zk-vald':'')+(_zkMeny===d.id?' zk-meny-pa':'')+(ac?' zk-ac':'')+'" data-zk="'+d.id+'" onclick="zkKortTryck(\''+d.id+'\')">'
     /* Namnet på egen rad: lampnamnen är längre än rumsnamnen, och bredvid
        ikonen och vippan fick de bara plats med fyra bokstäver på telefonen. */
     +'<div class="room-h"><span class="room-ic">'+icon(zkKortIkon(d))+'</span>'
@@ -684,6 +732,11 @@ function zkKort(d){
 /* Rutnätet, och ljusreglaget för den valda lampan direkt under det. */
 function zkKortRutnat(lista){
   var h='<div class="rooms zk-kort">'+lista.map(zkKort).join('')+'</div>';
+  /* v876: hålltryckets val, direkt under korten. */
+  var mn=_zkMeny&&DATA[_zkMeny];
+  if(mn)h+='<div class="zk-meny"><span>'+icon(zkKortIkon(mn))+'<b>'+esc(rNamn(mn))+'</b></span>'
+    +'<button class="zk-mk zk-mk-dolj" onclick="zkDolj(\''+_zkMeny+'\')">Dölj i popupen</button>'
+    +'<button class="zk-mk" onclick="zkMenyStang()">Avbryt</button></div>';
   var v=lista.find(function(d){return d.id===_zkVald;});
   if(v&&rHar(v,'dim')){
     var dv=capOf(v,'dim');dv=(dv==null?0.5:dv);
@@ -692,7 +745,9 @@ function zkKortRutnat(lista){
   }
   return h;}
 function zkKortTryck(id){
+  if(_suppressClick){_suppressClick=false;return;}
   var d=DATA[id];if(!d)return;
+  if(typeof AC_ENH!=='undefined'&&AC_ENH[id]){openAc(id);return;}   /* v876: AC → fjärrkontrollen */
   if(zkArLampa(d)&&rHar(d,'dim')){
     _zkVald=(_zkVald===id)?null:id;
     rumPopupUppdatera();return;}
@@ -746,16 +801,23 @@ function zkPopHTML(k){
      undertext och stapel. Lamporna först, sedan övrigt (fläkt, värme, uttag)
      i samma rutnät så att de passar in. Ett tryck på en dimbar lampa visar
      dess ljusreglage under korten; på allt annat slår trycket av och på. */
-  var ens=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(rSort);
-  var lj=ens.filter(zkArLampa),ov=ens.filter(function(d){return !zkArLampa(d);});
-  var ljPa=lj.filter(function(d){return capOf(d,'onoff')===true;}).length;
-  if(!ens.length){
-    h+=dSec(Z.ser.p?'Styrning':'Enheter');
-    h+='<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
-  }else{
-    if(lj.length){h+=dSec('Belysning ('+ljPa+' av '+lj.length+' tända)');h+=zkKortRutnat(lj);}
-    if(ov.length){h+=dSec(Z.ser.p?'Styrning':(lj.length?'Övrigt':'Enheter'));h+=zkKortRutnat(ov);}
+  /* v876: ETT RUTNÄT, inga avsnitt per sort. Lamporna först, sedan resten.
+     Dolda kort (håll inne → Dölj) står sist och kan tas fram igen. */
+  var alla=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(function(a,b){
+    var la=zkArLampa(a)?0:1,lb=zkArLampa(b)?0:1;return la-lb||rSort(a,b);});
+  var ens=alla.filter(function(d){return !zkDold(d.id);}),dolda=alla.filter(function(d){return zkDold(d.id);});
+  var pa=ens.filter(function(d){return capOf(d,'onoff')===true;}).length;
+  h+=dSec('Enheter'+(ens.length?' ('+pa+' av '+ens.length+' på)':''));
+  if(!alla.length)h+='<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
+  else{
+    if(ens.length)h+=zkKortRutnat(ens);
+    if(dolda.length){
+      h+='<button class="zk-dolda-btn" onclick="zkDoldaTog()">'+dolda.length+' dold'+(dolda.length===1?'':'a')
+        +' enhet'+(dolda.length===1?'':'er')+' · '+(_zkDoldaOppen?'göm':'visa')+'</button>';
+      if(_zkDoldaOppen)h+='<div class="zk-dolda">'+dolda.map(function(d){
+        return '<button class="zk-dold" onclick="zkVisaIgen(\''+d.id+'\')">'+icon(zkKortIkon(d))+'<span>'+esc(rNamn(d))+'</span><i>visa igen</i></button>';}).join('')+'</div>';}
   }
+  setTimeout(zkHallInit,0);
   /* Poolknapparna ur knappavsnittet, som i Pool-popupen. */
   if(Z.ser.p&&CFG&&CFG.paNu){try{h+=popKnappar('pool');}catch(e){}}
   return h;}
