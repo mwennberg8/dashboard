@@ -166,7 +166,10 @@ function spotIn(){
   try{
     var pb=$('pband'), plats=$('sp-plats'), del=$('sp-del');
     /* v881: elrutan längst ner i husbilden har en egen plats för bandet. */
-    var hus=null;try{hus=husElBotten()?$('hel-spot'):null;}catch(e){}
+    var hus=null,rad5=false;try{rad5=husElRad5();hus=husElBotten()?$('hel-spot'):null;}catch(e){}
+    /* v884: rad5 – priset står i elrutan, bandet göms (klass, inte stil: avsnittsordningen sätter display). */
+    if(pb&&pb.classList)pb.classList.toggle('sp-rad5-dold',rad5);
+    if(rad5&&pb)hus=$('sp-plats');
     if(hus){if(pb&&pb.parentElement!==hus)hus.appendChild(pb);
       if(pb)pb.classList.add('sp-inne','sp-hus');
       if(plats)plats.style.display='none';if(del)del.style.display='none';

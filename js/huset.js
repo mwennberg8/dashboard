@@ -106,7 +106,9 @@ function husBygg(el){
     var f=HUS_FALT[k];
     /* v881: elrutan längst ner – samma fält, annat läge, och spotbandet i. En
        div, inte en knapp: spotbandet (en egen klickbar sektion) ligger inuti. */
-    if(f.typ==='el'&&husElBotten())f=Object.assign({},f,HUS_EL_BOTTEN,{botten:true});
+    if(f.typ==='el'&&husElBotten()){
+      f=Object.assign({},f,husElRad5()?HUS_EL_RAD5:HUS_EL_BOTTEN,{botten:true,rad5:husElRad5()});
+      if(f.rad5)f.delar=(f.delar||[]).concat([{typ:'spot',pop:null,fn:'pbandTap()'}]);}
     var b=document.createElement(f.botten?'div':'button');
     if(!f.botten)b.type='button';
     b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
@@ -119,15 +121,15 @@ function husBygg(el){
        avdelare (som väderrutan). Halvorna fylls som de gamla rutorna (husFyll
        via el._falt.nat/.last) och öppnar var sin popup. */
     if(f.typ==='el'){
-      b.className+=' hus-el'+(f.botten?' botten':((f.delar||[]).length===4?' fyra':''));b.removeAttribute('onclick');
+      b.className+=' hus-el'+(f.botten?' botten'+(f.rad5?' rad5':''):((f.delar||[]).length===4?' fyra':''));b.removeAttribute('onclick');
       var mal=b;
       if(f.botten){mal=document.createElement('div');mal.className='hel-rad';b.appendChild(mal);}
       (f.delar||[]).forEach(function(d,i){
         /* Två fält: avdelare emellan. Fyra (v879): rutnät, linjerna i CSS. */
-        if(i&&(f.delar||[]).length!==4)mal.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
+        if(i&&!f.botten&&(f.delar||[]).length!==4)mal.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
         var h=document.createElement('span');h.className='hel-h';h.style.setProperty('--f',HUS_FARG[d.typ]);
-        h.setAttribute('onclick',"openDetail('"+d.pop+"')");mal.appendChild(h);el._falt[d.typ]=h;});
-      if(f.botten){var sp=document.createElement('div');sp.className='hel-spot';sp.id='hel-spot';b.appendChild(sp);}
+        h.setAttribute('onclick',d.fn||("openDetail('"+d.pop+"')"));mal.appendChild(h);el._falt[d.typ]=h;});
+      if(f.botten&&!f.rad5){var sp=document.createElement('div');sp.className='hel-spot';sp.id='hel-spot';b.appendChild(sp);}
     }
     /* v867: håll inne – väderrutan ligger över äppelträdet (inställningarna). */
     if(f.hall)try{hallInne(b,new Function(f.hall));}catch(x){}
@@ -137,9 +139,25 @@ function husBygg(el){
   if(husElBotten())try{spotIn();}catch(e){}   /* v881: spotbandet in i elrutan */
 }
 /* v881: elrutans läge – i hörnet (som väderrutan) eller längst ner med spotpriset. */
-/* v883: längst ner är standard; "I hörnet" är valet. */
-function husElBotten(){return !!(typeof CFG!=='undefined'&&CFG&&CFG.husElLage!=='horn'&&document.body.classList.contains('hus-sida'));}
-function cfgHusElLage(v){CFG.husElLage=(v==='botten')?'botten':'horn';saveCfg();try{location.reload();}catch(e){}}
+/* v883: längst ner är standard; "I hörnet" är valet. v884: "rad5" – längst
+   ner med spotpriset som femte ruta i stället för bandet. */
+function husElLageNu(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husElLage)||'botten';return (v==='horn'||v==='rad5')?v:'botten';}
+function husElBotten(){return husElLageNu()!=='horn'&&document.body.classList.contains('hus-sida');}
+function husElRad5(){return husElLageNu()==='rad5'&&document.body.classList.contains('hus-sida');}
+function cfgHusElLage(v){CFG.husElLage=(v==='horn'||v==='rad5')?v:'botten';saveCfg();try{location.reload();}catch(e){}}
+/* v884: spotprisrutan – nu, färgat efter var det ligger mellan dygnets lägsta
+   och högsta (samma färgskala som bandet), och lägsta/högsta i sina färger. */
+function husSpotFyll(b){
+  if(!b)return;
+  var nu=spotAllIn(elprisNow()),lo=spotAllIn(elprisLo()),hi=spotAllIn(elprisHi());
+  var fr=(nu!=null&&lo!=null&&hi!=null&&hi>lo)?Math.max(0,Math.min(1,(nu-lo)/(hi-lo))):0.5;
+  var col=priceColor(fr),o=function(v){return v==null?'–':String(Math.round(v*100));};
+  b.style.setProperty('--f',col);
+  b.innerHTML='<span class="rub"><i></i>Spotpris</span>'
+    +'<span class="v" style="color:'+col+'">'+o(nu)+'<small> öre</small></span>'
+    +'<span class="u"><b style="color:'+priceColor(0)+'">↓'+o(lo)+'</b> <b style="color:'+priceColor(1)+'">↑'+o(hi)+'</b></span>';
+  b.title='Spotpris nu '+o(nu)+' öre · idag '+o(lo)+'–'+o(hi)+' öre';
+}
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
 /* v858: BILARNA OVANIFRÅN (HUS_BILAR). bilSvg ritar en bil med skugga,
@@ -680,6 +698,7 @@ function husRita(){
   /* v879: i elrutan (fyra fält) fylls sol och batteri som Elnät; annars som
      små piller i bilden. */
   var iRuta=function(x){return x&&x.classList&&x.classList.contains('hel-h');};
+  if(iRuta(el._falt.spot))try{husSpotFyll(el._falt.spot);}catch(e){}   /* v884 */
   if(iRuta(el._falt.sol)){var sd=cap(DEV.solar,'meter_power.day');
     husFyll(el._falt.sol,'Sol',v.sol,(sd!=null&&isFinite(sd))?('idag '+num(sd,1)+' kWh'):'');}
   else husFyllLiten(el._falt.sol,'sol',v.sol,'');
