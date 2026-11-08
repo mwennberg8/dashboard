@@ -141,10 +141,11 @@ function husBygg(el){
 /* v881: elrutans läge – i hörnet (som väderrutan) eller längst ner med spotpriset. */
 /* v883: längst ner är standard; "I hörnet" är valet. v884: "rad5" – längst
    ner med spotpriset som femte ruta i stället för bandet. */
-function husElLageNu(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husElLage)||'botten';return (v==='horn'||v==='rad5')?v:'botten';}
+/* v885: spotpriset som femte ruta är standard. */
+function husElLageNu(){var v=(typeof CFG!=='undefined'&&CFG&&CFG.husElLage)||'rad5';return (v==='horn'||v==='botten')?v:'rad5';}
 function husElBotten(){return husElLageNu()!=='horn'&&document.body.classList.contains('hus-sida');}
 function husElRad5(){return husElLageNu()==='rad5'&&document.body.classList.contains('hus-sida');}
-function cfgHusElLage(v){CFG.husElLage=(v==='horn'||v==='rad5')?v:'botten';saveCfg();try{location.reload();}catch(e){}}
+function cfgHusElLage(v){CFG.husElLage=(v==='horn'||v==='botten')?v:'rad5';saveCfg();try{location.reload();}catch(e){}}
 /* v884: spotprisrutan – nu, färgat efter var det ligger mellan dygnets lägsta
    och högsta (samma färgskala som bandet), och lägsta/högsta i sina färger. */
 function husSpotFyll(b){
