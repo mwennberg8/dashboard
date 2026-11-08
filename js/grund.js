@@ -368,7 +368,7 @@ async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],
     t_snickarboa:[DEV.snickarboa,['measure_temperature']],t_breveden:[DEV.attefall,['measure_temperature']],
-    h_uterum:[DEV.uterum,['measure_humidity']],co2_uterum:[DEV.uterum,['measure_co2']],h_snickarboa:[DEV.snickarboa,['measure_humidity']],h_poolrum:[DEV.poolrum,['measure_humidity']],
+    h_uterum:[DEV.uterum,['measure_humidity']],co2_uterum:[DEV.uterum,['measure_co2']],h_snickarboa:[DEV.snickarboa,['measure_humidity']],h_poolrum:[DEV.poolrum,['measure_humidity']],h_kok:[DEV.vader,['measure_humidity']],
     t_batt:[BATT_MODBUS,['measure_temperature.battery']]};
   for(const k in want){
     if(k==='house'){const ph=await husSkarvHist(logs,async function(lg){return parseEntries(await homeyGet('/api/manager/insights/log/'+lg.uri+'/'+lg.id+'/entry?resolution='+res));});

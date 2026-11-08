@@ -219,11 +219,16 @@ ZK.poolrum={zon:'3efd5258-2221-49c2-aa98-e22e8ac8425d',sensor:function(){return 
    CO₂-mätare. Kurvorna: medlet, vardagsrummet, köket. Gränserna är mina val för
    ett uppvärmt bostadsrum: kallt ≤ 17 °C, mycket kallt ≤ 12 °C, varmt ≥ 26 °C,
    mycket varmt ≥ 30 °C. */
+/* v878: bara vardagsrummets egen givare – köket har en egen ruta (ZK.kok). */
 ZK.vardagsrum={zon:'9eb2975d-49ea-4033-8db0-105a3e982117',sensor:function(){return DEV.vard;},lab:'Vardagsrum',ic:'couch',
-  ser:{m:function(c){return indoorAvgSeries(c);},t:'t_vard',k:'t_kok'},ordning:['m','t','k'],ser0:'m',
-  serLab:{t:['Vardagsrum','Rummet']},   /* "Vardagsrum" klipptes i chippet */
-  nu:{m:function(){return indoorAvgTemp();},k:function(){return cap(DEV.vader,'measure_temperature');}},
+  ser:{t:'t_vard'},
   gr:{tLagLarm:12,tLagVarn:17,tHogVarn:26,tHogLarm:30,hHog:null,hLag:null,tLagLarmTxt:'mycket kallt'}};
+/* v878: KÖKET. Netatmo-stationen "Väderstation" står i köket: temperatur,
+   fukt och CO₂. Gränserna som vardagsrummets; fukt över 70 % och under 25 %
+   varnar (matlagning, vinterluft). */
+ZK.kok={zon:'2ab5a003-0120-4c01-80f2-a237dcf4ba14',sensor:function(){return DEV.vader;},lab:'Kök',ic:'fork-knife',
+  ser:{t:'t_kok',h:'h_kok',c:'co2'},
+  gr:{tLagLarm:12,tLagVarn:17,tHogVarn:26,tHogLarm:30,hHog:70,hLag:25,tLagLarmTxt:'mycket kallt'}};
 /* v876: BREVEDEN SOM RUM. Popupen är samma rumspopup som de andra (graf, läget
    och rummets enheter som kort). AC:n är ett av korten; ett tryck på det öppnar
    fjärrkontrollen (openAc). Gränserna är mina val för en stuga som hålls varm
@@ -365,7 +370,7 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
   ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
-  ['h_uterum',()=>capLive(DEV.uterum,'measure_humidity')],['co2_uterum',()=>capLive(DEV.uterum,'measure_co2')],['h_snickarboa',()=>capLive(DEV.snickarboa,'measure_humidity')],['h_poolrum',()=>capLive(DEV.poolrum,'measure_humidity')],
+  ['h_uterum',()=>capLive(DEV.uterum,'measure_humidity')],['co2_uterum',()=>capLive(DEV.uterum,'measure_co2')],['h_snickarboa',()=>capLive(DEV.snickarboa,'measure_humidity')],['h_poolrum',()=>capLive(DEV.poolrum,'measure_humidity')],['h_kok',()=>capLive(DEV.vader,'measure_humidity')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
   ['t_snickarboa',()=>capLive(DEV.snickarboa,'measure_temperature')],['t_breveden',()=>capLive(DEV.attefall,'measure_temperature')],
   /* Batteriets celltemperatur från modbus. Utetemperaturen samlades redan in
@@ -398,6 +403,7 @@ var TRACK_DEV={price:[()=>DEV.tibber,'measure_price_total'],solar:[()=>DEV.solar
   /* v736: rumsrutornas fukt och CO₂. */
   h_uterum:[()=>DEV.uterum,'measure_humidity'],co2_uterum:[()=>DEV.uterum,'measure_co2'],
   h_snickarboa:[()=>DEV.snickarboa,'measure_humidity'],h_poolrum:[()=>DEV.poolrum,'measure_humidity'],
+  h_kok:[()=>DEV.vader,'measure_humidity'],   /* v878 */
   /* BATTERITEMPERATUREN SAKNADES HÄR. Den spelades bara in medan sidan var
      öppen (TRACK), så kurvan hade hål överallt där ingen tittat — därför
      syntes den delvis i vissa fönster och inte alls i andra. Med här fyller
@@ -1581,6 +1587,7 @@ var LANG_KALLA={
   co2_uterum: function(){return [DEV.uterum,['measure_co2']];},
   h_snickarboa:function(){return [DEV.snickarboa,['measure_humidity']];},
   h_poolrum:  function(){return [DEV.poolrum,['measure_humidity']];},
+  h_kok:      function(){return [DEV.vader,['measure_humidity']];},
   t_batt:     function(){return [BATT_MODBUS,['measure_temperature.battery']];},
   /* Brickornas inlärda serier (histSVG). Flödena är belopp, som när de lärs. */
   gridflow:function(){return [DEV.pulse,LANG_EFFEKT,Math.abs];},
@@ -1824,7 +1831,7 @@ const CAT=[
   {type:'computed',key:'breveden',g:'Hus'},{type:'computed',key:'poolheat',g:'Hus'},{type:'computed',key:'dish',g:'Hus'},{type:'computed',key:'humidity',g:'Väder'},{type:'computed',key:'seatemp',g:'Väder'},{type:'computed',key:'rain',g:'Väder'},{type:'computed',key:'pressure',g:'Väder'},
   {type:'computed',key:'battnow',g:'Bil & batteri'},{type:'computed',key:'batttom',g:'Bil & batteri'},
   {type:'computed',key:'tv',g:'Hus'},
-  {type:'computed',key:'uterum',g:'Hus'},{type:'computed',key:'snickarboa',g:'Hus'},{type:'computed',key:'poolrum',g:'Hus'},{type:'computed',key:'vardagsrum',g:'Hus'},
+  {type:'computed',key:'uterum',g:'Hus'},{type:'computed',key:'snickarboa',g:'Hus'},{type:'computed',key:'poolrum',g:'Hus'},{type:'computed',key:'vardagsrum',g:'Hus'},{type:'computed',key:'kok',g:'Hus'},
   {type:'computed',key:'gridnow',g:'Nät'},
   {type:'sensor',g:'Hus',device:DEV.pooltemp,cap:'measure_temperature',label:'Pooltemp',icon:'swimming-pool',unit:'°C',dec:1},
   {type:'sensor',g:'Väder',device:DEV.outdoor,cap:'measure_temperature',label:'Utetemp',icon:'thermometer-simple',unit:'°C',dec:1},
@@ -2632,7 +2639,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v877';
+const APP_VERSION='v878';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

@@ -725,7 +725,7 @@ function tileIkon(cfg,m){
       else{var Bv=brvState();if(Bv&&Bv.aktiv&&!brvGammal(Bv)){extra=(Bv.lage==='cool')?'snowflake':'flame';puls=true;}}}catch(e){}
   }else if(cfg&&cfg.type==='sensor'&&cfg.device===DEV.pooltemp&&cfg.cap==='measure_temperature'){
     if(varms())extra='flame';
-  }else if(k==='uterum'||k==='snickarboa'||k==='vardagsrum'){
+  }else if(k==='uterum'||k==='snickarboa'||k==='vardagsrum'||k==='kok'){
     /* v736: varning i ikonens hörn; larm pulsar. */
     if(m&&m.varn){extra='warning';puls=(m.varn.niva==='larm');}
   }else if(k==='poolrum'){

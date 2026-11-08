@@ -751,7 +751,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake',kok:'fork-knife'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -929,7 +929,7 @@ function openDetailKarna(which){
       +dRow('Vardagsrum',tv==null?'–':num(tv,1)+' °C')
       +dRow('Kök',tk==null?'–':num(tk,1)+' °C')
       +dRow('Uterum',(function(){const u=cap(DEV.uterum,'measure_temperature');return u==null?'–':num(u,1)+' °C';})());
-  }else if(which==='uterum'||which==='snickarboa'||which==='poolrum'||which==='vardagsrum'||which==='breveden'){title=ZK[which].lab;
+  }else if(which==='uterum'||which==='snickarboa'||which==='poolrum'||which==='vardagsrum'||which==='breveden'||which==='kok'){title=ZK[which].lab;
     /* v736: rumsrutans popup – graf, läget nu och rummets enheter. Ritas om vid
        varje hämtning (_popupRebuild) och när en enhet växlas (rumPopupUppdatera). */
     _zkVald=null;
