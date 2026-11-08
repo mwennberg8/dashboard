@@ -103,8 +103,13 @@ function husBygg(el){
   try{husFlodTakt();}catch(e){}   /* v856: väggplattan */
   el._falt={};
   Object.keys(HUS_FALT).forEach(function(k){
-    var f=HUS_FALT[k],b=document.createElement('button');
-    b.type='button';b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
+    var f=HUS_FALT[k];
+    /* v881: elrutan längst ner – samma fält, annat läge, och spotbandet i. En
+       div, inte en knapp: spotbandet (en egen klickbar sektion) ligger inuti. */
+    if(f.typ==='el'&&husElBotten())f=Object.assign({},f,HUS_EL_BOTTEN,{botten:true});
+    var b=document.createElement(f.botten?'div':'button');
+    if(!f.botten)b.type='button';
+    b.className='hus-falt'+(f.liten?' liten':'');b.style.setProperty('--f',HUS_FARG[f.typ]);
     b.style.left=(f.x/1040*100)+'%';b.style.top=(f.y/1120*100)+'%';
     b.style.width=(f.w/1040*100)+'%';b.style.height=(f.h/1120*100)+'%';
     b.setAttribute('onclick',f.fn||("openDetail('"+f.pop+"')"));
@@ -114,19 +119,26 @@ function husBygg(el){
        avdelare (som väderrutan). Halvorna fylls som de gamla rutorna (husFyll
        via el._falt.nat/.last) och öppnar var sin popup. */
     if(f.typ==='el'){
-      b.className+=' hus-el'+((f.delar||[]).length===4?' fyra':'');b.removeAttribute('onclick');
+      b.className+=' hus-el'+(f.botten?' botten':((f.delar||[]).length===4?' fyra':''));b.removeAttribute('onclick');
+      var mal=b;
+      if(f.botten){mal=document.createElement('div');mal.className='hel-rad';b.appendChild(mal);}
       (f.delar||[]).forEach(function(d,i){
         /* Två fält: avdelare emellan. Fyra (v879): rutnät, linjerna i CSS. */
-        if(i&&(f.delar||[]).length!==4)b.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
+        if(i&&(f.delar||[]).length!==4)mal.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
         var h=document.createElement('span');h.className='hel-h';h.style.setProperty('--f',HUS_FARG[d.typ]);
-        h.setAttribute('onclick',"openDetail('"+d.pop+"')");b.appendChild(h);el._falt[d.typ]=h;});
+        h.setAttribute('onclick',"openDetail('"+d.pop+"')");mal.appendChild(h);el._falt[d.typ]=h;});
+      if(f.botten){var sp=document.createElement('div');sp.className='hel-spot';sp.id='hel-spot';b.appendChild(sp);}
     }
     /* v867: håll inne – väderrutan ligger över äppelträdet (inställningarna). */
     if(f.hall)try{hallInne(b,new Function(f.hall));}catch(x){}
     karta.appendChild(b);el._falt[k]=b;
   });
   el._byggd=true;
+  if(husElBotten())try{spotIn();}catch(e){}   /* v881: spotbandet in i elrutan */
 }
+/* v881: elrutans läge – i hörnet (som väderrutan) eller längst ner med spotpriset. */
+function husElBotten(){return !!(typeof CFG!=='undefined'&&CFG&&CFG.husElLage==='botten'&&document.body.classList.contains('hus-sida'));}
+function cfgHusElLage(v){CFG.husElLage=(v==='botten')?'botten':'horn';saveCfg();try{location.reload();}catch(e){}}
 /* Ljuset i nattbilden: varmt sken från fönstren och utelamporna. Ligger under
    ledningarna. CSS visar det bara i mörkt tema. */
 /* v858: BILARNA OVANIFRÅN (HUS_BILAR). bilSvg ritar en bil med skugga,

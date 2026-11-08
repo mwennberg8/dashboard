@@ -1530,6 +1530,10 @@ function openConfig(){
   h+='</div>';
   /* Husbilden högst upp på startsidan: hur mycket fönstren lyser. */
   h+='<div class="cfg-sec">Husbilden</div>';
+  /* v881: elrutans läge. */
+  h+='<div class="cfg-row"><span class="cfg-row-l">Elrutan</span></div><div class="cfg-btns">'
+    +'<button class="cfg-opt'+(CFG.husElLage!=='botten'?' on':'')+'" onclick="cfgHusElLage(\'horn\')">I hörnet</button>'
+    +'<button class="cfg-opt'+(CFG.husElLage==='botten'?' on':'')+'" onclick="cfgHusElLage(\'botten\')">Längst ner med spotpriset</button></div>';
   h+=stepRow('Ljus från fönstren','cfgnum-husfon',Math.round(husFonsterStyrka()*100)+' %','cfgHusFonster');
   h+=stepRow('Ljus från utelamporna','cfgnum-husute',Math.round(husUteStyrka()*100)+' %','cfgHusUte');
   h+='<div class="cfg-hint">Skenet från fönster, glasdörrar, glastaken och utelampor i nattbilden. Under 100 % lyser de svagare, över 100 % starkare och längre ut.</div>';

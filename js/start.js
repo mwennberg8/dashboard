@@ -2639,7 +2639,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v880';
+const APP_VERSION='v881';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3144,6 +3144,7 @@ setInterval(checkForUpdate,60000);
 /* Huset ovanifrån (startsidan, index.html; förut betan index2, till v825). Koordinater i bildens mått, 1040 × 1120
    (bild/hus-ovanifran.webp). var och inte const: render() kan i teorin hinna
    före den här raden, och då ska husRita få undefined och inte ett fel. */
+var HUS_EL_BOTTEN={x:20,y:900,w:1000,h:200};
 var HUS_FARG={sol:'#d9a521',batt:'#3f9fb8',nat:'#c8683f',last:'#5e7fa8',bil:'#8a6fb0',vader:'#6f9fc8'};
 /* Fälten: x, y, bredd, höjd – och popupen ett tryck öppnar. */
 var HUS_FALT={
@@ -3154,6 +3155,9 @@ var HUS_FALT={
      bilden är borta – ledningarna börjar vid panelerna och batteriet. */
   el:   {x:640,y:878, w:380,h:222, typ:'el',
          delar:[{typ:'nat',pop:'grid'},{typ:'last',pop:'energyfull'},{typ:'sol',pop:'sun'},{typ:'batt',pop:'batt'}]},
+  /* v881: VARIANTEN "LÄNGST NER" (Inställningar → Husbilden → Elrutan): samma
+     fyra fält på en rad över hela bildens bredd, med spotprisbandet under
+     (HUS_EL_BOTTEN ersätter el:s läge och storlek). */
   /* Små rutor (bara effekten): solen mitt på stora panelgruppen (vänster
      tak), batteriet under husbatteriet och bilen under bilarna – i höjd med
      gången mellan Breveden och poolrummet, där bilens ledning går. */
