@@ -680,11 +680,11 @@ function zkAcText(d){
   if(!on||md==='off')return 'av';
   return '<b>'+esc(acModeSv(md,true)||'på')+'</b>'+(t!=null&&isFinite(t)?' '+num(t,0)+'°':'');}
 /* v876: DOLDA KORT. Håll inne på ett kort → Dölj. Listan ligger i CFG.zkDold
-   (synkas som övriga inställningar) och visas sist i popupen, där de kan tas
-   fram igen. */
+   (synkas som övriga inställningar). v877: syns inte alls i popupen; de tas
+   fram igen under Inställningar → Husbilden (cfgZkDolda). */
 function zkDold(id){return !!(CFG&&CFG.zkDold&&CFG.zkDold[id]);}
 function zkDolj(id){CFG.zkDold=CFG.zkDold||{};CFG.zkDold[id]=1;_zkMeny=null;if(_zkVald===id)_zkVald=null;saveCfg();rumPopupUppdatera();}
-function zkVisaIgen(id){if(CFG&&CFG.zkDold){delete CFG.zkDold[id];saveCfg();}rumPopupUppdatera();}
+function zkVisaIgen(id){if(CFG&&CFG.zkDold){delete CFG.zkDold[id];saveCfg();}rumPopupUppdatera();try{if(document.querySelector('#dlg-body .cfg'))openConfig();}catch(e){}}
 function zkMenyStang(){_zkMeny=null;rumPopupUppdatera();}
 function zkDoldaTog(){_zkDoldaOppen=!_zkDoldaOppen;rumPopupUppdatera();}
 /* Hålltrycket: en lyssnare på popupens kropp (den ritas om var 5:e sekund, så
@@ -805,18 +805,11 @@ function zkPopHTML(k){
      Dolda kort (håll inne → Dölj) står sist och kan tas fram igen. */
   var alla=rDevsIZon(Z.zon).filter(function(d){return rHar(d,'onoff');}).sort(function(a,b){
     var la=zkArLampa(a)?0:1,lb=zkArLampa(b)?0:1;return la-lb||rSort(a,b);});
-  var ens=alla.filter(function(d){return !zkDold(d.id);}),dolda=alla.filter(function(d){return zkDold(d.id);});
+  /* v877: en dold enhet finns inte här alls – den styrs någon annanstans. Den
+     tas fram igen under Inställningar → Husbilden. */
+  var ens=alla.filter(function(d){return !zkDold(d.id);});
   var pa=ens.filter(function(d){return capOf(d,'onoff')===true;}).length;
-  h+=dSec('Enheter'+(ens.length?' ('+pa+' av '+ens.length+' på)':''));
-  if(!alla.length)h+='<div class="det-note">Inga styrbara enheter i '+esc(Z.lab.toLowerCase())+'.</div>';
-  else{
-    if(ens.length)h+=zkKortRutnat(ens);
-    if(dolda.length){
-      h+='<button class="zk-dolda-btn" onclick="zkDoldaTog()">'+dolda.length+' dold'+(dolda.length===1?'':'a')
-        +' enhet'+(dolda.length===1?'':'er')+' · '+(_zkDoldaOppen?'göm':'visa')+'</button>';
-      if(_zkDoldaOppen)h+='<div class="zk-dolda">'+dolda.map(function(d){
-        return '<button class="zk-dold" onclick="zkVisaIgen(\''+d.id+'\')">'+icon(zkKortIkon(d))+'<span>'+esc(rNamn(d))+'</span><i>visa igen</i></button>';}).join('')+'</div>';}
-  }
+  if(ens.length){h+=dSec('Enheter ('+pa+' av '+ens.length+' på)');h+=zkKortRutnat(ens);}
   setTimeout(zkHallInit,0);
   /* Poolknapparna ur knappavsnittet, som i Pool-popupen. */
   if(Z.ser.p&&CFG&&CFG.paNu){try{h+=popKnappar('pool');}catch(e){}}
