@@ -743,6 +743,10 @@ function openDetail(which){var r=openDetailKarna(which);dlgAga();return r;}
 function openDetailKarna(which){
   _grafOmRita=null;
   if(_suppressClick){_suppressClick=false;_tapCfg=null;return;}
+  /* v877: förra popupens omritare nollas. AC-kortet i Breveden öppnar
+     fjärrkontrollen i samma ruta – rummets omritare låg kvar och ritade rummet
+     över fjärrkontrollen vid nästa hämtning, så den såg ut att stängas själv. */
+  _popupRebuild=null;
   let _dlgWide=false;
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;

@@ -1534,6 +1534,10 @@ function openConfig(){
   h+=stepRow('Ljus från utelamporna','cfgnum-husute',Math.round(husUteStyrka()*100)+' %','cfgHusUte');
   h+='<div class="cfg-hint">Skenet från fönster, glasdörrar, glastaken och utelampor i nattbilden. Under 100 % lyser de svagare, över 100 % starkare och längre ut.</div>';
   h+='<div class="cfg-menu" style="margin-top:8px">'+cfgMi("window.open('hus-redigera.html','_blank','noopener')",'lamp','Flytta fönster och lampor','Redigeraren öppnas i en ny flik')+'</div>';
+  /* v877: enheter som dolts i rumspopuperna (håll inne på kortet → Dölj). */
+  try{var zd=Object.keys((CFG&&CFG.zkDold)||{}).filter(function(id){return DATA[id];});
+    if(zd.length){h+='<div class="cfg-hint" style="margin-top:10px">Dolda i rumspopuperna – tryck för att visa igen:</div><div class="zk-dolda">'
+      +zd.map(function(id){var d=DATA[id];return '<button class="zk-dold" onclick="zkVisaIgen(\''+id+'\')">'+icon(zkKortIkon(d))+'<span>'+esc(rNamn(d))+'</span><i>visa</i></button>';}).join('')+'</div>';}}catch(e){}
   h+='<div class="cfg-sec">Köpt/sålt-rutan</div>';
   h+=krcOpRow();
   h+='</div>';
