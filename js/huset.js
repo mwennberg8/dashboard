@@ -114,9 +114,10 @@ function husBygg(el){
        avdelare (som väderrutan). Halvorna fylls som de gamla rutorna (husFyll
        via el._falt.nat/.last) och öppnar var sin popup. */
     if(f.typ==='el'){
-      b.className+=' hus-el';b.removeAttribute('onclick');
+      b.className+=' hus-el'+((f.delar||[]).length===4?' fyra':'');b.removeAttribute('onclick');
       (f.delar||[]).forEach(function(d,i){
-        if(i)b.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
+        /* Två fält: avdelare emellan. Fyra (v879): rutnät, linjerna i CSS. */
+        if(i&&(f.delar||[]).length!==4)b.appendChild(Object.assign(document.createElement('span'),{className:'hel-av'}));
         var h=document.createElement('span');h.className='hel-h';h.style.setProperty('--f',HUS_FARG[d.typ]);
         h.setAttribute('onclick',"openDetail('"+d.pop+"')");b.appendChild(h);el._falt[d.typ]=h;});
     }
@@ -663,9 +664,16 @@ function husRita(){
      pendlar Pulse några watt kring noll. */
   husFyll(el._falt.nat,'Elnät',(nat!=null&&Math.abs(nat)<50)?0:nat,nat==null?'':(nat>=50?'köper':nat<=-50?'säljer':'–'));
   husFyll(el._falt.last,'Förbrukning',last,eget==null?'':(eget+' % eget'));
-  husFyllLiten(el._falt.sol,'sol',v.sol,'');
+  /* v879: i elrutan (fyra fält) fylls sol och batteri som Elnät; annars som
+     små piller i bilden. */
+  var iRuta=function(x){return x&&x.classList&&x.classList.contains('hel-h');};
+  if(iRuta(el._falt.sol)){var sd=cap(DEV.solar,'meter_power.day');
+    husFyll(el._falt.sol,'Sol',v.sol,(sd!=null&&isFinite(sd))?('idag '+num(sd,1)+' kWh'):'');}
+  else husFyllLiten(el._falt.sol,'sol',v.sol,'');
   /* Batteriet: effekten och laddnivån; riktningen syns på ledningen. */
-  husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
+  if(iRuta(el._falt.batt)){var bl=v.batt==null?'':(v.batt>50?'laddar ur':v.batt<-50?'laddar':'vilar');
+    husFyll(el._falt.batt,'Batteri'+(v.soc==null?'':' '+Math.round(v.soc)+' %'),v.batt,bl);}
+  else husFyllLiten(el._falt.batt,'batt',v.batt,v.soc==null?'':Math.round(v.soc)+' %',v.soc);
   el._falt.batt.title=v.batt==null?'Batteri':(v.batt>50?'Batteriet laddar ur':v.batt<-50?'Batteriet laddar':'Batteriet vilar');
   /* Bilrutan syns när en bil laddar eller bara är inkopplad (då 0 W, tonad). */
   try{husVaderFyll(el._falt.vader);}catch(e){}
