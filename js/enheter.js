@@ -27,7 +27,13 @@
    SKRIPTET ÄGER FORTFARANDE AUTOMATIKEN. Ett manuellt läge kan skrivas över
    nästa gång breveden-skriptet kör; det står i rutans infotext. Dashboarden
    har medvetet ingen egen bedömning av om kyla eller värme behövs. */
-function brvDev(){return DEV.attefall;}
+function brvDev(){return _acId||DEV.attefall;}
+/* v876: vilken AC fjärrkontrollen styr just nu (AC_ENH i start.js). */
+function acCfg(){return (typeof AC_ENH!=='undefined'&&AC_ENH[brvDev()])||{lage:'thermostat_mode',flakt:'fan_speed',snabb:BRV_SNABB,spjall:true,hist:'t_breveden',namn:'Breveden',zk:'breveden',skript:true};}
+function openAc(id){
+  if(_suppressClick){_suppressClick=false;return;}
+  _acId=id||DEV.attefall;_brvMer=false;_brvUtkast=null;_brvFel=null;
+  openDetail('ac');}
 function brvCapObj(c){
   var d=DATA[brvDev()];
   return (d&&d.capabilitiesObj&&d.capabilitiesObj[c])?d.capabilitiesObj[c]:null;
@@ -59,12 +65,12 @@ function brvNumVal(c){
   return ut;
 }
 function brvLageNamn(id){
-  var v=brvVal('thermostat_mode');
+  var v=brvVal(acCfg().lage);
   if(v)for(var i=0;i<v.length;i++)if(v[i].id===id)return acModeSv(id,true)||v[i].namn;
   return acModeSv(id,true);
 }
 function brvHarLage(id){
-  var v=brvVal('thermostat_mode');
+  var v=brvVal(acCfg().lage);
   if(!v)return true;                  /* listan okänd – hindra inte */
   for(var i=0;i<v.length;i++)if(v[i].id===id)return true;
   return false;
@@ -75,16 +81,17 @@ function brvSnabbPa(q,acOn,acMode,acTgt){
   if(q.av)return acOn===false;
   if(acOn!==true||acMode!==q.lage)return false;
   if(q.temp!=null)return acTgt===q.temp;
-  for(var i=0;i<BRV_SNABB.length;i++){
-    var o=BRV_SNABB[i];
+  var SN=acCfg().snabb||[];
+  for(var i=0;i<SN.length;i++){
+    var o=SN[i];
     if(o!==q&&o.lage===q.lage&&o.temp!=null&&acTgt===o.temp)return false;
   }
   return true;
 }
 function brvSnabbLista(){
-  var ut=[];
-  for(var i=0;i<BRV_SNABB.length;i++){
-    var q=BRV_SNABB[i];
+  var ut=[],SN=acCfg().snabb||[];
+  for(var i=0;i<SN.length;i++){
+    var q=SN[i];
     if(q.lage&&!brvHarLage(q.lage))continue;
     ut.push(q);
   }
@@ -92,12 +99,12 @@ function brvSnabbLista(){
 }
 function brvMerTog(){_brvMer=!_brvMer;brvPopRita();}
 async function brvSnabb(k){
-  var q=null;
-  for(var i=0;i<BRV_SNABB.length;i++)if(BRV_SNABB[i].k===k)q=BRV_SNABB[i];
+  var q=null,SN=acCfg().snabb||[];
+  for(var i=0;i<SN.length;i++)if(SN[i].k===k)q=SN[i];
   if(!q)return;
   if(q.av){await brvSkriv([['onoff',false]]);return;}
   var steg=[];
-  if(q.lage)steg.push(['thermostat_mode',q.lage]);
+  if(q.lage)steg.push([acCfg().lage,q.lage]);
   if(q.temp!=null)steg.push(['target_temperature',q.temp]);
   steg.push(['onoff',true]);
   await brvSkriv(steg);
@@ -118,11 +125,11 @@ async function brvSkriv(steg){
   _brvSkriver=false;brvPopRita();
   /* Skriptets logikvariabel läses om: den styr brickans läge och "Auto"-valet,
      och den vet inget om att vi just ställt om enheten för hand. */
-  try{brvHamta();}catch(e){}
+  if(acCfg().skript)try{brvHamta();}catch(e){}
 }
 /* Löftet lämnas vidare, inte bara startas: annars går det inte att veta när
    skrivningen är klar — varken i ett prov eller i en framtida kedja. */
-function brvSattLage(m){return brvSkriv(m==='off'?[['thermostat_mode','off']]:[['thermostat_mode',m],['onoff',true]]);}
+function brvSattLage(m){var L=acCfg().lage;return brvSkriv(m==='off'?[[L,'off']]:[[L,m],['onoff',true]]);}
 function brvTempGr(){
   var o=brvCapObj('target_temperature');
   return {v:(o&&typeof o.value==='number')?o.value:null,st:(o&&o.step)||1,
@@ -243,7 +250,7 @@ function brvTog(){return brvSkriv([['onoff',!brvPa()]]);}
    rullat tillbaka till toppen mitt i en inställning. */
 function brvPopRita(){
   try{
-    if(_dlgWhich!=='breveden')return;
+    if(_dlgWhich!=='ac')return;
     var b=$('dlg-body');
     if(b)b.innerHTML=brvPopHTML();
   }catch(e){}
@@ -263,21 +270,26 @@ function brvKnappRad(cap,vald,lista,fmt,rahtml){
   return h+'</div>';
 }
 function brvPopHTML(){
-  var ac=brvDev();
+  var ac=brvDev(),A=acCfg();
   var acT=cap(ac,'measure_temperature'),acTgt=cap(ac,'target_temperature'),
-      acMode=cap(ac,'thermostat_mode'),acOn=cap(ac,'onoff'),acFan=cap(ac,'fan_speed'),
+      acMode=cap(ac,A.lage),acOn=cap(ac,'onoff'),acFan=cap(ac,A.flakt),
       acPw=cap(ac,'measure_power'),acKwh=cap(ac,'meter_power'),
       acDag=cap(ac,'meter_power.daily'),acOut=cap(ac,'measure_temperature.outdoor');
   var B=brvState();
-  var h=ptsLineSVG(histV('t_breveden','brv-graf'),'violet','°C','brv-graf',HIST_H,'Breveden');
+  /* v876: tillbaka till rummets popup, där AC-kortet ligger. */
+  var h='<button class="ac-tbk" onclick="openDetail(\''+(A.zk||'breveden')+'\')">'+icon('arrow-left')+'<span>'+esc(A.namn||'Rummet')+'</span></button>';
+  h+=ptsLineSVG(histV(A.hist||'t_breveden','brv-graf'),'violet','°C','brv-graf',HIST_H,A.namn||'AC');
 
   h+='<div class="dsec">Snabbval'
-    +infoBlock('brvsnabb','<b>Auto</b> startar enheten i dess eget auto-läge '
+    +infoBlock('brvsnabb',(A.skript?'<b>Auto</b> startar enheten i dess eget auto-läge '
       +'med den temperatur som redan är inställd.<br>'
       +'<b>Värm 15</b> värmer till 15° och kyler aldrig.<br>'
       +'<b>Stäng av</b> stänger av enheten.<br><br>'
       +'Ett handpålagt läge kan skrivas över nästa gång breveden-skriptet kör. '
-      +'Skriptet äger automatiken — dashboarden har med flit ingen egen bedömning.')
+      +'Skriptet äger automatiken — dashboarden har med flit ingen egen bedömning.'
+      :'<b>Kyla</b> och <b>Värme</b> startar enheten i det läget med den temperatur som redan är inställd. '
+      +'<b>Stäng av</b> stänger av den. Enheten styrs med IR – Homey vet inte säkert vad den gör, '
+      +'bara vad som senast skickades.'))
     +'</div>';
   var sn=brvSnabbLista();
   h+='<div class="brv-snabb">';
@@ -319,18 +331,19 @@ function brvPopHTML(){
   doldt+='<div class="cfg-sec">På eller av</div>'
     +'<div class="cfg-btns"><button class="cfg-opt'+(acOn===true?' on':'')
     +'" onclick="brvTog()">'+(acOn===true?'På':'Av')+'</button></div>';
-  var lagen=brvVal('thermostat_mode');
+  var lagen=brvVal(A.lage);
   if(lagen){
     doldt+='<div class="cfg-sec brv-sekh">'+icon('thermometer-simple')+'<span>Läge</span></div>'
-      +brvKnappRad('thermostat_mode',acMode,lagen,function(x){
+      +brvKnappRad(A.lage,acMode,lagen,function(x){
          return (BRV_MODE_IC[x.id]?icon(BRV_MODE_IC[x.id]):'')+'<span>'
            +esc(acModeSv(x.id,true)||x.namn)+'</span>';},true);
   }
-  var flakt=brvVal('fan_speed')||brvNumVal('fan_speed');
+  var flakt=brvVal(A.flakt)||brvNumVal(A.flakt);
   if(flakt)doldt+='<div class="cfg-sec brv-sekh">'+icon('fan')+'<span>Fläkt</span></div>'
-    +brvKnappRad('fan_speed',acFan,flakt);
-  doldt+=brvSpjallFig('vertical',BRV_LOD,true,'Luftriktning lodrätt','arrow-up');
-  doldt+=brvSpjallFig('horizontal',BRV_SID,false,'Luftriktning i sidled','wind');
+    +brvKnappRad(A.flakt,acFan,flakt);
+  if(A.spjall){
+    doldt+=brvSpjallFig('vertical',BRV_LOD,true,'Luftriktning lodrätt','arrow-up');
+    doldt+=brvSpjallFig('horizontal',BRV_SID,false,'Luftriktning i sidled','wind');}
   if(doldt){
     var op=_brvMer?' open':'';
     h+='<button class="brv-mer'+op+'" id="brv-mer-btn" onclick="brvMerTog()">'
@@ -341,13 +354,16 @@ function brvPopHTML(){
   h+='<div class="dsec">Nu</div>'
     +dRow('Läge',esc(acModeSv(acMode,acOn)))
     +dRow('Inställd temperatur',acTgt==null?'\u2013':num(acTgt,0)+' \u00b0C')
-    +dRow('Temperatur nu',acT==null?'\u2013':num(acT,1)+' \u00b0C')
+    /* v876: bara det enheten faktiskt rapporterar (IR-AC:n i vardagsrummet har
+       ingen egen givare eller elmätare). */
+    +(acT!=null?dRow('Temperatur nu',num(acT,1)+' \u00b0C'):'')
     +(acT!=null&&acTgt!=null?dRow('Mot målet',(acT-acTgt>=0?'+':'')+num(acT-acTgt,1)+' \u00b0C'):'')
-    +dRow('Fläkt',acFan==null?'\u2013':String(acFan))
-    +dRow('Effekt nu',acPw==null?'\u2013':num(acPw,0)+' W')
+    +(acFan!=null?dRow('Fläkt',String(acFan)):'')
+    +(acPw!=null?dRow('Effekt nu',num(acPw,0)+' W'):'')
     +(acDag!=null?dRow('Förbrukat idag',num(acDag,1)+' kWh'):'')
-    +dRow('Förbrukat totalt',acKwh==null?'\u2013':num(acKwh,1)+' kWh')
-    +(acOut!=null?dRow('Ute (AC)',num(acOut,1)+' \u00b0C'):'');
+    +(acKwh!=null?dRow('Förbrukat totalt',num(acKwh,1)+' kWh'):'')
+    +(acOut!=null?dRow('Ute (AC)',num(acOut,1)+' \u00b0C'):'')
+    +((A.status&&cap(ac,A.status))?dRow('Status',esc(String(cap(ac,A.status)))):'');
   return '<div class="brv-pop">'+h+'</div>';
 }
 function diskState(){return _disk;}

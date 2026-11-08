@@ -224,6 +224,12 @@ ZK.vardagsrum={zon:'9eb2975d-49ea-4033-8db0-105a3e982117',sensor:function(){retu
   serLab:{t:['Vardagsrum','Rummet']},   /* "Vardagsrum" klipptes i chippet */
   nu:{m:function(){return indoorAvgTemp();},k:function(){return cap(DEV.vader,'measure_temperature');}},
   gr:{tLagLarm:12,tLagVarn:17,tHogVarn:26,tHogLarm:30,hHog:null,hLag:null,tLagLarmTxt:'mycket kallt'}};
+/* v876: BREVEDEN SOM RUM. Popupen är samma rumspopup som de andra (graf, läget
+   och rummets enheter som kort). AC:n är ett av korten; ett tryck på det öppnar
+   fjärrkontrollen (openAc). Gränserna är mina val för en stuga som hålls varm
+   på låg nivå: frostrisk under 3 °C, kallt under 8 °C, varmt över 28 °C. */
+ZK.breveden={zon:'04a44634-aa34-41ed-87c0-d1ab5ce4bedd',sensor:function(){return DEV.attefall;},lab:'Breveden',ic:'stuga',
+  ser:{t:'t_breveden'},gr:{tLagLarm:3,tLagVarn:8,tHogVarn:28,tHogLarm:32,hHog:null,hLag:null}};
 var ZK_CO2_VARN=1000,ZK_CO2_LARM=1400,ZK_BATT=15;
 
 let DATA={},ZONES={},SOURCE='demo',seeded=false,zonesDone=false,BASE='',_gid=0,lastUpdate=0,curTheme='',lastInsight=0,_refreshTimer=null,_suppressClick=false,_online=false;
@@ -1978,6 +1984,7 @@ var ZK_SER={t:{lab:'Temperatur',kort:'Temp',u:'°C',col:'warm',dec:1},h:{lab:'Lu
   m:{lab:'Medel inne',kort:'Medel',u:'°C',col:'warm',dec:1},k:{lab:'Kök',kort:'Kök',u:'°C',col:'gold',dec:1}};
 var _zkSer={};      /* vald serie i grafen per rum – 't', 'h' eller 'c' */
 var _zkVald=null;   /* lampan vars ljusreglage visas under korten i rumsrutans popup */
+var _zkMeny=null,_zkDoldaOppen=false;   /* v876: hålltryckets kort och om de dolda visas */
 /* Tydlig dygnsgraf: ytfyllnad + linje, med dygnets högsta och lägsta tydligt markerade
    och en punkt för nuläget. offset 0=idag, 1=imorgon. */
 /* ===== timpriser från Tibber =====
@@ -2137,6 +2144,15 @@ var _brvUtkast=null;
 var BRV_LOD={upwards:-40,mid_high:-19,middle:2,mid_low:23,downwards:44};
 var BRV_SID={leftwards:-52,center_left:-26,center:0,center_right:26,rightwards:52};
 var BRV_MODE_IC={off:'power',heat:'flame',cool:'snowflake',dry:'drop',fan:'fan',auto:'sparkle'};
+/* v876: AC-ENHETERNA. Samma fjärrkontroll (brvPopHTML) för båda; det som skiljer
+   är förmågornas namn, snabbvalen och om spjällen finns. Kortet i rummets
+   popup visar läget och öppnar fjärrkontrollen (openAc). */
+var AC_VARD='bb91b4f9-0681-434c-95eb-80d32a0f1bd2';   /* AC Vardagsrum (Aermec, IR) */
+var AC_ENH={};
+AC_ENH[DEV.attefall]={namn:'Breveden',zk:'breveden',lage:'thermostat_mode',flakt:'fan_speed',snabb:BRV_SNABB,spjall:true,hist:'t_breveden',skript:true};
+AC_ENH[AC_VARD]={namn:'Vardagsrum',zk:'vardagsrum',lage:'aermec_mode',flakt:'aermec_fan',status:'aermec_status',hist:'t_vard',
+  snabb:[{k:'kyla',lbl:'Kyla',ic:'snowflake',lage:'cool'},{k:'varme',lbl:'Värme',ic:'flame',lage:'heat'},{k:'av',lbl:'Stäng av',ic:'power',av:true}]};
+var _acId=null;
 var BRV_VAR='9a2ac08e-b68b-45ea-bbf7-a10e7c00ac41';
 var BRV_FLOW_PA='063fb9f7-37e9-41c0-a114-eba03f1914a1';
 var BRV_FLOW_AV='435b6694-67c4-4b5c-a7e6-1b796ffa0dd4';
@@ -2616,7 +2632,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v875';
+const APP_VERSION='v876';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -2788,6 +2804,7 @@ const DEMO={
 "d6e3c81b-e500-4124-a068-16d8bda43a9e":{name:"Pooltemp",class:"sensor",zone:"3efd5258-2221-49c2-aa98-e22e8ac8425d",capabilitiesObj:{"measure_temperature":{value:28}}},
 "e202369e-2016-4a28-b012-b75215450ff4":{name:"Regnm\u00e4tare",class:"sensor",zone:"a72f1f69-29a1-4ea7-9bc2-0ba940dc5274",capabilitiesObj:{"measure_rain":{value:0},"measure_rain.1h":{value:0},"measure_rain.24h":{value:0},"measure_battery":{value:70}}},
 "e6c96e95-05ec-48ca-a92a-e29b22cd0014":{name:"Tv i Vardagsrum",class:"tv",zone:"9eb2975d-49ea-4033-8db0-105a3e982117",capabilitiesObj:{"onoff":{value:false},"volume_set":{value:0.2},"volume_mute":{value:false}}},
+"bb91b4f9-0681-434c-95eb-80d32a0f1bd2":{name:"AC Vardagsrum",class:"thermostat",zone:"9eb2975d-49ea-4033-8db0-105a3e982117",capabilitiesObj:{"onoff":{value:true},"target_temperature":{value:21,type:"number",min:16,max:30,step:1},"aermec_mode":{value:"heat",type:"enum",values:[{id:"cool",title:"Kyla"},{id:"heat",title:"Värme"},{id:"dry",title:"Avfuktning"},{id:"fan",title:"Fläkt"},{id:"auto",title:"Auto"}]},"aermec_fan":{value:"auto",type:"enum",values:[{id:"auto",title:"Auto"},{id:"low",title:"Låg"},{id:"mid",title:"Mellan"},{id:"high",title:"Hög"}]},"aermec_status":{value:"På (Värme 21 °C, fläkt auto)"}}},
 "760b8980-64e5-4321-a03c-8f15cf7864bc":{name:"OCPP Laddbox",class:"evcharger",zone:"31ebbf87-d88a-45d7-989c-c67bd2919d8f",capabilitiesObj:{"measure_power":{value:0},"meter_power":{value:1233.79},"evcharger_charging":{value:false},"evcharger_charging_state":{value:"plugged_in"},"ocpp_status":{value:"Finishing"},"measure_temperature":{value:41}}},
 "e8a72bb3-bb7b-4022-b6f3-6981fff72bfe":{name:"Utebelysning",class:"light",zone:"04a44634-aa34-41ed-87c0-d1ab5ce4bedd",capabilitiesObj:{"onoff":{value:false},"dim":{value:0}}},
 "ec4c2247-6ce7-4c32-a7d2-959a246faabf":{name:"Snickarboden",class:"sensor",zone:"3f7e329d-97d7-4be5-83e3-94cc439b2f78",capabilitiesObj:{"measure_battery":{value:49},"measure_temperature":{value:18},"measure_humidity":{value:60.97}}},
