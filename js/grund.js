@@ -812,6 +812,7 @@ function battAutoKoll(){
     if(_battAvGjort===stampel)return;         /* redan gjort för den här dyrtimmen */
     if(_battAvBusy)return;
     _battAvBusy=true;
+    try{battKallaSkriv('auto','normal','dashboarden: priset stiger');}catch(e){}   /* v888 */
     homeyTriggerFlow('standard',BATT_FLOW_AV).then(function(){
       _battAvGjort=stampel;_battAvBusy=false;
       try{toast('Batteriet: normal drift – priset stiger '+battKl(u.dyrH*60));}catch(e){}
@@ -1064,6 +1065,7 @@ async function battStartaNu(){
   renderControls();
   var ix=battKnappIx();
   if(ix>=0)flashCtl(ix,'Startar\u2026');
+  try{battKallaSkriv('manuell','ladda');}catch(e){}   /* v888 */
   try{
     await homeyTriggerFlow('standard',BATT_FLOW_PA);
     toast('Startar laddning\u2026'+(sparaTill?' Fullt sparas till '+regelKl(sparaTill):''));
@@ -1192,6 +1194,7 @@ function battStartKollGammal(){
       battStartSatt(null);_battStartBusy=false;
       try{renderControls();}catch(e){}
     };
+    try{battKallaSkriv('auto','ladda','bokning');}catch(e){}   /* v888 */
     homeyTriggerFlow('standard',BATT_FLOW_PA).then(function(){
       klar();
       try{toast('Laddar max – inbokad start');}catch(e){}
@@ -1458,6 +1461,7 @@ async function btnTap(i){
            yttre catch, som målade knappen RÖD ett ögonblick innan väntläget
            tog över. Nu sväljs alla fel här; enhetens läge avgör, och orsaken
            hamnar i toasten. */
+        try{battKallaSkriv('manuell','normal');}catch(e4){}   /* v888 */
         try{await homeyTriggerFlow('standard',BATT_FLOW_AV);}
         catch(e2){
           var m2=(e2&&e2.message)?e2.message:'ok\u00e4nt';
