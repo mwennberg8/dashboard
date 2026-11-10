@@ -2649,7 +2649,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v888';
+const APP_VERSION='v889';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3177,7 +3177,10 @@ var HUS_FALT={
      vind, känns, lägst/högst och SMHI:s närmaste fem timmar. Tryck öppnar
      Väder-sidan; håll inne öppnar inställningarna – rutan ligger över
      äppelträdet som gjorde det förut (väggplattan har ingen meny). */
-  vader:{x:20, y:20,  w:380,h:222, typ:'vader',fn:'openVader()',hall:'openConfig()'},   /* 20 från kanterna */
+  /* v889: större (förut 380 × 222) så att talen blir mer läsbara. Högerkanten
+     440 – stenläggningen vid parkeringen börjar vid ~462; nederkanten 270 –
+     Snickarboas tak börjar vid ~345. */
+  vader:{x:20, y:20,  w:420,h:250, typ:'vader',fn:'openVader()',hall:'openConfig()'},   /* 20 från kanterna */
   bil:  {x:500,y:304, w:170,h:56,  typ:'bil',  pop:'cars', liten:true}
 };
 /* LEDNINGARNA (v839). Elnätet kommer in uppifrån utanför bilden, längs
