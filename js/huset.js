@@ -420,12 +420,17 @@ function husLjusBygg(el,svg,NS){
   lj.appendChild(ute);
   lj.appendChild(karnor);
   /* Glastaken först, så att fönstrens sken ligger ovanpå. */
+  /* v890: sken med mask (burspråket) syns bara utanför taken; med lampor följer
+     skenet just dem, annars hela rummet. */
+  var glasMask=ny('g',{mask:'url(#hus-tak-mask)'});lj.appendChild(glasMask);
   var kallor=HUS_GLASTAK.map(function(t){
     var g=ny('g',{'class':'hus-fonster'});
     g.appendChild(ny('ellipse',{cx:t.sken[0],cy:t.sken[1],rx:t.sken[2],ry:t.sken[3],fill:'url(#hus-g-r)','data-rx':t.sken[2],'data-ry':t.sken[3]}));
-    t.tak.forEach(function(r){
+    (t.tak||[]).forEach(function(r){
       g.appendChild(ny('rect',{x:r[0],y:r[1],width:r[2],height:r[3],rx:3,fill:'#ffd08a','class':'hus-glastak'}));});
-    lj.appendChild(g);return {kalla:HUS_RUM[t.rum]||{},g:g};});
+    (t.mask?glasMask:lj).appendChild(g);
+    var kalla=(t.lampor&&t.lampor.length)?{ids:t.lampor.map(function(n){return HUS_LAMPOR[n];}).filter(Boolean)}:(HUS_RUM[t.rum]||{});
+    return {kalla:kalla,g:g,styrka:t.styrka||1};});
   /* Fönstren: skenet är en kägla som vidgar sig ut från fönstret; längden
      följer dimningen (data-l skalas i husLjusRita). Rutan i väggen är fast.
      Fönster som följer hela rummet delar en grupp; fönster med egna lampor
@@ -504,14 +509,17 @@ function husLjusRita(el){
        samma sken (0,26 mot 0,34 i styrka). Nu en kurva som liknar hur en
        dimmad lampa upplevs: 1 % ≈ 0,06, 12 % ≈ 0,28, 50 % ≈ 0,66, 100 % = 1.
        Utelamporna (bara på/av) påverkas inte. */
-    var l=husKallaLjus(f.kalla),pa=l!=null,u=pa?Math.pow(Math.max(0,Math.min(1,l)),0.6):1;
-    var k=pa?0.35+0.65*u:1;
+    /* v890: lägre dimning syns mer – exponent 0,45 (förut 0,6) och längre
+       sken på låg nivå. 1 % ≈ 0,13, 12 % ≈ 0,38, 30 % ≈ 0,58, 100 % = 1. En
+       lampa på 12 % (burspråket) syntes knappt bredvid uterummets 30 %. */
+    var l=husKallaLjus(f.kalla),pa=l!=null,u=pa?Math.pow(Math.max(0,Math.min(1,l)),0.45):1;
+    var k=pa?0.45+0.55*u:1;
     /* Styrkan i inställningarna gäller fönster, glasdörrar och glastaken –
        förut inte glastaken, som därför lyste starkare än fönstren. */
     var ff=(f.kalla&&f.kalla.baraPa)?1:fs;
     if(ff>1)k*=Math.sqrt(ff);
     f.g.classList.toggle('pa',pa);
-    f.g.style.opacity=pa?String(Math.min(1,Math.max(0.06,u)*ff)):'';
+    f.g.style.opacity=pa?String(Math.min(1,Math.max(0.06,u)*ff*(f.styrka||1))):'';
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-l]'),function(c){
       c.setAttribute('transform','scale('+k.toFixed(3)+',1)');});
     Array.prototype.forEach.call(f.g.querySelectorAll('[data-rx]'),function(c){
