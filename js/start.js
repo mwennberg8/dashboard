@@ -1544,6 +1544,12 @@ var _grafTim={};
 /* v887: den korta raden (alltid synlig) och vilka grafer som har den fulla
    väljaren utfälld (pilen bredvid helskärmsknappen). */
 var GRAF_TIM_KORT=['7d',12,6,3];
+/* v888: vem som senast styrde husbatteriet (Logic-variabeln battladd_kalla,
+   {k:'manuell'|'auto', vad:'ladda'|'spara'|'normal', av, at}). Ett manuellt val
+   räknas som förbrukat när läget varit ett annat efter BATT_KALLA_SLAPP_MS –
+   registret släpar upp till ~25 min efter ett kommando. */
+var BATT_KALLA_LS='battKalla_v1',BATT_KALLA_SLUT_LS='battKallaSlut_v1';
+var BATT_KALLA_MAX_MS=36*3600000,BATT_KALLA_SLAPP_MS=30*60000;
 var _grafValUt={};
 /* ===== LÅNG HISTORIK (7d, 30d, vecka, månad) =====
    Dashboarden sparar själv ett dygn (HISTORY_HOURS), och appens serier täcker
@@ -1680,7 +1686,7 @@ var REGEL_IGN_KEY='regelIgnorera_v1';
 /* v708: laddregeln (planeraren) och all automatik för bil och batteri är
    avstängd i Homey. Förslagsraden döljs och popupen säger det. */
 var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
+var REGEL_VARS=['battladd_kalla','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 /* v751: SENAST KÄNDA BOKNINGEN SPARAS LOKALT. Utan den var _regel tom efter
    varje omladdning (ny fil, plattan som väcks) tills Logic svarat – och svarar
@@ -2643,7 +2649,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v887';
+const APP_VERSION='v888';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

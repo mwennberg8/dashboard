@@ -240,6 +240,45 @@ function regelRadStarta(){
   Promise.resolve(regelStarta()).then(function(){regelRadRita();});
 }
 
+/* ===== MANUELLT ELLER AUTO (v888) =====
+   Dashboarden skriver battladd_kalla när du själv trycker Ladda, Spara eller
+   Normal drift, och när den själv gör något automatiskt. Andra lägesbyten
+   (energistyr, bilvakten, bokningar) räknas som auto. */
+function battKallaSkriv(k,vad,av){
+  var o={k:k,vad:vad,av:av||'dashboard',at:Date.now()};
+  try{_regel=_regel||{};_regel.kalla=o;}catch(e){}
+  try{localStorage.setItem(BATT_KALLA_LS,JSON.stringify(o));}catch(e){}
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data')return;
+  try{logicList().then(function(l){return logicWrite(l,'battladd_kalla',JSON.stringify(o));}).catch(function(){});}catch(e){}
+}
+/* Lägesgrupp: ladda (även fullt efter Ladda max), spara eller normal. */
+function battKallaGrupp(lage){
+  if(lage==='ladda'||lage==='fullt')return 'ladda';
+  if(lage==='spara')return 'spara';
+  if(lage==='normal'||lage==='egen')return 'normal';
+  return null;
+}
+function battKallaSenast(){
+  var o=null;try{o=_regel&&_regel.kalla;}catch(e){}
+  if(!o){try{o=JSON.parse(localStorage.getItem(BATT_KALLA_LS)||'null');}catch(e){}}
+  return (o&&o.vad&&Number(o.at))?o:null;
+}
+/* 'manuellt', 'auto' eller '' (läget okänt). Följer också upp: har läget varit
+   ett annat än det manuella valet efter släpptiden är valet förbrukat – nästa
+   gång samma läge kommer är det inte ditt gamla tryck som gjort det. */
+function battKalla(lage){
+  var g=battKallaGrupp(lage);if(!g)return '';
+  var o=battKallaSenast(),nu=Date.now();
+  if(!o||nu-Number(o.at)>BATT_KALLA_MAX_MS)return 'auto';
+  var slut='';try{slut=localStorage.getItem(BATT_KALLA_SLUT_LS)||'';}catch(e){}
+  if(slut===String(o.at))return 'auto';
+  if(o.vad!==g){
+    if(nu-Number(o.at)>BATT_KALLA_SLAPP_MS){try{localStorage.setItem(BATT_KALLA_SLUT_LS,String(o.at));}catch(e){}}
+    return 'auto';}
+  return o.k==='manuell'?'manuellt':'auto';
+}
+function battKallaTxt(lage){var k='';try{k=battKalla(lage);}catch(e){}return k?' · '+k:'';}
+
 /* ===== "PÅ NU"-RADEN (v688) =====
    Vad som är igång, ur samma källor som rutorna och knapparna använder.
    Knappar (CONFIG.BUTTONS) som är på blir egna brickor och öppnar Hem-rutans
@@ -250,7 +289,7 @@ function paNuLista(){
   /* En bricka per sak: allt som hör till en egen ruta (pool, Breveden, disk,
      batteri, bil) räknas en gång, det mest beskrivande först — enhetens eget
      läge ("Breveden värmer") går före knappens namn ("Breveden"). */
-  var lagg=function(txt,pop,gul,varn){var nyck=(pop==='hem')?('h:'+txt):pop;if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul,varn:!!varn});};
+  var lagg=function(txt,pop,gul,varn,egen){var nyck=egen||((pop==='hem')?('h:'+txt):pop);if(!txt||sett[nyck])return;sett[nyck]=1;ut.push({txt:txt,pop:pop,gul:!!gul,varn:!!varn});};
   /* v873: BARA BOKNINGAR, BATTERIET OCH VARNINGAR. Det som bara är igång –
      poolvärme, Breveden värmer, disk pågår, bilen laddar, påslagna knappar –
      syns redan i sina rutor och i husbilden och står inte längre här. */
@@ -286,13 +325,23 @@ function paNuLista(){
     var fulltTxt=(Rb.stopp>nuB)?(' · fullt sparas till '+regelKl(Rb.stopp)):'';
     if(L0&&L0.lage==='ladda'){var avk0=null;try{avk0=battAvstangKl();}catch(e){}
       laddTill=avk0?(' till '+avk0):fulltTxt;}
-    if(laddPa&&L0&&(L0.lage==='oklart'||L0.lage==null)&&!L0.varn)lagg('Laddar max'+fulltTxt,'batt');
+    /* v888: manuellt eller auto efter varje läge. */
+    var kT=function(l){return battKallaTxt(l);};
+    if(laddPa&&L0&&(L0.lage==='oklart'||L0.lage==null)&&!L0.varn)lagg('Laddar max'+fulltTxt+kT('ladda'),'batt');
     if(L0&&L0.lage&&L0.lage!=='normal'){
       if(L0.varn)lagg((L0.lage==='spara'?'Sparar'+sparTill:'Laddar max'+laddTill)+' – men '+L0.varn,'batt',false,true);
-      else if(L0.lage==='fullt')lagg('Batteriet fullt'+(Rb.stopp>nuB?(' · sparas till '+regelKl(Rb.stopp)):''),'batt');
+      else if(L0.lage==='fullt')lagg('Batteriet fullt'+(Rb.stopp>nuB?(' · sparas till '+regelKl(Rb.stopp)):'')+kT('fullt'),'batt');
       /* v749: "oklart" med Ladda på har redan fått sin bricka ovan. */
-      else if(L0.lage==='ladda')lagg('Laddar max'+laddTill,'batt');
-      else if(L0.lage==='spara')lagg('Batteriet sparar'+sparTill,'batt');}
+      else if(L0.lage==='ladda')lagg('Laddar max'+laddTill+kT('ladda'),'batt');
+      else if(L0.lage==='spara')lagg('Batteriet sparar'+sparTill+kT('spara'),'batt');}
+    /* v888: NORMAL DRIFT – laddar eller laddar ur batteriet (över 300 W), och
+       om det är ditt val (Normal drift i dashboarden) eller automatiken. */
+    if(L0&&(L0.lage==='normal'||L0.lage==='egen')&&!L0.varn){
+      var wN=null;try{wN=battEffektNu();}catch(e){}
+      if(wN!=null&&isFinite(wN)&&Math.abs(wN)>=BATT_VARN_W){
+        var kwN=Math.abs(wN)>=1000?num(Math.abs(wN)/1000,1)+' kW':Math.round(Math.abs(wN))+' W';
+        /* Egen nyckel: en bokning framåt ("sparar från 21:00") ska synas bredvid. */
+        lagg('Batteriet '+(wN>0?'laddar ':'laddar ur ')+kwN+kT(L0.lage),'batt',false,false,'battNu');}}
     /* Bokat men inte påbörjat: före "styrs – egenförbrukning", som inte säger
        något man behöver veta. */
     /* Kort – brickan ska rymmas på en telefon. Resten står i batterirutan. */
@@ -410,7 +459,8 @@ function regelHamta(tvinga){
     var r={};
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
-    _regel={forslag:p,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
+    var kalla=null;try{kalla=JSON.parse(String(r.battladd_kalla||'')||'null');}catch(e){}
+    _regel={forslag:p,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
       stopp:Number(r.battladd_stopp)||0,lista:list,
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
       bil:String(r.energi_bil||''),
@@ -584,6 +634,7 @@ async function regelNormal(){
     if(_regel){_regel.start=0;_regel.spara=0;_regel.stopp=0;}
     try{localStorage.removeItem(BATT_START_KEY);}catch(e){}
   }catch(e){toast('Kunde inte nollställa bokningen: '+((e&&e.message)||'okänt'));return;}
+  battKallaSkriv('manuell','normal');   /* v888 */
   try{await homeyTriggerFlow('standard',BATT_FLOW_AV);toast('Normal drift');}
   catch(e){toast('Normal drift skickat – Homey svarade: '+((e&&e.message)||'okänt'));}
   setTimeout(function(){try{load();}catch(e){}},1500);
@@ -692,6 +743,7 @@ async function battSparaTryck(){
     try{localStorage.removeItem(BATT_START_KEY);}catch(e){}
   }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
   /* Direkt, så det syns nu — verkställaren skickar samma sak inom en minut. */
+  battKallaSkriv('manuell','spara');   /* v888 */
   try{await homeyTriggerFlow('standard',BATT_FLOW_SPARA);}catch(e){}
   toast('Sparar till '+regelKl(m.franMs));
   try{renderControls();}catch(e){}
