@@ -470,6 +470,7 @@ var _bilArm={k:null,t:0};
    Automatiken (sol, billiga timmar) styr sin egen ström som förut. */
 var BIL_BOKA_VAR='billadd_bokad',BIL_STROM_VAR='billadd_strom',BIL_A_MIN=6,BIL_A_MAX=16;
 var _bilStromUtk=null,_bilLokal={};
+var _bilStromUt=false;   /* v892: strömgränsen utfälld i laddrutan */
 /* v891: bokningens typ – 'pris' (Lägsta pris) stoppas av energistyr 3.10.0 när
    nästa dyra period börjar; klockslag och timer laddar tills bilen är full. */
 var BIL_TYP_VAR='billadd_typ';
@@ -2652,7 +2653,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v891';
+const APP_VERSION='v892';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

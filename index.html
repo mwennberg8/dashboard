@@ -2455,6 +2455,22 @@ body.mobile{--ds-sun:14px}
 .ladd-pop .dsec+.bl-egen{margin-top:10px}
 .ladd-pop .dsec+.brv-temp{margin-top:10px}
 .bl-rad{margin:10px 0 4px;gap:8px}
+/* v892: stoppknappen i bilens laddruta – röd/orange, full bredd, lika hög som laddvalen. */
+.bl-stopp{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  width:100%;min-height:64px;margin:10px 0 4px;padding:12px 8px;box-sizing:border-box;cursor:pointer;
+  border:1px solid var(--warm);border-radius:13px;background:rgba(208,135,112,.16);color:var(--warm);font-family:inherit}
+.bl-stopp b{font-size:14.5px;font-weight:800;line-height:1.15;color:var(--warm)}
+.bl-stopp small{font-size:11px;font-weight:650;line-height:1.25;color:var(--ink);opacity:.75}
+.bl-stopp.arm{border-color:var(--hot);background:var(--hot)}
+.bl-stopp.arm b,.bl-stopp.arm small{color:#fff;opacity:1}
+.bl-stopp:active{transform:scale(.98)}
+/* v892: infällbar del (strömgränsen) – rubriken är knappen. */
+.bl-fall{display:flex;align-items:center;justify-content:space-between;width:100%;margin:14px 0 2px;padding:12px 2px;
+  background:none;border:0;border-top:1px solid var(--line);color:var(--dim);font-family:inherit;cursor:pointer;
+  font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.bl-fall-v{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink)}
+.bl-fall-v .ic{width:15px;height:15px;color:var(--dim)}
+.bl-fall.ut+.brv-temp{margin-top:6px}
 .te-alt.arm{border-color:var(--warm);color:var(--warm-t);background:rgba(250,179,135,.18)}
 .brv-falt.bil-a{align-items:baseline}
 .brv-falt.bil-a b{font-size:24px;font-weight:800;line-height:44px;color:var(--ink)}
