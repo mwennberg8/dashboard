@@ -843,11 +843,82 @@ function notOppna(p){
     return;
   }
   renderNotiser();}
+/* ===== ENERGINS TIDSLINJE (v894) =====
+   Vad batteriet och bilen gjort och varför: dina tryck, automatiken (energistyr,
+   bilvakten, laddvakten, sparplanen) med deras skäl, bokningar, när batteriet
+   började ladda eller ladda ur, när bilen slutade ladda och varför. */
+function tlKnapp(){return '<button type="button" class="tl-knapp" onclick="tlOppna()" aria-label="Energins tidslinje">'
+  +icon('clock-counter-clockwise')+'<span>Tidslinje</span></button>';}
+function tlOppna(){_tlOppen=true;try{regelHamta(true);}catch(e){}renderNotiser();try{window.scrollTo(0,0);}catch(e){}}
+function tlStang(){_tlOppen=false;renderNotiser();}
+function tlFilterSatt(f){_tlFilter=f;renderNotiser();}
+function tlDemo(){
+  var nu=Date.now(),m=60000,h=[];
+  var e=function(min,kat,typ,txt){h.push([nu-min*m,kat,typ,txt]);};
+  e(640,'bok','auto','Sparplanen: Husbatteriet används nu i den dyra perioden och sparas sedan 21:00–15:00 till nästa.');
+  e(420,'bil','manuell','Du: Ladda nu (bilen)');e(418,'bil','info','Bilen började ladda (6,9 kW) – manuellt');
+  e(417,'batt','auto','Bilvakten: bilen laddar 6900 W och batteriet laddar ur – spara, försök 1');
+  e(410,'batt','info','Batteriet vilar · efter: bilen laddar 6900 W och batteriet laddar ur – spara, försök 1');
+  e(300,'bil','varn','Säkringsvakten: strömmen sänkt till 10 A');
+  e(240,'bil','info','Bilen slutade ladda – troligen full, eller stoppad i bilen eller appen');
+  e(229,'batt','auto','Bilvakten: bilen har slutat ladda – normal drift');
+  e(227,'batt','info','Batteriet laddar ur (2,3 kW) · efter: bilen har slutat ladda – normal drift');
+  e(95,'batt','manuell','Du: Spara (dashboarden)');e(93,'batt','info','Batteriet vilar · efter: Spara (dashboarden)');
+  e(30,'bil','manuell','Du: bilen bokad 02:00 (lägsta pris – stoppas när det blir dyrt)');
+  return {v:1,at:nu,h:h};
+}
+function tlData(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data')return tlDemo();
+  return (_regel&&_regel.tl)||null;
+}
+var TL_KAT={batt:['Batteri','battery-charging'],bil:['Bil','car-profile'],bok:['Bokningar','calendar'],sys:['System','lightning']};
+var TL_TYP={manuell:['Du','user','var(--blue)'],auto:['Auto','robot','var(--gold)'],varn:['Varning','warning','var(--hot)'],info:['','','var(--faint)']};
+function tlHTML(){
+  var D=tlData(),alla=(D&&Array.isArray(D.h))?D.h.slice():[];
+  alla.sort(function(a,b){return b[0]-a[0];});
+  var lista=alla.filter(function(x){return _tlFilter==='alla'||x[1]===_tlFilter||(_tlFilter==='batt'&&x[1]==='sys');});
+  var info='<p style="margin:0 0 8px">Vad husbatteriet och bilen har gjort de senaste två dygnen, och varför. '
+    +'<b>Du</b> är det du själv startat eller bokat i dashboarden. <b>Auto</b> är automatiken – energistyrningen, '
+    +'bilvakten, laddvakten och sparplanen – med det skäl den själv angav. Grå rader är det som faktiskt hände: '
+    +'när batteriet började ladda, ladda ur eller vila (två minuter i rad), växelriktarens läge och när bilen började '
+    +'eller slutade ladda. Står det "efter:" är det senaste kommandot inom en kvart – den troliga orsaken.</p>'
+    +'<p style="margin:0">Skriptet "Energi · tidslinje" i Homey läser varje minut och styr ingenting. Det som hände '
+    +'innan det startade (11 nov) finns inte med.</p>';
+  var h='<section class="panel"><div class="tl-topp"><button type="button" class="tl-tillbaka" onclick="tlStang()">'
+    +icon('caret-left')+'<span>Notiser</span></button></div>'
+    +cmpHeadHtml('Tidslinje',alla.length?(alla.length+' händelser'):null,info);
+  h+='<div class="tl-filter">'+[['alla','Allt'],['batt','Batteri'],['bil','Bil'],['bok','Bokningar']].map(function(f){
+    return '<button type="button" class="'+(_tlFilter===f[0]?'on':'')+'" onclick="tlFilterSatt(\''+f[0]+'\')">'+f[1]+'</button>';}).join('')+'</div>';
+  if(!lista.length){
+    h+='<div class="tl-tom">'+(D?'Inget har hänt här ännu.':'Tidslinjen hämtas från Homey… Fylls på av skriptet "Energi · tidslinje".')+'</div>';
+    return h+'</section>';
+  }
+  var dagTxt=function(ms){var d=new Date(ms),i=new Date(),g=new Date(Date.now()-86400000);
+    if(d.toDateString()===i.toDateString())return 'Idag';if(d.toDateString()===g.toDateString())return 'Igår';
+    return d.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long'});};
+  var dag='';
+  lista.forEach(function(x){
+    var dt=dagTxt(x[0]);if(dt!==dag){h+='<div class="tl-dag">'+esc(dt)+'</div>';dag=dt;}
+    var typ=TL_TYP[x[2]]||TL_TYP.info,kat=TL_KAT[x[1]]||TL_KAT.sys;
+    var ic=typ[1]||kat[1];
+    var txt=String(x[3]||''),kalla='';
+    var mk=txt.match(/^(Du|Energistyrningen|Bilvakten|Laddvakten|Sparplanen|Dashboarden|Säkringsvakten|Styrningen):\s*/);
+    if(mk){kalla=mk[1];txt=txt.slice(mk[0].length);}
+    var efter='',ei=txt.indexOf(' · efter: ');if(ei>0){efter=txt.slice(ei+10);txt=txt.slice(0,ei);}
+    h+='<div class="tl-rad tl-'+esc(x[2])+'"><span class="tl-kl">'+battKlAv(x[0])+'</span>'
+      +'<span class="tl-ic" style="color:'+typ[2]+'">'+icon(ic)+'</span>'
+      +'<span class="tl-t">'+(kalla?'<b>'+esc(kalla)+'</b> ':'')+esc(kalla?txt:(txt.charAt(0).toUpperCase()+txt.slice(1)))
+      +(efter?'<small>efter: '+esc(efter)+'</small>':'')+'</span>'
+      +(typ[0]?'<span class="tl-tag" style="color:'+typ[2]+';border-color:'+typ[2]+'">'+typ[0]+'</span>':'')+'</div>';
+  });
+  return h+'</section>';
+}
 function notTillbaka(){_notOppen=null;renderNotiser();try{krNotisUppdatera();}catch(e){}}
 
 function renderNotiser(){
   var el=$('not-body');if(!el)return;
   _diN=0;
+  if(_tlOppen){el.innerHTML=tlHTML();return;}   /* v894 */
   if(_notOppen){el.innerHTML=notDetaljHTML(_notOppen);return;}
   el.innerHTML=notListaHTML();
   try{notSvep();}catch(e){}}
@@ -858,7 +929,7 @@ function notVisaNy(){return !IS_SAMSUNG_TABLET;}
 function notListaHTML(){
   var l=notLista();
   if(!notVisaNy())l=l.map(function(x){var y={};for(var k in x)y[k]=x[k];y.ny=false;return y;});
-  var h='<section class="panel">'+cmpHeadHtml('Notiser',
+  var h='<section class="panel">'+tlKnapp()+cmpHeadHtml('Notiser',
     l.length?(l.length+' st'):null,
     '<p style="margin:0 0 8px">Här samlas det som skrivits om huset. Just nu bara '
     +'månads- och årssammanfattningar; fler slag kan tillkomma.</p>'

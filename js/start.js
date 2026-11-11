@@ -19,6 +19,9 @@ const ICONS={
   /* Fjarrkontrollens egna symboler. Unicode-tecknen dog: telefonen ritade dem
      som emoji, sa pausknappen blev en orange fyrkant medan resten var tunna
      streck. Egna banor ger samma streckvikt som ovriga ikoner. */
+  /* v894: tidslinjen – du (manuellt) och bokningar. Phosphor user / calendar-blank. */
+  'user':'<path d="M230.92,212c-15.23-26.33-38.7-45.21-66.09-54.16a72,72,0,1,0-73.66,0C63.78,166.78,40.31,185.66,25.08,212a8,8,0,1,0,13.85,8c18.84-32.56,52.14-52,89.07-52s70.23,19.44,89.07,52a8,8,0,1,0,13.85-8ZM72,96a56,56,0,1,1,56,56A56.06,56.06,0,0,1,72,96Z"/>',
+  'calendar':'<path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/>',
   'caret-up':'<polyline points="208 160 128 80 48 160" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>',
   'caret-down':'<polyline points="48 96 128 176 208 96" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>',
   'caret-left':'<polyline points="160 208 80 128 160 48" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="20"/>',
@@ -470,7 +473,10 @@ var _bilArm={k:null,t:0};
    Automatiken (sol, billiga timmar) styr sin egen ström som förut. */
 var BIL_BOKA_VAR='billadd_bokad',BIL_STROM_VAR='billadd_strom',BIL_A_MIN=6,BIL_A_MAX=16;
 var _bilStromUtk=null,_bilLokal={};
-var _bilStromUt=false;   /* v892: strömgränsen utfälld i laddrutan */
+var _bilStromUt=false;
+/* v894: ENERGINS TIDSLINJE (Notiser → knappen uppe till höger). Läses ur
+   Logic-variabeln energi_tidslinje, som skriptet "Energi · tidslinje" skriver. */
+var _tlOppen=false,_tlFilter='alla';   /* v892: strömgränsen utfälld i laddrutan */
 /* v891: bokningens typ – 'pris' (Lägsta pris) stoppas av energistyr 3.10.0 när
    nästa dyra period börjar; klockslag och timer laddar tills bilen är full. */
 var BIL_TYP_VAR='billadd_typ';
@@ -1684,7 +1690,7 @@ var REGEL_IGN_KEY='regelIgnorera_v1';
 /* v708: laddregeln (planeraren) och all automatik för bil och batteri är
    avstängd i Homey. Förslagsraden döljs och popupen säger det. */
 var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
+var REGEL_VARS=['energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 /* v751: SENAST KÄNDA BOKNINGEN SPARAS LOKALT. Utan den var _regel tom efter
    varje omladdning (ny fil, plattan som väcks) tills Logic svarat – och svarar
@@ -2647,7 +2653,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v893';
+const APP_VERSION='v894';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
