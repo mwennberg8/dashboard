@@ -460,7 +460,8 @@ function regelHamta(tvinga){
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
     var kalla=null;try{kalla=JSON.parse(String(r.battladd_kalla||'')||'null');}catch(e){}
-    _regel={forslag:p,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
+    var tl=null;try{tl=JSON.parse(String(r.energi_tidslinje||'')||'null');}catch(e){}   /* v894 */
+    _regel={forslag:p,tl:(tl&&Array.isArray(tl.h))?tl:null,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
       stopp:Number(r.battladd_stopp)||0,lista:list,
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
       bil:String(r.energi_bil||''),
@@ -476,6 +477,7 @@ function regelHamta(tvinga){
     try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
       if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
     if(_dlgWhich==='cars'||_dlgWhich==='billadd'){try{bilStyrOm();}catch(e){}}
+    try{var vn=document.getElementById('view-notiser');if(_tlOppen&&vn&&!vn.classList.contains('hidden'))renderNotiser();}catch(e){}   /* v894 */
     try{regelRadRita();}catch(e){}
     /* v751: På nu ritas om direkt när bokningarna kommit, inte först vid nästa
        uppdatering 15 s senare. */

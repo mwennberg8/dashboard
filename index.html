@@ -3890,6 +3890,30 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
   background:var(--gold);box-shadow:0 0 0 2px var(--panel-a)}
 /* Väderkortet i husbilden (v855, omgjort – ingen färgkant). v889: rutan och
    allt i den ca 10 % större. */
+/* v894: ENERGINS TIDSLINJE i notisvyn. */
+#view-notiser .panel{position:relative}
+.tl-knapp{position:absolute;top:8px;right:12px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
+  border:1px solid var(--line);border-radius:11px;background:var(--inset);color:var(--ink);font:inherit;font-size:12.5px;font-weight:750;cursor:pointer}
+.tl-knapp .ic{width:16px;height:16px;color:var(--gold)}
+.tl-knapp:active{transform:scale(.96)}
+.tl-topp{display:flex;margin:-2px 0 6px}
+.tl-tillbaka{display:inline-flex;align-items:center;gap:4px;padding:6px 10px 6px 6px;border:1px solid var(--line);border-radius:11px;
+  background:var(--inset);color:var(--ink);font:inherit;font-size:12.5px;font-weight:750;cursor:pointer}
+.tl-tillbaka .ic{width:15px;height:15px}
+.tl-filter{display:flex;gap:6px;margin:2px 0 10px;flex-wrap:wrap}
+.tl-filter button{flex:1 1 0;min-width:0;padding:8px 4px;border-radius:20px;border:1px solid var(--line);background:var(--inset);
+  color:var(--dim);font:inherit;font-size:12.5px;font-weight:750;cursor:pointer;white-space:nowrap}
+.tl-filter button.on{border-color:var(--blue);color:var(--ink);box-shadow:inset 0 0 0 1px var(--blue)}
+.tl-dag{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:12px 0 6px;border-bottom:1px solid var(--line)}
+.tl-rad{display:grid;grid-template-columns:42px 22px minmax(0,1fr) auto;gap:8px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line-soft,var(--line))}
+.tl-kl{font-size:12.5px;font-weight:750;color:var(--dim);font-variant-numeric:tabular-nums;padding-top:1px}
+.tl-ic{display:inline-flex;width:18px;height:18px;margin-top:1px}.tl-ic .ic,.tl-ic svg{width:18px;height:18px}
+.tl-t{font-size:13.5px;line-height:1.35;color:var(--ink);min-width:0;overflow-wrap:anywhere}
+.tl-t b{font-weight:800}
+.tl-info .tl-t{color:var(--dim)}
+.tl-t small{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
+.tl-tag{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid;border-radius:8px;padding:2px 6px;margin-top:1px;white-space:nowrap}
+.tl-tom{padding:22px 4px;text-align:center;color:var(--faint);font-size:13px}
 .hus-falt.hus-vader{padding:1.65cqw 2.2cqw 1.45cqw;gap:1cqw;border-radius:3.2cqw;justify-content:center;align-items:stretch;text-align:left}
 .hus-falt.hus-vader::before{display:none}
 .hv2-topp{display:grid;grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr);column-gap:1.4cqw;align-items:center}
