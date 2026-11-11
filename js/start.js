@@ -581,17 +581,11 @@ var BATT_START_GLOM=6*60*60*1000;
 var BATT_BILLIG_FRAC=0.25;
 /* v719: SAMMA VÄLJARE FÖR HUSBATTERIET OCH BILEN. _blMal säger vilken av dem
    rutan styr ('batt' eller 'bil'); den sätts när rutan öppnas. Tidsväljarens
-   läge (_blTid, _blTimer, _blLage) delas – man ställer en tid i taget. */
+   starttid (_blStart, v893) delas – man ställer en tid i taget. */
 var _blMal='batt';
-/* Vald tid i väljaren, som minuter efter midnatt. Börjar på en jämn kvart en
-   timme fram — samma utgångspunkt som förslaget hade förut. */
-var _blTid=null;
-/* Timerns fördröjning i minuter. Trettiominuterssteg — finare än så blir det
-   pillrigt på en pekskärm, och grövre gör den oanvändbar för "om en halvtimme". */
-var _blTimer=null;
-var BL_TIMER_STEG=30, BL_TIMER_MAX=12*60;
-/* Vilket av de två som bokas. Sätts av den man senast rörde. */
-var _blLage='klocka';
+/* v893: vald starttid på tidslinjen (ms) – börjar på en jämn kvart en timme
+   fram – och om fingret drar i den just nu. */
+var _blStart=null,_blDrar=false;
 /* ===== VÄNTELÄGE =====
    Mellan trycket och att batteriet faktiskt gått över tar det några sekunder:
    flödet ska köras i Homey, modbus ska skriva och nästa hämtning ska läsa
@@ -2653,7 +2647,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v892';
+const APP_VERSION='v893';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

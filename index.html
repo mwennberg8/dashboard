@@ -2372,6 +2372,31 @@ body.tabprev.cmp-open{overflow:auto}
   border-radius:9px;cursor:pointer;padding:0}
 .bl-pil:active{border-color:var(--ok);color:var(--ok)}
 .bl-pil .ic{width:14px;height:14px}
+/* v893: TIDSLINJEN – starttid med elpriset per timme som staplar. */
+.bl-tl-lab{display:flex;align-items:center;gap:8px;margin:4px 0 10px}
+.bl-tl-st{flex:1;text-align:center;min-width:0}
+.bl-tl-st b{display:block;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.05;font-variant-numeric:tabular-nums}
+.bl-tl-st small{font-size:12px;color:var(--dim);font-weight:650;white-space:nowrap}
+.bl-knuff{flex:0 0 auto;width:46px;height:46px;border-radius:12px;border:1px solid var(--line);background:var(--inset);
+  color:var(--dim);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;padding:0}
+.bl-knuff:active{border-color:var(--ok);color:var(--ok)}
+.bl-tl{position:relative;height:128px;background:var(--inset);border:1px solid var(--line);border-radius:16px;
+  padding:24px 10px 22px;touch-action:none;cursor:pointer;user-select:none;-webkit-user-select:none}
+.bl-tl-plot{position:relative;height:100%}
+.bl-tl-plot i{position:absolute;bottom:0;width:calc(100%/24 - 2px);margin-left:1px;border-radius:3px 3px 1px 1px;opacity:.85}
+.bl-tl-nu{position:absolute;top:-6px;bottom:0;width:2px;margin-left:-1px;background:var(--faint);opacity:.6}
+.bl-tl-lagst{position:absolute;top:-20px;transform:translateX(-50%);font-size:10px;font-weight:800;color:var(--ok);white-space:nowrap}
+.bl-tl-h{position:absolute;top:-4px;bottom:-2px;width:3px;margin-left:-1.5px;background:var(--ink);border-radius:2px;
+  box-shadow:0 0 0 3px rgba(236,239,244,.15);pointer-events:none}
+.bl-tl-h::after{content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;
+  background:var(--ink);box-shadow:0 0 0 4px rgba(163,190,140,.55)}
+.bl-tl-ax{position:absolute;left:10px;right:10px;bottom:4px;height:13px}
+.bl-tl-ax span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:700;color:var(--faint)}
+.bl-tl-ax span:first-child{transform:none}.bl-tl-ax span:last-child{transform:translateX(-100%)}
+.bl-boka.bl-boka-stor{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;
+  min-height:58px;margin:12px 0 4px;border-radius:14px;background:rgba(163,190,140,.14)}
+.bl-boka-stor b{font-size:15.5px;font-weight:800;color:var(--ok)}
+.bl-boka-stor small{font-size:11.5px;font-weight:650;color:var(--dim)}
 .bl-boka{min-width:140px;padding:10px 18px;border:1px solid var(--ok);
   background:var(--inset);color:var(--ok);border-radius:11px;cursor:pointer;
   font-family:inherit;font-size:13.5px;font-weight:800}

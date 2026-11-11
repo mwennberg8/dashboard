@@ -957,86 +957,90 @@ function laddValHTML(laddarNu){
       +'<b>L\u00e4gsta pris</b>'
       +'<small>ingen billig timme fram\u00e5t</small></button>';
   }
-  /* Fasta val som fungerar även utan prisdata. */
-  [[1,'Om 1 timme'],[3,'Om 3 timmar']].forEach(function(x){
-    var t3=Date.now()+x[0]*3600000;
-    h+='<button class="bl-b" onclick="blValt(this,\'boka\','+t3+')">'
-      +'<b>'+x[1]+'</b><small>'+battKlAv(t3)+'</small></button>';
-  });
   h+='</div>';
-  /* EGEN TID: KLOCKSLAG ELLER TIMER, sida vid sida i samma stil.
-     Klockslag när man vet NÄR, timer när man vet OM HUR LÄNGE — båda är
-     naturliga och det ena går inte att räkna om i huvudet till det andra i
-     farten. Den man senast rörde är den som bokas, och bokaknappen skriver ut
-     vilket det blir, så valet aldrig är otydligt.
-     <input type="time"> är fortfarande uteslutet: den öppnar Androids egen
-     klockruta ovanpå popupen. */
-  h+='<div class="dsec">Egen tid</div>'
-    +'<div class="bl-egen">'
-    +'<div class="bl-par">'
-    +'<div class="bl-blk'+(_blLage==='klocka'?' vald':'')+'" onclick="blLageSatt(\'klocka\')">'
-      +'<div class="bl-blk-h">Klockslag</div>'
-      +'<div class="bl-ur">'+blStapel('t',2)+'<span class="bl-kolon">:</span>'+blStapel('m',2)+'</div>'
-    +'</div>'
-    +'<div class="bl-blk'+(_blLage==='timer'?' vald':'')+'" onclick="blLageSatt(\'timer\')">'
-      +'<div class="bl-blk-h">Timer</div>'
-      +'<div class="bl-ur">'+blStapel('th',1)+'<span class="bl-kolon">:</span>'+blStapel('tm',2)+'</div>'
-    +'</div>'
-    +'</div>'
-    +'<button class="bl-boka" onclick="blValt(this,\'egen\')">'+esc(blBokaText())+'</button>'
-    +'</div>';
-  return h;
+  /* v893: EGEN TID PÅ EN TIDSLINJE MED PRISET (förslag B). Klockslag och
+     timer blev samma sak: tiden och hur länge dit står ovanför linjen, och
+     staplarna visar vad varje timme kostar. "Om 1 timme" och "Om 3 timmar"
+     är borta. */
+  return h+blTidslinjeHTML();
 }
-function blTid(){
-  if(_blTid==null){
-    var d=new Date(Date.now()+3600000);
-    _blTid=(d.getHours()*60+Math.round(d.getMinutes()/15)*15)%1440;
-  }
-  return _blTid;
+/* ===== TIDSLINJEN (v893) =====
+   Nästa dygn från innevarande hel timme, i kvartar. Vald tid = _blStart (ms),
+   minst en kvart fram. Dra/tryck flyttar markören utan att rutan ritas om, så
+   det följer fingret; −15/+15 finjusterar. */
+function blStartMs(){
+  var nu=Date.now(),min=Math.ceil((nu+15*60000)/900000)*900000,F=blFonster();
+  if(!_blStart||_blStart<min){_blStart=Math.round((nu+3600000)/900000)*900000;if(_blStart<min)_blStart=min;}
+  if(_blStart>F.t1)_blStart=F.t1;
+  return _blStart;
 }
-function blTimer(){if(_blTimer==null)_blTimer=60;return _blTimer;}
-function blLageSatt(v){if(v!=='klocka'&&v!=='timer')return;_blLage=v;battLaddOm();}
-function blBokaText(){
-  if(_blLage==='timer'){
-    var m=blTimer();
-    return 'Boka om '+(m>=60?(Math.floor(m/60)+' h'+(m%60?' '+(m%60)+' min':'')):(m+' min'));
-  }
-  return 'Boka '+battKl(blTid());
+function blFonster(){var nu=Date.now(),t0=Math.floor(nu/3600000)*3600000;return {t0:t0,t1:t0+24*3600000,nu:nu};}
+/* Timpriser (kr) per timmes start (ms), idag och imorgon. Kvartar slås ihop. */
+function blPrisTim(){
+  var ut={},n={};
+  /* Samma skala som priskurvan och Lägsta pris-knappen: genom prisKalibrera(). */
+  [0,1].forEach(function(off){var pts=null;try{pts=prisKalibrera(prisDygn(off),off);}catch(e){}if(!pts)return;
+    pts.forEach(function(p){if(!(p[0]<24)||!isFinite(p[1]))return;var t=battTidTill(off,Math.floor(p[0]));
+      ut[t]=(ut[t]||0)+p[1];n[t]=(n[t]||0)+1;});});
+  Object.keys(ut).forEach(function(k){ut[k]=ut[k]/n[k];});
+  return ut;
 }
-function blStapel(vad,siffror){
-  var tal;
-  if(vad==='t')tal=Math.floor(blTid()/60);
-  else if(vad==='m')tal=blTid()%60;
-  else if(vad==='th')tal=Math.floor(blTimer()/60);
-  else tal=blTimer()%60;
-  var txt=String(tal);while(txt.length<siffror)txt='0'+txt;
-  return '<div class="bl-kol">'
-    +'<button class="bl-pil" onclick="blJust(\''+vad+'\',1)" aria-label="upp">'+icon('caret-up')+'</button>'
-    +'<span class="bl-num">'+txt+'</span>'
-    +'<button class="bl-pil" onclick="blJust(\''+vad+'\',-1)" aria-label="ner">'+icon('caret-down')+'</button>'
-    +'</div>';
+function blOmTxt(ms){var m=Math.max(0,Math.round((ms-Date.now())/60000)),h=Math.floor(m/60);m=m%60;
+  return 'om '+(h?h+' h'+(m?' '+m+' min':''):m+' min');}
+function blTidslinjeHTML(){
+  var F=blFonster(),P=blPrisTim(),ms=blStartMs(),H=3600000,bars='',v=[],lagst=null;
+  for(var i=0;i<24;i++){var t=F.t0+i*H;if(P[t]!=null){v.push(P[t]);if(t+H>F.nu&&(!lagst||P[t]<lagst.kr))lagst={t:t,kr:P[t]};}}
+  var lo=v.length?Math.min.apply(null,v):0,hi=v.length?Math.max.apply(null,v):1,sp=(hi-lo)||1;
+  for(var j=0;j<24;j++){var t1=F.t0+j*H,kr=P[t1],f=(kr!=null)?(kr-lo)/sp:null;
+    bars+='<i style="left:'+(j/24*100).toFixed(3)+'%;height:'+(kr!=null?(16+84*f).toFixed(1):30)+'%;background:'
+      +(kr!=null?priceColor(f):'var(--faint)')+(kr==null?';opacity:.35':'')+'"></i>';}
+  var ax='';for(var k=0;k<=24;k+=3){var d=new Date(F.t0+k*H);
+    ax+='<span style="left:'+(k/24*100).toFixed(3)+'%">'+('0'+d.getHours()).slice(-2)+'</span>';}
+  var pct=function(t){return ((t-F.t0)/(24*H)*100).toFixed(3)+'%';};
+  var info='Dra eller tryck på tidslinjen för att välja när laddningen ska starta – nästa dygn, i kvartar. '
+    +'−15 och +15 finjusterar. Staplarna är elpriset per timme: grönt är billigt, rött dyrt, och ▼ lägst '
+    +'markerar den billigaste timmen. Saknas priser blir staplarna grå. '
+    +(_blMal==='bil'?'En egen tid laddar bilen tills den är full; Lägsta pris stoppas när nästa dyra period börjar.'
+                    :'En egen tid startar Ladda max på husbatteriet vid den tiden.');
+  return '<div class="dsec">Egen tid'+infoBlock('egentid',esc(info))+'</div>'
+    +'<div class="bl-tl-lab"><button type="button" class="bl-knuff" onclick="blTlKnuff(-15)" aria-label="15 minuter tidigare">\u221215</button>'
+    +'<div class="bl-tl-st"><b id="bl-tl-kl">'+battKlAv(ms)+'</b><small id="bl-tl-sub">'+esc(blTlSub(ms,P))+'</small></div>'
+    +'<button type="button" class="bl-knuff" onclick="blTlKnuff(15)" aria-label="15 minuter senare">+15</button></div>'
+    +'<div class="bl-tl" id="bl-tl" onpointerdown="blTlNer(event)" onpointermove="blTlDra(event)" onpointerup="blTlUpp(event)" onpointercancel="blTlUpp(event)">'
+    +'<div class="bl-tl-plot" id="bl-tl-plot">'+bars
+    +'<span class="bl-tl-nu" style="left:'+pct(F.nu)+'"></span>'
+    +(lagst?'<span class="bl-tl-lagst" style="left:'+pct(lagst.t+H/2)+'">\u25bc lägst</span>':'')
+    +'<span class="bl-tl-h" id="bl-tl-h" style="left:'+pct(ms)+'"></span></div>'
+    +'<div class="bl-tl-ax">'+ax+'</div></div>'
+    +'<button type="button" class="bl-boka bl-boka-stor" id="bl-boka" onclick="blValt(this,\'egen\')"><b id="bl-boka-t">Boka '+battKlAv(ms)+'</b>'
+    +'<small>'+(_blMal==='bil'?'laddar tills bilen är full':'startar Ladda max på husbatteriet')+'</small></button>';
 }
-/* Timmar i timsteg, minuter i kvartssteg. Båda wrappar var för sig — att
-   minuterna drar med sig timmen när de slår runt är förvirrande när man bara
-   vill peta på kvarten. */
-function blJust(vad,rikt){
-  if(vad==='th'||vad==='tm'){
-    /* Timern: timsteg respektive halvtimmessteg, klämd mellan en halvtimme och
-       tolv timmar. Ingen wrap — att en fördröjning slår runt till noll är inte
-       vad någon menar med "en timme till". */
-    var tv=blTimer();
-    tv+=(vad==='th')?rikt*60:rikt*BL_TIMER_STEG;
-    _blTimer=Math.max(BL_TIMER_STEG,Math.min(BL_TIMER_MAX,tv));
-    _blLage='timer';
-    battLaddOm();
-    return;
-  }
-  var v=blTid(), t=Math.floor(v/60), m=v%60;
-  if(vad==='t')t=((t+rikt)%24+24)%24;
-  else m=((m+rikt*15)%60+60)%60;
-  _blTid=t*60+m;
-  _blLage='klocka';
-  battLaddOm();
+function blTlSub(ms,P){
+  var t=Math.floor(ms/3600000)*3600000,kr=(P||blPrisTim())[t],d=new Date(ms),i=new Date();
+  var dag=(d.getDate()!==i.getDate());
+  return (dag?'imorgon \u00b7 ':'')+blOmTxt(ms)+(kr!=null?' \u00b7 '+Math.round(kr*100)+' öre':'');
+}
+/* Ritar bara om markören och texterna – fingret ska inte tappa linjen. */
+function blTlVisa(){
+  var ms=blStartMs(),F=blFonster();
+  var h=$('bl-tl-h');if(h)h.style.left=((ms-F.t0)/(24*3600000)*100).toFixed(3)+'%';
+  var k=$('bl-tl-kl');if(k)k.textContent=battKlAv(ms);
+  var s=$('bl-tl-sub');if(s)s.textContent=blTlSub(ms);
+  var b=$('bl-boka-t');if(b)b.textContent='Boka '+battKlAv(ms);
+}
+function blTlTill(e){
+  var p=$('bl-tl-plot');if(!p)return;var r=p.getBoundingClientRect();if(!r.width)return;
+  var F=blFonster(),f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  var min=Math.ceil((Date.now()+15*60000)/900000)*900000;
+  _blStart=Math.max(min,Math.min(F.t1,Math.round((F.t0+f*24*3600000)/900000)*900000));
+  blTlVisa();
+}
+function blTlNer(e){_blDrar=true;try{e.currentTarget.setPointerCapture(e.pointerId);}catch(x){}blTlTill(e);}
+function blTlDra(e){if(_blDrar)blTlTill(e);}
+function blTlUpp(e){_blDrar=false;}
+function blTlKnuff(min){
+  var F=blFonster(),lo=Math.ceil((Date.now()+15*60000)/900000)*900000;
+  _blStart=Math.max(lo,Math.min(F.t1,blStartMs()+min*60000));blTlVisa();
 }
 /* KVITTERA OCH STÄNG DIREKT. Kvittensen sätts på knappen och åtgärden körs i
    samma tryck — ingen fördröjning. En paus på ett par tiondelar kändes som att
@@ -1180,12 +1184,7 @@ function battBokaStart(ms){
   toast('Laddning bokad '+battKlAv(ms)+(sparaTill?' \u00b7 fullt sparas till '+regelKl(sparaTill):''));
 }
 function battAvbokaStart(){battStartSatt(null);battStoppAvboka();toast('Avbokad');renderControls();battLaddOm();}
-function blEgenMs(){
-  if(_blLage==='timer')return Date.now()+blTimer()*60000;
-  var t=dayStart()+blTid()*60000;
-  if(t<=Date.now())t+=86400000;             /* passerat idag → imorgon */
-  return t;
-}
+function blEgenMs(){return blStartMs();}   /* v893: tidslinjen */
 function battEgenTid(){battBokaStart(blEgenMs());}
 /* BEVAKNINGEN LIGGER I HOMEY sedan v666 — flödet "Batteri · inbokad start"
    kör varje minut och startar laddningen. Den här funktionen triggar därför
