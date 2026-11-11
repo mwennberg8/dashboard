@@ -495,6 +495,8 @@ function bilLaddPopHTML(){
       +(arm?'Stoppa? Tryck igen':'Stoppa laddning')+'</button></div>';
   }
   if(bk)h+='<div class="dsec">Inbokad start</div>'+dRow('Startar',bilKlText(bk))
+    /* v891: lägsta pris stoppas vid nästa dyra period, annat laddar till fullt. */
+    +dRow('Slutar',bilBokTyp()==='pris'?'när nästa dyra period börjar':'när bilen är full')
     +'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilAvboka()">Avboka</button></div>';
   return h+laddValHTML(laddar)+bilStromHTML()+'</div>';
 }
@@ -520,17 +522,26 @@ function bilKlText(ms){
   var d=new Date(ms),i=new Date();
   return battKlAv(ms)+((d.getDate()!==i.getDate()||d.getMonth()!==i.getMonth())?' imorgon':'');
 }
-async function bilBoka(ms){
+async function bilBoka(ms,typ){
   if(!(ms>Date.now())){toast('Tiden har redan passerat');return;}
+  var t=(typ==='pris')?'pris':'';
   /* v719: rutan stängs direkt, som husbatteriets. */
-  _bilLokal.bokad=ms;closeDetail();
-  try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,ms,'number');toast('Laddning bokad '+bilKlText(ms));}
-  catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
+  _bilLokal.bokad=ms;_bilLokal.typ=t;closeDetail();
+  /* v891: typen FÖRST – energistyr läser båda i samma varv, och en start som
+     hittar tiden men inte typen skulle ladda tills bilen är full. */
+  try{var L=await logicList();await logicWrite(L,BIL_TYP_VAR,t,'string');await logicWrite(L,BIL_BOKA_VAR,ms,'number');
+    toast('Laddning bokad '+bilKlText(ms)+(t?' – stoppas när det blir dyrt':''));}
+  catch(e){delete _bilLokal.bokad;delete _bilLokal.typ;bilStyrOm();toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
   try{regelHamta(true);}catch(e){}
 }
+/* v891: 'pris' när bokningen gjordes med Lägsta pris. */
+function bilBokTyp(){
+  var v=('typ' in _bilLokal)?_bilLokal.typ:((_regel&&_regel.bilTyp)||'');
+  return v==='pris'?'pris':'';
+}
 async function bilAvboka(){
-  _bilLokal.bokad=0;bilStyrOm();
-  try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,0,'number');toast('Avbokad');}
+  _bilLokal.bokad=0;_bilLokal.typ='';bilStyrOm();
+  try{var L=await logicList();await logicWrite(L,BIL_BOKA_VAR,0,'number');try{await logicWrite(L,BIL_TYP_VAR,'','string');}catch(e3){}toast('Avbokad');}
   catch(e){delete _bilLokal.bokad;bilStyrOm();toast('Kunde inte avboka: '+((e&&e.message)||'okänt'));return;}
   try{regelHamta(true);}catch(e){}
 }
@@ -548,7 +559,7 @@ function bilStromHTML(){
     +'<button class="brv-ok'+(andrat?' on':'')+'" id="bil-a-ok"'+(andrat?'':' disabled')+' onclick="bilStromOk()">OK</button></div>'
     +'<div class="brv-utkast">\u2248 '+num(kw,1)+' kW på 3 faser \u00b7 '+(v?'inställt '+v+' A':'ingen egen gräns')
     +(nuA!=null&&isFinite(nuA)?' \u00b7 laddboxen ger nu '+Math.round(nuA)+' A':'')+'</div>'
-    +'<div class="det-note">Gäller när du laddar själv eller bokat start. Sol och billiga timmar styr strömmen själva, och säkringsvakten (23 A per fas) gäller alltid.</div>'
+    +'<div class="det-note">Gäller när du laddar själv eller bokat start. Ladda nu, klockslag och timer laddar tills bilen är full; Lägsta pris stoppas när nästa dyra period börjar. Säkringsvakten (23 A per fas) gäller alltid.</div>'
     +(v?'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
 }
 function bilStromSteg(d){
@@ -930,7 +941,7 @@ function laddValHTML(laddarNu){
      som är halva rutans bredd. */
   var b=battBilligKl();
   if(b){
-    h+='<button class="bl-b bl-pris" onclick="blValt(this,\'boka\','+battTidTill(b.off,b.h)+')">'
+    h+='<button class="bl-b bl-pris" onclick="blValt(this,\'pris\','+battTidTill(b.off,b.h)+')">'
       +'<b>L\u00e4gsta pris</b>'
       +'<small>'+battKl(b.h*60)+(b.off?' imorgon':'')+' \u00b7 '+oren(b.pris)+'</small></button>';
   }else{
@@ -1026,7 +1037,7 @@ function blValt(el,vad,ms){
   try{if(el&&el.classList)el.classList.add('bl-vald');}catch(e){}
   if(_blMal==='bil'){                       /* v719: bilens laddruta */
     if(vad==='nu')bilLaddaNu();
-    else bilBoka(vad==='egen'?blEgenMs():ms);
+    else bilBoka(vad==='egen'?blEgenMs():ms,vad==='pris'?'pris':'');
     return;
   }
   if(vad==='nu')battStartaNu();

@@ -470,6 +470,9 @@ var _bilArm={k:null,t:0};
    Automatiken (sol, billiga timmar) styr sin egen ström som förut. */
 var BIL_BOKA_VAR='billadd_bokad',BIL_STROM_VAR='billadd_strom',BIL_A_MIN=6,BIL_A_MAX=16;
 var _bilStromUtk=null,_bilLokal={};
+/* v891: bokningens typ – 'pris' (Lägsta pris) stoppas av energistyr 3.10.0 när
+   nästa dyra period börjar; klockslag och timer laddar tills bilen är full. */
+var BIL_TYP_VAR='billadd_typ';
 /* ===== Vilka enheter ingar i ett mood? =====
    Homey svarar med hela mood-objektet pa /api/manager/moods/mood/. Dashboarden
    plockade tidigare bara ut id och namn och slangde resten. Nu sparas radatan och
@@ -1686,7 +1689,7 @@ var REGEL_IGN_KEY='regelIgnorera_v1';
 /* v708: laddregeln (planeraren) och all automatik för bil och batteri är
    avstängd i Homey. Förslagsraden döljs och popupen säger det. */
 var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battladd_kalla','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
+var REGEL_VARS=['battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false;
 /* v751: SENAST KÄNDA BOKNINGEN SPARAS LOKALT. Utan den var _regel tom efter
    varje omladdning (ny fil, plattan som väcks) tills Logic svarat – och svarar
@@ -2649,7 +2652,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v890';
+const APP_VERSION='v891';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

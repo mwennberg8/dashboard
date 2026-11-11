@@ -466,6 +466,7 @@ function regelHamta(tvinga){
       bil:String(r.energi_bil||''),
       /* v705: bilens bokade start (ms) och laddström (A). Verkställs av energistyr 2.3.0. */
       bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0,
+      bilTyp:String(r.billadd_typ||''),   /* v891 */
       /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
       max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max),at:Date.now()};
     try{if(_regel.max!=null)localStorage.setItem('battMax_v1',JSON.stringify({v:_regel.max,at:Date.now()}));}catch(e){}
