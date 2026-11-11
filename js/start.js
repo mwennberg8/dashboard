@@ -2653,7 +2653,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v894';
+const APP_VERSION='v895';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3231,6 +3231,11 @@ var HUS_BILAR_TRE=[
   {modell:'ex40',cx:534.5,cy:201,enhet:'car2'},
   {modell:'xc60',cx:633,cy:207.5}
 ];
+/* v895: EX40 BORTA – bildens egen målade EX40 täcks med stenläggningen
+   framför (samma bild flyttad dy nedåt, så att stenen 134 enheter längre
+   upp – där C40 står när den är hemma, och bilden bara har sten – hamnar på
+   EX40:s plats). r = [x,y,b,h] som täcks, mjuk = kantens oskärpa. */
+var HUS_EX40_LAPP={r:[502,136,66,132],dy:134,mjuk:2};
 /* v856: flödets steg per sekund på väggplattan (husFlodTakt). */
 var HUS_FLOD_FPS=6;   /* v859: 6 (förut 12) – flödet var ~70 % av plattans arbete */
 var HUS_SMATAK=[
@@ -3256,7 +3261,7 @@ var HUS_YTOR=[
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
   {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'},
   /* v844: bilarna på parkeringen öppnar bilpopupen. */
-  {pop:'cars',r:[506,140,58,124]},
+  {pop:'cars',r:[506,140,58,124],ex40:true},   /* v895: bara när EX40 är hemma */
   {pop:'cars',r:[602,145,62,126]},
   {pop:'cars',r:[506,0,58,112],c40:true},   /* v862: C40 framför EX40 – bara när den står där */
   /* Äppelträdet: håll inne för inställningarna (väggplattan har ingen meny). */

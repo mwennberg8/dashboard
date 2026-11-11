@@ -81,7 +81,7 @@ function husBygg(el){
     if(y.p)e.setAttribute('points',y.p);
     else if(y.c){e.setAttribute('cx',y.c[0]);e.setAttribute('cy',y.c[1]);e.setAttribute('r',y.c[2]);}
     else{e.setAttribute('x',y.r[0]);e.setAttribute('y',y.r[1]);e.setAttribute('width',y.r[2]);e.setAttribute('height',y.r[3]);e.setAttribute('rx',8);}
-    e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':'')+(y.c40?' hus-yta-c40':''));
+    e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':'')+(y.c40?' hus-yta-c40':'')+(y.ex40?' hus-yta-ex40':''));
     if(y.c40)e.style.display='none';   /* v862: visas av husBilarUppd när C40 står där */
     if(y.pop)e.setAttribute('onclick',"openDetail('"+y.pop+"')");
     /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
@@ -227,26 +227,45 @@ function husBilModell(namn){
 }
 function husBilarBygg(svg,NS){
   if(typeof HUS_BILAR==='undefined'||!HUS_BILAR)return;
+  /* v895: lappen över bildens målade EX40 – syns bara när EX40 inte är hemma. */
+  try{if(typeof HUS_EX40_LAPP!=='undefined'&&HUS_EX40_LAPP){var L=HUS_EX40_LAPP;
+    var defs=document.createElementNS(NS,'defs');svg.appendChild(defs);
+    var lm=document.createElementNS(NS,'mask');lm.setAttribute('id','hus-ex40-mask');lm.setAttribute('maskUnits','userSpaceOnUse');
+    lm.setAttribute('x','0');lm.setAttribute('y','0');lm.setAttribute('width','1040');lm.setAttribute('height','1120');
+    var lf=document.createElementNS(NS,'filter');lf.setAttribute('id','hus-ex40-f');lf.setAttribute('x','-20%');lf.setAttribute('y','-20%');lf.setAttribute('width','140%');lf.setAttribute('height','140%');
+    var fb=document.createElementNS(NS,'feGaussianBlur');fb.setAttribute('stdDeviation',String(L.mjuk||2));lf.appendChild(fb);defs.appendChild(lf);
+    var lr=document.createElementNS(NS,'rect');lr.setAttribute('x',L.r[0]);lr.setAttribute('y',L.r[1]);lr.setAttribute('width',L.r[2]);lr.setAttribute('height',L.r[3]);
+    lr.setAttribute('fill','#fff');lr.setAttribute('filter','url(#hus-ex40-f)');lm.appendChild(lr);defs.appendChild(lm);
+    var lg=document.createElementNS(NS,'g');lg.setAttribute('class','hus-lapp hus-ex40-lapp');lg.setAttribute('mask','url(#hus-ex40-mask)');lg.style.display='none';
+    ['natt','dag'].forEach(function(v){var im=document.createElementNS(NS,'image');
+      im.setAttribute('class','hus-lapp-'+v);im.setAttribute('x','0');im.setAttribute('y',String(L.dy||0));
+      im.setAttribute('width','1040');im.setAttribute('height','1120');im.setAttribute('preserveAspectRatio','none');lg.appendChild(im);});
+    svg.appendChild(lg);try{husLappBild();}catch(e){}}}catch(e){}
   var g=document.createElementNS(NS,'g');g.setAttribute('class','hus-bilar');svg.appendChild(g);
   husBilarUppd();
 }
 /* v862: C40 på uppfarten när den är hemma. Ritas bara om när det ändras. */
 function husBilarUppd(){
   var g=document.querySelector('#hus-svg .hus-bilar');if(!g)return;
-  var c40=false;
+  var c40=false,ex40=true;
   try{c40=!!(DEV.car&&DATA[DEV.car]&&carHome(DEV.car))&&typeof HUS_BILAR_TRE!=='undefined';}catch(e){}
-  var lista=c40?HUS_BILAR_TRE:HUS_BILAR;
+  /* v895: EX40 bara när den är hemma (som C40). Saknas uppgiften står den kvar. */
+  try{if(DEV.car2&&DATA[DEV.car2]&&cap(DEV.car2,'distance')!=null)ex40=!!carHome(DEV.car2);}catch(e){}
+  var lista=(c40?HUS_BILAR_TRE:HUS_BILAR).filter(function(b){return ex40||b.modell!=='ex40';});
   /* v874: lamporna tänds när bilen är olåst – bara när den är hemma (annars
      står den inte på uppfarten). Bilar utan Homey-enhet (XC60) lyser aldrig. */
   var tand=lista.map(function(b){try{var id=b.enhet&&DEV[b.enhet];
     return !!(id&&DATA[id]&&cap(id,'locked')===false&&carHome(id));}catch(e){return false;}});
-  var nyckel=(c40?'3':'2')+tand.map(function(t){return t?1:0;}).join('');
+  var nyckel=(c40?'3':'2')+(ex40?'e':'-')+tand.map(function(t){return t?1:0;}).join('');
   if(g._nyckel===nyckel)return;g._nyckel=nyckel;
   var h='<defs><radialGradient id="bil-g-fram"><stop offset="0" stop-color="#fff2c8" stop-opacity=".85"/><stop offset=".55" stop-color="#fff2c8" stop-opacity=".3"/><stop offset="1" stop-color="#fff2c8" stop-opacity="0"/></radialGradient>'
     +'<radialGradient id="bil-g-bak"><stop offset="0" stop-color="#ff3b3b" stop-opacity=".6"/><stop offset="1" stop-color="#ff3b3b" stop-opacity="0"/></radialGradient></defs>';
   lista.forEach(function(b,i){var m=husBilModell(b.modell);if(m)h+=bilSvg(m,b.cx,b.cy,tand[i]);});
   g.innerHTML=h;
   try{document.querySelectorAll('.hus-yta-c40').forEach(function(e){e.style.display=c40?'':'none';});}catch(e){}
+  /* v895: EX40 borta – lappen täcker bildens bil, och dess tryckyta försvinner. */
+  try{var lp=document.querySelector('#hus-svg .hus-ex40-lapp');if(lp)lp.style.display=ex40?'none':'';}catch(e){}
+  try{document.querySelectorAll('.hus-yta-ex40').forEach(function(e){e.style.display=ex40?'':'none';});}catch(e){}
 }
 /* v856: FLÖDET PÅ VÄGGPLATTAN. En CSS-animation räknas om i varje bildruta;
    på den äldre plattan blev det lagg. Där drivs flödet i stället härifrån med
