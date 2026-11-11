@@ -484,15 +484,17 @@ function bilStyrHTML(){
         armK?'Tryck igen för att bekräfta.':'')
     +'</div></div>';
 }
-function bilLaddKnapp(){_blMal='bil';openDetail('billadd');}
+function bilLaddKnapp(){_blMal='bil';_bilStromUt=false;_bilStromUtk=null;openDetail('billadd');}   /* v892: strömgränsen infälld vid öppning */
 /* Bilens laddruta: samma väljare som husbatteriets, plus stopp och strömgräns. */
 function bilLaddPopHTML(){
   var laddar=(cap(DEV.laddbox,'evcharger_charging')===true),bk=bilBokad(),h='<div class="ladd-pop">';
   if(laddar){
     var w=chargerW(),arm=(_bilArm.k==='stopp'&&Date.now()-_bilArm.t<4000);
+    /* v892: röd/orange stoppknapp, lika bred som raden ovanför och lika hög
+       som laddvalen under. Bara när bilen laddar. */
     h+='<div class="dsec">Laddar nu</div>'+dRow('Laddbox',w!=null?W(w):'laddar')
-      +'<div class="cfg-btns bl-rad"><button class="te-alt'+(arm?' arm':'')+'" onclick="bilTryck(\'stopp\')">'
-      +(arm?'Stoppa? Tryck igen':'Stoppa laddning')+'</button></div>';
+      +'<button type="button" class="bl-stopp'+(arm?' arm':'')+'" onclick="bilTryck(\'stopp\')">'
+      +'<b>'+(arm?'Stoppa?':'Stoppa laddning')+'</b><small>'+(arm?'tryck igen för att stoppa':'avbryter laddningen')+'</small></button>';
   }
   if(bk)h+='<div class="dsec">Inbokad start</div>'+dRow('Startar',bilKlText(bk))
     /* v891: lägsta pris stoppas vid nästa dyra period, annat laddar till fullt. */
@@ -551,7 +553,12 @@ function bilStromHTML(){
   var v=bilStromVal(),u=(_bilStromUtk!=null)?_bilStromUtk:(v||BIL_A_MAX),andrat=(_bilStromUtk!=null&&_bilStromUtk!==(v||BIL_A_MAX));
   var nuA=cap(DEV.laddbox,'offered_current');
   var kw=Math.round(3*230*u/100)/10;
-  return '<div class="dsec">Strömgräns</div>'
+  /* v892: INFÄLLD som standard – rubriken visar det inställda och fäller ut. */
+  var ut=!!_bilStromUt||andrat;
+  var rub='<button type="button" class="bl-fall'+(ut?' ut':'')+'" onclick="bilStromFall()" aria-expanded="'+ut+'">'
+    +'<span>Strömgräns</span><span class="bl-fall-v">'+(v?v+' A':'ingen egen gräns')+icon(ut?'caret-up':'caret-down')+'</span></button>';
+  if(!ut)return rub;
+  return rub
     +'<div class="brv-temp">'
     +'<button class="brv-step" id="bil-a-minus"'+(u<=BIL_A_MIN?' disabled':'')+' onclick="bilStromSteg(-1)">\u2212</button>'
     +'<span class="brv-falt bil-a"><b id="bil-a-tal">'+u+'</b><span>A</span></span>'
@@ -562,6 +569,7 @@ function bilStromHTML(){
     +'<div class="det-note">Gäller när du laddar själv eller bokat start. Ladda nu, klockslag och timer laddar tills bilen är full; Lägsta pris stoppas när nästa dyra period börjar. Säkringsvakten (23 A per fas) gäller alltid.</div>'
     +(v?'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
 }
+function bilStromFall(){_bilStromUt=!_bilStromUt;if(!_bilStromUt)_bilStromUtk=null;bilStyrOm();}
 function bilStromSteg(d){
   var v=bilStromVal()||BIL_A_MAX,u=(_bilStromUtk!=null)?_bilStromUtk:v;
   _bilStromUtk=Math.max(BIL_A_MIN,Math.min(BIL_A_MAX,u+d));
