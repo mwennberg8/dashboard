@@ -819,14 +819,19 @@ function battPlanSpann(t0,t1,arNu){
   return fa+' – '+(b.dag?b.dag+' ':'')+b.kl;
 }
 function battPlanHTML(off){
-  var P=battPlanData();if(!P||!P.h||!P.h.length)return '';
-  var nu=Date.now(),kap=Number(P.kap)||23,pct=function(kwh){return Math.round(kwh/kap*95+5);};
+  var P=battPlanData(),nu=Date.now();
+  /* v898: avsnittet syns alltid – saknas planen eller är den gammal står det varför. */
+  var rubrik='<div class="ww-h bp-h">Batteriplan <span class="bp-prov">provläge</span></div>';
+  if(!P||!P.h||!P.h.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey…</div></div>';
+  if(P.at&&nu-P.at>2*3600000)return '<div class="bp">'+rubrik+'<div class="bp-txt">Planen har inte uppdaterats sedan '+esc(regelKl(P.at))
+    +'. Kontrollera flödet "Energi · batteriplan (kod)" i Homey.</div></div>';
+  var kap=Number(P.kap)||23,pct=function(kwh){return Math.round(kwh/kap*95+5);};
   /* Blocken från nu, med laddnivån i början och slutet. */
   var bl=[],soc0=(P.soc!=null)?P.soc:null;
   P.h.forEach(function(x){if(x[0]+3600000<=nu)return;var s=bl[bl.length-1],t1=x[0]+3600000;
     if(s&&s.a===x[1]&&s.t1===x[0]){s.t1=t1;s.slut=pct(x[4]);}
     else bl.push({a:x[1],t0:Math.max(x[0],nu),t1:t1,start:s?s.slut:soc0,slut:pct(x[4])});});
-  if(!bl.length)return '';
+  if(!bl.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Inga priser framåt än – planen räknas när de kommer.</div></div>';
   var tot=bl[bl.length-1].t1-bl[0].t0;
   var stapel=bl.map(function(b){var w=(b.t1-b.t0)/tot*100,h=(b.t1-b.t0)/3600000;
     return '<span class="bp-b bp-'+b.a+'" style="flex:'+w.toFixed(2)+' 1 0">'+(h>=2.5?BP_NAMN[b.a]:'')+'</span>';}).join('');
@@ -851,7 +856,7 @@ function buildCostPopup(){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +battPlanHTML()   /* v896, v897: från nu, oberoende av Idag/Imorgon */
+      +(function(){try{return battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
@@ -941,6 +946,7 @@ function openDetailKarna(which){
     body=brvPopHTML();
   }else if(which==='cost'){title='Kostnad & pris';
     _popupRebuild=buildCostPopup;
+    try{regelHamta(false);}catch(e){}   /* v898: batteriplanen hämtas när rutan öppnas */
     /* Saknas Tibber-serien: hämta nu, förbi 15-minuterscachen. Rutan ritas
        om av _popupRebuild när svaret kommer. */
     if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
