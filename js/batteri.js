@@ -472,8 +472,8 @@ function regelHamta(tvinga){
       /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
       max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max),at:Date.now()};
     try{if(_regel.max!=null)localStorage.setItem('battMax_v1',JSON.stringify({v:_regel.max,at:Date.now()}));}catch(e){}
-    regelSpara(_regel);
-  }).catch(function(){}).then(function(){
+    regelSpara(_regel);_regelFel='';
+  }).catch(function(e){_regelFel=((e&&e.message)||String(e))+' ('+avlKl(Date.now())+')';}).then(function(){   /* v899: felet sparas för batteriplanen */
     _regelAt=Date.now();_regelLaddar=false;
     try{if(_regel){if(('bokad' in _bilLokal)&&_regel.bilBokad===_bilLokal.bokad)delete _bilLokal.bokad;
       if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
@@ -796,7 +796,21 @@ function battPlanData(){
       var a=(hh>=6&&hh<9)||(hh>=16&&hh<21)?'ur':((hh>=10&&hh<14)||(hh>=1&&hh<5)?'ladda':'spara');ut.push([t,a,1.5,3.5,10]);}
     return {v:1,at:Date.now(),styr:false,soc:62,kap:23.1,laddKw:1.9,temp:12,vinst:14.2,h:ut};
   }
-  return (_regel&&_regel.bplan)||null;
+  if(_regel&&_regel.bplan)return _regel.bplan;
+  /* v899: reserv – läs planen direkt ur Homeys variabellista om den finns. */
+  try{var v=logicArr(_regel&&_regel.lista).filter(function(x){return x&&x.name==='battplan';})[0];
+    var j=v?JSON.parse(String(v.value||'')||'null'):null;if(j&&Array.isArray(j.h))return j;}catch(e){}
+  return null;
+}
+/* v899: varför planen saknas – visas i stället för bara "hämtar". */
+function battPlanVarfor(){
+  if(typeof _regelFel!=='undefined'&&_regelFel)return 'Homey svarade inte: '+_regelFel;
+  if(!_regel)return 'inget hämtat från Homey än';
+  if(_regel.lokal)return 'bara sparade värden – Homey har inte svarat sedan sidan laddades';
+  var l=logicArr(_regel.lista),v=l.filter(function(x){return x&&x.name==='battplan';})[0];
+  if(!l.length)return 'Homey skickade inga variabler';
+  if(!v)return 'variabeln battplan finns inte bland Homeys '+l.length+' variabler';
+  return 'battplan kunde inte läsas ('+String(v.value||'').length+' tecken)';
 }
 /* v897: FRÅN NU OCH FRAMÅT, oberoende av Idag/Imorgon. Förut visade raden bara
    den valda dagens timmar medan texten beskrev morgondagen ("ur 16–00" utan
@@ -822,7 +836,7 @@ function battPlanHTML(off){
   var P=battPlanData(),nu=Date.now();
   /* v898: avsnittet syns alltid – saknas planen eller är den gammal står det varför. */
   var rubrik='<div class="ww-h bp-h">Batteriplan <span class="bp-prov">provläge</span></div>';
-  if(!P||!P.h||!P.h.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey…</div></div>';
+  if(!P||!P.h||!P.h.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey… <small style="display:block;opacity:.8;margin-top:3px">'+esc(battPlanVarfor())+'</small></div></div>';
   if(P.at&&nu-P.at>2*3600000)return '<div class="bp">'+rubrik+'<div class="bp-txt">Planen har inte uppdaterats sedan '+esc(regelKl(P.at))
     +'. Kontrollera flödet "Energi · batteriplan (kod)" i Homey.</div></div>';
   var kap=Number(P.kap)||23,pct=function(kwh){return Math.round(kwh/kap*95+5);};
