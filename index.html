@@ -3890,6 +3890,17 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
   background:var(--gold);box-shadow:0 0 0 2px var(--panel-a)}
 /* Väderkortet i husbilden (v855, omgjort – ingen färgkant). v889: rutan och
    allt i den ca 10 % större. */
+/* v896: BATTERIPLANEN under priskurvan i Kostnad & pris. */
+.bp{margin:2px 0 12px}
+.bp-h{margin:4px 0 7px;display:flex;align-items:center;justify-content:center;gap:6px}
+.bp-prov{font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:7px;padding:1px 6px}
+.bp-rad{display:flex;gap:2px;height:22px}
+.bp-c{flex:1 1 0;border-radius:3px;display:block;position:relative}
+.bp-c.nu{box-shadow:0 0 0 2px var(--ink)}
+.bp-ax{display:flex;justify-content:space-between;font-size:10.5px;font-weight:700;color:var(--faint);margin-top:3px}
+.bp-lg{display:flex;justify-content:center;gap:14px;font-size:11.5px;font-weight:700;color:var(--dim);margin-top:6px}
+.bp-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.bp-txt{font-size:12.5px;color:var(--dim);text-align:center;margin-top:6px;line-height:1.35}
 /* v894: ENERGINS TIDSLINJE i notisvyn. */
 #view-notiser .panel{position:relative}
 .tl-knapp{position:absolute;top:8px;right:12px;z-index:2;display:inline-flex;align-items:center;gap:5px;padding:5px 10px;
