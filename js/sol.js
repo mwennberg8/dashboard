@@ -1449,9 +1449,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     +'<i style="background:'+(P.cyan||'#57b6c2')+'"></i>Batteri %</span>';
   lag+='<span class="'+(_pgVisaSol?'':'av')+'" onclick="pgLagerTog(\'sol\')">'
     +'<i style="background:'+(P.sun||'#f2b705')+'"></i>Solproduktion</span>';
-  /* v900: batteriplanen – av tills man trycker. */
-  if(offset>=0&&offset<=1)lag+='<span class="'+(_pgVisaPlan?'':'av')+'" onclick="pgLagerTog(\'plan\')">'
-    +'<i class="pg-bp-i"></i>Batteriplan</span>';
+  /* v901: batteriplanens av/på är en egen knapp under grafen (buildCostPopup). */
   s+=lag+'</div>';
   return s;}
 function pgLagerTog(vilket){
