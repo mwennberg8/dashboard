@@ -461,7 +461,8 @@ function regelHamta(tvinga){
     var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
     var kalla=null;try{kalla=JSON.parse(String(r.battladd_kalla||'')||'null');}catch(e){}
     var tl=null;try{tl=JSON.parse(String(r.energi_tidslinje||'')||'null');}catch(e){}   /* v894 */
-    _regel={forslag:p,tl:(tl&&Array.isArray(tl.h))?tl:null,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
+    var bplan=null;try{bplan=JSON.parse(String(r.battplan||'')||'null');}catch(e){}   /* v896 */
+    _regel={forslag:p,bplan:(bplan&&Array.isArray(bplan.h))?bplan:null,tl:(tl&&Array.isArray(tl.h))?tl:null,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
       stopp:Number(r.battladd_stopp)||0,lista:list,
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
       bil:String(r.energi_bil||''),
@@ -782,10 +783,54 @@ function byggBatt(){
    (bara de priser dashboarden själv sett — en handfull steg och ett enda
    jätteintervall, "861 minuter kvar"), och eftersom rutan aldrig byggdes om
    stod den kvar så tills man växlade Idag/Imorgon för hand. */
+/* ===== BATTERIPLANEN (v896) =====
+   Dygnsplanen som skriptet "Energi · batteriplan" räknar varje timme: för
+   varje timme ladda (från nätet), spara eller ur (batteriet täcker huset).
+   I provläget (styr = false) styr den ingenting – den visar vad den skulle göra. */
+var BP_FARG={ladda:'var(--blue)',spara:'var(--faint)',ur:'var(--ok)'};
+var BP_NAMN={ladda:'Ladda',spara:'Spara',ur:'Ur'};
+function battPlanData(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){
+    var h0=Math.floor(Date.now()/3600000)*3600000,dag=dayStart(),ut=[];
+    for(var i=0;i<30;i++){var t=h0+i*3600000,hh=new Date(t).getHours();
+      var a=(hh>=6&&hh<9)||(hh>=16&&hh<21)?'ur':((hh>=10&&hh<14)||(hh>=1&&hh<5)?'ladda':'spara');ut.push([t,a,1.5,3.5,10]);}
+    return {v:1,at:Date.now(),styr:false,soc:62,kap:23.1,laddKw:1.9,temp:12,vinst:14.2,h:ut};
+  }
+  return (_regel&&_regel.bplan)||null;
+}
+function battPlanBlock(h){
+  var ut=[];h.forEach(function(x){var s=ut[ut.length-1];if(s&&s.a===x[1]&&s.t1===x[0])s.t1=x[0]+3600000;else ut.push({a:x[1],t0:x[0],t1:x[0]+3600000});});
+  return ut;
+}
+function battPlanHTML(off){
+  var P=battPlanData();if(!P||!P.h||!P.h.length)return '';
+  var d0=dayStart()+(off||0)*86400000,nu=Date.now(),per={};
+  P.h.forEach(function(x){per[x[0]]=x[1];});
+  var celler='';
+  for(var i=0;i<24;i++){var t=d0+i*3600000,a=per[t],nuH=(nu>=t&&nu<t+3600000);
+    celler+='<i class="bp-c'+(nuH?' nu':'')+'" style="background:'+(a?BP_FARG[a]:'transparent')+(a==='spara'?';opacity:.45':'')+'" title="'+('0'+i).slice(-2)+' '+(a?BP_NAMN[a]:'')+'"></i>';}
+  /* Kort sammanfattning: nu och de närmaste blocken. */
+  var bl=battPlanBlock(P.h).filter(function(b){return b.t1>nu;}).slice(0,4);
+  var kl=function(ms){return regelKl(ms).replace(/ imorgon$/,'').replace(/:00$/,'');};
+  var txt=bl.map(function(b,k){return (k===0?'nu ':'')+BP_NAMN[b.a].toLowerCase()+(k===0?' till '+kl(b.t1):' '+kl(b.t0)+'–'+kl(b.t1));}).join(' · ');
+  var info='Batteriplanen räknas varje timme i Homey (skriptet "Energi · batteriplan") för alla timmar med kända priser – i dag, och efter ca 13 även i morgon. '
+    +'Varje timme får ett läge: <b>ladda</b> från nätet, <b>spara</b> (ingen urladdning) eller <b>ur</b> – batteriet täcker huset. '
+    +'Den väljer det billigaste schemat med elpris och avgifter, 79 % verkningsgrad, 0,30 kr slitage per laddad kWh, husets förbrukning '
+    +'per timme (som den lär sig, vardag och helg för sig) och hur fort batteriet kan ladda vid sin temperatur'
+    +(P.laddKw?' (nu '+num(P.laddKw,1)+' kW'+(P.temp!=null?' vid '+num(P.temp,0)+' °C':'')+')':'')+'. '
+    +(P.styr?'Planen styr batteriet.':'<b>Provläge:</b> planen styr ingenting än – den visar vad den skulle göra. Sparplanen och energistyrningen gör som förut.');
+  return '<div class="bp"><div class="ww-h bp-h">Batteriplan'+(P.styr?'':' <span class="bp-prov">provläge</span>')+infoBlock('bplan',info)+'</div>'
+    +'<div class="bp-rad">'+celler+'</div>'
+    +'<div class="bp-ax"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>'
+    +'<div class="bp-lg"><span><i style="background:'+BP_FARG.ladda+'"></i>Ladda</span><span><i style="background:'+BP_FARG.spara+';opacity:.45"></i>Spara</span><span><i style="background:'+BP_FARG.ur+'"></i>Ur</span></div>'
+    +(off===0&&txt?'<div class="bp-txt">'+esc(txt)+(P.vinst!=null&&P.vinst>=1?' · ca '+Math.round(P.vinst)+' kr bättre än bara normal drift':'')+'</div>':'')
+    +'</div>';
+}
 function buildCostPopup(){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
+      +battPlanHTML(pdOff)   /* v896 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
