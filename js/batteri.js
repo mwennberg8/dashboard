@@ -787,7 +787,7 @@ function byggBatt(){
    Dygnsplanen som skriptet "Energi · batteriplan" räknar varje timme: för
    varje timme ladda (från nätet), spara eller ur (batteriet täcker huset).
    I provläget (styr = false) styr den ingenting – den visar vad den skulle göra. */
-var BP_FARG={ladda:'var(--blue)',spara:'var(--faint)',ur:'var(--ok)'};
+var BP_FARG={ladda:'var(--blue)',spara:'var(--gold)',ur:'var(--ok)'};
 var BP_NAMN={ladda:'Ladda',spara:'Spara',ur:'Ur'};
 function battPlanData(){
   if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){
@@ -798,39 +798,60 @@ function battPlanData(){
   }
   return (_regel&&_regel.bplan)||null;
 }
-function battPlanBlock(h){
-  var ut=[];h.forEach(function(x){var s=ut[ut.length-1];if(s&&s.a===x[1]&&s.t1===x[0])s.t1=x[0]+3600000;else ut.push({a:x[1],t0:x[0],t1:x[0]+3600000});});
-  return ut;
+/* v897: FRÅN NU OCH FRAMÅT, oberoende av Idag/Imorgon. Förut visade raden bara
+   den valda dagens timmar medan texten beskrev morgondagen ("ur 16–00" utan
+   "i morgon"), och grått för spara såg ut som en tom ruta. Nu: en stapel där
+   varje block är så långt som det varar och har sitt namn, och under den en
+   rad per block med tid, läge och laddnivå. */
+function battPlanTid(ms,slut){
+  /* {dag, kl}: dag = '' i dag, 'i morgon' eller veckodag. Ett block som slutar
+     vid midnatt skrivs 24 på dagen innan, inte 00 nästa. */
+  var t=(slut&&/^00:00/.test(regelKl(ms)))?ms-60000:ms;   /* midnatt i svensk tid */
+  var s=regelKl(t),m=s.match(/^(\d\d:\d\d)(?: (.*))?$/)||[s,s,''];
+  var kl=(t!==ms)?'24':m[1].replace(/:00$/,'');
+  return {dag:(m[2]||'').replace('imorgon','i morgon'),kl:kl};
+}
+/* "nu – i morgon 16", "i morgon 16–24", "22 – i morgon 06". */
+function battPlanSpann(t0,t1,arNu){
+  var a=battPlanTid(t0),b=battPlanTid(t1,true);
+  var fa=arNu?'nu':((a.dag?a.dag+' ':'')+a.kl);
+  if(!arNu&&a.dag===b.dag)return fa+'–'+b.kl;
+  return fa+' – '+(b.dag?b.dag+' ':'')+b.kl;
 }
 function battPlanHTML(off){
   var P=battPlanData();if(!P||!P.h||!P.h.length)return '';
-  var d0=dayStart()+(off||0)*86400000,nu=Date.now(),per={};
-  P.h.forEach(function(x){per[x[0]]=x[1];});
-  var celler='';
-  for(var i=0;i<24;i++){var t=d0+i*3600000,a=per[t],nuH=(nu>=t&&nu<t+3600000);
-    celler+='<i class="bp-c'+(nuH?' nu':'')+'" style="background:'+(a?BP_FARG[a]:'transparent')+(a==='spara'?';opacity:.45':'')+'" title="'+('0'+i).slice(-2)+' '+(a?BP_NAMN[a]:'')+'"></i>';}
-  /* Kort sammanfattning: nu och de närmaste blocken. */
-  var bl=battPlanBlock(P.h).filter(function(b){return b.t1>nu;}).slice(0,4);
-  var kl=function(ms){return regelKl(ms).replace(/ imorgon$/,'').replace(/:00$/,'');};
-  var txt=bl.map(function(b,k){return (k===0?'nu ':'')+BP_NAMN[b.a].toLowerCase()+(k===0?' till '+kl(b.t1):' '+kl(b.t0)+'–'+kl(b.t1));}).join(' · ');
+  var nu=Date.now(),kap=Number(P.kap)||23,pct=function(kwh){return Math.round(kwh/kap*95+5);};
+  /* Blocken från nu, med laddnivån i början och slutet. */
+  var bl=[],soc0=(P.soc!=null)?P.soc:null;
+  P.h.forEach(function(x){if(x[0]+3600000<=nu)return;var s=bl[bl.length-1],t1=x[0]+3600000;
+    if(s&&s.a===x[1]&&s.t1===x[0]){s.t1=t1;s.slut=pct(x[4]);}
+    else bl.push({a:x[1],t0:Math.max(x[0],nu),t1:t1,start:s?s.slut:soc0,slut:pct(x[4])});});
+  if(!bl.length)return '';
+  var tot=bl[bl.length-1].t1-bl[0].t0;
+  var stapel=bl.map(function(b){var w=(b.t1-b.t0)/tot*100,h=(b.t1-b.t0)/3600000;
+    return '<span class="bp-b bp-'+b.a+'" style="flex:'+w.toFixed(2)+' 1 0">'+(h>=2.5?BP_NAMN[b.a]:'')+'</span>';}).join('');
+  var rader=bl.map(function(b,k){
+    var tid=battPlanSpann(b.t0,b.t1,k===0);
+    var niva=(b.start!=null&&b.slut!==b.start)?(b.start+' → '+b.slut+' %'):(b.slut+' %');
+    return '<div class="bp-r"><i class="bp-pr bp-'+b.a+'"></i><span class="bp-rt">'+esc(tid)+'</span><b>'+BP_NAMN[b.a]+'</b><span class="bp-rn">'+niva+'</span></div>';}).join('');
   var info='Batteriplanen räknas varje timme i Homey (skriptet "Energi · batteriplan") för alla timmar med kända priser – i dag, och efter ca 13 även i morgon. '
-    +'Varje timme får ett läge: <b>ladda</b> från nätet, <b>spara</b> (ingen urladdning) eller <b>ur</b> – batteriet täcker huset. '
+    +'Varje timme får ett läge: <b>ladda</b> från nätet, <b>spara</b> (ingen urladdning – huset tar från nätet) eller <b>ur</b> – batteriet täcker huset. '
     +'Den väljer det billigaste schemat med elpris och avgifter, 79 % verkningsgrad, 0,30 kr slitage per laddad kWh, husets förbrukning '
     +'per timme (som den lär sig, vardag och helg för sig) och hur fort batteriet kan ladda vid sin temperatur'
     +(P.laddKw?' (nu '+num(P.laddKw,1)+' kW'+(P.temp!=null?' vid '+num(P.temp,0)+' °C':'')+')':'')+'. '
+    +'Procenten är laddnivån planen räknar med i slutet av blocket. '
     +(P.styr?'Planen styr batteriet.':'<b>Provläge:</b> planen styr ingenting än – den visar vad den skulle göra. Sparplanen och energistyrningen gör som förut.');
   return '<div class="bp"><div class="ww-h bp-h">Batteriplan'+(P.styr?'':' <span class="bp-prov">provläge</span>')+infoBlock('bplan',info)+'</div>'
-    +'<div class="bp-rad">'+celler+'</div>'
-    +'<div class="bp-ax"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>'
-    +'<div class="bp-lg"><span><i style="background:'+BP_FARG.ladda+'"></i>Ladda</span><span><i style="background:'+BP_FARG.spara+';opacity:.45"></i>Spara</span><span><i style="background:'+BP_FARG.ur+'"></i>Ur</span></div>'
-    +(off===0&&txt?'<div class="bp-txt">'+esc(txt)+(P.vinst!=null&&P.vinst>=1?' · ca '+Math.round(P.vinst)+' kr bättre än bara normal drift':'')+'</div>':'')
+    +'<div class="bp-stapel">'+stapel+'</div>'
+    +'<div class="bp-rader">'+rader+'</div>'
+    +(P.vinst!=null&&P.vinst>=1?'<div class="bp-txt">ca '+Math.round(P.vinst)+' kr billigare än bara normal drift</div>':'')
     +'</div>';
 }
 function buildCostPopup(){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +battPlanHTML(pdOff)   /* v896 */
+      +battPlanHTML()   /* v896, v897: från nu, oberoende av Idag/Imorgon */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
