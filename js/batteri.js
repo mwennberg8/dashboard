@@ -885,6 +885,9 @@ function buildCostPopup(){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
+      /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
+      +'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
+        +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' <span class="bp-prov">provläge</span></button>'
       +(function(){if(!_pgVisaPlan)return '';try{return battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
