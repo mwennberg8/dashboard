@@ -1373,6 +1373,10 @@ function dayPriceGraphSVG(offset){offset=offset||0;
       +'<stop offset="'+andel(X(slut(i))).toFixed(2)+'%" stop-color="'+c+'"/>';
   });
   s=s.replace('</defs>','<linearGradient id="pgLine" gradientUnits="userSpaceOnUse" x1="'+padL+'" y1="0" x2="'+(W-padR)+'" y2="0">'+stops+'</linearGradient></defs>');
+  /* v900: BATTERIPLANEN I GRAFEN. Planens block från nu och framåt som svag
+     bakgrund i lägets färg och en tydlig list under kurvan, på rätt klocktid –
+     så man ser direkt om den laddar i dalarna och laddar ur i topparna. */
+  if(_pgVisaPlan&&offset>=0&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
   s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
   /* non-scaling-stroke: grafen sträcks i sidled på plattan, och utan det blev
      trappans lodräta steg nästan dubbelt så tjocka som de vågräta. */
@@ -1445,10 +1449,14 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     +'<i style="background:'+(P.cyan||'#57b6c2')+'"></i>Batteri %</span>';
   lag+='<span class="'+(_pgVisaSol?'':'av')+'" onclick="pgLagerTog(\'sol\')">'
     +'<i style="background:'+(P.sun||'#f2b705')+'"></i>Solproduktion</span>';
+  /* v900: batteriplanen – av tills man trycker. */
+  if(offset>=0&&offset<=1)lag+='<span class="'+(_pgVisaPlan?'':'av')+'" onclick="pgLagerTog(\'plan\')">'
+    +'<i class="pg-bp-i"></i>Batteriplan</span>';
   s+=lag+'</div>';
   return s;}
 function pgLagerTog(vilket){
-  if(vilket==='batt')_pgVisaBatt=!_pgVisaBatt; else _pgVisaSol=!_pgVisaSol;
+  if(vilket==='batt')_pgVisaBatt=!_pgVisaBatt; else if(vilket==='plan'){_pgVisaPlan=!_pgVisaPlan;if(_pgVisaPlan){try{regelHamta(false);}catch(e){}}}
+  else _pgVisaSol=!_pgVisaSol;
   var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();
 }
 function priceDaySet(o){_priceDay=o;openDetail('cost');}
