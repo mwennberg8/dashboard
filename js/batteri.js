@@ -832,6 +832,21 @@ function battPlanSpann(t0,t1,arNu){
   if(!arNu&&a.dag===b.dag)return fa+'–'+b.kl;
   return fa+' – '+(b.dag?b.dag+' ':'')+b.kl;
 }
+/* v900: planens block som SVG-lager i prisgrafen för dygnet offset (0 i dag,
+   1 i morgon). X räknar klocktimmar 0–24 till grafens x; y0/y1 är kurvans yta. */
+function pgPlanLager(offset,X,y0,y1){
+  var P=battPlanData(),nu=Date.now();if(!P||!P.h||!P.h.length)return '';
+  var bl=[];
+  P.h.forEach(function(x){var t0=Math.max(x[0],nu),t1=x[0]+3600000;if(t1<=nu||!BP_NAMN[x[1]])return;
+    var a=klockTimmar(t0)-offset*24,b=klockTimmar(t1)-offset*24;
+    if(b<=0||a>=24)return;a=Math.max(0,a);b=Math.min(24,b);
+    var s=bl[bl.length-1];if(s&&s.l===x[1]&&Math.abs(s.b-a)<0.01)s.b=b;else bl.push({l:x[1],a:a,b:b});});
+  var ut='';
+  bl.forEach(function(k){var xa=X(k.a),w=Math.max(0.5,X(k.b)-xa-0.6);
+    ut+='<rect class="pg-bp pg-bp-'+k.l+'" x="'+xa.toFixed(1)+'" y="'+y0+'" width="'+w.toFixed(1)+'" height="'+(y1-y0)+'"/>'
+      +'<rect class="pg-bpl pg-bp-'+k.l+'" x="'+xa.toFixed(1)+'" y="'+(y1+3)+'" width="'+w.toFixed(1)+'" height="6" rx="1.5"/>';});
+  return ut;
+}
 function battPlanHTML(off){
   var P=battPlanData(),nu=Date.now();
   /* v898: avsnittet syns alltid – saknas planen eller är den gammal står det varför. */
@@ -870,7 +885,7 @@ function buildCostPopup(){
     var pdOff=_priceDay||0;
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +(function(){try{return battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
+      +(function(){if(!_pgVisaPlan)return '';try{return battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'

@@ -2071,7 +2071,7 @@ var BATT_LAST_H=[1.5,1.5,1.6,1.5,1.5,1.7,1.7,2.1,2.8,3.1,3.6,4.6,5.3,5.3,4.7,4.4
    av — solen har en egen ruta, och två extrakurvor samtidigt gör prisbilden
    svårläst om man inte bett om det. Ligger utanför DOM:en som alla andra val,
    så de överlever att rutan byggs om. */
-var _pgVisaBatt=true, _pgVisaSol=false;
+var _pgVisaBatt=true, _pgVisaSol=false, _pgVisaPlan=false;   /* v900: batteriplanen dold tills man trycker */
 var _priceDay=0;
 const DAYS_KEEP=35; /* räcker för vecka- och månadsrekord; årsrekord lagras kompakt i recs_v1 */
 /* ===== TRÄFFSÄKERHET I SOLPROGNOSEN =====
@@ -2653,7 +2653,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v899';
+const APP_VERSION='v900';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
