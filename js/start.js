@@ -2174,6 +2174,11 @@ var AC_ENH={};
 AC_ENH[DEV.attefall]={namn:'Breveden',zk:'breveden',lage:'thermostat_mode',flakt:'fan_speed',snabb:BRV_SNABB,spjall:true,hist:'t_breveden',skript:true};
 AC_ENH[AC_VARD]={namn:'Vardagsrum',zk:'vardagsrum',lage:'aermec_mode',flakt:'aermec_fan',status:'aermec_status',hist:'t_vard',
   snabb:[{k:'kyla',lbl:'Kyla',ic:'snowflake',lage:'cool'},{k:'varme',lbl:'Värme',ic:'flame',lage:'heat'},{k:'av',lbl:'Stäng av',ic:'power',av:true}]};
+/* v903: AC Uterum (samma sorts värmepump som Breveden: läge, fläkt och spjäll).
+   Ingen automatik i Homey styr den, så snabbvalen ställer bara enheten. */
+var AC_UTERUM='ca27782b-26af-4819-a138-f9d9b0495129';
+AC_ENH[AC_UTERUM]={namn:'Uterum',zk:'uterum',lage:'thermostat_mode',flakt:'fan_speed',spjall:true,hist:'t_uterum',
+  snabb:[{k:'auto',lbl:'Auto',ic:'sparkle',lage:'auto'},{k:'v20',lbl:'Värm 20',ic:'flame',lage:'heat',temp:20},{k:'av',lbl:'Stäng av',ic:'power',av:true}]};
 var _acId=null;
 var BRV_VAR='9a2ac08e-b68b-45ea-bbf7-a10e7c00ac41';
 var BRV_FLOW_PA='063fb9f7-37e9-41c0-a114-eba03f1914a1';
@@ -2654,7 +2659,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v902';
+const APP_VERSION='v903';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
