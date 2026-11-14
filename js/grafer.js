@@ -537,7 +537,7 @@ function windChartHTML(cid){
   ser.forEach(function(s){
     var d=smoothPath(s.p.map(function(q){return [X(q.t),Y(q.v,s.axel)];}));
     b+='<path d="'+d+'" fill="none" stroke="'+s.farg+'"'+GRAF_LINJE+' '
-      +(s.axel==='deg'?' stroke-dasharray="5 4" opacity=".85"':'')+'/>';
+      +(s.axel==='deg'?' opacity=".85"':'')+'/>';   /* v910: heldragen – bara prognoser är streckade */
     /* v713: ingen slutprick. */});
   /* Riktningen har EGEN axel (0–360°) och får därför sin egen Y — annars hade
      220 grader lästs av som 220 m/s. */
@@ -591,7 +591,7 @@ function windSectionHTML(){
     +'siffror som står på startsidan. <b>Högsta idag</b> räknar från midnatt. '
     +kalla+' Loggen innehåller hela dygnet, även det som mättes medan dashboarden var stängd. '
     +'I grafen delar vind och byvind vänsteraxeln (m/s). Riktningen har en egen högeraxel '
-    +'(0–360°) och ritas streckad – skalorna har inget med varandra att göra, så utan det '
+    +'(0–360°) – skalorna har inget med varandra att göra, så utan den '
     +'skulle riktningen platta ut hastighetskurvorna.</div>';}
 function windMaxRow(namn,v,t,dec){
   return dRow(namn,(v==null?'–':num(v,dec)+' m/s')+'<span style="opacity:.6;font-weight:600"> · '+windWhenTxt(t)+'</span>');}
@@ -1799,7 +1799,7 @@ function dayChart(series,fonster){
       farg:o.s.col2?(function(c1,c2){return function(v){return v<0?c2:c1;};})(o.s.col,o.s.col2):o.s.col});
   });
   /* Laddnivån: egen skala med nollinjen som 0 % och grafens tak som 100 %.
-     Streckad för att inte kunna förväxlas med watt-kurvorna. Inget märke i
+     v910: heldragen (förut streckad) – bara prognoser är streckade. Inget märke i
      hörnet — siffran står i dragpunktens etikett när man pekar. */
   var pctLinje='';
   if(pctSerie&&pctSerie.pts&&pctSerie.pts.length){
@@ -1812,7 +1812,7 @@ function dayChart(series,fonster){
          knapp i förklaringen): samma nyckel, så att valet gäller båda. */
       var pk=pctSerie.med||pctSerie.key,pon=(!active||sel[pk]);
       pctLinje='<path data-k="'+pk+'" data-bw="1.6" d="'+smoothPath(ppts)+'" fill="none" stroke="'+pctSerie.col
-        +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round"'
+        +'" stroke-width="'+(sel[pk]?2.4:1.6)+'" stroke-linejoin="round" stroke-linecap="round"'
         +' vector-effect="non-scaling-stroke" style="opacity:'+(pon?0.95:0.09)+'"/>';
       /* EGEN Y i avläsningen — annars hade 62 % lästs av som 62 watt. */
       if(pon)avlSer.push({namn:pctSerie.label,farg:pctSerie.col,pts:pseg,Y:YP,
@@ -1829,7 +1829,7 @@ function dayChart(series,fonster){
      rummens fukt och CO₂. Varje serie får sin egen skala (minst minSpan hög),
      egen streckning och sin enhet i avläsningen. */
   var extra=((fonster&&fonster.extra)||[]).slice();
-  if(tempSerie)extra.unshift(Object.assign({minSpan:4,dash:'1 3.5',fmt:function(v){return num(v,1)+' °C';}},tempSerie));
+  if(tempSerie)extra.unshift(Object.assign({minSpan:4,fmt:function(v){return num(v,1)+' °C';}},tempSerie));
   extra.forEach(function(es){
     if(!es||!es.pts||!es.pts.length)return;
     var tseg=klipp(es.pts);
@@ -1840,7 +1840,7 @@ function dayChart(series,fonster){
     var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
     var tk=es.key,ton=(!active||sel[tk]);
     tempLinje+='<path data-k="'+tk+'" data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+es.col
-      +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-dasharray="'+(es.dash||'1 3.5')+'" stroke-linejoin="round" stroke-linecap="round"'
+      +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-linejoin="round" stroke-linecap="round"'   /* v910: heldragen */
       +' vector-effect="non-scaling-stroke" style="opacity:'+(ton?0.95:0.09)+'"/>';
     if(ton)avlSer.push({namn:es.label,farg:es.col,pts:tseg,Y:YT,fmt:es.fmt||function(v){return num(v,1);}});
     segs.push({s:es,seg:tseg});

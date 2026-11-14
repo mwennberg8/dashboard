@@ -448,7 +448,7 @@ function buildEnergyPopup(){
      grafRubrik skriver ut valt fönster i rubriken; grafFonster ger t0/t1. */
   var _ef=grafFonster('g2-day');
   h+=grafRubrik('g2-day','Sol, förbrukning &amp; batteri',
-      infoBlock('dygn','Skalan är watt. Den streckade linjen är batteriets '
+      infoBlock('dygn','Skalan är watt. Batteri %-linjen är batteriets '
         +'laddningsnivå på egen skala: 0 % vid nollinjen, 100 % högst upp. '
         +'Batteriets effekt är positiv när det laddas och negativ när det laddar ur.'))
     +dayChart(se.linjer,{pct:se.procent,cid:'g2-day',t0:_ef.t0,t1:_ef.t1})

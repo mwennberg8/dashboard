@@ -784,7 +784,7 @@ function zkGraf(k,cid){
     var S=zkSerDef(Z,x),o={key:x,pts:zkSerie(Z,x,cid)||[],col:(P[S.col]||P.blue),label:S.lab};
     if(S.u==='°C'){o.fmt=function(v){return num(v,1)+' °C';};lines.push(o);}
     else{o.fmt=function(v){return Math.round(v)+(S.u==='%'?' %':' '+S.u);};
-      o.minSpan=(S.u==='%')?10:200;o.dash=(S.u==='%')?'4 3':'1 3.5';extra.push(o);}});
+      o.minSpan=(S.u==='%')?10:200;extra.push(o);}});
   var f=grafFonster(cid);
   return dayChart(lines,{cid:cid,t0:f.t0,t1:f.t1,tat:true,minSpan:2,extra:extra});}
 function zkPopHTML(k){
@@ -799,7 +799,7 @@ function zkPopHTML(k){
      förklaringen under grafen – tryck för att lyfta fram en kurva. Värdena
      står bland rutorna under Nu. */
   h+=grafRubrik(cid,zkGrafRubrik(Z),infoBlock('zkgraf',
-      'Temperaturerna delar skala. Fukt och CO₂ har var sin egen skala och är streckade. '
+      'Temperaturerna delar skala. Fukt och CO₂ har var sin egen skala. '
       +'Tryck på en kurva under grafen för att lyfta fram den. Dra i grafen för att läsa av vid en viss tidpunkt.'))
     +zkGraf(k,cid)+grafTidsval(cid);
   h+=zkAcKnappar(k);   /* v906: AC:n som bred knapp under periodväljaren */

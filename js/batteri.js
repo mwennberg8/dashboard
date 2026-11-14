@@ -759,8 +759,8 @@ function byggBatt(){
   if(bTemp==null&&SOURCE==='demo-data')bTemp=12.5;   /* demon har ingen Modbus-enhet */
   return grafRubrik('g2-batt','Batteri',infoBlock('battgraf',
       'Skalan är watt. Effekten är positiv och grön när batteriet laddas, negativ '
-      +'och gul när det matar ut. Den streckade kurvan är laddnivån på egen 0–100-skala, '
-      +'den prickade röda är batteriets temperatur (Modbus) på egen skala. Kallt batteri '
+      +'och gul när det matar ut. Laddnivån har en egen 0–100-skala '
+      +'och batteriets temperatur (Modbus, röd) en egen skala. Kallt batteri '
       +'laddar långsammare. Dra i grafen för att läsa av alla vid en viss tidpunkt.'))
     +battGrafHTML('g2-batt')
     +grafTidsval('g2-batt')
