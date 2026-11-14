@@ -3805,6 +3805,10 @@ body.kiosk .fl-tiles>.stat:not(.ic-mitt):not(.allt-mitt) .stat-ic{align-self:cen
    redan 2 px på mobilen). */
 body.mobile:not(.kiosk) #hus-topp{margin-top:max(0px,calc(var(--pg-gap-y,3px) - 2px))}
 #huspanel .hus-karta{border-radius:22px}
+/* v905: bilderna tar aldrig emot tryck (tryckytorna ligger i SVG:n ovanpå), så
+   ett långt tryck ger ingen bildmeny med "Kopiera bild". */
+.hus-karta img{pointer-events:none;-webkit-user-drag:none;-webkit-touch-callout:none;user-select:none}
+.hus-karta{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 /* MENYN PÅ PLATTORNA: samma som på telefonen – fast längst ned, kant i kant,
    lite lägre – och den glider undan när man skrollar ned och kommer tillbaka
    när man skrollar upp (flikSkroll). Väggplattan har ingen meny alls;

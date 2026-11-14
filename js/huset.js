@@ -59,8 +59,8 @@ function husBygg(el){
   var h='<div class="hus-karta" id="hus-karta">'
     /* Två bilder: dag i ljust tema, kväll/natt i mörkt (CSS väljer efter
        data-theme). Årstiden (och snön) avgör vilket par – husRita byter. */
-    +'<img class="hus-natt" id="hus-img-natt" src="bild/hus-'+husBildNamn()+'-natt.webp" alt="Huset ovanifrån">'
-    +'<img class="hus-dag" id="hus-img-dag" src="bild/hus-'+husBildNamn()+'.webp" alt="">'
+    +'<img class="hus-natt" id="hus-img-natt" src="bild/hus-'+husBildNamn()+'-natt.webp" alt="Huset ovanifrån" draggable="false">'
+    +'<img class="hus-dag" id="hus-img-dag" src="bild/hus-'+husBildNamn()+'.webp" alt="" draggable="false">'
     +'<svg viewBox="0 0 1040 1120" class="hus-ytor" id="hus-ytor"></svg>'
     +'<svg viewBox="0 0 1040 1120" aria-hidden="true" id="hus-svg"></svg>'
     /* v856: ledningarna i ett eget lager ovanpå. Flödet ritas om i varje
@@ -72,6 +72,8 @@ function husBygg(el){
   var gammal=el.querySelector('.hus-karta');if(gammal)el.removeChild(gammal);
   el.insertAdjacentHTML('beforeend',h);
   var svg=$('hus-svg'),karta=$('hus-karta');
+  /* v905: håll inne på husbilden ska inte ge telefonens bildmeny ("Kopiera bild"). */
+  try{karta.addEventListener('contextmenu',function(e){e.preventDefault();});}catch(e){}
   try{document.body.classList.add('hus-sida');
     document.body.classList.toggle('vaggplatta',!!arVaggplattaVy());}catch(e){}
   /* Tryckytorna: solpanelerna, uterummet, Breveden, Snickarboa, bilarna. */
