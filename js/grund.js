@@ -566,7 +566,7 @@ function bilStromHTML(){
     +'<button class="brv-ok'+(andrat?' on':'')+'" id="bil-a-ok"'+(andrat?'':' disabled')+' onclick="bilStromOk()">OK</button></div>'
     +'<div class="brv-utkast">\u2248 '+num(kw,1)+' kW på 3 faser \u00b7 '+(v?'inställt '+v+' A':'ingen egen gräns')
     +(nuA!=null&&isFinite(nuA)?' \u00b7 laddboxen ger nu '+Math.round(nuA)+' A':'')+'</div>'
-    +'<div class="det-note">Gäller när du laddar själv eller bokat start. Ladda nu, klockslag och timer laddar tills bilen är full; Lägsta pris stoppas när nästa dyra period börjar. Säkringsvakten (23 A per fas) gäller alltid.</div>'
+    +'<div class="det-note">Gäller när du laddar själv eller bokat start. Ladda nu, klockslag och timer laddar tills bilen är full; Lägsta pris stoppas när nästa dyra period börjar. Säkringsvakten ('+sakVaktVarde()+' A per fas) gäller alltid.</div>'
     +(v?'<div class="cfg-btns bl-rad"><button class="te-alt" onclick="bilStromSatt(0)">Ta bort gränsen</button></div>':'');
 }
 function bilStromFall(){_bilStromUt=!_bilStromUt;if(!_bilStromUt)_bilStromUtk=null;bilStyrOm();}

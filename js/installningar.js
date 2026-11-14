@@ -1495,6 +1495,37 @@ function applyScenario(n){n=n||0;curScenario=n;CFG.scenario=n;
 /* SAMMA uppmärkning som på startsidan. Förhandsvisningen använde .en-chip, en
    äldre form med ikonen ovanför texten — sedan energi- och väderrutorna flyttade
    in i panelerna är de vanliga .stat med ikonen till vänster. */
+/* ===== SÄKRINGSVAKTEN (v907) =====
+   Gränsen energistyr håller varje fas under när bilen laddar. Ligger i Homey
+   (sakring_max_a) så att den gäller oavsett vilken skärm som ställer den.
+   Saknas variabeln gäller skriptets standard, 23 A. Taket i dashboarden är
+   huvudsäkringen (Utseende → Huvudsäkring); golvet 10 A. */
+function sakVaktVarde(){
+  if(_sakVaktUtkast!=null)return _sakVaktUtkast;
+  try{var v=logicArr(_regel&&_regel.lista).filter(function(x){return x&&x.name==='sakring_max_a';})[0];
+    var n=v?Number(v.value):NaN;if(isFinite(n)&&n>=10&&n<=35)return Math.floor(n);}catch(e){}
+  return SAKVAKT_STD;}
+function sakVaktText(){
+  if(_sakVaktStatus)return _sakVaktStatus;
+  var hs=fasSakring();
+  return 'Bilens laddström sänks eller pausas så att ingen fas går över gränsen (mätt med Pulse). '
+    +'Huvudsäkringen är '+hs+' A; '+(hs-sakVaktVarde())+' A marginal. Standard är '+SAKVAKT_STD+' A.';}
+function sakVaktSteg(d){
+  var hs=fasSakring(),nu=sakVaktVarde(),ny=Math.max(10,Math.min(hs,nu+d));
+  if(ny===nu){_sakVaktStatus=(d>0?'Gränsen kan inte vara högre än huvudsäkringen ('+hs+' A).':'Lägsta gräns är 10 A.');sakVaktRita();return;}
+  _sakVaktUtkast=ny;_sakVaktStatus='Sparar '+ny+' A i Homey…';sakVaktRita();
+  clearTimeout(_sakVaktTimer);_sakVaktTimer=setTimeout(sakVaktSpara,900);   /* flera tryck i rad blir en skrivning */
+}
+async function sakVaktSpara(){
+  var v=_sakVaktUtkast;if(v==null)return;
+  try{var list=await logicList();await logicWrite(list,'sakring_max_a',v,'number');
+    _sakVaktStatus='Sparat: '+v+' A. Energistyrningen använder det inom en minut.';
+    try{await regelHamta(true);}catch(e){}
+    _sakVaktUtkast=null;
+  }catch(e){_sakVaktStatus='Kunde inte spara i Homey ('+((e&&e.message)||'fel')+'). Gränsen är oförändrad.';_sakVaktUtkast=null;}
+  sakVaktRita();setTimeout(function(){_sakVaktStatus='';sakVaktRita();},6000);
+}
+function sakVaktRita(){var a=$('cfg-sakvakt'),b=$('cfg-sakvakt-s');if(a)a.textContent=sakVaktVarde()+' A';if(b)b.textContent=sakVaktText();}
 function stepRow(lbl,id,val,fn){
   return '<div class="cfg-row"><span class="cfg-row-l">'+lbl+'</span><div class="cfg-step"><button class="cfg-pm" onclick="'+fn+'(-1)">−</button><span class="cfg-num" id="'+id+'">'+val+'</span><button class="cfg-pm" onclick="'+fn+'(1)">+</button></div></div>';}
 /* En rad i en installningsmeny. Samma kort som roten anvander - de har fyra oppnar
@@ -1598,6 +1629,11 @@ function openConfig(){
   h+='<div class="cfg-hint" style="margin-top:6px;line-height:1.65">'+pwaRows()+'</div>';
   }else if(_cfgSec==='energi'){
     h+=cfgBack();
+  /* v907: säkringsvaktens gräns – Logic-variabeln sakring_max_a, som
+     energistyr 3.12.0 läser varje minut. */
+  h+='<div class="cfg-sec">Säkringsvakten</div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Högsta ström per fas</span><div class="cfg-step"><button class="cfg-pm" onclick="sakVaktSteg(-1)" aria-label="Sänk">−</button><span class="cfg-num" id="cfg-sakvakt">'+sakVaktVarde()+' A</span><button class="cfg-pm" onclick="sakVaktSteg(1)" aria-label="Höj">+</button></div></div>';
+  h+='<div class="cfg-hint" id="cfg-sakvakt-s">'+esc(sakVaktText())+'</div>';
   h+='<div class="cfg-sec">Prisdata</div>';
   h+='<div class="cfg-hint" style="margin-top:0">'+esc(monTibText())+' '+esc(monDiagText())+'</div>';
   h+='<div class="cfg-btns"><button class="cfg-opt" onclick="tibKrFetch();openConfig()">Läs Tibber-variabeln</button>'
