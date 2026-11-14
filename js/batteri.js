@@ -832,15 +832,45 @@ function battPlanSpann(t0,t1,arNu){
   if(!arNu&&a.dag===b.dag)return fa+'–'+b.kl;
   return fa+' – '+(b.dag?b.dag+' ':'')+b.kl;
 }
+/* v902: planens tidslinje som block {l, t0, t1}: det som redan hänt ur
+   battplan.f (lägesbytena, batteriplan 1.1.0) fram till nu, och sedan planen
+   framåt ur battplan.h. */
+function battPlanSegment(P){
+  var nu=Date.now(),ut=[],f=Array.isArray(P.f)?P.f:[];
+  for(var i=0;i<f.length;i++){var x=f[i];if(!x||!BP_NAMN[x[1]])continue;
+    var t1=Math.min(nu,(i+1<f.length)?f[i+1][0]:nu);if(t1>x[0])ut.push({l:x[1],t0:x[0],t1:t1});}
+  (P.h||[]).forEach(function(x){var t0=Math.max(x[0],nu),t1=x[0]+3600000;
+    if(t1>nu&&BP_NAMN[x[1]])ut.push({l:x[1],t0:t0,t1:t1});});
+  return ut;
+}
+/* v902: gårdagens beslut som rader, i stället för planen framåt. */
+function battPlanIgarHTML(){
+  var P=battPlanData(),rubrik='<div class="ww-h bp-h">Batteriplanen igår <span class="bp-prov">provläge</span></div>';
+  if(!P)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey… <small style="display:block;opacity:.8;margin-top:3px">'+esc(battPlanVarfor())+'</small></div></div>';
+  var d1=dayStart(),d0=d1-86400000,bl=[];
+  battPlanSegment(P).forEach(function(x){var a=Math.max(d0,x.t0),b=Math.min(d1,x.t1);if(b<=a)return;
+    var s=bl[bl.length-1];if(s&&s.l===x.l&&Math.abs(s.t1-a)<60000)s.t1=b;else bl.push({l:x.l,t0:a,t1:b});});
+  if(!bl.length){
+    var f=Array.isArray(P.f)?P.f:[];
+    return '<div class="bp">'+rubrik+'<div class="bp-txt">'+(f.length
+      ?'Planen började spara sina beslut '+esc(regelKl(f[0][0]))+' – gårdagen syns från i morgon.'
+      :'Planen sparar sina beslut från och med batteriplan 1.1.0 – gårdagen syns från i morgon.')+'</div></div>';
+  }
+  var kl=function(ms){var s=avlKl(ms);return s.replace(/:00$/,'');};
+  var rader=bl.map(function(b){var slut=(b.t1>=d1)?'24':kl(b.t1);
+    return '<div class="bp-r"><i class="bp-pr bp-'+b.l+'"></i><span class="bp-rt">'+esc(kl(b.t0)+'–'+slut)+'</span><b>'+BP_NAMN[b.l]+'</b><span class="bp-rn"></span></div>';}).join('');
+  var tack=(bl[0].t0>d0+60000)?'<div class="bp-txt">Före '+esc(kl(bl[0].t0))+' finns inga sparade beslut.</div>':'';
+  return '<div class="bp">'+rubrik+'<div class="bp-rader">'+rader+'</div>'+tack+'</div>';
+}
 /* v900: planens block som SVG-lager i prisgrafen för dygnet offset (0 i dag,
    1 i morgon). X räknar klocktimmar 0–24 till grafens x; y0/y1 är kurvans yta. */
 function pgPlanLager(offset,X,y0,y1){
-  var P=battPlanData(),nu=Date.now();if(!P||!P.h||!P.h.length)return '';
+  var P=battPlanData();if(!P||!P.h||!P.h.length)return '';
   var bl=[];
-  P.h.forEach(function(x){var t0=Math.max(x[0],nu),t1=x[0]+3600000;if(t1<=nu||!BP_NAMN[x[1]])return;
-    var a=klockTimmar(t0)-offset*24,b=klockTimmar(t1)-offset*24;
+  battPlanSegment(P).forEach(function(x){
+    var a=klockTimmar(x.t0)-offset*24,b=klockTimmar(x.t1)-offset*24;
     if(b<=0||a>=24)return;a=Math.max(0,a);b=Math.min(24,b);
-    var s=bl[bl.length-1];if(s&&s.l===x[1]&&Math.abs(s.b-a)<0.01)s.b=b;else bl.push({l:x[1],a:a,b:b});});
+    var s=bl[bl.length-1];if(s&&s.l===x.l&&Math.abs(s.b-a)<0.01)s.b=b;else bl.push({l:x.l,a:a,b:b});});
   var ut='';
   bl.forEach(function(k){var xa=X(k.a),w=Math.max(0.5,X(k.b)-xa-0.6);
     ut+='<rect class="pg-bp pg-bp-'+k.l+'" x="'+xa.toFixed(1)+'" y="'+y0+'" width="'+w.toFixed(1)+'" height="'+(y1-y0)+'"/>'
@@ -883,12 +913,15 @@ function battPlanHTML(off){
 }
 function buildCostPopup(){
     var pdOff=_priceDay||0;
-    var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
+    /* v902: Igår – priset ur Insights, batteri och sol ur sjudygnsserierna,
+       och vad batteriplanen beslutade (battplan.f). */
+    if(pdOff===-1)pgIgarHamta();
+    var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===-1?' on':'')+'" onclick="priceDaySet(-1)">Igår</button><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
       /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
       +'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
         +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' <span class="bp-prov">provläge</span></button>'
-      +(function(){if(!_pgVisaPlan)return '';try{return battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
+      +(function(){if(!_pgVisaPlan)return '';try{return pdOff===-1?battPlanIgarHTML():battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
