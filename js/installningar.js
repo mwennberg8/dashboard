@@ -1495,37 +1495,50 @@ function applyScenario(n){n=n||0;curScenario=n;CFG.scenario=n;
 /* SAMMA uppmärkning som på startsidan. Förhandsvisningen använde .en-chip, en
    äldre form med ikonen ovanför texten — sedan energi- och väderrutorna flyttade
    in i panelerna är de vanliga .stat med ikonen till vänster. */
-/* ===== SÄKRINGSVAKTEN (v907) =====
-   Gränsen energistyr håller varje fas under när bilen laddar. Ligger i Homey
-   (sakring_max_a) så att den gäller oavsett vilken skärm som ställer den.
-   Saknas variabeln gäller skriptets standard, 23 A. Taket i dashboarden är
-   huvudsäkringen (Utseende → Huvudsäkring); golvet 10 A. */
-function sakVaktVarde(){
-  if(_sakVaktUtkast!=null)return _sakVaktUtkast;
-  try{var v=logicArr(_regel&&_regel.lista).filter(function(x){return x&&x.name==='sakring_max_a';})[0];
-    var n=v?Number(v.value):NaN;if(isFinite(n)&&n>=10&&n<=35)return Math.floor(n);}catch(e){}
-  return SAKVAKT_STD;}
+/* ===== SÄKRINGSVAKTEN (v907, v908) =====
+   Gränsen energistyr håller varje fas under när bilen laddar, och (v908)
+   hur mycket och hur länge en fas får gå över innan vakten ingriper. Ligger i
+   Homey (sakring_max_a, sakring_tol_a, sakring_tol_min) så att det gäller
+   oavsett vilken skärm som ställer det. Saknas en variabel gäller skriptets
+   standard: 23 A, ingen överskridning. Gränsen plus överskridningen får inte
+   gå över huvudsäkringen (Utseende → Huvudsäkring). */
+function sakVaktVarde(k){
+  k=k||'max';var D=SAKVAKT[k];
+  if(_sakVaktUtkast&&_sakVaktUtkast[k]!=null)return _sakVaktUtkast[k];
+  try{var v=logicArr(_regel&&_regel.lista).filter(function(x){return x&&x.name===D.v;})[0];
+    var n=v?Number(v.value):NaN;if(isFinite(n)&&n>=D.min&&n<=35)return Math.round(n);}catch(e){}
+  return D.std;}
+function sakVaktTak(k){var hs=fasSakring();
+  if(k==='max')return hs-sakVaktVarde('tol');
+  if(k==='tol')return Math.min(5,hs-sakVaktVarde('max'));
+  return SAKVAKT.tid.max;}
 function sakVaktText(){
   if(_sakVaktStatus)return _sakVaktStatus;
-  var hs=fasSakring();
-  return 'Bilens laddström sänks eller pausas så att ingen fas går över gränsen (mätt med Pulse). '
-    +'Huvudsäkringen är '+hs+' A; '+(hs-sakVaktVarde())+' A marginal. Standard är '+SAKVAKT_STD+' A.';}
-function sakVaktSteg(d){
-  var hs=fasSakring(),nu=sakVaktVarde(),ny=Math.max(10,Math.min(hs,nu+d));
-  if(ny===nu){_sakVaktStatus=(d>0?'Gränsen kan inte vara högre än huvudsäkringen ('+hs+' A).':'Lägsta gräns är 10 A.');sakVaktRita();return;}
-  _sakVaktUtkast=ny;_sakVaktStatus='Sparar '+ny+' A i Homey…';sakVaktRita();
+  var hs=fasSakring(),g=sakVaktVarde('max'),t=sakVaktVarde('tol'),m=sakVaktVarde('tid');
+  var s='Bilens laddström sänks eller pausas så att ingen fas går över '+g+' A (mätt med Pulse). ';
+  s+=(t>0&&m>0)?('Upp till '+(g+t)+' A tillåts i högst '+m+' min, så att faserna hinner balanseras; över '+(g+t)+' A ingriper vakten direkt. ')
+    :'Vakten ingriper inom en minut. Ställ överskridning och fördröjning för att ge fasbalanseringen tid. ';
+  return s+'Huvudsäkringen är '+hs+' A.';}
+function sakVaktSteg(k,d){
+  var D=SAKVAKT[k],nu=sakVaktVarde(k),tak=sakVaktTak(k),ny=Math.max(D.min,Math.min(tak,nu+d*D.steg));
+  if(ny===nu){_sakVaktStatus=d>0?(k==='tid'?'Längsta fördröjning är '+tak+' min.':'Gränsen plus överskridningen kan inte gå över huvudsäkringen ('+fasSakring()+' A).')
+      :(k==='max'?'Lägsta gräns är 10 A.':'Redan av.');sakVaktRita();return;}
+  _sakVaktUtkast=_sakVaktUtkast||{};_sakVaktUtkast[k]=ny;_sakVaktStatus='Sparar '+D.namn+' i Homey…';sakVaktRita();
   clearTimeout(_sakVaktTimer);_sakVaktTimer=setTimeout(sakVaktSpara,900);   /* flera tryck i rad blir en skrivning */
 }
 async function sakVaktSpara(){
-  var v=_sakVaktUtkast;if(v==null)return;
-  try{var list=await logicList();await logicWrite(list,'sakring_max_a',v,'number');
-    _sakVaktStatus='Sparat: '+v+' A. Energistyrningen använder det inom en minut.';
+  var U=_sakVaktUtkast;if(!U)return;
+  try{var list=await logicList();
+    for(var k in U){if(U[k]!=null)await logicWrite(list,SAKVAKT[k].v,U[k],'number');}
+    _sakVaktStatus='Sparat. Energistyrningen använder det inom en minut.';
     try{await regelHamta(true);}catch(e){}
     _sakVaktUtkast=null;
-  }catch(e){_sakVaktStatus='Kunde inte spara i Homey ('+((e&&e.message)||'fel')+'). Gränsen är oförändrad.';_sakVaktUtkast=null;}
+  }catch(e){_sakVaktStatus='Kunde inte spara i Homey ('+((e&&e.message)||'fel')+'). Inget är ändrat.';_sakVaktUtkast=null;}
   sakVaktRita();setTimeout(function(){_sakVaktStatus='';sakVaktRita();},6000);
 }
-function sakVaktRita(){var a=$('cfg-sakvakt'),b=$('cfg-sakvakt-s');if(a)a.textContent=sakVaktVarde()+' A';if(b)b.textContent=sakVaktText();}
+function sakVaktRita(){['max','tol','tid'].forEach(function(k){var e=$('cfg-sakvakt-'+k);if(e)e.textContent=sakVaktVarde(k)+SAKVAKT[k].enh;});
+  var b=$('cfg-sakvakt-s');if(b)b.textContent=sakVaktText();}
+function sakVaktRad(k,lbl){return '<div class="cfg-row"><span class="cfg-row-l">'+lbl+'</span><div class="cfg-step"><button class="cfg-pm" onclick="sakVaktSteg(\''+k+'\',-1)" aria-label="Minska">−</button><span class="cfg-num" id="cfg-sakvakt-'+k+'">'+sakVaktVarde(k)+SAKVAKT[k].enh+'</span><button class="cfg-pm" onclick="sakVaktSteg(\''+k+'\',1)" aria-label="Öka">+</button></div></div>';}
 function stepRow(lbl,id,val,fn){
   return '<div class="cfg-row"><span class="cfg-row-l">'+lbl+'</span><div class="cfg-step"><button class="cfg-pm" onclick="'+fn+'(-1)">−</button><span class="cfg-num" id="'+id+'">'+val+'</span><button class="cfg-pm" onclick="'+fn+'(1)">+</button></div></div>';}
 /* En rad i en installningsmeny. Samma kort som roten anvander - de har fyra oppnar
@@ -1632,7 +1645,7 @@ function openConfig(){
   /* v907: säkringsvaktens gräns – Logic-variabeln sakring_max_a, som
      energistyr 3.12.0 läser varje minut. */
   h+='<div class="cfg-sec">Säkringsvakten</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Högsta ström per fas</span><div class="cfg-step"><button class="cfg-pm" onclick="sakVaktSteg(-1)" aria-label="Sänk">−</button><span class="cfg-num" id="cfg-sakvakt">'+sakVaktVarde()+' A</span><button class="cfg-pm" onclick="sakVaktSteg(1)" aria-label="Höj">+</button></div></div>';
+  h+=sakVaktRad('max','Högsta ström per fas')+sakVaktRad('tol','Tillåten överskridning')+sakVaktRad('tid','Fördröjning');
   h+='<div class="cfg-hint" id="cfg-sakvakt-s">'+esc(sakVaktText())+'</div>';
   h+='<div class="cfg-sec">Prisdata</div>';
   h+='<div class="cfg-hint" style="margin-top:0">'+esc(monTibText())+' '+esc(monDiagText())+'</div>';
