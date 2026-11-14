@@ -675,6 +675,26 @@ function zkKortIkon(d){
   if(/ute|utomhus|fasad/i.test(n))return 'sun-horizon';
   if(zkArLampa(d))return 'lightbulb';
   return 'plug';}
+/* v906: AC:N SOM BRED KNAPP under periodväljaren. Visar läget nu (läge,
+   inställd temperatur, temperaturen nu, effekt); ett tryck öppnar kontrollerna
+   (openAc). Kortet bland enheterna försvinner, så AC:n finns bara på ett ställe. */
+function zkAcKnappar(k){
+  if(typeof AC_ENH==='undefined')return '';
+  var h='';
+  Object.keys(AC_ENH).forEach(function(id){var A=AC_ENH[id],d=DATA&&DATA[id];
+    if(!d||A.zk!==k||zkDold(id))return;
+    var on=capOf(d,'onoff')===true,md=capOf(d,A.lage),aktiv=on&&md!=='off';
+    var t=capOf(d,'target_temperature'),tn=capOf(d,'measure_temperature'),w=rHar(d,'measure_power')?capOf(d,'measure_power'):null;
+    var rubrik=aktiv?(esc(acModeSv(md,true)||'På')+(t!=null&&isFinite(t)?' '+num(t,0)+'°':'')):'Av';
+    var under=[];
+    if(tn!=null&&isFinite(tn))under.push(num(tn,1)+' °C i rummet');
+    if(aktiv&&w!=null&&isFinite(w))under.push(W(w));
+    h+='<button type="button" class="zk-acknapp'+(aktiv?' on':'')+'" onclick="openAc(\''+id+'\')">'
+      +'<span class="zk-acknapp-ic">'+icon(aktiv?(BRV_MODE_IC[md]||'snowflake'):'power')+'</span>'
+      +'<span class="zk-acknapp-t"><span class="zk-acknapp-k">AC</span><b>'+rubrik+'</b>'
+      +(under.length?'<small>'+esc(under.join(' · '))+'</small>':'')+'</span>'
+      +'<span class="zk-acknapp-pil">'+icon('caret-right')+'</span></button>';});
+  return h;}
 /* v876: AC-kortet: läget och inställd temperatur, tryck öppnar fjärrkontrollen. */
 function zkAcText(d){
   var ac=AC_ENH[d.id],on=capOf(d,'onoff')===true,md=capOf(d,ac.lage),t=capOf(d,'target_temperature');
@@ -782,6 +802,7 @@ function zkPopHTML(k){
       'Temperaturerna delar skala. Fukt och CO₂ har var sin egen skala och är streckade. '
       +'Tryck på en kurva under grafen för att lyfta fram den. Dra i grafen för att läsa av vid en viss tidpunkt.'))
     +zkGraf(k,cid)+grafTidsval(cid);
+  h+=zkAcKnappar(k);   /* v906: AC:n som bred knapp under periodväljaren */
   _grafByggare[cid]={titel:Z.lab,full:function(c){return zkGraf(k,c||cid);}};
   h+=dSec('Nu');
   if(Z.ser.p){
@@ -821,7 +842,7 @@ function zkPopHTML(k){
     var la=zkArLampa(a)?0:1,lb=zkArLampa(b)?0:1;return la-lb||rSort(a,b);});
   /* v877: en dold enhet finns inte här alls – den styrs någon annanstans. Den
      tas fram igen under Inställningar → Husbilden. */
-  var ens=alla.filter(function(d){return !zkDold(d.id);});
+  var ens=alla.filter(function(d){return !zkDold(d.id)&&!(typeof AC_ENH!=='undefined'&&AC_ENH[d.id]);});   /* v906: AC:n har egen knapp */
   var pa=ens.filter(function(d){return capOf(d,'onoff')===true;}).length;
   if(ens.length){h+=dSec('Enheter ('+pa+' av '+ens.length+' på)');h+=zkKortRutnat(ens);}
   setTimeout(zkHallInit,0);
