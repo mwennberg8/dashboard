@@ -48,7 +48,7 @@ function elprisHi(){return (PRICEVARS.hi!=null)?PRICEVARS.hi:cap(DEV.tibber,'mea
    Imorgon finns inget "hittills" — där visas dygnets snittpris i stället. */
 function prisMinMaxKl(off){
   var mm=prisMinMax(off),ut={lo:mm.lo,hi:mm.hi,loH:null,hiH:null,snitt:null};
-  var rad=null;try{rad=prisKalibrera(prisDygn(off),off);}catch(e){}
+  var rad=null;try{rad=prisVisas(off);}catch(e){}
   if(rad&&rad.length){
     var blo=Infinity,bhi=-Infinity,sum=0,n=0;
     for(var i=0;i<rad.length;i++){var h=rad[i][0],v=rad[i][1];
@@ -69,7 +69,7 @@ function prisRutor(off){
   var ruta=function(k,v,s,farg){return '<div class="pchip"><div class="pchip-k">'+k+'</div>'
     +'<div class="pchip-v"'+(farg?' style="color:'+farg+'"':'')+'>'+v+'</div><div class="pchip-s">'+s+'</div></div>';};
   var tredje=off
-    ?ruta('Snitt',ore(m.snitt),'imorgon')
+    ?ruta('Snitt',ore(m.snitt),off<0?'igår':'imorgon')
     :ruta('Hittills',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr',
         esc(priceLevelSv(cap(DEV.tibber,'measure_price_info_level')||cap(DEV.tibber,'price_level'))||''));
   return '<div class="pchips">'
@@ -85,7 +85,7 @@ function prisMinMax(offset){
      och visade 38 öre där grafen toppade på 1,10 kr.
      Samma funktion och samma offset som grafen använder, så de kan inte glida
      isär igen. */
-  var rad=prisKalibrera(prisDygn(offset),offset);
+  var rad=prisVisas(offset);   /* v902: samma serie som grafen, även igår */
   if(!rad||!rad.length)return {lo:null,hi:null};
   var lo=Infinity,hi=-Infinity;
   for(var i=0;i<rad.length;i++){

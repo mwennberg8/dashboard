@@ -932,6 +932,54 @@ function prisKalibrering(pts){
   }
   return _prisKal;                        /* gårdagens passning duger för imorgon */
 }
+/* v902: DEN PRISSERIE GRAFEN OCH RUTORNA VISAR för ett dygn. Idag och imorgon
+   kommer ur Tibbers serie (tibber_pris, omräknad med prisKalibrera). Igår finns
+   inte där – tibberpris sparar bara idag och imorgon – så gårdagen läses ur
+   Insights-loggen för Logic-variabeln Elpris, som redan är i visningsskalan.
+   Saknas den används dashboardens egen prislogg (bara när sidan var öppen). */
+function prisVisas(offset){
+  if(offset===-1){
+    if(_prisIgar&&_prisIgar.dag===dagNyckelPlus(-1)&&_prisIgar.pts.length>=2)return _prisIgar.pts;
+    var o=plogDays(),eg=(o.days[dagNyckelPlus(-1)]||[]).slice();
+    return eg.length>=2?eg:null;
+  }
+  return prisKalibrera(prisDygn(offset),offset);
+}
+/* Gårdagens Elpris ur Insights: kvartsvärdena (stickproven på :00, :15, :30 och
+   :45 – värdena däremellan är medel över två kvartar). */
+async function prisIgarHamta(){
+  var dag=dagNyckelPlus(-1);
+  if(_prisIgarLaddar||!BASE)return false;
+  if(_prisIgar&&_prisIgar.dag===dag&&(_prisIgar.pts.length||Date.now()-_prisIgar.at<5*60000))return false;
+  _prisIgarLaddar=true;
+  try{
+    var lr=await insGet('/api/manager/insights/log/',15000),arr=lr.data?(Array.isArray(lr.data)?lr.data:Object.values(lr.data)):[];
+    var lg=arr.filter(function(x){var id=String(x&&x.id||''),u=String(x&&(x.uri||x.ownerUri)||'');
+      return (id.indexOf('homey:manager:logic')===0||u.indexOf('homey:manager:logic')===0)&&String(x.title||'').trim().toLowerCase()==='elpris';})[0];
+    var pts=[];
+    if(lg){
+      var e=await insGet('/api/manager/insights/log/'+(lg.uri||lg.ownerUri)+'/'+lg.id+'/entry?resolution=yesterday',15000);
+      parseEntries(e.data).forEach(function(q){
+        if(!isFinite(q.v)||new Date(q.t).getMinutes()%15!==0)return;
+        var h=klockTimmar(q.t)+24;if(h<0||h>=24)return;
+        if(pts.length&&h<=pts[pts.length-1][0])return;
+        pts.push([Math.round(h*100)/100,Math.round(q.v*1000)/1000]);});
+      if(pts.length>1)pts.push([24,pts[pts.length-1][1]]);
+    }
+    _prisIgar={dag:dag,pts:pts,at:Date.now(),fel:lg?(pts.length?'':'loggen gav inga värden'):'hittade ingen Insights-logg för Elpris'};
+    return true;
+  }catch(err){_prisIgar={dag:dag,pts:[],at:Date.now(),fel:(err&&err.message)||'fel'};return true;}
+  finally{_prisIgarLaddar=false;}
+}
+/* Igår: Insights för priset, och sjudygnsserierna för batteri och sol. Rutan
+   ritas om när svaren kommit, om den fortfarande visar Igår. */
+function pgIgarHamta(){
+  var omrita=function(){if(_dlgWhich==='cost'&&_priceDay===-1){var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}};
+  try{prisIgarHamta().then(function(ny){if(ny)omrita();});}catch(e){}
+  /* Rita bara om när serien faktiskt är ny – hist7Hamta svarar direkt ur sin
+     cache, och en omritning anropar den här funktionen igen (evig slinga). */
+  try{var fore=_hist7At,h=hist7Hamta(false);if(h&&h.then)h.then(function(){if(_hist7At!==fore)omrita();});}catch(e){}
+}
 function prisKalibrera(pts,offset){
   /* Saknas serien finns inget att kalibrera. Utan den här raden kastade
      funktionen på null, vilket prisMinMax kunde råka ut för när morgondagens
@@ -1060,6 +1108,15 @@ function pgAvlast(){
    Uppmätta punkter finns bara för idag; imorgon är enbart prognos. */
 function battKurva(offset){
   var kwh=(CFG&&CFG.battkwh)||10;
+  /* v902: igår – uppmätt ur sjudygnsserien, ingen prognos. */
+  if(offset<0){
+    var d1=dayStart(),d0=d1-86400000,ut=[],src=(HIST7&&HIST7['battpct'])||[];
+    for(var j=0;j<src.length;j++){var r=src[j];
+      if(!r||r.v==null||!isFinite(r.v)||r.t<d0||r.t>=d1)continue;
+      var hr=klockTimmar(r.t)+24;if(ut.length&&hr<ut[ut.length-1].h)continue;
+      ut.push({h:hr,v:Math.max(0,Math.min(100,r.v))});}
+    return ut.length>1?{fakt:ut,prog:[]}:null;
+  }
   var pw=cap(DEV.battery,'measure_power'), pct=cap(DEV.battery,'measure_battery'),
       bs=cap(DEV.battery,'battery_charging_state');
   var d0=dayStart(), nuH=pgTimmenNu();
@@ -1311,13 +1368,13 @@ function pgUpp(e){
   try{dlgIdleReset();}catch(err){}
 }
 function dayPriceGraphSVG(offset){offset=offset||0;
-  var franTibber=prisDygn(offset);
-  if(franTibber)franTibber=prisKalibrera(franTibber,offset);
+  var franTibber=prisVisas(offset);   /* v902: även igår */
   var o=plogDays(),key=dagNyckelPlus(offset||0);   /* v847 */
   var pts=franTibber?franTibber:(o.days[key]||[]).slice();
   if((pts.length<3)&&SOURCE==='demo-data'&&offset===0){pts=[];for(var hh=0;hh<=23.5;hh+=0.5)pts.push([hh,0.55+0.5*Math.sin((hh-3)/24*2*Math.PI)+(hh>16&&hh<21?0.75:0)+0.12*Math.sin(hh*1.7)]);}
   if(pts.length<2){
-    var msg=offset>0?'Morgondagens priser blir tillgängliga senare (publiceras oftast runt kl 13).'
+    var msg=offset<0?((_prisIgar&&_prisIgar.dag===dagNyckelPlus(-1)&&_prisIgar.fel)?('Gårdagens priser saknas: '+_prisIgar.fel+'.'):'Hämtar gårdagens priser från Homey…')
+      :offset>0?'Morgondagens priser blir tillgängliga senare (publiceras oftast runt kl 13).'
       :(_prisFel?('Timpriser saknas: '+_prisFel+'. Kör HomeyScriptet tibberpris.')
                 :'Prisdatan byggs upp under dygnet.');
     return '<div class="pgraph-empty">'+msg+'</div>';}
@@ -1376,7 +1433,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   /* v900: BATTERIPLANEN I GRAFEN. Planens block från nu och framåt som svag
      bakgrund i lägets färg och en tydlig list under kurvan, på rätt klocktid –
      så man ser direkt om den laddar i dalarna och laddar ur i topparna. */
-  if(_pgVisaPlan&&offset>=0&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
+  if(_pgVisaPlan&&offset>=-1&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
   s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
   /* non-scaling-stroke: grafen sträcks i sidled på plattan, och utan det blev
      trappans lodräta steg nästan dubbelt så tjocka som de vågräta. */
@@ -1399,7 +1456,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      det är uppmätt, streckad där det är framskrivet. Cyan som i batterirutan. */
   /* Batteriet ritas nu även i imorgon-grafen, så en laddning som pågår över
      midnatt går att följa. Igår har ingen prognos att visa. */
-  var bk=(_pgVisaBatt&&offset>=0&&offset<=1)?battKurva(offset):null;
+  var bk=(_pgVisaBatt&&offset>=-1&&offset<=1)?battKurva(offset):null;   /* v902: även igår */
   var YP=function(v){return padT+(1-Math.max(0,Math.min(100,v))/100)*(H-padT-padB);};
   /* SOLEN. Egen skala normerad mot dygnets högsta, så kurvans form syns även
      en mulen dag. Faktiskt heldraget, prognos streckat — samma språk som
@@ -1445,7 +1502,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   /* Av/på för extrakurvorna. Batteriet finns för idag och imorgon — prognosen
      utgår från "nu" och kan sträcka sig förbi midnatt. Solen för alla tre. */
   var lag='<div class="pg-lager">';
-  if(offset>=0&&offset<=1)lag+='<span class="'+(_pgVisaBatt?'':'av')+'" onclick="pgLagerTog(\'batt\')">'
+  if(offset>=-1&&offset<=1)lag+='<span class="'+(_pgVisaBatt?'':'av')+'" onclick="pgLagerTog(\'batt\')">'
     +'<i style="background:'+(P.cyan||'#57b6c2')+'"></i>Batteri %</span>';
   lag+='<span class="'+(_pgVisaSol?'':'av')+'" onclick="pgLagerTog(\'sol\')">'
     +'<i style="background:'+(P.sun||'#f2b705')+'"></i>Solproduktion</span>';
