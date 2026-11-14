@@ -453,6 +453,7 @@ function buildEnergyPopup(){
         +'Batteriets effekt är positiv när det laddas och negativ när det laddar ur.'))
     +dayChart(se.linjer,{pct:se.procent,cid:'g2-day',t0:_ef.t0,t1:_ef.t1})
     +grafTidsval('g2-day');
+  h+=forbrDelarHTML();   /* v904: vad förbrukningen består av */
   /* Byggare + omritning så tidsval och helskärm kan rita om just den här vyn. */
   _grafByggare['g2-day']={titel:'Sol, förbrukning & batteri',full:function(cid){
     cid=cid||'g2-day';
@@ -464,6 +465,55 @@ function buildEnergyPopup(){
   h+=buildBoughtYear();
   h+='<div class="alt-hint">Håll kvar fingret för att växla vy</div>';
   return h;}
+/* ===== VAD FÖRBRUKNINGEN BESTÅR AV (v904) =====
+   Husets förbrukning nu (Förbrukning, measure_power.load) fördelad på de
+   enheter som har en riktig effektmätare (measure_power) – AC:n i Breveden och
+   uterummet, värmefläkten, laddboxen … Enheterna hittas av sig själva: en ny
+   enhet med mätare kommer med utan kodändring. Elmätare, solpaneler, batteri
+   och bilar räknas inte (de mäter inte förbrukning eller räknas redan via
+   laddboxen). Det som blir kvar står som Annat. */
+var FORBR_EJ_KLASS={solarpanel:1,battery:1,car:1,sensor:1};
+function forbrNamn(d){
+  var ac=(typeof AC_ENH!=='undefined')?AC_ENH[d.id]:null;
+  if(ac)return 'AC '+ac.namn;
+  if(d['class']==='evcharger'||/laddbox/i.test(rNamn(d)))return 'Billaddning';
+  var n=rNamn(d)||'Enhet',z=(typeof ZONES!=='undefined'&&ZONES&&d.zone)?ZONES[d.zone]:null,zn=z&&(z.name||z);
+  return (zn&&typeof zn==='string'&&n.toLowerCase().indexOf(zn.toLowerCase())<0)?(n+' · '+zn):n;
+}
+function forbrDelar(){
+  var tot=houseNowW();if(tot==null||!isFinite(tot))return null;
+  var ej={};[DEV.consume,DEV.pulse,DEV.solar,DEV.battery,BATT_MB,BATT_HB,DEV.tibber].forEach(function(x){if(x)ej[x]=1;});
+  var delar=[];
+  Object.keys(DATA||{}).forEach(function(id){var d=DATA[id];
+    if(!d||ej[id]||FORBR_EJ_KLASS[d['class']]||!d.capabilitiesObj||!d.capabilitiesObj.measure_power)return;
+    var w=Number(capOf(d,'measure_power'));if(!isFinite(w))return;
+    delar.push({id:id,namn:forbrNamn(d),w:Math.max(0,w)});});
+  delar.sort(function(a,b){return b.w-a.w;});
+  var matt=delar.reduce(function(s,x){return s+x.w;},0);
+  return {tot:Math.max(0,tot),delar:delar,matt:matt,annat:Math.max(0,tot-matt)};
+}
+function forbrDelarHTML(){
+  var F=forbrDelar();if(!F)return '';
+  var P=PAL[curTheme]||PAL.dark,farger=[P.blue,P.violet,P.cyan,P.gold,P.green];
+  /* Högst fem egna färger; fler enheter med effekt slås ihop till "Övriga mätare". */
+  var aktiva=F.delar.filter(function(x){return x.w>=5;}),visa=aktiva.slice(0,5),ovr=aktiva.slice(5);
+  var seg=visa.map(function(x,i){return {namn:x.namn,w:x.w,col:farger[i]};});
+  if(ovr.length)seg.push({namn:'Övriga mätare ('+ovr.length+')',w:ovr.reduce(function(s,x){return s+x.w;},0),col:P.hot});
+  seg.push({namn:'Annat',w:F.annat,col:'var(--faint)',annat:true});
+  var bas=Math.max(F.tot,F.matt)||1;
+  var stapel='<div class="fd-stapel">'+seg.filter(function(x){return x.w>0;}).map(function(x){
+    return '<span style="flex:'+(x.w/bas*100).toFixed(2)+' 1 0;background:'+x.col+'" title="'+esc(x.namn)+'"></span>';}).join('')+'</div>';
+  var rader=seg.map(function(x){var pct=F.tot>0?Math.round(x.w/F.tot*100):0;
+    return '<div class="fd-r'+(x.annat?' fd-annat':'')+'"><i style="background:'+x.col+'"></i><span class="fd-n">'+esc(x.namn)+'</span>'
+      +'<span class="fd-w">'+fmtW(x.w)+'</span><span class="fd-p">'+pct+' %</span></div>';}).join('');
+  var vila=F.delar.filter(function(x){return x.w<5;}).map(function(x){return x.namn;});
+  var info='Husets förbrukning just nu (enheten Förbrukning) fördelad på de enheter som har en egen effektmätare. '
+    +'Det som inte mäts av någon av dem – belysning, vitvaror, värmepumpen i huset och allt annat – står som Annat. '
+    +'Enheter med mätare hittas automatiskt'+(vila.length?'; just nu drar '+esc(vila.join(', '))+' inget':'')+'. '
+    +'Mätarna läses inte exakt samtidigt, så summan kan skilja några procent.';
+  return '<div class="fd"><div class="ww-h fd-h">Vad förbrukningen består av'+infoBlock('fdelar',info)+'</div>'
+    +'<div class="fd-tot">'+fmtW(F.tot)+' <small>totalt nu</small></div>'+stapel+'<div class="fd-rader">'+rader+'</div></div>';
+}
 function dlgIdleReset(){if(_dlgIdle){clearTimeout(_dlgIdle);_dlgIdle=null;}if(!IDLE_CLOSE_MS)return;var b=$('dlg-back');if(b&&b.classList&&b.classList.contains('open')&&typeof setTimeout==='function'){_dlgIdle=setTimeout(function(){try{closeDetail();}catch(e){}},IDLE_CLOSE_MS);}}
 function dlgTop(){var b=$('dlg-body');if(b)b.scrollTop=0;dlgIdleReset();}
 /* Färgen får anges som palettnamn ELLER som literal hex. Paletten har bara sex
