@@ -1518,7 +1518,7 @@ function sakVaktText(){
   var s='Bilens laddström sänks eller pausas så att ingen fas går över '+g+' A (mätt med Pulse). ';
   s+=(t>0&&m>0)?('Upp till '+(g+t)+' A tillåts i högst '+m+' min, så att faserna hinner balanseras; över '+(g+t)+' A ingriper vakten direkt. ')
     :'Vakten ingriper inom en minut. Ställ överskridning och fördröjning för att ge fasbalanseringen tid. ';
-  return s+'Huvudsäkringen är '+hs+' A.';}
+  return s+'Huvudsäkringen är '+hs+' A. När vakten sänker bilens ström eller pausar laddningen får du en avisering från Homey (högst en per kvart).';}
 function sakVaktSteg(k,d){
   var D=SAKVAKT[k],nu=sakVaktVarde(k),tak=sakVaktTak(k),ny=Math.max(D.min,Math.min(tak,nu+d*D.steg));
   if(ny===nu){_sakVaktStatus=d>0?(k==='tid'?'Längsta fördröjning är '+tak+' min.':'Gränsen plus överskridningen kan inte gå över huvudsäkringen ('+fasSakring()+' A).')
