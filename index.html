@@ -3901,6 +3901,19 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 .bp-knapp{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin:0 0 14px;padding:11px 12px;border-radius:12px;
   border:1px solid var(--line);background:var(--panel-b);color:var(--ink);font:inherit;font-size:14px;font-weight:750;cursor:pointer}
 .bp-knapp.on{border-color:var(--gold)}
+.zk-acknapp{display:flex;align-items:center;gap:12px;width:100%;margin:10px 0 4px;padding:12px 14px;border-radius:14px;
+  border:1px solid var(--line);background:var(--inset,var(--panel-b));color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.zk-acknapp.on{border-color:color-mix(in srgb,var(--blue) 55%,var(--line))}
+.zk-acknapp-ic{display:flex;width:38px;height:38px;border-radius:50%;align-items:center;justify-content:center;flex:none;background:var(--panel-b);color:var(--faint)}
+.zk-acknapp.on .zk-acknapp-ic{color:var(--blue);background:color-mix(in srgb,var(--blue) 16%,transparent)}
+.zk-acknapp-ic .ic{width:20px;height:20px}
+.zk-acknapp-t{display:flex;flex-direction:column;min-width:0;flex:1}
+.zk-acknapp-k{font-size:10.5px;font-weight:800;letter-spacing:.08em;color:var(--faint)}
+.zk-acknapp-t b{font-size:17px;font-weight:800;line-height:1.2}
+.zk-acknapp-t small{font-size:12.5px;color:var(--dim);margin-top:1px;font-variant-numeric:tabular-nums}
+.zk-acknapp-pil{color:var(--faint);display:flex}
+.zk-acknapp-pil .ic{width:18px;height:18px}
+.zk-acknapp:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
 .fd{margin:14px 0 6px}
 .fd-h{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 8px}
 .fd-tot{font-size:22px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;margin-bottom:8px}
