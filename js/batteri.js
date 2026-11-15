@@ -570,9 +570,12 @@ function regelLageReg(){
   if(km==null)return {txt:'ingen kontakt med växelriktaren',fjarr:null,lage:null,varn:null};
   if(String(km)!=='4')return {txt:'Normal drift',fjarr:false,lage:'normal',varn:null};
   var dm=String(cap(BATT_MODBUS,'storagedefaultmode'));
+  /* v911: spara är 4/7 med urladdningsgränsen 0 W (solöverskottet laddar),
+     förut 4/1 – som aldrig laddade med överskottet. Båda räknas som spara. */
+  var ds=cap(BATT_MODBUS,'measure_power.dischargesetting'),ds0=(ds!=null&&isFinite(Number(ds))&&Number(ds)<=50);
   var L;
   if(dm==='3')L={txt:'Laddar från nätet',lage:'ladda'};
-  else if(dm==='1')L={txt:'Sparar – ingen urladdning',lage:'spara'};
+  else if(dm==='1'||(dm==='7'&&ds0))L={txt:'Sparar – ingen urladdning',lage:'spara'};
   else if(dm==='7')L={txt:'Styrs – egenförbrukning',lage:'egen'};
   else L={txt:'Styrs – '+(BATT_DM_TXT[dm]||('läge '+dm)),lage:'annat'};
   L.fjarr=true;L.varn=null;

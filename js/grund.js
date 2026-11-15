@@ -759,6 +759,7 @@ function battLaddText(){
   var dm=String(cap(BATT_MODBUS,'storagedefaultmode'));
   if(String(km)!=='4')return 'normal drift';
   if(dm==='1')return 'bara sol';
+  if(dm==='7'){var ds=cap(BATT_MODBUS,'measure_power.dischargesetting');if(ds!=null&&isFinite(Number(ds))&&Number(ds)<=50)return 'bara sol';}   /* v911 */
   if(dm==='3')return 'laddar max';
   return 'fjärrstyrd';
 }
