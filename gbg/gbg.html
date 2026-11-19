@@ -1113,7 +1113,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.91.0';
+const APP_VERSION = 'v1.92.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1148,6 +1148,10 @@ const DEV = {
   tvPanel:  'a34d1cf0-e658-4443-a808-4c55b9fabfd6'    /* själva TV:n: på/av och volym */
 };
 const ZON = { modes:'22bca589-f2e4-4044-bddd-51c5e624921b', hem:'9919ee1e-ffbc-480b-bc4b-77fb047e9e68' };
+/* v1.92.0: ENHETER SOM FÅR STRÖM VIA ETT UTTAG. Är uttaget avstängt är det
+   väntat att enheten inte svarar, så den hamnar inte bland "svarar inte". */
+const STROM_VIA = {};
+STROM_VIA[DEV.bambu] = DEV.bambuUt;
 
 /* ===== demoläge =====
    ?demo=1 kopplar bort Homey helt och fyller sidan med påhittad data. Tänkt för
@@ -3343,6 +3347,10 @@ function sensorLista(){
    samma cell rakats tva ganger: en gang som "Rullgardiner vardagsrum" och en
    gang som "Hoger". Vakten ska larma om den fysiska enheten, det ar den man
    byter batteri i. */
+/* v1.92.0: enhetens uttag (STROM_VIA) är avstängt – då är det väntat att den är borta. */
+function uttagAv(d){
+  const u=d&&STROM_VIA[d.id],ud=u&&DATA[u];
+  return !!(ud&&capOf(ud,'onoff')===false);}
 function battLista(){
   return devs().filter(d=>!arVirt(d.id)&&har(d,'measure_battery')&&capOf(d,'measure_battery')!=null)
     .map(d=>({d:d,p:capOf(d,'measure_battery')}))
@@ -3354,7 +3362,7 @@ function battLista(){
 var _varnDemo=false;
 function varnBatterier(){
   const laga=battLista().filter(x=>x.p<=CONFIG.BATTERY_WARN);
-  const borta=devs().filter(d=>d.available===false);
+  const borta=devs().filter(d=>d.available===false&&!uttagAv(d));
   let h='';
   borta.slice(0,4).forEach(d=>{
     h+='<div class="warn crit"><span class="wi">'+icon('wifi-high')+'</span>'
