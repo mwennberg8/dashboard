@@ -1185,6 +1185,8 @@ function showView(tab){if(!tab)return;
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('hidden',v.id!=='view-'+tab));
   try{flikradAktiv();}catch(e){}}
 function gbgKnappSyns(){
+  try{var h=JSON.parse(localStorage.getItem(HUSENHET_KEY)||'null');
+    if(h&&h.v==='nej')return false;if(h&&h.v==='ja')return true;}catch(e){}
   try{var v=localStorage.getItem(PIXEL_KEY);if(v==='1')return true;if(v==='0')return false;}catch(e){}
   try{var ua=String(navigator.userAgent||'');if(/Pixel(?! ?Tablet)/i.test(ua)&&!/Tablet/i.test(ua))return true;}catch(e){}
   return false;}

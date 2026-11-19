@@ -1775,8 +1775,11 @@ var FLIKAR=[['flode','house','Hem','goHome()'],['insikter','sparkle','Insikter',
    modellen frågas efter via userAgentData (kräver https, vilket GitHub Pages
    har). Svaret kommer asynkront: det sparas i PIXEL_KEY så knappen finns direkt
    vid nästa start, och menyn byggs om när svaret kommer första gången.
-   Pixel Tablet räknas inte. Tvinga med ?gbgknapp=1 eller ?gbgknapp=0. */
+   Pixel Tablet räknas inte. Tvinga med ?gbgknapp=1 eller ?gbgknapp=0.
+   v912: husvaktens markering (husenhet_v1, 1.9.0) går före: "nej" döljer
+   fliken även på en Pixel, "ja" visar den. Sätts med ?hem=min / ?hem=inte-min. */
 var PIXEL_KEY='gbgknapp_v1';
+const HUSENHET_KEY='husenhet_v1';
 try{gbgKnappKoll();}catch(e){}
 /* FLIKRADEN GÖMS NÄR MAN SKROLLAR NEDÅT och kommer tillbaka uppåt eller nära
    toppen. Små rörelser (under 8 px) räknas inte, så den inte fladdrar. */
@@ -2664,7 +2667,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v911';
+const APP_VERSION='v912';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
