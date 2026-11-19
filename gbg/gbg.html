@@ -1113,7 +1113,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.92.0';
+const APP_VERSION = 'v1.93.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -5750,7 +5750,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else start();
 </script>
 <script>
-/* ===== husvakt 1.8.1 =====
+/* ===== husvakt 1.9.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -5769,9 +5769,21 @@ else start();
      * automatiken är PÅ som standard på https; ?hem=av stänger av den
        (sparas som 'av'), ?hem=auto slår på den igen,
      * knappen finns alltid på https, även med automatiken avstängd,
-     * knappen läggs tillbaka om sidan ritar om toppraden (kollas var 5:e s). */
+     * knappen läggs tillbaka om sidan ritar om toppraden (kollas var 5:e s).
+
+   1.9.0 (2026-11-19): GÖTEBORG BARA PÅ MARKUS ENHETER. Förut bytte varje
+   https-enhet hus efter positionen – även andras telefoner, om de stod
+   närmare Göteborg. Nu har varje enhet en egen markering (husenhet_v1, sparas
+   aldrig i den delade synken):
+      * första gången frågas modellen (userAgentData, samma väg som Gottskärs
+        Pixel-flik sedan v762): Pixel-telefon eller Lenovo-platta = min enhet,
+        allt annat = inte min. Svaret sparas, så frågan ställs en gång.
+      * ?hem=min märker enheten som min, ?hem=inte-min tar bort den.
+      * Bara min enhet byter hus, får knappen och "Byt hus". Alla andra står
+        alltid i Gottskär: öppnas Göteborgsfilen ändå skickas de vidare innan
+        sidan hunnit synas. */
 (function(){
-  var VER='1.8.0';
+  var VER='1.9.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -5817,9 +5829,44 @@ else start();
      sig precis som förut — där finns varken den andra filen eller position. */
   function tillaten(){return location.protocol==='https:';}
   /* 1.8.0: på om ingen uttryckligen stängt av den. */
-  function pa(){return tillaten()&&ls(NYCK)!=='av';}
-  /* Två hus finns (https): knappen och "Byt hus" visas, oavsett automatiken. */
-  function tva(){return tillaten();}
+  function pa(){return tillaten()&&minNu()===true&&ls(NYCK)!=='av';}
+  /* Två hus finns (https) och enheten är min: knappen och "Byt hus" visas,
+     oavsett automatiken. */
+  function tva(){return tillaten()&&minNu()===true;}
+
+  /* 1.9.0: är det här en av Markus enheter? ja/nej sparas med varifrån svaret
+     kom; null = inte avgjort än (första starten, innan modellen svarat). */
+  var MIN='husenhet_v1';
+  function minLas(){try{var o=JSON.parse(ls(MIN)||'null');
+    return (o&&(o.v==='ja'||o.v==='nej'))?o:null;}catch(e){return null;}}
+  function minNu(){var o=minLas();return o?o.v==='ja':null;}
+  function minSatt(ja,kalla,m){
+    lsSet(MIN,JSON.stringify({v:ja?'ja':'nej',k:kalla,m:String(m||'').slice(0,60),t:Date.now()}));
+    return !!ja;}
+  /* Pixel-telefon (inte Pixel Tablet) eller Lenovo-platta. Lenovos plattor
+     heter TB-X606F, TB328FU, YT-X705F och liknande – ibland utan "Lenovo". */
+  function minModell(m){m=String(m||'');
+    if(/Pixel/i.test(m)&&!/Tablet/i.test(m))return true;
+    return /Lenovo|\b(?:TB|YT)-?[A-Z]?\d{3}/i.test(m);}
+  function minFraga(){
+    var o=minLas();if(o)return Promise.resolve(o.v==='ja');
+    return new Promise(function(klar){
+      var klart=false,ua=String(navigator.userAgent||''),uad=navigator.userAgentData;
+      function svar(ja,kalla,m,spara){if(klart)return;klart=true;
+        klar(spara===false?!!ja:minSatt(ja,kalla,m));}
+      if(!uad||typeof uad.getHighEntropyValues!=='function')
+        return svar(minModell(ua),'ua',ua.replace(/^[^(]*\(|\).*$/g,''));
+      /* Hänger frågan räknas enheten som inte min den här gången, utan att
+         svaret sparas – nästa start frågar igen. */
+      setTimeout(function(){svar(false,'tidsgräns','',false);},1500);
+      uad.getHighEntropyValues(['model']).then(function(r){
+        var m=String((r&&r.model)||'');
+        svar(minModell(m)||minModell(ua),'modell',m||ua.replace(/^[^(]*\(|\).*$/g,''));
+      },function(){svar(minModell(ua),'ua',ua.replace(/^[^(]*\(|\).*$/g,''));});
+    });
+  }
+  /* Göteborgssidan döljs tills det är klart att enheten får se den. */
+  function visa(){try{document.documentElement.style.visibility='';}catch(e){}}
 
   var rort=false;
   ['pointerdown','keydown','touchstart'].forEach(function(t){
@@ -5835,6 +5882,7 @@ else start();
       return o;}catch(e){return null;}
   }
   function vaxla(){
+    if(!tva())return null;
     var andra=jag()==='gbg'?'gottskar':'gbg';
     lsSet(LAS,JSON.stringify({hus:andra,t:Date.now()}));
     ssSet(HOPP,'0');lsSet(SIST,andra);
@@ -5843,6 +5891,7 @@ else start();
   }
   function hoppa(h,varfor){
     if(!HUS[h]||h===jag())return false;
+    if(h==='gbg'&&minNu()!==true)return false;   /* 1.9.0: aldrig till Göteborg på andras enheter */
     /* 1.8.1: räknaren bär sin tid ("n:ms") och nollställs efter 10 min, så att
        en flik som lever länge (kioskplatta, PWA) kan byta hus igen. Två byten
        inom 10 min är fortfarande gränsen – aldrig en loop. */
@@ -5952,6 +6001,7 @@ else start();
       +'box-shadow:0 10px 30px rgba(0,0,0,.45)');
     var rader=['husvakt '+VER+'  (tryck för att stänga)',
       'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'ingen (= auto)')+' → automatik '+(pa()?'på':'av'),'minne: '+(ls(SIST)||'–'),
+      'min enhet: '+(function(){var o=minLas();return o?(o.v+' ('+o.k+(o.m?', '+o.m:'')+')'):'inte avgjort';})(),
       'gräns: '+GRANS,
       'lås: '+(function(){var l=last();return l?(l.hus+', '+Math.round((LAS_MS-(Date.now()-l.t))/60000)+' min kvar'):'inget';})(),
       'mäter…'];
@@ -6020,22 +6070,40 @@ else start();
 
   var API={
     ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, tva:tva, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
+    min:minNu, minFraga:minFraga, minModell:minModell,
     position:position, sond:sond, forst:forst, lokal:lokal, diag:diag, last:last,
     navigera:function(u){location.replace(u);}
   };
   try{window.HUSVAKT=API;}catch(e){}
 
   function start(){
-    var q;try{q=new URLSearchParams(location.search||'');}catch(e){return;}
+    var q;try{q=new URLSearchParams(location.search||'');}catch(e){visa();return;}
     /* Demoläget ska stå still. En dashboard som hoppar till det andra huset mitt
        i en utprovning är obrukbar, och där finns ingen påhittad data. */
-    if(q.get('demo')==='1')return;
+    if(q.get('demo')==='1'){visa();return;}
     var hem=q.get('hem');
+    if(hem==='min')minSatt(true,'manuellt');
+    else if(hem==='inte-min')minSatt(false,'manuellt');
+    if(hem==='diag'){visa();diag();return;}
+    if(!tillaten()){visa();return;}
+    var nyss=minNu()===null;
+    minFraga().then(function(min){
+      if(!min){
+        /* Inte min enhet: alltid Gottskär, inget minne av Göteborg, ingen knapp. */
+        if(ls(SIST)==='gbg')lsSet(SIST,'gottskar');
+        if(jag()==='gbg'){API.navigera(url('gottskar'),'inte min enhet');return;}
+        visa();return;
+      }
+      visa();
+      /* Gottskärs Göteborgsflik i mobilläget hänger på samma svar. */
+      if(nyss){try{if(typeof window.flikradBygg==='function')window.flikradBygg();}catch(e){}}
+      vidare(q,hem);
+    },function(){if(minNu()===true)visa();});
+  }
+  function vidare(q,hem){
     if(hem==='auto'){lsSet(NYCK,'auto');}
     else if(hem==='av'){lsSet(NYCK,'av');}
-    else if(hem==='diag'){diag();return;}
     else if(hem==='gbg'||hem==='gottskar'){lsSet(SIST,hem);if(hem!==jag()){hoppa(hem,'manuellt');return;}}
-    if(!tva())return;
     /* Knappen skapas fortfarande: plattan har kvar toppraden. I mobilläget är
        toppraden dold och växlingen sker med hålltryck på liveprickan.
        1.8.0: alltid på https, och tillbaka om toppraden ritats om. */
@@ -6060,6 +6128,11 @@ else start();
   /* Starten läggs i en egen tick: sidans egen uppstart ska hinna köra klart
      innan ett eventuellt byte, och ett hopp mitt i parsningen är svårt att
      resonera om. Fördröjningen är noll millisekunder i praktiken. */
+  /* 1.9.0: Göteborgssidan döljs direkt på enheter som inte är (eller ännu inte
+     är kända som) mina, så att den aldrig hinner synas innan bytet. */
+  try{if(jag()==='gbg'&&tillaten()&&minNu()!==true
+      &&!/[?&](?:demo=1|hem=(?:diag|min)(?:&|$))/.test(location.search||''))
+    document.documentElement.style.visibility='hidden';}catch(e){}
   function koa(){setTimeout(start,0);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',koa);
   else koa();
