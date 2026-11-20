@@ -4386,7 +4386,7 @@ body.vaggplatta .hus-flod{animation:none!important}
 <script src="js/huset.js"></script>
 <script src="js/start.js"></script>
 <script>
-/* ===== husvakt 1.9.0 =====
+/* ===== husvakt 1.10.0 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -4417,9 +4417,20 @@ body.vaggplatta .hus-flod{animation:none!important}
       * ?hem=min märker enheten som min, ?hem=inte-min tar bort den.
       * Bara min enhet byter hus, får knappen och "Byt hus". Alla andra står
         alltid i Gottskär: öppnas Göteborgsfilen ändå skickas de vidare innan
-        sidan hunnit synas. */
+        sidan hunnit synas.
+
+   1.10.0 (2026-11-20): ENHETSREGISTRET. Varje enhet skriver in sig själv i
+   variabeln dash_enheter i varje Homey den har uppgifter till: id, modell,
+   telefon/platta, skärm, vilket hus den senast visade och när. Gottskärs
+   inställningar (Enheter) läser listorna och väljer per enhet Auto, Ja eller
+   Nej för Göteborg. Valet (g, med tid gt) ligger i samma variabel; enheten
+   läser det vid varje start och var tionde minut. Ja/Nej i listan går före
+   modellen; Auto lämnar tillbaka beslutet till modellen. ?hem=min och
+   ?hem=inte-min skrivs också in i listan, så att de två aldrig säger emot
+   varandra. Förut skrev bara huvudenheten till Homey – registret i
+   Gottskärs synk visste därför bara om den. */
 (function(){
-  var VER='1.9.0';
+  var VER='1.10.0';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -4503,6 +4514,178 @@ body.vaggplatta .hus-flod{animation:none!important}
   }
   /* Göteborgssidan döljs tills det är klart att enheten får se den. */
   function visa(){try{document.documentElement.style.visibility='';}catch(e){}}
+
+  /* ---- 1.10.0: enhetsregistret i Homey ---- */
+  var REG='dash_enheter', REGID='husreg_id_', REGT='husreg_t_';
+  var REG_SKRIV=30*60*1000, REG_LAS=10*60*1000, REG_GLOM=180*864e5;
+  /* Samma id som Gottskärs eget register (enhetsid_v1), så att listorna går
+     att para ihop. Skapas här om enheten aldrig öppnat Gottskär. */
+  function enhId(){var v=ls('enhetsid_v1');
+    if(!v){v=Date.now().toString(36)+Math.random().toString(36).slice(2,8);lsSet('enhetsid_v1',v);}
+    return v;}
+  function enhNamn(){try{var o=JSON.parse(ls('enheter_v1')||'{}')[enhId()];
+    if(o&&o.namn)return String(o.namn).slice(0,32);}catch(e){}return '';}
+  function enhKlass(){var u=String(navigator.userAgent||'');
+    return /Mobile|iPhone/.test(u)?'telefon':(/Android|iPad/.test(u)?'platta':'dator');}
+  function skarm(){try{return screen.width+'×'+screen.height;}catch(e){return '';}}
+  function modellNu(){
+    var ua=String(navigator.userAgent||''),fb=ua.replace(/^[^(]*\(|\).*$/g,''),uad=navigator.userAgentData;
+    if(!uad||typeof uad.getHighEntropyValues!=='function')return Promise.resolve(fb);
+    return Promise.race([
+      uad.getHighEntropyValues(['model']).then(function(r){return (r&&r.model)||fb;},function(){return fb;}),
+      new Promise(function(k){setTimeout(function(){k(fb);},1500);})]);}
+  function uppg(h){try{var o=JSON.parse(ls(HUS[h].cred)||'{}');
+    return {token:String(o.token||''),id:String(o.homeyId||'').trim()};}catch(e){return {token:'',id:''};}}
+  function baser(h){var b=[],l=lokal(h),u=uppg(h);if(l)b.push(l.bas);
+    if(u.id&&u.token)b.push('https://'+u.id+'.connect.athom.com');return b;}
+  function harUppg(h){return !!uppg(h).token&&baser(h).length>0;}
+  /* Lokalt först (kort tidsgräns), sedan molnet. 404 = finns inte (null). */
+  function anrop(h,metod,vag,kropp){
+    var tk=uppg(h).token,b=baser(h),i=0;
+    if(!tk||!b.length)return Promise.reject(new Error('inga uppgifter'));
+    function prova(){
+      if(i>=b.length)return Promise.reject(new Error('ingen kontakt'));
+      var bas=b[i++],ac=null,tid=null;
+      try{ac=new AbortController();tid=setTimeout(function(){ac.abort();},bas.indexOf('homeylocal')>0?4000:12000);}catch(e){}
+      var o={method:metod,headers:{Authorization:'Bearer '+tk},cache:'no-store'};
+      if(kropp!==undefined){o.headers['Content-Type']='application/json';o.body=JSON.stringify(kropp);}
+      if(ac)o.signal=ac.signal;
+      return fetch(bas+vag,o).then(function(r){
+        if(tid)clearTimeout(tid);
+        if(r.status===404)return null;
+        if(!r.ok)throw new Error('HTTP '+r.status);
+        return r.json().catch(function(){return {};});
+      },function(){if(tid)clearTimeout(tid);return prova();});
+    }
+    return prova();
+  }
+  function regLas(h){
+    var id=ls(REGID+h),V='/api/manager/logic/variable/';
+    return (id?anrop(h,'GET',V+id):Promise.resolve(null)).then(function(v){
+      if(v&&v.name===REG)return v;
+      return anrop(h,'GET',V).then(function(l){
+        var a=Array.isArray(l)?l:Object.keys(l||{}).map(function(k){return l[k];});
+        for(var i=0;i<a.length;i++)if(a[i]&&a[i].name===REG){lsSet(REGID+h,a[i].id);return a[i];}
+        return null;});
+    }).then(function(v){var o={};try{o=v?JSON.parse(v.value||'{}'):{};}catch(e){o={};}
+      if(!o||typeof o!=='object'||Array.isArray(o))o={};
+      return {v:v,o:o};});
+  }
+  /* Gamla enheter rensas, och listan hålls kort: en Homey-sträng ska inte svälla. */
+  function rensa(o,behall){var nu=Date.now();
+    Object.keys(o).forEach(function(k){if(k!==behall&&o[k]&&o[k].g==null&&nu-(o[k].t||0)>REG_GLOM)delete o[k];});
+    var ks=Object.keys(o).sort(function(x,y){return (o[y].t||0)-(o[x].t||0);});
+    ks.slice(30).forEach(function(k){if(k!==behall)delete o[k];});}
+  function regSkriv(h,r){
+    var s=JSON.stringify(r.o),V='/api/manager/logic/variable/';
+    if(r.v&&r.v.id)return anrop(h,'PUT',V+r.v.id,{value:s});
+    return anrop(h,'POST',V,{name:REG,type:'string',value:s}).then(function(v){
+      if(v&&v.id)lsSet(REGID+h,v.id);return v;});
+  }
+  /* Läser (alltid) och skriver in den här enheten (högst var 30:e minut, eller
+     när något ändrats). Valet i listan tillämpas direkt. gNy = 1/0 från ?hem=. */
+  function rapportera(gNy){
+    if(!tillaten())return Promise.resolve(null);
+    var id=enhId(),hus=Object.keys(HUS).filter(harUppg);
+    if(!hus.length)return Promise.resolve(null);
+    return modellNu().then(function(m){
+      return Promise.all(hus.map(function(h){
+        return regLas(h).then(function(r){
+          var f=r.o[id]||{},e={n:enhNamn()||f.n||'',m:String(m||'').slice(0,40),k:enhKlass(),
+            s:skarm(),h:jag(),v:VER,t:Date.now()};
+          if(f.nn)e.nn=f.nn;
+          if(gNy===1||gNy===0){e.g=gNy;e.gt=Date.now();}
+          else if(f.g===1||f.g===0){e.g=f.g;e.gt=f.gt||0;}
+          var t=Number(ls(REGT+h))||0;
+          var lika=f.h===e.h&&f.n===e.n&&f.m===e.m&&f.g===e.g&&f.gt===e.gt;
+          if(lika&&Date.now()-t<REG_SKRIV-60000)return {e:f};
+          r.o[id]=e;rensa(r.o,id);
+          return regSkriv(h,r).then(function(){lsSet(REGT+h,String(Date.now()));return {e:e};});
+        }).catch(function(){return {fel:true};});
+      })).then(function(ut){
+        var b=null,fel=false;
+        ut.forEach(function(x){if(x.fel){fel=true;return;}var e=x.e;
+          if(e&&(e.g===1||e.g===0)&&(!b||(e.gt||0)>(b.gt||0)))b=e;});
+        if(b||!fel)tillamp(b,m,false);
+        return b;
+      });
+    });
+  }
+  /* Valet i listan mot det enheten redan bestämt. Ett manuellt ?hem= som är
+     nyare än listans val står kvar (det skrivs in i listan strax efteråt). */
+  function tillamp(e,m,tvinga){
+    var o=minLas(),fore=minNu();
+    if(e&&(e.g===1||e.g===0)){
+      if(o&&o.v===(e.g?'ja':'nej')&&o.k==='lista')return;
+      if(!tvinga&&o&&o.k==='manuellt'&&(e.gt||0)<=(o.t||0))return;
+      minSatt(e.g===1,'lista',m);
+    }else{
+      if(!o||(!tvinga&&o.k!=='lista'))return;
+      minSatt(minModell(m),'modell',m);
+    }
+    var nu=minNu();if(nu!==fore)andrat(nu);
+  }
+  function andrat(nu){
+    if(!nu){
+      if(ls(SIST)==='gbg')lsSet(SIST,'gottskar');
+      var kn=document.getElementById('husvakt-knapp');if(kn&&kn.parentNode)kn.parentNode.removeChild(kn);
+      if(jag()==='gbg')API.navigera(url('gottskar'),'listan');
+      return;}
+    try{if(typeof window.flikradBygg==='function')window.flikradBygg();}catch(e){}
+    knappar();auto();
+  }
+  var regIgang=false;
+  function regStart(gNy){
+    if(regIgang)return;regIgang=true;
+    setTimeout(function(){rapportera(gNy);},gNy===1||gNy===0?0:3000);
+    try{setInterval(function(){rapportera();},REG_LAS);}catch(e){}
+  }
+  /* För inställningarna: båda husens listor ihopslagna per id. */
+  function enheter(){
+    var hus=Object.keys(HUS).filter(harUppg),status={};
+    return Promise.all(hus.map(function(h){
+      return regLas(h).then(function(r){status[h]=r.v?'ok':'tom';return {h:h,o:r.o};},
+        function(e){status[h]=(e&&e.message)||'fel';return null;});
+    })).then(function(ut){
+      var m={};
+      ut.forEach(function(x){if(!x)return;Object.keys(x.o).forEach(function(id){
+        var e=x.o[id]||{},f=m[id]||(m[id]={id:id,hus:[]});
+        f.hus.push(x.h);
+        if(!f.t||(e.t||0)>f.t)['n','nn','m','k','s','h','v','t'].forEach(function(k){f[k]=e[k];});
+        if((e.g===1||e.g===0)&&(f.g==null||(e.gt||0)>(f.gt||0))){f.g=e.g;f.gt=e.gt||0;}
+      });});
+      var jag2=enhId();
+      var lista=Object.keys(m).map(function(k){var e=m[k];e.auto=minModell(e.m);e.jag=(k===jag2);return e;})
+        .sort(function(x,y){return (y.jag-x.jag)||((y.t||0)-(x.t||0));});
+      return {lista:lista,status:status,hus:hus};
+    });
+  }
+  /* Ändra en post i alla Homey den här enheten når. f(post) ändrar posten;
+     returnerar false om posten ska tas bort. mall fyller en post som saknas. */
+  function enhetAndra(id,f,mall){
+    var hus=Object.keys(HUS).filter(harUppg);
+    return Promise.all(hus.map(function(h){
+      return regLas(h).then(function(r){
+        var e=r.o[id];
+        if(!e){if(!mall)return true;e={};['n','m','k','s','h','t'].forEach(function(k){if(mall[k]!=null)e[k]=mall[k];});}
+        if(f(e)===false)delete r.o[id];else r.o[id]=e;
+        return regSkriv(h,r).then(function(){return true;});
+      }).catch(function(){return false;});
+    })).then(function(ok){return ok.some(Boolean);});
+  }
+  function enhetGbg(id,val,mall){
+    return enhetAndra(id,function(e){
+      if(val===1||val===0){e.g=val;e.gt=Date.now();}else{delete e.g;delete e.gt;}
+    },mall).then(function(ok){
+      if(ok&&id===enhId())modellNu().then(function(m){
+        tillamp(val===1||val===0?{g:val,gt:Date.now()}:null,m,true);});
+      return ok;});
+  }
+  function enhetNamn(id,n,mall){
+    n=String(n||'').trim().slice(0,32);
+    return enhetAndra(id,function(e){if(n)e.nn=n;else delete e.nn;},mall);
+  }
+  function enhetGlom(id){return enhetAndra(id,function(){return false;});}
 
   var rort=false;
   ['pointerdown','keydown','touchstart'].forEach(function(t){
@@ -4637,6 +4820,7 @@ body.vaggplatta .hus-flod{animation:none!important}
       +'box-shadow:0 10px 30px rgba(0,0,0,.45)');
     var rader=['husvakt '+VER+'  (tryck för att stänga)',
       'denna fil: '+jag(),'flagga: '+(ls(NYCK)||'ingen (= auto)')+' → automatik '+(pa()?'på':'av'),'minne: '+(ls(SIST)||'–'),
+      'enhets-id: '+enhId(),
       'min enhet: '+(function(){var o=minLas();return o?(o.v+' ('+o.k+(o.m?', '+o.m:'')+')'):'inte avgjort';})(),
       'gräns: '+GRANS,
       'lås: '+(function(){var l=last();return l?(l.hus+', '+Math.round((LAS_MS-(Date.now()-l.t))/60000)+' min kvar'):'inget';})(),
@@ -4683,6 +4867,7 @@ body.vaggplatta .hus-flod{animation:none!important}
   }
   function knapp(){
     try{
+      if(!tva())return null;
       if(document.getElementById('husvakt-knapp'))return null;
       var rad=document.querySelector('.statusbar .en-top')||document.querySelector('.en-top');
       if(!rad)return null;
@@ -4707,6 +4892,7 @@ body.vaggplatta .hus-flod{animation:none!important}
   var API={
     ver:VER, grans:GRANS, jag:jag, rot:rot, url:url, pa:pa, tva:tva, hoppa:hoppa, vaxla:vaxla, knapp:knapp,
     min:minNu, minFraga:minFraga, minModell:minModell,
+    enhId:enhId, enheter:enheter, enhetGbg:enhetGbg, enhetNamn:enhetNamn, enhetGlom:enhetGlom, rapportera:rapportera,
     position:position, sond:sond, forst:forst, lokal:lokal, diag:diag, last:last,
     navigera:function(u){location.replace(u);}
   };
@@ -4717,9 +4903,9 @@ body.vaggplatta .hus-flod{animation:none!important}
     /* Demoläget ska stå still. En dashboard som hoppar till det andra huset mitt
        i en utprovning är obrukbar, och där finns ingen påhittad data. */
     if(q.get('demo')==='1'){visa();return;}
-    var hem=q.get('hem');
-    if(hem==='min')minSatt(true,'manuellt');
-    else if(hem==='inte-min')minSatt(false,'manuellt');
+    var hem=q.get('hem'),gNy;
+    if(hem==='min'){minSatt(true,'manuellt');gNy=1;}
+    else if(hem==='inte-min'){minSatt(false,'manuellt');gNy=0;}
     if(hem==='diag'){visa();diag();return;}
     if(!tillaten()){visa();return;}
     var nyss=minNu()===null;
@@ -4728,11 +4914,12 @@ body.vaggplatta .hus-flod{animation:none!important}
         /* Inte min enhet: alltid Gottskär, inget minne av Göteborg, ingen knapp. */
         if(ls(SIST)==='gbg')lsSet(SIST,'gottskar');
         if(jag()==='gbg'){API.navigera(url('gottskar'),'inte min enhet');return;}
-        visa();return;
+        visa();regStart(gNy);return;
       }
       visa();
       /* Gottskärs Göteborgsflik i mobilläget hänger på samma svar. */
       if(nyss){try{if(typeof window.flikradBygg==='function')window.flikradBygg();}catch(e){}}
+      regStart(gNy);
       vidare(q,hem);
     },function(){if(minNu()===true)visa();});
   }
@@ -4743,8 +4930,12 @@ body.vaggplatta .hus-flod{animation:none!important}
     /* Knappen skapas fortfarande: plattan har kvar toppraden. I mobilläget är
        toppraden dold och växlingen sker med hålltryck på liveprickan.
        1.8.0: alltid på https, och tillbaka om toppraden ritats om. */
-    knapp();
-    try{setInterval(knapp,5000);}catch(e){}
+    knappar();
+    auto();
+  }
+  var kTimer=null;
+  function knappar(){knapp();if(!kTimer)try{kTimer=setInterval(knapp,5000);}catch(e){}}
+  function auto(){
     if(!pa())return;
     /* Låst av ett manuellt val: stå kvar, rör varken minne eller signaler.
        Låset gäller 45 minuter och bara för huset du valde. */

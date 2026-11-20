@@ -116,7 +116,13 @@ function enhNar(t){
 function openEnheter(){
   var o=enhAlla(),jag=enhetsId();
   var ids=Object.keys(o).sort(function(a,b){return (o[b].sist||0)-(o[a].sist||0);});
-  var h='<div class="setup-t">Varje webbläsare som öppnar dashboarden skriver in sig här. '
+  var h=dSec('Göteborg')
+    +'<div class="setup-t">Varje enhet skriver in sig själv i Homey. Välj vilka som får visa '
+    +'Göteborgsdashboarden. <b>Auto</b> betyder Pixel-telefon eller Lenovo-platta. Övriga '
+    +'står alltid i Gottskär. Enheten följer valet vid nästa start, annars inom tio minuter.</div>'
+    +'<div id="enh-gbg"></div>'
+    +dSec('Gottskärs register')
+    +'<div class="setup-t">Varje webbläsare som öppnar dashboarden skriver in sig här. '
     +'Ge en enhet en användartagg om något bara ska synas där — lämnas den tom '
     +'räknas enheten som gemensam, vilket väggplattan ska vara.</div>';
   if(!ids.length)h+=dRow('Inga enheter','registret fylls vid nästa synk');
@@ -145,6 +151,58 @@ function openEnheter(){
   var bd=$('dlg-body');if(bd)bd.innerHTML=h;
   var bk=$('dlg-back');if(bk&&bk.classList)bk.classList.add('open');
   dlgTop();
+  enhGbgRita();
+}
+/* v913: HUSVAKTENS ENHETSLISTA. Hämtas ur båda Homey via husvakten, som har
+   uppgifterna till båda husen. Index i _enhGbg.lista används i onclick. */
+function enhGbgRita(){
+  var el=$('enh-gbg');if(!el)return;
+  var hv=window.HUSVAKT;
+  if(!hv||typeof hv.enheter!=='function'||location.protocol!=='https:'){
+    el.innerHTML='<div class="setup-t">Listan finns bara på den publicerade sidan (https).</div>';return;}
+  if(!el.innerHTML)el.innerHTML='<div class="setup-t">Hämtar enheterna från Homey…</div>';
+  hv.enheter().then(function(r){
+    _enhGbg=r;var el2=$('enh-gbg');if(!el2)return;
+    if(!r.hus.length){el2.innerHTML='<div class="setup-t">Den här enheten har inga Homey-uppgifter.</div>';return;}
+    var h='<div class="enh-m" style="margin-bottom:7px">'+r.hus.map(function(k){
+      return esc(ENH_GBG_HUS[k]||k)+': '+esc(r.status[k]==='ok'?'läst':(r.status[k]==='tom'?'ingen lista än':r.status[k]));}).join(' · ')+'</div>';
+    if(!r.lista.length)h+='<div class="setup-t">Inga enheter ännu – de skriver in sig när de öppnar dashboarden.</div>';
+    r.lista.forEach(function(e,i){
+      var val=(e.g===1||e.g===0)?e.g:null,blir=val==null?e.auto:(val===1);
+      var knp=function(v,t){return '<button class="seg-btn'+(val===v?' on':'')+'" onclick="enhGbgSatt('+i+','+v+')">'+t+'</button>';};
+      h+='<div class="enh'+(e.jag?' jag':'')+'">'
+        +'<div class="enh-h"><b>'+esc(e.nn||e.n||e.m||'?')+'</b>'
+        +(e.jag?'<span class="enh-du">den här</span>':'')
+        +'<span class="enh-t">'+esc(enhNar(e.t))+'</span></div>'
+        +'<div class="enh-m">'+esc(e.m||'?')+' · '+esc(e.k||'?')+' · '+esc(e.s||'?')
+        +' · senast '+esc(ENH_GBG_HUS[e.h]||'?')+'</div>'
+        +'<div class="enh-id">'+esc(e.id)+'</div>'
+        +'<div class="enh-m">Göteborg: <b>'+(blir?'ja':'nej')+'</b>'+(val==null?' (auto)':'')+'</div>'
+        +'<div class="seg-row" style="margin-top:7px">'+knp(null,'Auto ('+(e.auto?'ja':'nej')+')')+knp(1,'Ja')+knp(0,'Nej')+'</div>'
+        +'<div class="seg-row" style="margin-top:6px"><button class="seg-btn" onclick="enhGbgNamn('+i+')">Byt namn</button>'
+        +(e.jag?'':'<button class="seg-btn" onclick="enhGbgGlom('+i+')">Glöm</button>')+'</div>'
+        +'</div>';
+    });
+    el2.innerHTML=h;
+  },function(){var el2=$('enh-gbg');if(el2)el2.innerHTML='<div class="setup-t">Kunde inte läsa listan från Homey.</div>';});
+}
+function enhGbgPost(i){return (_enhGbg&&_enhGbg.lista&&_enhGbg.lista[i])||null;}
+function enhGbgKlar(ok,txt){try{toast(ok?txt:'Kunde inte spara i Homey');}catch(e){}enhGbgRita();}
+function enhGbgSatt(i,v){
+  var e=enhGbgPost(i),hv=window.HUSVAKT;if(!e||!hv)return;
+  hv.enhetGbg(e.id,v,e).then(function(ok){enhGbgKlar(ok,'Sparat – '+(e.nn||e.n||e.m||'enheten')+' följer valet');});
+}
+function enhGbgNamn(i){
+  var e=enhGbgPost(i),hv=window.HUSVAKT;if(!e||!hv)return;
+  var n=null;try{n=prompt('Namn på enheten',e.nn||e.n||'');}catch(x){}
+  if(n==null)return;
+  hv.enhetNamn(e.id,n,e).then(function(ok){enhGbgKlar(ok,'Namnet sparat');});
+}
+function enhGbgGlom(i){
+  var e=enhGbgPost(i),hv=window.HUSVAKT;if(!e||!hv)return;
+  var ja=false;try{ja=confirm('Ta bort '+(e.nn||e.n||e.m||e.id)+' ur listan? Den skriver in sig igen nästa gång den öppnas.');}catch(x){}
+  if(!ja)return;
+  hv.enhetGlom(e.id).then(function(ok){enhGbgKlar(ok,'Borttagen');});
 }
 function enhSpara(){
   var n=$('enh-namn'),a=$('enh-anv');
