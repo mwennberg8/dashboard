@@ -4386,7 +4386,7 @@ body.vaggplatta .hus-flod{animation:none!important}
 <script src="js/huset.js"></script>
 <script src="js/start.js"></script>
 <script>
-/* ===== husvakt 1.10.0 =====
+/* ===== husvakt 1.10.1 =====
    Väljer vilken dashboard som ska visas. Identisk kod i båda filerna — ändra
    aldrig bara den ena, ett test jämför dem tecken för tecken.
 
@@ -4428,9 +4428,16 @@ body.vaggplatta .hus-flod{animation:none!important}
    modellen; Auto lämnar tillbaka beslutet till modellen. ?hem=min och
    ?hem=inte-min skrivs också in i listan, så att de två aldrig säger emot
    varandra. Förut skrev bara huvudenheten till Homey – registret i
-   Gottskärs synk visste därför bara om den. */
+   Gottskärs synk visste därför bara om den.
+
+   1.10.1 (2026-11-20): läs-ändra-skriv i kö per Homey. Pixeln skrev in sig
+   själv samtidigt som väggplattans Nej sparades i inställningarna, läste
+   listan före och skrev tillbaka den efter – Nej försvann ur Gottskärs
+   Homey. Nu väntar varje skrivning på den förra från samma enhet, och ett
+   val i inställningarna läses tillbaka och sparas om en gång om en annan
+   enhet hann skriva över det. */
 (function(){
-  var VER='1.10.0';
+  var VER='1.10.1';
   /* Mitt emellan husen: 15 km norr om Gottskär, 14 km söder om Göteborg. Även
      en grov nätbaserad position träffar rätt sida med den marginalen. */
   var GRANS=57.530366;
@@ -4576,6 +4583,10 @@ body.vaggplatta .hus-flod{animation:none!important}
     Object.keys(o).forEach(function(k){if(k!==behall&&o[k]&&o[k].g==null&&nu-(o[k].t||0)>REG_GLOM)delete o[k];});
     var ks=Object.keys(o).sort(function(x,y){return (o[y].t||0)-(o[x].t||0);});
     ks.slice(30).forEach(function(k){if(k!==behall)delete o[k];});}
+  /* En kö per Homey: läsningen och skrivningen hör ihop och får inte
+     blandas med en annan från samma enhet. */
+  var ko={};
+  function iKo(h,f){var p=(ko[h]||Promise.resolve()).then(f,f);ko[h]=p.then(null,function(){});return p;}
   function regSkriv(h,r){
     var s=JSON.stringify(r.o),V='/api/manager/logic/variable/';
     if(r.v&&r.v.id)return anrop(h,'PUT',V+r.v.id,{value:s});
@@ -4590,7 +4601,7 @@ body.vaggplatta .hus-flod{animation:none!important}
     if(!hus.length)return Promise.resolve(null);
     return modellNu().then(function(m){
       return Promise.all(hus.map(function(h){
-        return regLas(h).then(function(r){
+        return iKo(h,function(){return regLas(h).then(function(r){
           var f=r.o[id]||{},e={n:enhNamn()||f.n||'',m:String(m||'').slice(0,40),k:enhKlass(),
             s:skarm(),h:jag(),v:VER,t:Date.now()};
           if(f.nn)e.nn=f.nn;
@@ -4601,7 +4612,7 @@ body.vaggplatta .hus-flod{animation:none!important}
           if(lika&&Date.now()-t<REG_SKRIV-60000)return {e:f};
           r.o[id]=e;rensa(r.o,id);
           return regSkriv(h,r).then(function(){lsSet(REGT+h,String(Date.now()));return {e:e};});
-        }).catch(function(){return {fel:true};});
+        });}).catch(function(){return {fel:true};});
       })).then(function(ut){
         var b=null,fel=false;
         ut.forEach(function(x){if(x.fel){fel=true;return;}var e=x.e;
@@ -4664,15 +4675,33 @@ body.vaggplatta .hus-flod{animation:none!important}
      returnerar false om posten ska tas bort. mall fyller en post som saknas. */
   function enhetAndra(id,f,mall){
     var hus=Object.keys(HUS).filter(harUppg);
+    function enGang(h){return iKo(h,function(){return regLas(h).then(function(r){
+      var e=r.o[id];
+      if(!e){if(!mall)return null;e={};['n','m','k','s','h','t'].forEach(function(k){if(mall[k]!=null)e[k]=mall[k];});}
+      var bort=(f(e)===false);
+      if(bort)delete r.o[id];else r.o[id]=e;
+      var mal=bort?null:JSON.stringify(e);
+      return regSkriv(h,r).then(function(){return {mal:mal};});
+    });});}
+    /* Läs tillbaka efter en stund: har en annan enhet skrivit över valet
+       sparas det om, en gång. */
+    function kontroll(h,s){
+      if(!s||s.mal===undefined)return Promise.resolve(true);
+      return new Promise(function(k){setTimeout(k,2500);}).then(function(){
+        return iKo(h,function(){return regLas(h);});
+      }).then(function(r){
+        var nu=r.o[id]?JSON.stringify(r.o[id]):null;
+        var ok=s.mal===null?nu===null:(nu!==null&&avvikelse(JSON.parse(s.mal),r.o[id]));
+        return ok?true:enGang(h).then(function(){return true;});
+      }).catch(function(){return true;});
+    }
     return Promise.all(hus.map(function(h){
-      return regLas(h).then(function(r){
-        var e=r.o[id];
-        if(!e){if(!mall)return true;e={};['n','m','k','s','h','t'].forEach(function(k){if(mall[k]!=null)e[k]=mall[k];});}
-        if(f(e)===false)delete r.o[id];else r.o[id]=e;
-        return regSkriv(h,r).then(function(){return true;});
-      }).catch(function(){return false;});
+      return enGang(h).then(function(s){return s===null?true:kontroll(h,s);}).catch(function(){return false;});
     })).then(function(ok){return ok.some(Boolean);});
   }
+  /* Valet och namnet är det som räknas; enhetens egen tid och skärm får ha
+     ändrats under tiden. */
+  function avvikelse(a,b){return a.g===b.g&&a.gt===b.gt&&a.nn===b.nn;}
   function enhetGbg(id,val,mall){
     return enhetAndra(id,function(e){
       if(val===1||val===0){e.g=val;e.gt=Date.now();}else{delete e.g;delete e.gt;}
