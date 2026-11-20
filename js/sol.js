@@ -992,6 +992,44 @@ async function prisIgarHamta(){
   }catch(err){_prisIgar={dag:dag,pts:[],at:Date.now(),fel:(err&&err.message)||'fel'};return true;}
   finally{_prisIgarLaddar=false;}
 }
+/* v915: REFERENSEN FÖR LÅGT OCH HÖGT – p10 och p90 av timvärdena de senaste
+   14 dygnen (31 dygn ger bara sextimmarsmedel, som slätar ut topparna). Sparas lokalt och hämtas om en gång per dygn. */
+function prisRef(){
+  try{var o=JSON.parse(localStorage.getItem(PRISREF_KEY)||'null');
+    if(o&&isFinite(o.lo)&&isFinite(o.hi)&&o.hi>o.lo)return o;}catch(e){}
+  return null;}
+async function prisRefHamta(){
+  var o=prisRef();
+  if(_prisRefLaddar||!BASE)return false;
+  if(o&&o.dag===dayKey(new Date()))return false;
+  _prisRefLaddar=true;
+  try{
+    var lr=await insGet('/api/manager/insights/log/',15000),arr=lr.data?(Array.isArray(lr.data)?lr.data:Object.values(lr.data)):[];
+    var lg=arr.filter(function(x){var id=String(x&&x.id||''),u=String(x&&(x.uri||x.ownerUri)||'');
+      return (id.indexOf('homey:manager:logic')===0||u.indexOf('homey:manager:logic')===0)&&String(x.title||'').trim().toLowerCase()==='elpris';})[0];
+    if(!lg)return false;
+    var e=await insGet('/api/manager/insights/log/'+(lg.uri||lg.ownerUri)+'/'+lg.id+'/entry?resolution=last14Days',20000);
+    var v=[];parseEntries(e.data).forEach(function(q){if(isFinite(q.v))v.push(q.v);});
+    if(v.length<48)return false;
+    v.sort(function(a,b){return a-b;});
+    var pc=function(p){return v[Math.min(v.length-1,Math.max(0,Math.round(p*(v.length-1))))];};
+    var ny={lo:Math.round(pc(0.1)*1000)/1000,hi:Math.round(pc(0.9)*1000)/1000,med:Math.round(pc(0.5)*1000)/1000,
+      n:v.length,dag:dayKey(new Date()),at:Date.now()};
+    if(!(ny.hi>ny.lo))return false;
+    try{localStorage.setItem(PRISREF_KEY,JSON.stringify(ny));}catch(x){}
+    return true;
+  }catch(err){return false;}
+  finally{_prisRefLaddar=false;}
+}
+/* Gemensamt tak för Igår, Idag och Imorgon, så att flikarna går att jämföra:
+   en dag med 2–2,5 kr ser platt ut bredvid en med 2–8 kr. */
+function prisSkalaDagar(){
+  var lo=Infinity,hi=-Infinity;
+  [-1,0,1].forEach(function(o){var p=null;try{p=prisVisas(o);}catch(e){}
+    (p||[]).forEach(function(q){if(isFinite(q[1])){if(q[1]<lo)lo=q[1];if(q[1]>hi)hi=q[1];}});});
+  return {lo:lo,hi:hi};}
+/* Kronlinjer: ett steg som ger tre till sex linjer. */
+function prisSteg(span){return span<=1.2?0.25:span<=2.5?0.5:span<=6?1:span<=12?2:5;}
 /* Igår: Insights för priset, och sjudygnsserierna för batteri och sol. Rutan
    ritas om när svaren kommit, om den fortfarande visar Igår. */
 function pgIgarHamta(){
@@ -1086,7 +1124,8 @@ function pgX(h){var g=_pgGeo;return g.padL+(h/24)*(g.W-g.padL-g.padR);}
 function pgY(v){var g=_pgGeo,yr=(g.yhi-g.ylo)||1;return g.padT+(1-(v-g.ylo)/yr)*(g.H-g.padT-g.padB);}
 function pgFarg(v){
   var g=_pgGeo,P=PAL[curTheme]||PAL.dark;
-  var t=(g.yhi>g.ylo)?((v-g.ylo)/(g.yhi-g.ylo)):0;
+  var lo=(g.fLo!=null)?g.fLo:g.ylo,hi=(g.fHi!=null)?g.fHi:g.yhi;   /* v915: mot referensen */
+  var t=(hi>lo)?((v-lo)/(hi-lo)):0;
   if(t<0)t=0;if(t>1)t=1;
   return (t<0.5)?blanda(P.green,P.sun,t*2):blanda(P.sun,P.hot,(t-0.5)*2);
 }
@@ -1401,7 +1440,22 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     return '<div class="pgraph-empty">'+msg+'</div>';}
   var P=PAL[curTheme]||PAL.dark,W=280,H=110,padL=6,padR=6,padT=16,padB=16;
   var ys=pts.map(function(p){return p[1];}),xs=pts.map(function(p){return p[0];});
-  var ylo=Math.min.apply(null,ys),yhi=Math.max.apply(null,ys),yr=(yhi-ylo)||1;
+  /* v915: SKALAN FRÅN NOLL, med samma tak för igår, idag och imorgon.
+     Förut gick den från dygnets lägsta till dess högsta, och då såg en dag
+     med 2–2,5 kr ut precis som en med 2–8 kr. Taket är det högsta av de
+     visade dygnen och vad som brukar räknas som högt (referensens p90). */
+  var dlo=Math.min.apply(null,ys),dhi=Math.max.apply(null,ys);
+  var alla=prisSkalaDagar(),ref=prisRef();
+  if(!ref&&SOURCE!=='demo-data'){try{prisRefHamta().then(function(ny){
+    if(ny&&_dlgWhich==='cost'){var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}});}catch(e){}}
+  else if(ref&&ref.dag!==dayKey(new Date())){try{prisRefHamta();}catch(e){}}
+  var ylo=Math.min(0,dlo,isFinite(alla.lo)?alla.lo:0);
+  var yhi=Math.max(dhi,isFinite(alla.hi)?alla.hi:dhi,ref?ref.hi:0,ylo+0.5);
+  var yr=(yhi-ylo)||1;
+  /* Färgen: grönt vid det som brukar vara lågt (p10), rött vid det som brukar
+     vara högt (p90). Utan referens används de visade dygnens lägsta och högsta. */
+  var fLo=ref?ref.lo:(isFinite(alla.lo)?alla.lo:dlo),fHi=ref?ref.hi:(isFinite(alla.hi)?alla.hi:dhi);
+  if(!(fHi>fLo)){fLo=dlo;fHi=dhi;}
   var x0=0,x1=24;
   var X=function(v){return padL+(v-x0)/(x1-x0)*(W-padL-padR);};
   var Y=function(v){return padT+(1-(v-ylo)/yr)*(H-padT-padB);};
@@ -1436,7 +1490,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      där det är dyrast. Gradienten följer x-led i användarkoordinater och får en
      stopp per timme, så färgen byter där priset gör det. */
   var farg=function(v){
-    var t=(yhi>ylo)?((v-ylo)/(yhi-ylo)):0;
+    var t=(fHi>fLo)?((v-fLo)/(fHi-fLo)):0;
     if(t<0)t=0;if(t>1)t=1;
     return (t<0.5)?blanda(P.green,P.sun,t*2):blanda(P.sun,P.hot,(t-0.5)*2);
   };
@@ -1455,6 +1509,14 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      bakgrund i lägets färg och en tydlig list under kurvan, på rätt klocktid –
      så man ser direkt om den laddar i dalarna och laddar ur i topparna. */
   if(_pgVisaPlan&&offset>=-1&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
+  /* v915: kronlinjer, svaga, med talet i vänsterkanten (HTML, så det inte
+     sträcks). Nollan ritas av nollinjen nedan. */
+  var kronEtik='';
+  (function(){var st=prisSteg(yhi-ylo),v=Math.ceil((ylo+1e-9)/st)*st;
+    for(;v<=yhi+1e-9;v+=st){if(Math.abs(v)<1e-9)continue;var yy=Y(v);
+      s+='<line class="pg-kr" x1="'+padL+'" y1="'+yy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yy.toFixed(1)+'" vector-effect="non-scaling-stroke"/>';
+      kronEtik+='<span class="pg-krt" style="top:'+(yy/H*100).toFixed(2)+'%">'
+        +(st<1?v.toFixed(2).replace('.',',').replace(/0$/,''):String(Math.round(v)))+' kr</span>';}})();
   s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
   /* non-scaling-stroke: grafen sträcks i sidled på plattan, och utan det blev
      trappans lodräta steg nästan dubbelt så tjocka som de vågräta. */
@@ -1463,7 +1525,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      grafen, och två extra prickar konkurrerade med avläsningspunkten om
      uppmärksamheten. iLo räknas fortfarande ut — den används som utgångsläge
      för imorgondagen. */
-  var taggar='';
+  var taggar=kronEtik;
   /* AVLÄSNINGSPUNKTEN. Strecket och pricken hör ihop: pricken sitter där
      strecket skär kurvan, och båda flyttas av samma finger. Utgångsläget är
      nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
@@ -1506,7 +1568,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
     s+='<path d="'+bk.prog.map(function(q,i){return (i?'L':'M')+X(q.h).toFixed(1)+' '+YP(q.v).toFixed(1);}).join(' ')
       +'" fill="none" stroke="'+(P.cyan||'#57b6c2')+'" stroke-width="1.8" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".75"/>';
   }
-  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,hem:hVal,batt:bk,sol:sk};
+  _pgGeo={W:W,H:H,padL:padL,padR:padR,padT:padT,padB:padB,pts:pts,offset:offset,ylo:ylo,yhi:yhi,fLo:fLo,fHi:fHi,hem:hVal,batt:bk,sol:sk};
   _pgVald=hVal;
   var vy=pgPrisVid(hVal);
   s+='<line class="pg-now" id="pg-line" x1="'+X(hVal).toFixed(1)+'" y1="'+padT+'" x2="'+X(hVal).toFixed(1)+'" y2="'+(H-padB)+'" vector-effect="non-scaling-stroke"/>';

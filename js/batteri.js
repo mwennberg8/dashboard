@@ -914,6 +914,14 @@ function battPlanHTML(off){
     +(P.vinst!=null&&P.vinst>=1?'<div class="bp-txt">ca '+Math.round(P.vinst)+' kr billigare än bara normal drift</div>':'')
     +'</div>';
 }
+/* v915: vad grafens färger räknas mot, i kronor. */
+function prisRefRad(){
+  var r=prisRef();if(!r)return '';
+  var kr=function(v){return v.toFixed(2).replace('.',',');};
+  return '<div class="pg-ref"><i style="background:'+((PAL[curTheme]||PAL.dark).green)+'"></i>Lågt '+kr(r.lo)+' kr'
+    +(r.med!=null?' · normalt '+kr(r.med)+' kr':'')
+    +' · <i style="background:'+((PAL[curTheme]||PAL.dark).hot)+'"></i>högt '+kr(r.hi)+' kr <span>senaste 14 dygnen</span></div>';
+}
 function buildCostPopup(){
     var pdOff=_priceDay||0;
     /* v902: Igår – priset ur Insights, batteri och sol ur sjudygnsserierna,
@@ -921,12 +929,13 @@ function buildCostPopup(){
     if(pdOff===-1)pgIgarHamta();
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===-1?' on':'')+'" onclick="priceDaySet(-1)">Igår</button><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
+      +prisRefRad()
       /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
       +'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
         +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' <span class="bp-prov">provläge</span></button>'
       +(function(){if(!_pgVisaPlan)return '';try{return pdOff===-1?battPlanIgarHTML():battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
-      +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Färgen följer priset: grönt billigast, rött dyrast.'
+      +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Skalan börjar på 0 kr och är densamma för igår, idag och imorgon, så att dagarna går att jämföra. Färgen visar priset mot vad som brukar vara lågt och högt: grönt vid den billigaste tiondelen av de senaste 14 dygnen, rött vid den dyraste tiondelen. En dag som ligger högt hela dagen blir alltså orange eller röd rakt igenom.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
       +prisRutor(pdOff)
       +dayBarsHTML('cost','kr per dag','warm');
