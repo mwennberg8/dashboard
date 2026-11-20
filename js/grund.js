@@ -991,15 +991,26 @@ function blOmTxt(ms){var m=Math.max(0,Math.round((ms-Date.now())/60000)),h=Math.
 function blTidslinjeHTML(){
   var F=blFonster(),P=blPrisTim(),ms=blStartMs(),H=3600000,bars='',v=[],lagst=null;
   for(var i=0;i<24;i++){var t=F.t0+i*H;if(P[t]!=null){v.push(P[t]);if(t+H>F.nu&&(!lagst||P[t]<lagst.kr))lagst={t:t,kr:P[t]};}}
-  var lo=v.length?Math.min.apply(null,v):0,hi=v.length?Math.max.apply(null,v):1,sp=(hi-lo)||1;
-  for(var j=0;j<24;j++){var t1=F.t0+j*H,kr=P[t1],f=(kr!=null)?(kr-lo)/sp:null;
-    bars+='<i style="left:'+(j/24*100).toFixed(3)+'%;height:'+(kr!=null?(16+84*f).toFixed(1):30)+'%;background:'
+  /* v917: SAMMA SKALA SOM PRISGRAFEN. Staplarna gick från dygnets lägsta
+     till dess högsta, och då såg 2–2,5 kr ut som 2–8 kr. Nu mäts höjden från
+     0 kr mot ett tak (det högsta av de visade timmarna och vad som brukar vara
+     högt), och färgen mot lågt/högt de senaste 14 dygnen (prisRef). */
+  var lo=v.length?Math.min.apply(null,v):0,hi=v.length?Math.max.apply(null,v):1;
+  var ref=null;try{ref=prisRef();if(!ref&&SOURCE!=='demo-data')prisRefHamta();}catch(e){}
+  var tak=Math.max(hi,ref?ref.hi:0,0.5),bot=Math.min(0,lo),yr=(tak-bot)||1;
+  var fLo=ref?ref.lo:lo,fHi=ref?ref.hi:hi;if(!(fHi>fLo)){fLo=lo;fHi=hi;}
+  var hojd=function(kr){return Math.max(3,(kr-bot)/yr*100);};
+  (function(){var st=prisSteg(tak-bot),k=Math.ceil((bot+1e-9)/st)*st;
+    for(;k<=tak+1e-9;k+=st){if(Math.abs(k)<1e-9)continue;
+      bars+='<b class="bl-tl-kr" style="bottom:'+((k-bot)/yr*100).toFixed(2)+'%"></b>';}})();
+  for(var j=0;j<24;j++){var t1=F.t0+j*H,kr=P[t1],f=(kr!=null)?Math.max(0,Math.min(1,(kr-fLo)/(fHi-fLo))):null;
+    bars+='<i style="left:'+(j/24*100).toFixed(3)+'%;height:'+(kr!=null?hojd(kr).toFixed(1):30)+'%;background:'
       +(kr!=null?priceColor(f):'var(--faint)')+(kr==null?';opacity:.35':'')+'"></i>';}
   var ax='';for(var k=0;k<=24;k+=3){var d=new Date(F.t0+k*H);
     ax+='<span style="left:'+(k/24*100).toFixed(3)+'%">'+('0'+d.getHours()).slice(-2)+'</span>';}
   var pct=function(t){return ((t-F.t0)/(24*H)*100).toFixed(3)+'%';};
   var info='Dra eller tryck på tidslinjen för att välja när laddningen ska starta – nästa dygn, i kvartar. '
-    +'−15 och +15 finjusterar. Staplarna är elpriset per timme: grönt är billigt, rött dyrt, och ▼ lägst '
+    +'−15 och +15 finjusterar. Staplarna är elpriset per timme, höjden räknad från 0 kr. Färgen visar priset mot de senaste 14 dygnen: grönt där det brukar vara lågt, rött där det brukar vara högt. ▼ lägst '
     +'markerar den billigaste timmen. Saknas priser blir staplarna grå. '
     +(_blMal==='bil'?'En egen tid laddar bilen tills den är full; Lägsta pris stoppas när nästa dyra period börjar.'
                     :'En egen tid startar Ladda max på husbatteriet vid den tiden.');
