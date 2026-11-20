@@ -1509,14 +1509,11 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      bakgrund i lägets färg och en tydlig list under kurvan, på rätt klocktid –
      så man ser direkt om den laddar i dalarna och laddar ur i topparna. */
   if(_pgVisaPlan&&offset>=-1&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
-  /* v915: kronlinjer, svaga, med talet i vänsterkanten (HTML, så det inte
-     sträcks). Nollan ritas av nollinjen nedan. */
-  var kronEtik='';
+  /* v915: kronlinjer, svaga. Nollan ritas av nollinjen nedan.
+     v916: utan tal i vänsterkanten – linjerna räcker. */
   (function(){var st=prisSteg(yhi-ylo),v=Math.ceil((ylo+1e-9)/st)*st;
     for(;v<=yhi+1e-9;v+=st){if(Math.abs(v)<1e-9)continue;var yy=Y(v);
-      s+='<line class="pg-kr" x1="'+padL+'" y1="'+yy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yy.toFixed(1)+'" vector-effect="non-scaling-stroke"/>';
-      kronEtik+='<span class="pg-krt" style="top:'+(yy/H*100).toFixed(2)+'%">'
-        +(st<1?v.toFixed(2).replace('.',',').replace(/0$/,''):String(Math.round(v)))+' kr</span>';}})();
+      s+='<line class="pg-kr" x1="'+padL+'" y1="'+yy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+yy.toFixed(1)+'" vector-effect="non-scaling-stroke"/>';}})();
   s+='<path d="'+area+'" fill="url(#pgLine)" mask="url(#pgMask)"/>';
   /* non-scaling-stroke: grafen sträcks i sidled på plattan, och utan det blev
      trappans lodräta steg nästan dubbelt så tjocka som de vågräta. */
@@ -1525,7 +1522,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
      grafen, och två extra prickar konkurrerade med avläsningspunkten om
      uppmärksamheten. iLo räknas fortfarande ut — den används som utgångsläge
      för imorgondagen. */
-  var taggar=kronEtik;
+  var taggar='';
   /* AVLÄSNINGSPUNKTEN. Strecket och pricken hör ihop: pricken sitter där
      strecket skär kurvan, och båda flyttas av samma finger. Utgångsläget är
      nu för idag och dygnets billigaste timme för imorgon — imorgon har inget
