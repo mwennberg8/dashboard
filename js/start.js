@@ -2585,6 +2585,9 @@ var ANDR_KEYS=['cfg_v1','cfg_base_v1','buttons_v1','secOrder_v1','secScale_v1','
 var _appLasSist={rap:0,las:0,hopp:[],fel:[]};
 
 /* ---------- [installningar.js] ---------- */
+/* v913: husvaktens enhetslista (dash_enheter i båda Homey) i Enheter. */
+var _enhGbg=null;
+const ENH_GBG_HUS={gottskar:'Gottskär',gbg:'Göteborg'};
 /* HÖJDERNA LIGGER I FACK per enhetstyp, men i EN nyckel. Hämtades den rakt av
    skrev den andra enhetens kopia över ens eget fack: telefonen pushar sin bild
    av secScale_v1, där plattans fack är den version telefonen råkade läsa
@@ -2667,7 +2670,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v912';
+const APP_VERSION='v913';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
