@@ -343,14 +343,14 @@ function battBokning(){
     var nu=Date.now(),R=_regel||{};
     var sp=battSparaLage();
     /* kort = mobilens smala ruta: ikonen säger vad, tiden när. */
-    if(sp&&sp.aktiv)return {txt:'Sparar till '+regelKl(sp.till),kort:regelKl(sp.till),cls:'bla',ic:'lock-simple'};
+    if(sp&&sp.aktiv)return {txt:'Sparar '+tillKl(sp.till),kort:(sp.till>=SPARA_TV_MS?'\u221e':regelKl(sp.till)),cls:'bla',ic:'lock-simple'};
     if(battLaddLage()===true){var avk=battAvstangKl();
       /* v728: fullt sparas till den dyra perioden. */
-      if(R.stopp>nu)return {txt:'Ladda på · fullt sparas till '+regelKl(R.stopp),kort:'på',cls:'gron',ic:'battery-charging'};
+      if(R.stopp>nu)return {txt:'Ladda på · fullt sparas '+tillKl(R.stopp),kort:'på',cls:'gron',ic:'battery-charging'};
       return {txt:'Ladda på'+(avk?' till '+avk:''),kort:avk||'på',cls:'gron',ic:'battery-charging'};}
     var bs=battStartAktiv();
-    if(bs)return {txt:'Laddar '+bilKlText(bs)+(R.stopp>bs?' \u00b7 sparas till '+regelKl(R.stopp):''),kort:battKlAv(bs),cls:'gul',ic:'clock'};
-    if(R.spara>nu)return {txt:'Sparar från '+regelKl(R.spara),kort:regelKl(R.spara),cls:'bla',ic:'lock-simple'};
+    if(bs)return {txt:'Laddar '+bilKlText(bs)+(R.stopp>bs?' \u00b7 sparas '+tillKl(R.stopp):''),kort:battKlAv(bs),cls:'gul',ic:'clock'};
+    if(R.spara>nu)return {txt:'Spara '+regelKl(R.spara)+(R.stopp>R.spara?' \u2013 '+(R.stopp>=SPARA_TV_MS?'tills vidare':regelKl(R.stopp)):''),kort:regelKl(R.spara),cls:'bla',ic:'lock-simple'};
   }catch(e){}
   return null;
 }

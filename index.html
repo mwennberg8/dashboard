@@ -2395,6 +2395,14 @@ body.tabprev.cmp-open{overflow:auto}
 .bl-tl-h::after{content:"";position:absolute;top:-6px;left:50%;transform:translateX(-50%);width:18px;height:18px;border-radius:50%;
   background:var(--ink);box-shadow:0 0 0 4px rgba(163,190,140,.55)}
 .bl-tl-ax{position:absolute;left:10px;right:10px;bottom:4px;height:13px}
+/* v920: Spara-popupens tidslinje – zonen mellan Från och Till, och det inaktiva handtaget dämpat. */
+.sp-zon{position:absolute;top:0;bottom:0;background:rgba(129,161,193,.22);border-radius:4px;pointer-events:none}
+.bl-tl-h.sp-h:not(.akt){opacity:.45}
+.bl-tl-h.sp-h::after{box-shadow:0 0 0 4px rgba(129,161,193,.55)}
+.seg-row.sp-val{margin:2px 0 8px}
+.seg-row.sp-val span{font-variant-numeric:tabular-nums}
+.bl-boka.bl-boka-stor.sp-boka b{color:var(--blue)}
+.bl-boka.bl-boka-stor.sp-boka{border-color:var(--blue);background:rgba(129,161,193,.14)}
 .bl-tl-ax span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:700;color:var(--faint)}
 .bl-tl-ax span:first-child{transform:none}.bl-tl-ax span:last-child{transform:translateX(-100%)}
 .bl-boka.bl-boka-stor{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:100%;
