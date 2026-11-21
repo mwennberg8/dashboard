@@ -1564,11 +1564,13 @@ function sakVaktVarde(k){
   k=k||'max';var D=SAKVAKT[k];
   if(_sakVaktUtkast&&_sakVaktUtkast[k]!=null)return _sakVaktUtkast[k];
   try{var v=logicArr(_regel&&_regel.lista).filter(function(x){return x&&x.name===D.v;})[0];
-    var n=v?Number(v.value):NaN;if(isFinite(n)&&n>=D.min&&n<=35)return Math.round(n);}catch(e){}
+    var n=v?Number(v.value):NaN;if(isFinite(n)&&n>=D.min&&n<=(D.max||35))return Math.round(n);}catch(e){}
   return D.std;}
-function sakVaktTak(k){var hs=fasSakring();
-  if(k==='max')return hs-sakVaktVarde('tol');
-  if(k==='tol')return Math.min(5,hs-sakVaktVarde('max'));
+/* v918: gränsen och överskridningen får tillsammans gå över huvudsäkringen
+   (Markus 2026-11-21). Taken är energistyrningens egna: 35 A och 5 A. */
+function sakVaktTak(k){
+  if(k==='max')return SAKVAKT.max.max;
+  if(k==='tol')return SAKVAKT.tol.max;
   return SAKVAKT.tid.max;}
 function sakVaktText(){
   if(_sakVaktStatus)return _sakVaktStatus;
@@ -1576,10 +1578,12 @@ function sakVaktText(){
   var s='Bilens laddström sänks eller pausas så att ingen fas går över '+g+' A (mätt med Pulse). ';
   s+=(t>0&&m>0)?('Upp till '+(g+t)+' A tillåts i högst '+m+' min, så att faserna hinner balanseras; över '+(g+t)+' A ingriper vakten direkt. ')
     :'Vakten ingriper inom en minut. Ställ överskridning och fördröjning för att ge fasbalanseringen tid. ';
+  var over=(t>0&&m>0)?g+t:g;
+  if(over>hs)s+='Obs: '+((t>0&&m>0)?'gränsen plus överskridningen':'gränsen')+' ('+over+' A) är över huvudsäkringen. ';
   return s+'Huvudsäkringen är '+hs+' A. När vakten sänker bilens ström eller pausar laddningen får du en avisering från Homey (högst en per kvart).';}
 function sakVaktSteg(k,d){
   var D=SAKVAKT[k],nu=sakVaktVarde(k),tak=sakVaktTak(k),ny=Math.max(D.min,Math.min(tak,nu+d*D.steg));
-  if(ny===nu){_sakVaktStatus=d>0?(k==='tid'?'Längsta fördröjning är '+tak+' min.':'Gränsen plus överskridningen kan inte gå över huvudsäkringen ('+fasSakring()+' A).')
+  if(ny===nu){_sakVaktStatus=d>0?(k==='tid'?'Längsta fördröjning är '+tak+' min.':(k==='max'?'Högsta gräns är '+tak+' A.':'Största överskridning är '+tak+' A.'))
       :(k==='max'?'Lägsta gräns är 10 A.':'Redan av.');sakVaktRita();return;}
   _sakVaktUtkast=_sakVaktUtkast||{};_sakVaktUtkast[k]=ny;_sakVaktStatus='Sparar '+D.namn+' i Homey…';sakVaktRita();
   clearTimeout(_sakVaktTimer);_sakVaktTimer=setTimeout(sakVaktSpara,900);   /* flera tryck i rad blir en skrivning */

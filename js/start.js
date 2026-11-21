@@ -1693,8 +1693,8 @@ var REGEL_AV=true, BATT_AUTO_AV=true;
 var REGEL_VARS=['battplan','energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
 var _regel=null,_regelAt=0,_regelLaddar=false,_regelFel='';
 var SAKVAKT={
-  max:{v:'sakring_max_a',std:23,min:10,steg:1,enh:' A',namn:'gränsen'},
-  tol:{v:'sakring_tol_a',std:0,min:0,steg:1,enh:' A',namn:'överskridningen'},
+  max:{v:'sakring_max_a',std:23,min:10,max:35,steg:1,enh:' A',namn:'gränsen'},   /* v918: taken som i energistyr */
+  tol:{v:'sakring_tol_a',std:0,min:0,max:5,steg:1,enh:' A',namn:'överskridningen'},
   tid:{v:'sakring_tol_min',std:0,min:0,max:15,steg:1,enh:' min',namn:'fördröjningen'}};
 var _sakVaktUtkast=null,_sakVaktStatus='',_sakVaktTimer=null;   /* v907/v908: säkringsvakten (energistyr 3.13.0), SAKVAKT i installningar.js */
 /* v751: SENAST KÄNDA BOKNINGEN SPARAS LOKALT. Utan den var _regel tom efter
@@ -2675,7 +2675,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v917';
+const APP_VERSION='v918';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
