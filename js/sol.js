@@ -1657,12 +1657,41 @@ function progLogTick(){
    bias  = medelfel med tecken. Positivt betyder att prognosen TAR I.
    mae   = medelfel utan tecken, alltsa hur mycket den brukar bomma.
    Bada i procent av utfallet, for annars dominerar sommarens stora tal. */
+/* v925: RADERNA FÖR TRÄFFSÄKERHETEN. Webbläsarens logg (progLogGet) fylls bara
+   medan sidan är öppen, och dess utfall (days_v1) är det webbläsaren hann se:
+   19 november stod 0 kWh fast Insights visar 4,4, och 28 oktober 15,7 mot 33,7.
+   Appen har både prognosen och utfallet ur panelernas dygnsmätare, så de går
+   före; webbläsarens logg fyller bara dygn som appen inte har.
+   Appens summa_prognos är dagen-innan-prognosen när den ställdes ett tidigare
+   dygn (så var det alltid före appen 2.67.0) och morgonens annars; från 2.67.0
+   finns dagen-innan-prognosen också i summa_dagen_innan. */
+function progRader(){
+  const o=progLogGet(),ut={};
+  /* Äldre rader i webbläsarens logg kan stå i Wh (60653 för 29 augusti, före
+     rättningen) – över 250 kWh på ett dygn är aldrig solen. */
+  const rim=function(v){return (v==null||!isFinite(v)||v<0||v>250)?null:v;};
+  Object.keys(o).forEach(function(d){var r=o[d]||{};ut[d]={f1:rim(r.f1),f0:rim(r.f0),a:rim(r.a)};});
+  const D=(_prog&&_prog.dagar)||{};
+  Object.keys(D).forEach(function(d){
+    const e=D[d];if(!e)return;
+    const r=ut[d]||(ut[d]={});
+    const kwh=function(v){return (v==null||!isFinite(v)||v>250000)?null:Math.round(v/100)/10;};
+    const p=kwh(e.summa_prognos),pi=kwh(e.summa_dagen_innan);
+    if(p!=null){
+      var stalld=e.stalld_at?dayKey(new Date(e.stalld_at)):null;
+      if(stalld&&stalld<d)r.f1=p;else r.f0=p;
+    }
+    if(pi!=null)r.f1=pi;
+    const a=kwh(e.summa_utfall);if(a!=null)r.a=a;
+  });
+  return ut;
+}
 function progStat(falt,dygn){
   /* Dygnet som pagar raknas ALDRIG. Klockan tio har solen levererat en brakdel
      av dygnet, och en jamforelse mot en helgdagsprognos gor att prognosen ser
      hopplos ut. Bara avslutade dygn. */
   const idagK=dayKey();
-  const o=progLogGet(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
+  const o=progRader(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
   const start=dygn?k.slice(-dygn):k;
   let n=0,sb=0,sa=0,sp=0,su=0;
   start.forEach(function(d){
@@ -1681,7 +1710,7 @@ function progLogCSV(){
      fil som ska anvandas for att kalibrera. Dagens prognos star kvar i loggen
      och kommer med i morgon. */
   const idagK=dayKey();
-  const o=progLogGet(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
+  const o=progRader(),k=Object.keys(o).filter(function(d){return d<idagK;}).sort();
   const nr=function(v){return v==null?'':String(Math.round(v*10)/10).replace('.',',');};
   let ut='datum;prognos_dagen_innan;prognos_samma_dag;utfall;fel_dagen_innan;fel_samma_dag\n';
   k.forEach(function(d){
