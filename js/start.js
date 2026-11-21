@@ -1744,6 +1744,9 @@ var BATT_NAT_W=1000, BATT_IMPORT_W=500, BATT_FULLT=99;
    positiv lutning och ändrar inte vilka timmar som är dyra. */
 var SPARA_DYR_FRAC=0.55;
 var _sparaArm=0;
+/* ---------- [el.js] ---------- */
+var _elDag=0;   /* v924: elpopupens Idag/Imorgon */
+var _husHallAt=0;   /* v924: senaste hålltrycket på husbilden (huset.js) */
 /* v920: Spara-popupen – spara till dyr period, tills vidare, eller bokat
    från–till på en tidslinje. SPARA_TV_MS (år 2100) i battladd_stopp betyder
    tills vidare (energistyr 3.19.0). */
@@ -2680,7 +2683,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v923';
+const APP_VERSION='v924';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
@@ -3286,7 +3289,7 @@ var HUS_YTOR=[
   {pop:'uterum',r:[242,735,160,130]},     /* uterummet */
   {pop:'uterum',r:[112,697,130,113]},     /* den inglasade delen bredvid */
   {pop:'breveden',r:[688,28,144,272]},    /* Breveden med altanen */
-  {pop:'snickarboa',p:'89,345 190,399 131,514 27,449'},
+  {pop:'snickarboa',p:'89,345 190,399 131,514 27,449',hall:'openEl()'},   /* v924: håll inne = elpopupen */
   /* v844: bilarna på parkeringen öppnar bilpopupen. */
   {pop:'cars',r:[506,140,58,124],ex40:true},   /* v895: bara när EX40 är hemma */
   {pop:'cars',r:[602,145,62,126]},

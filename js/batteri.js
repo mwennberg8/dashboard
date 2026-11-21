@@ -1164,7 +1164,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',battspara:'lock-simple',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake',kok:'fork-knife'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',battspara:'lock-simple',el:'lightning',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake',kok:'fork-knife'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -1222,6 +1222,11 @@ function openDetailKarna(which){
     _grafByggare['temps']={titel:'Temperaturer',full:function(cid){return multiTempSVG(cid||'temps');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggTemps();};
     body=byggTemps();
+  }else if(which==='el'){title='El';   /* v924: allt om el på ett ställe (js/el.js) */
+    _popupRebuild=elPopHTML;
+    if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
+    try{regelHamta(false);}catch(e){}
+    body=elPopHTML();
   }else if(which==='battspara'){title='Spara husbatteriet';   /* v920 */
     _popupRebuild=sparaPopHTML;
     if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
