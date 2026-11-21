@@ -1690,7 +1690,7 @@ var REGEL_IGN_KEY='regelIgnorera_v1';
 /* v708: laddregeln (planeraren) och all automatik för bil och batteri är
    avstängd i Homey. Förslagsraden döljs och popupen säger det. */
 var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battplan','energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom'];
+var REGEL_VARS=['battplan','energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom','battplan_auto'];   /* v921: battplan_auto */
 var _regel=null,_regelAt=0,_regelLaddar=false,_regelFel='';
 var SAKVAKT={
   max:{v:'sakring_max_a',std:23,min:10,max:35,steg:1,enh:' A',namn:'gränsen'},   /* v918: taken som i energistyr */
@@ -2680,7 +2680,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v920';
+const APP_VERSION='v921';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

@@ -3914,6 +3914,13 @@ body:not(.histmod) .flikrad .en-hogra .en-notis.har .en-cmp-ic::after{content:""
 /* v896: BATTERIPLANEN under priskurvan i Kostnad & pris. */
 .pg-bp{opacity:.16}.pg-bpl{opacity:.95}
 .pg-bp-ladda{fill:var(--blue)}.pg-bp-spara{fill:var(--gold)}.pg-bp-ur{fill:var(--ok)}
+/* v921: dina bokningar ovanpå planen – samma färg, starkare och med kant. */
+.pg-bp.pg-bp-man{opacity:.28}
+.pg-bpl.pg-bp-man{stroke:var(--ink);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.bp-prov.bp-auto{color:var(--ok);border-color:var(--ok)}
+.bp-lage{margin:2px 0 8px;font-weight:650}
+.bp-man-t{margin:8px 0 2px;font-weight:700}
+.bp-r-man .bp-pr{outline:1.5px solid var(--ink);outline-offset:1px}
 .pg-bp-i{display:inline-block;width:22px;height:6px;border-radius:3px;background:linear-gradient(90deg,var(--blue) 0 33%,var(--gold) 33% 66%,var(--ok) 66%)}
 .bp-knapp{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin:0 0 14px;padding:11px 12px;border-radius:12px;
   border:1px solid var(--line);background:var(--panel-b);color:var(--ink);font:inherit;font-size:14px;font-weight:750;cursor:pointer}
