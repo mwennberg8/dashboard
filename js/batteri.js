@@ -1096,9 +1096,6 @@ function battPlanHTML(off){
     if(s&&s.a===x[1]&&s.t1===x[0]){s.t1=t1;s.slut=pct(x[4]);}
     else bl.push({a:x[1],t0:Math.max(x[0],nu),t1:t1,start:s?s.slut:soc0,slut:pct(x[4])});});
   if(!bl.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Inga priser framåt än – planen räknas när de kommer.</div></div>';
-  var tot=bl[bl.length-1].t1-bl[0].t0;
-  var stapel=bl.map(function(b){var w=(b.t1-b.t0)/tot*100,h=(b.t1-b.t0)/3600000;
-    return '<span class="bp-b bp-'+b.a+'" style="flex:'+w.toFixed(2)+' 1 0">'+(h>=2.5?BP_NAMN[b.a]:'')+'</span>';}).join('');
   var rader=bl.map(function(b,k){
     var tid=battPlanSpann(b.t0,b.t1,k===0);
     var niva=(b.start!=null&&b.slut!==b.start)?(b.start+' → '+b.slut+' %'):(b.slut+' %');
@@ -1116,12 +1113,11 @@ function battPlanHTML(off){
     if(P.man==='bokat')lageTxt='Din bokning gäller just nu – planen väntar.';
     else if(P.man==='ladda')lageTxt='Ditt Ladda max gäller just nu – planen väntar.';
     else if(P.man==='bil')lageTxt='Bilen laddar – bilvakten håller batteriet.';
-    else if(P.styr)lageTxt='Planen styr batteriet.';
     else if(P.auto===false)lageTxt='Väntar på att batteriplanen i Homey ska se Auto (inom en minut).';
   }
   return '<div class="bp"><div class="ww-h bp-h">Batteriplan '+battPlanMarke()+infoBlock('bplan',info)+'</div>'
     +(lageTxt?'<div class="bp-txt bp-lage">'+esc(lageTxt)+'</div>':'')
-    +'<div class="bp-stapel">'+stapel+'</div>'
+    /* v923: blockstapeln borttagen – planen syns i remsan under prisgrafen. */
     +battManRader()
     +'<div class="bp-rader">'+rader+'</div>'
     +(P.vinst!=null&&P.vinst>=1?'<div class="bp-txt">ca '+Math.round(P.vinst)+' kr billigare än bara normal drift</div>':'')
@@ -1141,8 +1137,8 @@ function buildCostPopup(){
        och vad batteriplanen beslutade (battplan.f). */
     if(pdOff===-1)pgIgarHamta();
     var tog='<div class="seg-row" style="margin-bottom:10px"><button class="seg-btn'+(pdOff===-1?' on':'')+'" onclick="priceDaySet(-1)">Igår</button><button class="seg-btn'+(pdOff===0?' on':'')+'" onclick="priceDaySet(0)">Idag</button><button class="seg-btn'+(pdOff===1?' on':'')+'" onclick="priceDaySet(1)">Imorgon</button></div>';
+    /* v923: raden lågt/normalt/högt under grafen borttagen. */
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
-      +prisRefRad()
       /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
       /* v922: med Auto på syns planen alltid – knappen behövs bara i provläget. */
       +(battAutoPa()?'':'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
