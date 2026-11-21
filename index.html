@@ -3298,6 +3298,42 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .det-note{margin-top:12px;font-size:11.5px;line-height:1.5;color:var(--dim)}
 /* Prisrutorna under elprisgrafen. Marginaler, inte gap — mätbart i wkhtmltoimage. */
 .pchips{display:flex;margin:10px 0 4px}
+/* ===== v924: ELPOPUPEN (js/el.js) – flödet, pris och plan, batteri, bil, säkring ===== */
+.el-flode{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:2px 0 4px}
+.el-f{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 8px;min-width:0;border-radius:13px;
+  border:1px solid var(--line);background:var(--inset);color:var(--ink);font-family:inherit;cursor:pointer}
+.el-f-ic{width:19px;height:19px;display:inline-flex}.el-f-ic .ic{width:100%;height:100%}
+.el-f b{font-size:14.5px;font-weight:850;line-height:1.15;white-space:nowrap;font-variant-numeric:tabular-nums}
+.el-f-k{font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint)}
+.el-f-s{font-size:10px;color:var(--dim);font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.el-sek{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--faint);margin:18px 0 8px}
+.el-sek:after{content:"";flex:1;height:1px;background:var(--line)}
+.el-dag{margin-bottom:8px}
+.el-plan{background:var(--inset);border:1px solid var(--line);border-radius:13px;padding:9px 10px;margin:8px 0 2px}
+.el-steg{display:flex;flex-wrap:wrap;align-items:center;gap:5px 6px;font-size:12.5px;font-weight:750}
+.el-s{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:8px;background:rgba(255,255,255,.04)}
+.el-s.man{box-shadow:inset 0 0 0 1.5px var(--ink)}
+.el-pil{color:var(--faint);font-weight:600}
+.el-vinst{font-size:11.5px;color:var(--ok);font-weight:650;margin-top:6px}
+.el-rad{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;margin:0 2px 8px}
+.el-rad-k{font-size:11px;color:var(--faint);font-weight:700}
+.el-rad b{font-size:14.5px;font-weight:800}
+.el-rad-s{flex-basis:100%;font-size:12px;color:var(--dim);font-weight:650}
+.el-fas{display:grid;grid-template-columns:24px 1fr 56px;align-items:center;gap:8px;margin:5px 2px}
+.el-fas-k{font-size:11px;font-weight:800;color:var(--dim)}
+.el-fas-b{position:relative;height:10px;border-radius:5px;background:var(--inset);border:1px solid var(--line);overflow:visible}
+.el-fas-b i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.el-fas-b em{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;background:var(--ink);opacity:.7;border-radius:1px}
+.el-fas b{font-size:12.5px;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+.el-not{font-size:11.5px;color:var(--faint);margin:6px 2px 0}
+.el-h{display:grid;grid-template-columns:40px 18px 1fr;gap:6px;align-items:start;padding:6px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
+.el-h:last-of-type{border-bottom:0}
+.el-h-t{color:var(--faint);font-weight:700;font-variant-numeric:tabular-nums}
+.el-h-ic{width:15px;height:15px;display:inline-flex;margin-top:1px}.el-h-ic .ic{width:100%;height:100%}
+.el-h-x{color:var(--ink);line-height:1.3}
+.el-lank{display:block;margin:8px 0 0 auto;background:none;border:0;color:var(--blue);font:inherit;font-weight:750;font-size:12.5px;cursor:pointer;padding:4px 2px}
+@media (max-width:380px){.el-f b{font-size:13px}.el-f-s{display:none}}
 .pchip{flex:1 1 0;min-width:0;border-radius:12px;background:var(--inset);border:1px solid var(--line);padding:8px 9px}
 .pchip+.pchip{margin-left:7px}
 .pchip-k{font-size:10.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
@@ -4408,6 +4444,7 @@ body.vaggplatta .hus-flod{animation:none!important}
 <script src="js/sidan.js"></script>
 <script src="js/styrning.js"></script>
 <script src="js/huset.js"></script>
+<script src="js/el.js"></script>
 <script src="js/start.js"></script>
 <script>
 /* ===== husvakt 1.10.1 =====

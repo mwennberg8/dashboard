@@ -85,9 +85,11 @@ function husBygg(el){
     else{e.setAttribute('x',y.r[0]);e.setAttribute('y',y.r[1]);e.setAttribute('width',y.r[2]);e.setAttribute('height',y.r[3]);e.setAttribute('rx',8);}
     e.setAttribute('class','hus-yta'+(y.hall?' hus-yta-hall':'')+(y.c40?' hus-yta-c40':'')+(y.ex40?' hus-yta-ex40':''));
     if(y.c40)e.style.display='none';   /* v862: visas av husBilarUppd när C40 står där */
-    if(y.pop)e.setAttribute('onclick',"openDetail('"+y.pop+"')");
+    /* v924: en yta med både tryck och håll (Snickarboa) struntar i klicket som
+       kommer direkt efter hålltrycket – annars öppnades båda popuperna. */
+    if(y.pop)e.setAttribute('onclick',y.hall?"if(Date.now()-(_husHallAt||0)>1200)openDetail('"+y.pop+"')":"openDetail('"+y.pop+"')");
     /* Håll inne: äppelträdet öppnar inställningarna (väggplattan har ingen meny). */
-    if(y.hall)try{hallInne(e,new Function(y.hall));}catch(x){}
+    if(y.hall)try{var hf=new Function(y.hall);hallInne(e,function(){_husHallAt=Date.now();hf();});}catch(x){}
     yt.appendChild(e);});
   try{husBilarBygg(svg,NS);}catch(e){}   /* v858: bilarna, under ljuset */
   try{husTakBygg(svg,NS);}catch(e){}   /* v850: burspråkets tak, under ljuset */
