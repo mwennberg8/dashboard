@@ -1190,7 +1190,11 @@ function drFordela(g){
   var t=Array.prototype.slice.call(g.children),hel=[],ovr=[];
   t.forEach(function(x){(drPassar(x,3)?ovr:hel).push(x);});
   drDela(ovr);
-  hel.forEach(function(x){x.style.gridColumn='span 6';g.appendChild(x);});}
+  /* v919: får texten inte plats ens i hel bredd bryts den på flera rader i
+     stället för att kortas med … (t.ex. bilstyrningens "strömmen sänkt till
+     7 A för säkringen (högsta fas …)"). */
+  hel.forEach(function(x){x.style.gridColumn='span 6';g.appendChild(x);
+    x.classList.remove('dr-bryt');if(!drPassar(x,6))x.classList.add('dr-bryt');});}
 function drFordelaAlla(rot){
   if(!rot||!rot.querySelectorAll)return;
   var g=rot.querySelectorAll('.dr-grid'+(rot.id==='krpop'||(rot.closest&&rot.closest('#krpop'))?',.kr-grid':''));
