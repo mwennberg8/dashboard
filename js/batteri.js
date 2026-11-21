@@ -1069,6 +1069,8 @@ function pgPlanLager(offset,X,y0,y1){
       +'<rect class="pg-bpl pg-bp-'+k.l+m+'" x="'+xa.toFixed(1)+'" y="'+(y1+3)+'" width="'+w.toFixed(1)+'" height="6" rx="1.5"/>';});
   return ut;
 }
+/* v922: planen syns alltid när Auto är på, annars när man tryckt fram den. */
+function pgPlanSyns(){return !!_pgVisaPlan||battAutoPa();}
 /* v921: provläge när Auto är av, annars auto. */
 function battPlanMarke(){return battAutoPa()?'<span class="bp-prov bp-auto">auto</span>':'<span class="bp-prov">provläge</span>';}
 /* v921: dina bokningar som rader, överst – de går före planen. */
@@ -1142,9 +1144,10 @@ function buildCostPopup(){
     var body=tog+'<div class="pgraph">'+dayPriceGraphSVG(pdOff)+'</div>'
       +prisRefRad()
       /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
-      +'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
-        +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' '+battPlanMarke()+'</button>'
-      +(function(){if(!_pgVisaPlan)return '';try{return pdOff===-1?battPlanIgarHTML():battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
+      /* v922: med Auto på syns planen alltid – knappen behövs bara i provläget. */
+      +(battAutoPa()?'':'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
+        +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' '+battPlanMarke()+'</button>')
+      +(function(){if(!pgPlanSyns())return '';try{return pdOff===-1?battPlanIgarHTML():battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Skalan börjar på 0 kr och är densamma för igår, idag och imorgon, så att dagarna går att jämföra. Färgen visar priset mot vad som brukar vara lågt och högt: grönt vid den billigaste tiondelen av de senaste 14 dygnen, rött vid den dyraste tiondelen. En dag som ligger högt hela dagen blir alltså orange eller röd rakt igenom.'
         +(_prisKal?'':' Just nu saknas facitvärdena, så Tibbers tal visas orörda.'))+'</div>'
