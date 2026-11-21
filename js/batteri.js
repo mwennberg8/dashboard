@@ -425,7 +425,7 @@ function popKnappar(dest){
   var ut=[];
   Array.prototype.forEach.call(c.querySelectorAll('.ctl[data-bi]'),function(b){
     var i=+b.getAttribute('data-bi');if(knappTill(CONFIG.BUTTONS[i])===dest)ut.push(b.outerHTML);});
-  if(dest==='batt'){try{ut.push(battSparaKnapp());}catch(e){}}   /* v708 */
+  if(dest==='batt'){try{ut.push(battSparaKnapp());}catch(e){}try{ut.push(battAutoKnapp());}catch(e){}}   /* v708, v921 */
   if(!ut.length)return '';
   /* Högst fyra per rad. */
   var h='';for(var r=0;r<ut.length;r+=4)h+='<div class="ctl-row">'+ut.slice(r,r+4).join('')+'</div>';
@@ -472,7 +472,9 @@ function regelHamta(tvinga){
       bilBokad:Number(r.billadd_bokad)||0,bilStrom:Number(r.billadd_strom)||0,
       bilTyp:String(r.billadd_typ||''),   /* v891 */
       /* v715: Ladda max-markören (energistyr 3.1.0 / batteriflödena). null = variabeln saknas. */
-      max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max),at:Date.now()};
+      max:(r.battladd_max==null||r.battladd_max==='')?null:Number(r.battladd_max),
+      /* v921: Auto – batteriplanen styr (batteriplan 1.3.0). */
+      auto:Number(r.battplan_auto)===1,at:Date.now()};
     try{if(_regel.max!=null)localStorage.setItem('battMax_v1',JSON.stringify({v:_regel.max,at:Date.now()}));}catch(e){}
     regelSpara(_regel);_regelFel='';
   }).catch(function(e){_regelFel=((e&&e.message)||String(e))+' ('+avlKl(Date.now())+')';}).then(function(){   /* v899: felet sparas för batteriplanen */
@@ -877,6 +879,70 @@ function spBoka(el){
   var nu=Date.now(),fran=_spFran<=nu+60000?nu:_spFran;
   return sparaSkriv(fran,_spTill,(fran===nu?'Sparar till ':'Spara bokat '+regelKl(fran)+'–')+regelKl(_spTill));
 }
+/* ===== v921: AUTO – BATTERIPLANEN STYR =====
+   Knappen skriver battplan_auto (1/0). Batteriplanen 1.3.0 styr då batteriet
+   efter planen varje minut; en bokning eller ditt eget Ladda max går före, och
+   sparplanen (sparaigen 1.8.0) står still. */
+function battAutoPa(){return !!(_regel&&_regel.auto);}
+function battAutoKnapp(){
+  var pa=battAutoPa(),P=null;try{P=battPlanData();}catch(e){}
+  var lbl=!pa?'Auto av':(P&&P.man==='bokat'?'Auto · väntar':(P&&P.man==='ladda'?'Auto · väntar':'Auto · plan'));
+  return '<button type="button" class="ctl'+(pa?' on':'')+'" data-auto="1" onclick="battAutoTryck()">'
+    +'<span class="ctl-ic">'+icon('sparkle')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
+}
+async function battAutoTryck(){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget ändras');return;}
+  var ny=battAutoPa()?0:1;
+  try{var list=await logicList();await logicWrite(list,'battplan_auto',ny,'number');}
+  catch(e){toast('Kunde inte ändra Auto: '+((e&&e.message)||'okänt'));return;}
+  _regel=_regel||{};_regel.auto=ny===1;
+  toast(ny?'Auto på – batteriplanen styr batteriet. Dina bokningar och Ladda max går före.'
+          :'Auto av – planen styr inte längre. Stod den i ladda eller spara går batteriet till normal drift.');
+  try{renderControls();}catch(e){}
+  try{var b=$('dlg-body');if(b&&_popupRebuild&&_dlgWhich==='batt')b.innerHTML=_popupRebuild();}catch(e){}
+  regelHamta(true);
+}
+/* Dina bokningar och ditt Ladda max som block {l, t0, t1, man:1}, i samma form
+   som planens (battPlanSegment), så att de kan läggas ovanpå planen i grafen. */
+function battManSegment(){
+  var R=_regel||{},nu=Date.now(),slut=nu+48*3600000,ut=[],P=null;try{P=battPlanData();}catch(e){}
+  var lagg=function(l,a,b){a=Math.max(a,nu-60000);b=Math.min(b,slut);if(b>a)ut.push({l:l,t0:a,t1:b,man:1});};
+  if(R.start>nu){
+    var lb=R.spara>R.start?R.spara:(R.stopp>R.start?R.stopp:R.start+3*3600000);
+    lagg('ladda',R.start,lb);
+    if(R.spara>R.start&&R.stopp>R.spara)lagg('spara',R.spara,R.stopp);
+    else if(R.stopp>lb)lagg('spara',lb,R.stopp);
+    return ut;
+  }
+  var laddar=false;try{laddar=battMaxMark()===1||battLaddLage()===true;}catch(e){}
+  var manL=false;try{manL=laddar&&battKalla('ladda')==='manuellt';}catch(e){}
+  if(manL){
+    /* Till fullt med planens laddtakt, annars två timmar; sedan spara till stoppet. */
+    var kvar=2*3600000;
+    try{if(P&&P.kap&&P.laddKw&&P.soc!=null)kvar=Math.max(15*60000,(P.kap*(100-P.soc)/100)/P.laddKw*3600000);}catch(e){}
+    var lt=nu+kvar;if(R.stopp>nu&&R.stopp<lt)lt=R.stopp;
+    lagg('ladda',nu,lt);
+    if(R.stopp>lt)lagg('spara',lt,R.stopp);
+    return ut;
+  }
+  var sp=battSparaLage();
+  if(sp.aktiv)lagg('spara',nu,sp.till);
+  else if(sp.bokad)lagg('spara',sp.fran,sp.till);
+  return ut;
+}
+/* Planens block med dina bokningar ovanpå: där du bokat gäller din bokning. */
+function battPlanMedMan(seg){
+  var man=battManSegment();if(!man.length)return seg;
+  var ut=[];
+  seg.forEach(function(s){
+    var delar=[[s.t0,s.t1]];
+    man.forEach(function(m){var ny=[];delar.forEach(function(d){
+      if(m.t1<=d[0]||m.t0>=d[1]){ny.push(d);return;}
+      if(m.t0>d[0])ny.push([d[0],m.t0]);if(m.t1<d[1])ny.push([m.t1,d[1]]);});delar=ny;});
+    delar.forEach(function(d){if(d[1]>d[0])ut.push({l:s.l,t0:d[0],t1:d[1]});});
+  });
+  return ut.concat(man).sort(function(a,b){return a.t0-b.t0;});
+}
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr(),bTemp=cap(BATT_MODBUS,'measure_temperature.battery');
   if(bTemp==null&&SOURCE==='demo-data')bTemp=12.5;   /* demon har ingen Modbus-enhet */
@@ -888,7 +954,7 @@ function byggBatt(){
     +battGrafHTML('g2-batt')
     +grafTidsval('g2-batt')
     /* v719: Ladda och Spara direkt under tidsvalet. */
-    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+'</div></div>'))
+    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+battAutoKnapp()+'</div></div>'))
     +dSec('Nu')
     +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
@@ -968,7 +1034,7 @@ function battPlanSegment(P){
 }
 /* v902: gårdagens beslut som rader, i stället för planen framåt. */
 function battPlanIgarHTML(){
-  var P=battPlanData(),rubrik='<div class="ww-h bp-h">Batteriplanen igår <span class="bp-prov">provläge</span></div>';
+  var P=battPlanData(),rubrik='<div class="ww-h bp-h">Batteriplanen igår '+battPlanMarke()+'</div>';
   if(!P)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey… <small style="display:block;opacity:.8;margin-top:3px">'+esc(battPlanVarfor())+'</small></div></div>';
   var d1=dayStart(),d0=d1-86400000,bl=[];
   battPlanSegment(P).forEach(function(x){var a=Math.max(d0,x.t0),b=Math.min(d1,x.t1);if(b<=a)return;
@@ -990,20 +1056,34 @@ function battPlanIgarHTML(){
 function pgPlanLager(offset,X,y0,y1){
   var P=battPlanData();if(!P||!P.h||!P.h.length)return '';
   var bl=[];
-  battPlanSegment(P).forEach(function(x){
+  /* v921: dina bokningar och ditt Ladda max ligger ovanpå planen, i samma färger
+     men med kant, så att man ser vad som faktiskt gäller. */
+  var seg=battPlanSegment(P);try{seg=battPlanMedMan(seg);}catch(e){}
+  seg.forEach(function(x){
     var a=klockTimmar(x.t0)-offset*24,b=klockTimmar(x.t1)-offset*24;
     if(b<=0||a>=24)return;a=Math.max(0,a);b=Math.min(24,b);
-    var s=bl[bl.length-1];if(s&&s.l===x.l&&Math.abs(s.b-a)<0.01)s.b=b;else bl.push({l:x.l,a:a,b:b});});
+    var s=bl[bl.length-1];if(s&&s.l===x.l&&!!s.man===!!x.man&&Math.abs(s.b-a)<0.01)s.b=b;else bl.push({l:x.l,a:a,b:b,man:!!x.man});});
   var ut='';
-  bl.forEach(function(k){var xa=X(k.a),w=Math.max(0.5,X(k.b)-xa-0.6);
-    ut+='<rect class="pg-bp pg-bp-'+k.l+'" x="'+xa.toFixed(1)+'" y="'+y0+'" width="'+w.toFixed(1)+'" height="'+(y1-y0)+'"/>'
-      +'<rect class="pg-bpl pg-bp-'+k.l+'" x="'+xa.toFixed(1)+'" y="'+(y1+3)+'" width="'+w.toFixed(1)+'" height="6" rx="1.5"/>';});
+  bl.forEach(function(k){var xa=X(k.a),w=Math.max(0.5,X(k.b)-xa-0.6),m=k.man?' pg-bp-man':'';
+    ut+='<rect class="pg-bp pg-bp-'+k.l+m+'" x="'+xa.toFixed(1)+'" y="'+y0+'" width="'+w.toFixed(1)+'" height="'+(y1-y0)+'"/>'
+      +'<rect class="pg-bpl pg-bp-'+k.l+m+'" x="'+xa.toFixed(1)+'" y="'+(y1+3)+'" width="'+w.toFixed(1)+'" height="6" rx="1.5"/>';});
   return ut;
+}
+/* v921: provläge när Auto är av, annars auto. */
+function battPlanMarke(){return battAutoPa()?'<span class="bp-prov bp-auto">auto</span>':'<span class="bp-prov">provläge</span>';}
+/* v921: dina bokningar som rader, överst – de går före planen. */
+function battManRader(){
+  var man=[];try{man=battManSegment();}catch(e){}
+  if(!man.length)return '';
+  return '<div class="bp-txt bp-man-t">'+(battAutoPa()?'Går före planen:':'Bokat:')+'</div>'+man.map(function(b){
+    var tid=battPlanSpann(b.t0,b.t1,b.t0<=Date.now()+60000);
+    if(b.t1>=Date.now()+47*3600000)tid=(b.t0<=Date.now()+60000?'nu':regelKl(b.t0))+' – tills vidare';
+    return '<div class="bp-r bp-r-man"><i class="bp-pr bp-'+b.l+'"></i><span class="bp-rt">'+esc(tid)+'</span><b>'+BP_NAMN[b.l]+'</b><span class="bp-rn">bokat</span></div>';}).join('');
 }
 function battPlanHTML(off){
   var P=battPlanData(),nu=Date.now();
   /* v898: avsnittet syns alltid – saknas planen eller är den gammal står det varför. */
-  var rubrik='<div class="ww-h bp-h">Batteriplan <span class="bp-prov">provläge</span></div>';
+  var rubrik='<div class="ww-h bp-h">Batteriplan '+battPlanMarke()+'</div>';
   if(!P||!P.h||!P.h.length)return '<div class="bp">'+rubrik+'<div class="bp-txt">Hämtar planen från Homey… <small style="display:block;opacity:.8;margin-top:3px">'+esc(battPlanVarfor())+'</small></div></div>';
   if(P.at&&nu-P.at>2*3600000)return '<div class="bp">'+rubrik+'<div class="bp-txt">Planen har inte uppdaterats sedan '+esc(regelKl(P.at))
     +'. Kontrollera flödet "Energi · batteriplan (kod)" i Homey.</div></div>';
@@ -1027,9 +1107,20 @@ function battPlanHTML(off){
     +'per timme (som den lär sig, vardag och helg för sig) och hur fort batteriet kan ladda vid sin temperatur'
     +(P.laddKw?' (nu '+num(P.laddKw,1)+' kW'+(P.temp!=null?' vid '+num(P.temp,0)+' °C':'')+')':'')+'. '
     +'Procenten är laddnivån planen räknar med i slutet av blocket. '
-    +(P.styr?'Planen styr batteriet.':'<b>Provläge:</b> planen styr ingenting än – den visar vad den skulle göra. Sparplanen och energistyrningen gör som förut.');
-  return '<div class="bp"><div class="ww-h bp-h">Batteriplan'+(P.styr?'':' <span class="bp-prov">provläge</span>')+infoBlock('bplan',info)+'</div>'
+    +(battAutoPa()?'<b>Auto är på:</b> planen styr batteriet varje minut. En bokning (Spara eller Ladda med tid) eller ett Ladda max du själv startat går före – planen tar över igen när den är slut. Laddar bilen och planen vill köra ur håller bilvakten batteriet. Bokningarna syns med kant i grafen.'
+      :'<b>Provläge:</b> planen styr ingenting – den visar vad den skulle göra. Slå på <b>Auto</b> i batteripopupen så styr den. Sparplanen och energistyrningen gör som förut.');
+  var lageTxt='';
+  if(battAutoPa()){
+    if(P.man==='bokat')lageTxt='Din bokning gäller just nu – planen väntar.';
+    else if(P.man==='ladda')lageTxt='Ditt Ladda max gäller just nu – planen väntar.';
+    else if(P.man==='bil')lageTxt='Bilen laddar – bilvakten håller batteriet.';
+    else if(P.styr)lageTxt='Planen styr batteriet.';
+    else if(P.auto===false)lageTxt='Väntar på att batteriplanen i Homey ska se Auto (inom en minut).';
+  }
+  return '<div class="bp"><div class="ww-h bp-h">Batteriplan '+battPlanMarke()+infoBlock('bplan',info)+'</div>'
+    +(lageTxt?'<div class="bp-txt bp-lage">'+esc(lageTxt)+'</div>':'')
     +'<div class="bp-stapel">'+stapel+'</div>'
+    +battManRader()
     +'<div class="bp-rader">'+rader+'</div>'
     +(P.vinst!=null&&P.vinst>=1?'<div class="bp-txt">ca '+Math.round(P.vinst)+' kr billigare än bara normal drift</div>':'')
     +'</div>';
@@ -1052,7 +1143,7 @@ function buildCostPopup(){
       +prisRefRad()
       /* v901: en riktig knapp – v900:s textrad bland kurvförklaringarna syntes inte. */
       +'<button type="button" class="bp-knapp'+(_pgVisaPlan?' on':'')+'" onclick="pgLagerTog(\'plan\')"><i class="pg-bp-i"></i>'
-        +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' <span class="bp-prov">provläge</span></button>'
+        +(_pgVisaPlan?'Dölj batteriplanen':'Visa batteriplanen')+' '+battPlanMarke()+'</button>'
       +(function(){if(!_pgVisaPlan)return '';try{return pdOff===-1?battPlanIgarHTML():battPlanHTML();}catch(e){return '<div class="bp"><div class="bp-txt">Batteriplanen kunde inte visas: '+esc((e&&e.message)||'okänt fel')+'</div></div>';}})()   /* v896–v898 */
       +'<div class="ww-h" style="margin:4px 0 8px">Timpris'
       +infoBlock('pris','Kurvans form kommer från Tibbers timpriser. Nivån är omräknad mot elprislägst och elprishögst, så grafen och raderna nedan visar samma skala. Skalan börjar på 0 kr och är densamma för igår, idag och imorgon, så att dagarna går att jämföra. Färgen visar priset mot vad som brukar vara lågt och högt: grönt vid den billigaste tiondelen av de senaste 14 dygnen, rött vid den dyraste tiondelen. En dag som ligger högt hela dagen blir alltså orange eller röd rakt igenom.'
