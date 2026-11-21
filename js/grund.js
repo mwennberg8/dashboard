@@ -988,8 +988,9 @@ function blPrisTim(){
 }
 function blOmTxt(ms){var m=Math.max(0,Math.round((ms-Date.now())/60000)),h=Math.floor(m/60);m=m%60;
   return 'om '+(h?h+' h'+(m?' '+m+' min':''):m+' min');}
-function blTidslinjeHTML(){
-  var F=blFonster(),P=blPrisTim(),ms=blStartMs(),H=3600000,bars='',v=[],lagst=null;
+/* v920: staplarna och axeln utbrutna – Spara-popupens tidslinje använder samma. */
+function blStaplar(F,P){
+  var H=3600000,bars='',v=[],lagst=null;
   for(var i=0;i<24;i++){var t=F.t0+i*H;if(P[t]!=null){v.push(P[t]);if(t+H>F.nu&&(!lagst||P[t]<lagst.kr))lagst={t:t,kr:P[t]};}}
   /* v917: SAMMA SKALA SOM PRISGRAFEN. Staplarna gick från dygnets lägsta
      till dess högsta, och då såg 2–2,5 kr ut som 2–8 kr. Nu mäts höjden från
@@ -1008,6 +1009,10 @@ function blTidslinjeHTML(){
       +(kr!=null?priceColor(f):'var(--faint)')+(kr==null?';opacity:.35':'')+'"></i>';}
   var ax='';for(var k=0;k<=24;k+=3){var d=new Date(F.t0+k*H);
     ax+='<span style="left:'+(k/24*100).toFixed(3)+'%">'+('0'+d.getHours()).slice(-2)+'</span>';}
+  return {bars:bars,ax:ax,lagst:lagst};
+}
+function blTidslinjeHTML(){
+  var F=blFonster(),P=blPrisTim(),ms=blStartMs(),H=3600000,S=blStaplar(F,P),bars=S.bars,ax=S.ax,lagst=S.lagst;
   var pct=function(t){return ((t-F.t0)/(24*H)*100).toFixed(3)+'%';};
   var info='Dra eller tryck på tidslinjen för att välja när laddningen ska starta – nästa dygn, i kvartar. '
     +'−15 och +15 finjusterar. Staplarna är elpriset per timme, höjden räknad från 0 kr. Färgen visar priset mot de senaste 14 dygnen: grönt där det brukar vara lågt, rött där det brukar vara högt. ▼ lägst '

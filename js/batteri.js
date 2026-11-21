@@ -77,7 +77,9 @@ function rlForslag(D,L){
   (L.f||[]).forEach(function(e){if(e)rlDelar(e).forEach(function(x){x.kalla='förslaget '+avlKl(e.t0);x.e=e;q.push(x);});});
   return rlSpar(q,D);
 }
-function rlTid(q){return avlKl(q.a)+(q.oppen?'→':'–'+avlKl(q.b));}
+function rlTid(q){return avlKl(q.a)+((q.oppen||q.b>=SPARA_TV_MS)?'→':'–'+avlKl(q.b));}
+/* v920: "till 17:00" eller "tills vidare". */
+function tillKl(ms){return Number(ms)>=SPARA_TV_MS?'tills vidare':'till '+regelKl(ms);}
 /* Längsta etikett som ryms, mätt i webbläsaren. Utan layout (jsdom) står
    procentgissningen från rlEtikett kvar. */
 function rlSegPassa(){
@@ -316,13 +318,13 @@ function paNuLista(){
     /* v842: en bricka per sak – sparar batteriet i väntan på en bokad
        laddning står laddtiden i samma bricka ("Batteriet sparar · laddar
        21:00"). Förut tog spara-brickan platsen och bokningen syntes inte. */
-    var sparTill=bst?(' · laddar '+bilKlText(bst)):((sp0&&sp0.aktiv&&sp0.till)?(' till '+regelKl(sp0.till)):'');
+    var sparTill=bst?(' · laddar '+bilKlText(bst)):((sp0&&sp0.aktiv&&sp0.till)?(' '+tillKl(sp0.till)):'');
     var laddTill='';
     /* v749: Ladda på = markören eller knappens läge, inte bara registret. Precis
        efter start står Modbus ofta still → läget "oklart", och då föll brickan
        till knappens "Laddar max" utan stopptid. */
     var laddPa=false;try{laddPa=battMaxMark()===1||battLaddLage()===true;}catch(e){}
-    var fulltTxt=(Rb.stopp>nuB)?(' · fullt sparas till '+regelKl(Rb.stopp)):'';
+    var fulltTxt=(Rb.stopp>nuB)?(' · fullt sparas '+tillKl(Rb.stopp)):'';
     if(L0&&L0.lage==='ladda'){var avk0=null;try{avk0=battAvstangKl();}catch(e){}
       laddTill=avk0?(' till '+avk0):fulltTxt;}
     /* v888: manuellt eller auto efter varje läge. */
@@ -330,7 +332,7 @@ function paNuLista(){
     if(laddPa&&L0&&(L0.lage==='oklart'||L0.lage==null)&&!L0.varn)lagg('Laddar max'+fulltTxt+kT('ladda'),'batt');
     if(L0&&L0.lage&&L0.lage!=='normal'){
       if(L0.varn)lagg((L0.lage==='spara'?'Sparar'+sparTill:'Laddar max'+laddTill)+' – men '+L0.varn,'batt',false,true);
-      else if(L0.lage==='fullt')lagg('Batteriet fullt'+(Rb.stopp>nuB?(' · sparas till '+regelKl(Rb.stopp)):'')+kT('fullt'),'batt');
+      else if(L0.lage==='fullt')lagg('Batteriet fullt'+(Rb.stopp>nuB?(' · sparas '+tillKl(Rb.stopp)):'')+kT('fullt'),'batt');
       /* v749: "oklart" med Ladda på har redan fått sin bricka ovan. */
       else if(L0.lage==='ladda')lagg('Laddar max'+laddTill+kT('ladda'),'batt');
       else if(L0.lage==='spara')lagg('Batteriet sparar'+sparTill+kT('spara'),'batt');}
@@ -361,7 +363,7 @@ function paNuLista(){
     if(!b||!btnState(b))return;
     var l=String(b.label||'').trim();
     var dst=knappTill(b);
-    if(dst==='batt')lagg('Laddar max'+((_regel&&_regel.stopp>Date.now())?' · fullt sparas till '+regelKl(_regel.stopp):''),'batt');
+    if(dst==='batt')lagg('Laddar max'+((_regel&&_regel.stopp>Date.now())?' · fullt sparas '+tillKl(_regel.stopp):''),'batt');
     else if(dst==='dish')lagg('Disk bokad','dish',true);
     /* v873: övriga påslagna knappar (Breveden, poolvärme, ljus, Auto …) ger ingen bricka. */
     });}catch(e){}
@@ -501,6 +503,7 @@ function regelTider(p,nuMs){
   return {start:start,spara:spara,stopp:stopp};
 }
 function regelKl(ms){
+  if(Number(ms)>=SPARA_TV_MS)return 'tills vidare';   /* v920 */
   var d=svDatum(ms),i=svDatum(Date.now());
   var dag=(d.y===i.y&&d.m===i.m&&d.d===i.d)?'':
     ((svMidnatt(d.y,d.m,d.d)-svMidnatt(i.y,i.m,i.d)===86400000)?' imorgon':(' '+avlDag(ms)));
@@ -594,7 +597,8 @@ function regelHTML(){
   /* v749: med Ladda på betyder stoppet "spara när fullt, normal drift från
      stopptiden" – "Normal drift 06:00" såg ut som att inget spara var bokat. */
   var lp=false;try{lp=battMaxMark()===1||battLaddLage()===true||R.start>nu;}catch(e){}
-  if(R.stopp>nu)steg.push([lp?'Fullt sparas till':'Normal drift',R.stopp]);
+  if(R.stopp>=SPARA_TV_MS)steg.push([lp?'Fullt sparas':'Sparar',R.stopp]);   /* v920: tills vidare */
+  else if(R.stopp>nu)steg.push([lp?'Fullt sparas till':'Normal drift',R.stopp]);
   steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
   var p=R.forslag,knappar='';
   if(REGEL_AV){
@@ -689,6 +693,8 @@ function battSparaLage(){
      laddningen pågår är det alltså inte spara – det blir det först när
      energistyr slagit om vid fullt (battladd_max → 0). */
   var laddar=false;try{laddar=battMaxMark()===1||battLaddLage()===true;}catch(e){}
+  /* v920: bokat spara som inte börjat än. */
+  if(R&&R.spara>nu&&R.stopp>R.spara)return {aktiv:false,bokad:true,fran:R.spara,till:R.stopp};
   if(R&&R.stopp>nu&&!(R.start>nu)&&!laddar)return {aktiv:true,till:R.stopp};
   return {aktiv:false};
 }
@@ -720,42 +726,156 @@ function battStoppAvboka(){
   try{if(regelLage().lage==='spara')return;}catch(e){}
   battStoppSkriv(0);
 }
+/* v920: KNAPPEN ÖPPNAR SPARA-POPUPEN. Där väljs spara till nästa dyra period,
+   tills vidare eller ett bokat från–till, och det som pågår eller är bokat
+   avbryts. Förut sparade ett tryck direkt till den dyra perioden. */
 function battSparaKnapp(){
-  var L=battSparaLage(),arm=!!_sparaArm&&Date.now()-_sparaArm<4000,lbl;
-  if(L.aktiv)lbl=arm?'Avbryta?':'Sparar till '+regelKl(L.till);
-  else{var m=null;try{m=sparaMal(prisDygn(0),prisDygn(1),Date.now());}catch(e){}
-    lbl=m?'Spara till '+regelKl(m.franMs):'Spara';}
-  return '<button type="button" class="ctl'+(L.aktiv?' on':'')+(arm?' arm':'')+'" data-spara="1" onclick="battSparaTryck()">'
+  var L=battSparaLage(),lbl;
+  if(L.aktiv)lbl='Sparar '+tillKl(L.till);
+  else if(L.bokad)lbl='Spara '+regelKl(L.fran);
+  else lbl='Spara';
+  return '<button type="button" class="ctl'+(L.aktiv?' on':'')+(L.bokad?' bokad':'')+'" data-spara="1" onclick="battSparaTryck()">'
     +'<span class="ctl-ic">'+icon('lock-simple')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
 }
-async function battSparaTryck(){
-  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');return;}
-  var L=battSparaLage();
-  /* Pågående spara avbryts med två tryck, som Ladda max. */
-  if(L.aktiv){
-    if(!(_sparaArm&&Date.now()-_sparaArm<4000)){_sparaArm=Date.now();try{renderControls();}catch(e){}
-      setTimeout(function(){_sparaArm=0;try{renderControls();}catch(e){}},4100);return;}
-    _sparaArm=0;await regelNormal();try{renderControls();}catch(e){}return;
+function battSparaTryck(){_spFran=0;_spTill=0;_spVal='fran';openDetail('battspara');}
+function sparaPopHTML(){
+  var L=battSparaLage(),h='<div class="ladd-pop">';
+  if(L.aktiv||L.bokad){
+    h+='<div class="dsec">Just nu</div>'
+      +(L.aktiv?dRow('Sparar',esc(tillKl(L.till)))
+               :dRow('Bokat spara',esc(regelKl(L.fran)+' – '+regelKl(L.till))))
+      +'<button type="button" class="bl-stopp" onclick="battSparaAvbryt()"><b>'+(L.aktiv?'Avbryt spara':'Avboka spara')+'</b>'
+      +'<small>'+(L.aktiv?'batteriet går tillbaka till normal drift':'bokningen tas bort')+'</small></button>';
   }
-  var m=sparaMal(prisDygn(0),prisDygn(1),Date.now());
-  if(!m){toast('Ingen dyr period i sikte i elpriset');return;}
-  var nu=Date.now();
+  var m=null;try{m=sparaMal(prisDygn(0),prisDygn(1),Date.now());}catch(e){}
+  h+='<div class="dsec">Spara nu</div><div class="bl-val">'
+    +(m?'<button class="bl-b pri" onclick="battSparaDyr(this)"><b>Till dyr period</b><small>till '+esc(regelKl(m.franMs))+'</small></button>'
+       :'<button class="bl-b pri" disabled><b>Till dyr period</b><small>ingen dyr period i sikte</small></button>')
+    +'<button class="bl-b bl-pris" onclick="battSparaTV(this)"><b>Tills vidare</b><small>tills du avbryter</small></button>'
+    +'</div>';
+  return h+sparaTidslinjeHTML()+'</div>';
+}
+/* Skriver bokningen: stoppet först (verkställaren ska aldrig se ett spara utan
+   slut), sedan starten. Börjar det nu skickas spara direkt. */
+async function sparaSkriv(fran,till,txt){
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');return false;}
+  var nu=Date.now(),direkt=!(fran>nu+60000);
   try{
     var list=await logicList();
-    /* Stoppet först: verkställaren ska aldrig se ett spara utan sitt slut. */
-    await logicWrite(list,'battladd_stopp',m.franMs);
-    await logicWrite(list,'battladd_spara',nu);
+    await logicWrite(list,'battladd_stopp',till);
+    await logicWrite(list,'battladd_spara',direkt?nu:fran);
     await logicWrite(list,'battladd_start',0);
-    _regel=_regel||{};_regel.stopp=m.franMs;_regel.spara=nu;_regel.start=0;
+    _regel=_regel||{};_regel.stopp=till;_regel.spara=direkt?nu:fran;_regel.start=0;
     try{localStorage.removeItem(BATT_START_KEY);}catch(e){}
-  }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return;}
-  /* Direkt, så det syns nu — verkställaren skickar samma sak inom en minut. */
-  battKallaSkriv('manuell','spara');   /* v888 */
-  try{await homeyTriggerFlow('standard',BATT_FLOW_SPARA);}catch(e){}
-  toast('Sparar till '+regelKl(m.franMs));
+  }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));return false;}
+  closeDetail();
+  if(direkt){battKallaSkriv('manuell','spara');try{await homeyTriggerFlow('standard',BATT_FLOW_SPARA);}catch(e){}}
+  toast(txt);
   try{renderControls();}catch(e){}
   regelHamta(true);
-  setTimeout(function(){try{load();}catch(e){}},1500);
+  if(direkt)setTimeout(function(){try{load();}catch(e){}},1500);
+  return true;
+}
+function sparaKvitto(el){try{if(el&&el.classList)el.classList.add('bl-vald');}catch(e){}}
+function battSparaDyr(el){
+  var m=null;try{m=sparaMal(prisDygn(0),prisDygn(1),Date.now());}catch(e){}
+  if(!m){toast('Ingen dyr period i sikte i elpriset');return;}
+  sparaKvitto(el);return sparaSkriv(Date.now(),m.franMs,'Sparar till '+regelKl(m.franMs));
+}
+function battSparaTV(el){sparaKvitto(el);return sparaSkriv(Date.now(),SPARA_TV_MS,'Sparar tills vidare – avbryt med Spara-knappen');}
+async function battSparaAvbryt(){
+  var L=battSparaLage();
+  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget ändras');return;}
+  if(L.aktiv){closeDetail();await regelNormal();try{renderControls();}catch(e){}return;}
+  /* Bokat men inte börjat: bara bokningen bort, läget rörs inte. */
+  try{
+    var list=await logicList();
+    await logicWrite(list,'battladd_spara',0);
+    await logicWrite(list,'battladd_stopp',0);
+    if(_regel){_regel.spara=0;_regel.stopp=0;}
+  }catch(e){toast('Kunde inte avboka: '+((e&&e.message)||'okänt'));return;}
+  closeDetail();toast('Spara avbokat');
+  try{renderControls();}catch(e){}
+  regelHamta(true);
+}
+/* ---- Tidslinjen: två handtag, Från och Till, i kvartar inom nästa dygn. ---- */
+function spNorm(){
+  var F=blFonster(),nu=Date.now(),Q=900000,lo=Math.floor(nu/Q)*Q;
+  if(!_spFran)_spFran=Math.ceil((nu+60000)/3600000)*3600000;
+  _spFran=Math.max(lo,Math.min(F.t1-Q,_spFran));
+  if(!_spTill){var m=null;try{m=sparaMal(prisDygn(0),prisDygn(1),nu,_spFran);}catch(e){}
+    _spTill=(m&&m.franMs>=_spFran+2*Q&&m.franMs<=F.t1)?m.franMs:_spFran+3*3600000;}
+  _spTill=Math.max(_spFran+Q,Math.min(F.t1,_spTill));
+}
+function spKl(ms){return ms<=Date.now()+60000?'nu':regelKl(ms);}
+function spLangd(){var m=Math.round((_spTill-Math.max(_spFran,Date.now()))/60000),h=Math.floor(m/60);m=m%60;
+  return (h?h+' h'+(m?' '+m+' min':''):m+' min');}
+function spBokaTxt(){return (_spFran<=Date.now()+60000?'Spara nu till ':'Boka spara '+avlKl(_spFran)+'–')+regelKl(_spTill);}
+function sparaTidslinjeHTML(){
+  spNorm();
+  var F=blFonster(),P=blPrisTim(),S=blStaplar(F,P);
+  var pct=function(t){return ((t-F.t0)/(24*3600000)*100).toFixed(3)+'%';};
+  var info='Batteriet sparas (ingen urladdning) från Från till Till – nästa dygn, i kvartar. '
+    +'Dra i tidslinjen: handtaget närmast fingret flyttas. Eller välj Från eller Till och finjustera med −15 och +15. '
+    +'Börjar det nu sparas det direkt. Staplarna är elpriset per timme, färgen mot de senaste 14 dygnen.';
+  return '<div class="dsec">Boka spara'+infoBlock('sparabok',esc(info))+'</div>'
+    +'<div class="seg-row sp-val"><button type="button" class="seg-btn'+(_spVal==='fran'?' on':'')+'" id="sp-v-fran" onclick="spValj(\'fran\')">Från <span id="sp-fran">'+esc(spKl(_spFran))+'</span></button>'
+    +'<button type="button" class="seg-btn'+(_spVal==='till'?' on':'')+'" id="sp-v-till" onclick="spValj(\'till\')">Till <span id="sp-till">'+esc(regelKl(_spTill))+'</span></button></div>'
+    +'<div class="bl-tl-lab"><button type="button" class="bl-knuff" onclick="spKnuff(-15)" aria-label="15 minuter tidigare">\u221215</button>'
+    +'<div class="bl-tl-st"><b id="sp-kl">'+esc(avlKl(Math.max(_spFran,Date.now()))+'–'+avlKl(_spTill))+'</b><small id="sp-sub">'+esc(spLangd())+'</small></div>'
+    +'<button type="button" class="bl-knuff" onclick="spKnuff(15)" aria-label="15 minuter senare">+15</button></div>'
+    +'<div class="bl-tl" id="sp-tl" onpointerdown="spNer(event)" onpointermove="spDra(event)" onpointerup="spUpp(event)" onpointercancel="spUpp(event)">'
+    +'<div class="bl-tl-plot" id="sp-plot">'+S.bars
+    +'<span class="sp-zon" id="sp-zon" style="left:'+pct(_spFran)+';width:'+(((_spTill-_spFran)/(24*3600000))*100).toFixed(3)+'%"></span>'
+    +'<span class="bl-tl-nu" style="left:'+pct(F.nu)+'"></span>'
+    +'<span class="bl-tl-h sp-h'+(_spVal==='fran'?' akt':'')+'" id="sp-h-fran" style="left:'+pct(_spFran)+'"></span>'
+    +'<span class="bl-tl-h sp-h'+(_spVal==='till'?' akt':'')+'" id="sp-h-till" style="left:'+pct(_spTill)+'"></span></div>'
+    +'<div class="bl-tl-ax">'+S.ax+'</div></div>'
+    +'<button type="button" class="bl-boka bl-boka-stor sp-boka" onclick="spBoka(this)"><b id="sp-boka-t">'+esc(spBokaTxt())+'</b>'
+    +'<small>ingen urladdning under tiden</small></button>';
+}
+/* Ritar bara om handtagen och texterna – fingret ska inte tappa linjen. */
+function spVisa(){
+  spNorm();
+  var F=blFonster(),pct=function(t){return ((t-F.t0)/(24*3600000)*100).toFixed(3)+'%';};
+  var e;
+  if((e=$('sp-h-fran'))){e.style.left=pct(_spFran);e.classList.toggle('akt',_spVal==='fran');}
+  if((e=$('sp-h-till'))){e.style.left=pct(_spTill);e.classList.toggle('akt',_spVal==='till');}
+  if((e=$('sp-zon'))){e.style.left=pct(_spFran);e.style.width=(((_spTill-_spFran)/(24*3600000))*100).toFixed(3)+'%';}
+  if((e=$('sp-fran')))e.textContent=spKl(_spFran);
+  if((e=$('sp-till')))e.textContent=regelKl(_spTill);
+  if((e=$('sp-v-fran')))e.classList.toggle('on',_spVal==='fran');
+  if((e=$('sp-v-till')))e.classList.toggle('on',_spVal==='till');
+  if((e=$('sp-kl')))e.textContent=avlKl(Math.max(_spFran,Date.now()))+'–'+avlKl(_spTill);
+  if((e=$('sp-sub')))e.textContent=spLangd();
+  if((e=$('sp-boka-t')))e.textContent=spBokaTxt();
+}
+function spValj(v){_spVal=v;spVisa();}
+function spSatt(ms){
+  var Q=900000;ms=Math.round(ms/Q)*Q;
+  if(_spVal==='fran'){_spFran=ms;if(_spTill<_spFran+Q)_spTill=_spFran+Q;}
+  else{_spTill=ms;if(_spTill<_spFran+Q)_spTill=_spFran+Q;}
+  spVisa();
+}
+function spKnuff(min){spSatt((_spVal==='fran'?_spFran:_spTill)+min*60000);}
+function spTid(e){
+  var p=$('sp-plot');if(!p)return null;var r=p.getBoundingClientRect();if(!r.width)return null;
+  var F=blFonster(),f=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));
+  return F.t0+f*24*3600000;
+}
+function spNer(e){
+  var t=spTid(e);if(t==null)return;
+  /* Handtaget närmast fingret tar draget. */
+  _spVal=(Math.abs(t-_spFran)<=Math.abs(t-_spTill))?'fran':'till';
+  _spDrar=true;try{e.currentTarget.setPointerCapture(e.pointerId);}catch(x){}
+  spSatt(t);
+}
+function spDra(e){if(!_spDrar)return;var t=spTid(e);if(t!=null)spSatt(t);}
+function spUpp(e){_spDrar=false;}
+function spBoka(el){
+  spNorm();sparaKvitto(el);
+  var nu=Date.now(),fran=_spFran<=nu+60000?nu:_spFran;
+  return sparaSkriv(fran,_spTill,(fran===nu?'Sparar till ':'Spara bokat '+regelKl(fran)+'–')+regelKl(_spTill));
 }
 function byggBatt(){
   var bw=cap(DEV.battery,'measure_power'),bsx=cap(DEV.battery,'battery_charging_state'),bp=cap(DEV.battery,'measure_battery'),bt=battTimeStr(),bTemp=cap(BATT_MODBUS,'measure_temperature.battery');
@@ -954,7 +1074,7 @@ function openDetailKarna(which){
   _dlgWhich=which;
   const tcfg=_tapCfg;_tapCfg=null;
   {const _d=$('dlg');if(_d&&_d.classList)_d.classList.remove('nohead');}
-  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake',kok:'fork-knife'}[which]||'gauge';let title='',body='';
+  const icn={sun:'sun',grid:'lightning',batt:'battery-high',self:'leaf',cost:'coins',pool:'swimming-pool',cars:'car-profile',tv:'television',air:'wind',sold:'lightning',boughtyear:'plug',weather:'cloud-sun',humidity:'drop-half-bottom',rain:'cloud-rain',pressure:'gauge',wind:'wind',forecast:'cloud-sun',dish:'fork-knife',battladd:'battery-charging',billadd:'battery-charging',battspara:'lock-simple',seatemp:'waves',indoor:'house',uterum:'uterum',snickarboa:'hammer',poolrum:'swimming-pool',vardagsrum:'couch',temps:'house',breveden:'stuga',ac:'snowflake',kok:'fork-knife'}[which]||'gauge';let title='',body='';
   if(which==='sun'){title='Solpaneler';const perf=solPerfPct(),theo=solTheoW();
     /* GÅRDAGENS FAKTISKA LIGGER I SJUDYGNSSERIEN, och den hämtades bara när
        historikrutan öppnades. Öppnade man Solpaneler → Igår direkt var
@@ -1012,6 +1132,10 @@ function openDetailKarna(which){
     _grafByggare['temps']={titel:'Temperaturer',full:function(cid){return multiTempSVG(cid||'temps');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggTemps();};
     body=byggTemps();
+  }else if(which==='battspara'){title='Spara husbatteriet';   /* v920 */
+    _popupRebuild=sparaPopHTML;
+    if(!_prisJ){_prisAt=0;try{prisVarHamta();}catch(e){}}
+    body=sparaPopHTML();
   }else if(which==='battladd'){title='Ladda husbatteriet';_blMal='batt';
     /* Rutan ritas om när priserna landar, så prisvalen dyker upp av sig själva. */
     _popupRebuild=battLaddHTML;

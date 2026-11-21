@@ -1744,6 +1744,11 @@ var BATT_NAT_W=1000, BATT_IMPORT_W=500, BATT_FULLT=99;
    positiv lutning och ändrar inte vilka timmar som är dyra. */
 var SPARA_DYR_FRAC=0.55;
 var _sparaArm=0;
+/* v920: Spara-popupen – spara till dyr period, tills vidare, eller bokat
+   från–till på en tidslinje. SPARA_TV_MS (år 2100) i battladd_stopp betyder
+   tills vidare (energistyr 3.19.0). */
+const SPARA_TV_MS=4102444800000;
+var _spFran=0,_spTill=0,_spVal='fran',_spDrar=false;
 var _dlgWhich=null;
 /* Popupen sätter denna till sin egen kroppsbyggare så tidsval och helskärm kan
    rita om rätt vy. Nollställs när en popup utan tidsseriegraf öppnas. */
@@ -2675,7 +2680,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v919';
+const APP_VERSION='v920';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
