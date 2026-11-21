@@ -1508,7 +1508,7 @@ function dayPriceGraphSVG(offset){offset=offset||0;
   /* v900: BATTERIPLANEN I GRAFEN. Planens block från nu och framåt som svag
      bakgrund i lägets färg och en tydlig list under kurvan, på rätt klocktid –
      så man ser direkt om den laddar i dalarna och laddar ur i topparna. */
-  if(_pgVisaPlan&&offset>=-1&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
+  if(pgPlanSyns()&&offset>=-1&&offset<=1){try{s+=pgPlanLager(offset,X,padT,H-padB);}catch(e){}}
   /* v915: kronlinjer, svaga. Nollan ritas av nollinjen nedan.
      v916: utan tal i vänsterkanten – linjerna räcker. */
   (function(){var st=prisSteg(yhi-ylo),v=Math.ceil((ylo+1e-9)/st)*st;
