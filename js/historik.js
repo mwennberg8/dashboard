@@ -290,7 +290,17 @@ function battGrafHTML(cid){
     {t0:t0,t1:t1,cid:cid,
      pct:{key:'battpct',pts:histV('batt',cid),col:(P.cyan||'#57b6c2'),label:'Laddnivå'},
      /* v843: batteriets temperatur (Modbus) på egen skala i samma graf. */
-     temp:{key:'t_batt',pts:battTempSerie(cid),col:(P.hot||'#bf616a'),label:'Temperatur'}});
+     temp:{key:'t_batt',pts:battTempSerie(cid),col:(P.hot||'#bf616a'),label:'Batteri °C',grupp:'temp'},
+     /* v928: utetemperaturen, av tills man trycker på Ute. Samma skala som
+        batteriets temperatur, så skillnaden syns direkt. */
+     extra:battVisaUte()?[{key:'t_ute',pts:histV('t_ute',cid),col:(P.blue||'#81a1c1'),label:'Ute °C',grupp:'temp',minSpan:4,
+       fmt:function(v){return num(v,1)+' °C';}}]:[],
+     vaxla:[{k:'t_ute',label:'Ute °C',col:(P.blue||'#81a1c1'),on:battVisaUte(),klick:"battUteTog('"+cid+"')"}]});
+}
+function battVisaUte(){try{return localStorage.getItem(BATT_UTE_KEY)==='1';}catch(e){return false;}}
+function battUteTog(cid){
+  try{localStorage.setItem(BATT_UTE_KEY,battVisaUte()?'0':'1');}catch(e){}
+  var el=$(cid||'g2-batt');if(el)el.outerHTML=battGrafHTML(cid||'g2-batt');
 }
 /* Demon har ingen Modbus-enhet – en lugn kurva kring 12,5 °C i stället för ingen. */
 function battTempSerie(cid){

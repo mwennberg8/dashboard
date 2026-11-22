@@ -1834,11 +1834,16 @@ function dayChart(series,fonster){
      egen streckning och sin enhet i avläsningen. */
   var extra=((fonster&&fonster.extra)||[]).slice();
   if(tempSerie)extra.unshift(Object.assign({minSpan:4,fmt:function(v){return num(v,1)+' °C';}},tempSerie));
+  /* v928: serier med samma grupp (batteriets och utomhusets temperatur) delar
+     skala, så att de går att jämföra direkt. */
+  var grpV={};
+  extra.forEach(function(es){if(!es||!es.grupp||!es.pts)return;var g=klipp(es.pts);if(!g)return;
+    (grpV[es.grupp]=grpV[es.grupp]||[]).push.apply(grpV[es.grupp],g.map(function(q){return q.v;}));});
   extra.forEach(function(es){
     if(!es||!es.pts||!es.pts.length)return;
     var tseg=klipp(es.pts);
     if(!(tseg&&tseg.length>1))return;
-    var tv=tseg.map(function(q){return q.v;}),tlo=Math.min.apply(null,tv),thi=Math.max.apply(null,tv),msp=es.minSpan||4;
+    var tv=(es.grupp&&grpV[es.grupp])||tseg.map(function(q){return q.v;}),tlo=Math.min.apply(null,tv),thi=Math.max.apply(null,tv),msp=es.minSpan||4;
     if(thi-tlo<msp){var tm=(thi+tlo)/2;tlo=tm-msp/2;thi=tm+msp/2;}
     var tpad=(thi-tlo)*0.12;tlo-=tpad;thi+=tpad;
     var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
@@ -1851,7 +1856,12 @@ function dayChart(series,fonster){
   });
   var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+tempLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
-  var lg='<div class="mchart-lg2">'+segs.map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')+'</div>';
+  /* v928: VÄXLINGSKNAPPAR (fonster.vaxla) – serier som kan slås på och av,
+     t.ex. utetemperaturen i batterigrafen. De står sist i förklaringen; ett
+     tryck växlar i stället för att markera. */
+  var vx=(fonster&&fonster.vaxla)||[],vxK=vx.map(function(v){return v.k;});
+  var lg='<div class="mchart-lg2">'+segs.filter(function(o){return vxK.indexOf(o.s.key)<0;}).map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')
+    +vx.map(function(v){return '<span class="vx'+(v.on?'':' dim')+'" role="switch" aria-checked="'+(v.on?'true':'false')+'" onclick="'+v.klick+'"><i class="mc-sw" style="background:'+v.col+'"></i>'+esc(v.label)+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
 }
 function hourTicks(t0,t1){

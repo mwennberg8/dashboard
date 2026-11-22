@@ -2082,6 +2082,8 @@ var _pgGeo=null,_pgVald=null,_pgDrag=null;
    slå fel och profilen vet inget om bilen. */
 var BATT_SIM={eta:0.79,ladd:5,ur:5,golv:2,steg:0.25,timmar:24};
 var _battProgVantar=false,_battProgForsok=0;
+/* v928: utetemperaturen i batteripopupens graf – sparas per enhet. */
+var BATT_UTE_KEY='battute_v1';
 var BATT_LAST_H=[1.5,1.5,1.6,1.5,1.5,1.7,1.7,2.1,2.8,3.1,3.6,4.6,5.3,5.3,4.7,4.4,3.9,2.9,2.4,2.4,2.3,1.9,1.7,1.5];
 /* Vilka extrakurvor som visas i prisgrafen. Batteriet på som standard, solen
    av — solen har en egen ruta, och två extrakurvor samtidigt gör prisbilden
@@ -2685,7 +2687,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v927';
+const APP_VERSION='v928';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
