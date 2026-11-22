@@ -595,7 +595,9 @@ function byggGrid(){
       +'effekten vid en viss tidpunkt.'))
     +gridPowerSVG(histV('grid','grid'),'grid')
     +grafTidsval('grid')
-    +'<div class="dsec">Belastning per fas'+infoBlock('fas',fasInfo())+'</div>'+fasHTML()+dSec('Elnät')
+    +'<div class="dsec">Belastning per fas'+infoBlock('fas',fasInfo())+'</div>'+fasHTML()
+    +fasGrafHTML('fas')+grafTidsval('fas')   /* v929 */
+    +dSec('Elnät')
     +dRow('Just nu',pw==null?'–':(exp?'säljer ':'köper ')+W(Math.abs(pw)))+dRow('Spotpris',num(elprisNow(),2)+' kr/kWh')+dRow('Kostnad idag',num(cap(DEV.pulse,'accumulatedCost'),2)+' kr')+dRow('Köpt totalt',num(cap(DEV.pulse,'meter_power.imported'),0)+' kWh')+dRow('Sålt totalt',num(cap(DEV.pulse,'meter_power.exported'),0)+' kWh');
 }
 /* ===== SAMMA MÖNSTER FÖR VÄDER-, POOL- OCH BADGRAFERNA =====

@@ -1189,6 +1189,7 @@ function openDetailKarna(which){
     /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
        kan rita om just den här vyn. */
     _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
+    _grafByggare['fas']={titel:'Ström per fas',full:function(cid){return fasGrafHTML(cid||'fas');}};   /* v929 */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
     body=byggGrid();   /* v847: raderna som stod här (ett fristående uttryck som räknades och kastades) finns redan i byggGrid */
   }else if(which==='batt'){title='Husbatteri';

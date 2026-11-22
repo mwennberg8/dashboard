@@ -372,6 +372,8 @@ const TRACK=[['price',()=>capLive(DEV.tibber,'measure_price_total')],['solar',()
   ['batt',()=>capLive(DEV.battery,'measure_battery')],['t_kok',()=>capLive(DEV.vader,'measure_temperature')],
   ['t_vard',()=>capLive('1a3527b2-8e53-4551-9d36-f92793f2256a','measure_temperature')],['t_ute',()=>capLive(DEV.outdoor,'measure_temperature')],['co2',()=>capLive(DEV.vader,'measure_co2')],
   ['grid',()=>capLive(DEV.pulse,'measure_power')],['pool',()=>capLive(DEV.pooltemp,'measure_temperature')],['hum',()=>capLive(DEV.outdoor,'measure_humidity')],['press',()=>capLive(DEV.vader,'measure_pressure')],['battpow',()=>battEffektNu()],
+  /* v929: strömmen per fas (Pulse) för fasgrafen i elnätspopupen. */
+  ['fas1',()=>capLive(DEV.pulse,'measure_current.L1')],['fas2',()=>capLive(DEV.pulse,'measure_current.L2')],['fas3',()=>capLive(DEV.pulse,'measure_current.L3')],
   ['wind',()=>vindMs(true)],['gust',()=>byMs(true)],['winddir',()=>capLive(DEV.windNet,'measure_wind_angle')],['rain',()=>capLive(DEV.rain,'measure_rain.24h')],['t_uterum',()=>capLive(DEV.uterum,'measure_temperature')],
   ['h_uterum',()=>capLive(DEV.uterum,'measure_humidity')],['co2_uterum',()=>capLive(DEV.uterum,'measure_co2')],['h_snickarboa',()=>capLive(DEV.snickarboa,'measure_humidity')],['h_poolrum',()=>capLive(DEV.poolrum,'measure_humidity')],['h_kok',()=>capLive(DEV.vader,'measure_humidity')],
   ['t_poolrum',()=>capLive(DEV.poolrum,'measure_temperature')],['t_kallare',()=>capLive(DEV.kallare,'measure_temperature')],
@@ -437,7 +439,7 @@ try{document.addEventListener('visibilitychange',function(){
    solen eller nätet, och billaddaren syntes inte. energy_power är den riktiga:
    2026-10-03 visar den 13 kW kl 10:30–11:50 när bilen laddade. Exakt namn,
    energy_power i första hand — samma som de långa perioderna redan gör. */
-var SEED_EXAKT={solar:1,house:1,grid:1,battpow:1};
+var SEED_EXAKT={solar:1,house:1,grid:1,battpow:1,fas1:1,fas2:1,fas3:1};   /* v929: L1 får inte träffa L10 o.d. */
 
 /* ---- styrning (skriver till Homey) ---- */
 let armed={i:-1,t:0};
@@ -1581,6 +1583,9 @@ var LANG_KALLA={
   batt:   function(){return [BATT_MB,['measure_battery']];},
   price:  function(){return [DEV.tibber,['measure_price_total']];},
   t_ute:  function(){return [DEV.outdoor,['measure_temperature']];},
+  fas1:   function(){return [DEV.pulse,['measure_current.L1']];},   /* v929 */
+  fas2:   function(){return [DEV.pulse,['measure_current.L2']];},
+  fas3:   function(){return [DEV.pulse,['measure_current.L3']];},
   t_kok:  function(){return [DEV.vader,['measure_temperature']];},
   t_vard: function(){return ['1a3527b2-8e53-4551-9d36-f92793f2256a',['measure_temperature']];},
   co2:    function(){return [DEV.vader,['measure_co2']];},
@@ -2687,7 +2692,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v928';
+const APP_VERSION='v929';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte
