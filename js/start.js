@@ -2554,6 +2554,8 @@ var _pushForsok=0,PUSH_FORSOK_MAX=5;
    annan enhet. Nyckeln ligger utanför SYNC_KEYS så den inte hamnar i någons
    lokala inställningar. */
 var AGARE_KEY='_agare_v1';
+/* v927: vad appens kopia senast fick, per nyckel (se appBackupSpara). Följer inte med i kopian. */
+var APP_SKICK_KEY='appskick_v1';
 /* SKRIVLOGG. Varje skrivning mot Homey antecknas i appen under _logg_v1: vem,
    när, hur mycket, manuellt eller automatiskt, och från vilken adress. När en
    sparning försvinner är frågan alltid "vem skrev sist", och den gick inte att
@@ -2683,7 +2685,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v926';
+const APP_VERSION='v927';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

@@ -1345,16 +1345,17 @@ function syncPushSoon(){try{
        gick tillbaka: variablerna hade det nya, appen det gamla, och appen vann.
        Mätt 2026-08-29: buttons_v1 var 1017 tkn lokalt och i variablerna, men
        804 tkn i appens backup. */
+    var appFel='';
     var spara=function(){
       if(!appKan())return saveToHomey();
       return appBackupSpara(false).then(function(r){
-        if(!r||!r.ok)return saveToHomey();   /* appen svarade inte - variablerna som reserv */
+        if(!r||!r.ok){appFel='appen svarade inte';return saveToHomey();}   /* variablerna som reserv */
         /* SKRIV AVEN VARIABLERNA. De ar reservvag vid lasning, och lag de kvar
            gamla var de en tickande bomb: en hamtning som foll tillbaka pa dem
            tog med sig layouten fran den dag de senast skrevs. Misslyckas det
            gor det inget - appens kopia ar redan sparad. */
         return saveToHomey().then(function(){return r;},function(){return r;});
-      },function(){return saveToHomey();});
+      },function(e){appFel='appen: '+((e&&e.message)||'fel');return saveToHomey();});
     };
     spara().then(function(){_pushBusy=false;
       try{var b=bkpGet();b.len=len;b.llen=llen;b.t=Date.now();localStorage.setItem(BKP_KEY,JSON.stringify(b));}catch(e){}
@@ -1363,7 +1364,7 @@ function syncPushSoon(){try{
       _pushForsok=0;
       syncNote('Sparat till Homey');},
       function(e){_pushBusy=false;
-        if(!pushIgen('skrivningen misslyckades'+((e&&e.message)?(': '+e.message):'')))
+        if(!pushIgen('skrivningen misslyckades'+((e&&e.message)?(': '+e.message):'')+(appFel?' ('+appFel+')':'')))
           syncNote('Sparade inte – skrivningen misslyckades');});
     });},3000);
 }catch(e){}}
@@ -1461,6 +1462,17 @@ async function appBackupSpara(manuell){
      nyare eller äldre än det man redan har — och då kan en gammal kopia skriva
      över en ny utan att någon märker det. */
   obj[TS_KEY]=String(Date.now());
+  /* v927: BARA DET SOM ÄNDRATS. Appen sparar varje nyckel för sig och behåller
+     de nycklar som inte skickas, så hela kopian behöver inte gå med varje gång.
+     Den var 235 000 tecken i ett enda anrop – det gick inte igenom molnet, och
+     då föll sparningen tillbaka på logikvariablerna, som har ett tak på
+     140 000 och vägrade. Nu skickas bara nycklar vars innehåll ändrats sedan
+     förra lyckade sparningen. Allt skickas ändå vid manuell sparning och minst
+     en gång per dygn, så en kopia som tappat något fylls på. */
+  var skick=appSkickGet(),hel=!!manuell||!skick.hel||Date.now()-skick.hel>20*3600000;
+  var alltid=[TS_KEY,AGARE_KEY,layoutTsKey()],hash={};
+  Object.keys(obj).forEach(function(k){if(alltid.indexOf(k)>=0)return;
+    hash[k]=strHash(obj[k]);if(!hel&&skick.h&&skick.h[k]===hash[k])delete obj[k];});
   /* Samma vägval som resten — annars fungerar sparningen inte borta hemifrån. */
   var r=null,sist=null,vagar=brvVagar();
   for(var vi=0;vi<vagar.length;vi++){
@@ -1480,9 +1492,16 @@ async function appBackupSpara(manuell){
   if(j&&j.result)j=j.result;
   egetTsSatt(Date.now());
   if(deladMed)deladSkrivet();
+  /* Kom ihåg vad appen nu har. Vid hel sparning ersätts listan helt. */
+  try{var ny=hel?{h:{},hel:Date.now()}:skick;ny.h=ny.h||{};
+    Object.keys(obj).forEach(function(k){if(hash[k]!=null)ny.h[k]=hash[k];});
+    localStorage.setItem(APP_SKICK_KEY,JSON.stringify(ny));}catch(e){}
   loggSkriv(manuell?'manuell sparning':'automatisk sparning',
-    {nycklar:Object.keys(obj).length,tecken:JSON.stringify(obj).length});
+    {nycklar:Object.keys(obj).length,tecken:JSON.stringify(obj).length,hel:hel});
   return j;}
+function appSkickGet(){try{var o=JSON.parse(localStorage.getItem(APP_SKICK_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+/* Kort fingeravtryck av en sträng (djb2) – bara för att se om en nyckel ändrats. */
+function strHash(s){s=String(s);var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)+':'+s.length;}
 async function appBackupLas(){
   var lista=await appGet('/backup');
   _appLasSist={rap:0,las:0,hopp:[],fel:[],aldre:false,tom:false};
@@ -1619,6 +1638,16 @@ async function saveToHomey(){
   while(str.length>MAXCHUNKS*SYNC_CHUNK && DROPPABLE.length>skip.length){
     const next=DROPPABLE.find(k=>skip.indexOf(k)<0 && localStorage.getItem(k)!=null);
     if(!next)break;skip.push(next);dropped.push(next);obj=build(skip);str=JSON.stringify(obj);}
+  /* v927: RÄCKER INTE DET, offras fler nycklar – största först – utom
+     inställningarna, rutorna, knapparna och enheterna. Förut kastades ett fel
+     och INGENTING sparades, inte ens en ändrad knapp. Variabelkopian är bara
+     reserven; appens kopia har allt. */
+  if(str.length>MAXCHUNKS*SYNC_CHUNK){
+    const VIKTIGA=['cfg_v1','cfg_base_v1','tilesFlode_v5','tilesEnergy_v1','tilesWeather_v1','secOrder_v1','secScale_v1','secDold_v1','buttons_v1','enheter_v1','battkwh_v1','demoov_v1'];
+    const fler=SYNC_KEYS.filter(k=>VIKTIGA.indexOf(k)<0&&skip.indexOf(k)<0&&localStorage.getItem(k)!=null)
+      .sort((a,b)=>(localStorage.getItem(b)||'').length-(localStorage.getItem(a)||'').length);
+    for(let i=0;i<fler.length&&str.length>MAXCHUNKS*SYNC_CHUNK;i++){skip.push(fler[i]);dropped.push(fler[i]);obj=build(skip);str=JSON.stringify(obj);}
+  }
   const chunks=[];for(let i=0;i<str.length;i+=SYNC_CHUNK)chunks.push(str.slice(i,i+SYNC_CHUNK));
   if(!chunks.length)chunks.push('{}');
   if(chunks.length>MAXCHUNKS){const e=new Error('för mycket data ('+str.length+' tecken) - även efter att loggar rensats');e.tooBig=true;throw e;}
