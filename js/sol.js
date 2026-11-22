@@ -1269,6 +1269,29 @@ function battSimulera(nuPct,nuH,kwh){
   if(R){[['start','ladda'],['spara','spara'],['stopp','normal']].forEach(function(x){var ms=R[x[0]];
     if(ms>nuMs)bok.push({h:klockTimmar(ms),lage:x[1]});});
     bok.sort(function(a,b){return a.h-b.h;});}
+  /* v926: MED AUTO PÅ FÖLJER PROGNOSEN PLANEN. Förut kom framtidens läge bara
+     ur bokningsvariablerna, och planen styr utan bokningar: laddade planen nu
+     antogs batteriet ladda ända tills en bokning sa annat, och linjen låg på
+     100 % genom planens urladdning. Nu tas läget timme för timme ur planen med
+     dina bokningar ovanpå (samma segment som grafens planremsa visar).
+     Planens Ur är normal drift: solen laddar, huset tar ur. Laddning sker med
+     planens uppmätta laddtakt. Efter planens slut gäller bokningarna som förut. */
+  var planSeg=null,laddKW=BATT_SIM.ladd;
+  try{if(typeof battAutoPa==='function'&&battAutoPa()&&typeof battPlanData==='function'){
+    var P=battPlanData();
+    if(P&&Array.isArray(P.h)&&P.h.length){
+      planSeg=battPlanSegment(P);try{planSeg=battPlanMedMan(planSeg);}catch(x){}
+      if(!planSeg.length)planSeg=null;
+      if(P.laddKw>0&&isFinite(P.laddKw))laddKW=P.laddKw;
+    }}}catch(e){planSeg=null;}
+  var lageVid=function(mid){
+    if(planSeg){var ms=d0+mid*3600000;
+      for(var i=0;i<planSeg.length;i++){var sg=planSeg[i];
+        if(ms>=sg.t0&&ms<sg.t1)return sg.l==='ladda'?'ladda':(sg.l==='spara'?'spara':'normal');}
+      /* Mellan nu och planens första timme (sekunderna före): läget nu. */
+      if(ms<planSeg[0].t0)return lageNu;
+    }
+    return battLageVid(mid,nuH,lageNu,bok);};
   var etaIn=Math.sqrt(BATT_SIM.eta),etaUt=Math.sqrt(BATT_SIM.eta),golv=kwh*BATT_SIM.golv/100;
   var e=kwh*nuPct/100,ut=[{h:nuH,v:nuPct}],st=BATT_SIM.steg,slut=nuH+BATT_SIM.timmar;
   /* Saknas morgondagens solprognos räknas bara natten med (till 06), inte en
@@ -1277,9 +1300,9 @@ function battSimulera(nuPct,nuH,kwh){
   /* Stegen följer kvartsrutnätet (14:36 → 14:45 → 15:00 …), så en bokning på
      en hel timme slår om läget exakt där och inte mitt i ett steg. */
   for(var h=nuH;h<slut-1e-9;){
-    var nasta=Math.min(slut,(Math.floor(h/st+1e-9)+1)*st),dt=nasta-h,mid=h+dt/2,lage=battLageVid(mid,nuH,lageNu,bok);
+    var nasta=Math.min(slut,(Math.floor(h/st+1e-9)+1)*st),dt=nasta-h,mid=h+dt/2,lage=lageVid(mid);
     var over=solKW(mid)-lastKW(mid),p=0;     /* p: kW in (+) eller ut (−) ur batteriet, AC-sidan */
-    if(lage==='ladda')p=BATT_SIM.ladd;
+    if(lage==='ladda')p=Math.max(laddKW,Math.min(over,BATT_SIM.ladd));
     else if(over>0)p=Math.min(over,BATT_SIM.ladd);
     else if(lage==='normal')p=-Math.min(-over,BATT_SIM.ur);
     if(p>0)e=Math.min(kwh,e+p*etaIn*dt);
