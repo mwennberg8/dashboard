@@ -702,6 +702,21 @@ function fasHTML(){
   }
   return h;
 }
+/* v929: FASGRAFEN – en linje per fas (Pulse, A) över tid, under staplarna i
+   elnätspopupen. Samma graf som de andra (dayChart): tidsval, helskärm, dra
+   för att läsa av. Den streckade linjen är säkringsvaktens gräns. */
+function fasGrafHTML(cid){
+  cid=cid||'fas';
+  var P=(PAL&&PAL[curTheme])||{},f=grafFonster(cid);
+  var A=function(v){return num(v,1)+' A';};
+  var g=null;try{g=sakVaktVarde('max');}catch(e){}
+  if(!(g>0))g=fasSakring();
+  return dayChart([
+      {key:'fas1',pts:histV('fas1',cid),col:(P.blue||'#81a1c1'),label:'L1',fmt:A},
+      {key:'fas2',pts:histV('fas2',cid),col:(P.gold||'#ebcb8b'),label:'L2',fmt:A},
+      {key:'fas3',pts:histV('fas3',cid),col:(P.green||'#a3be8c'),label:'L3',fmt:A}],
+    {t0:f.t0,t1:f.t1,cid:cid,ref:{v:g,col:(P.hot||'#bf616a'),label:'Gräns '+g+' A'}});
+}
 /* v759: förklaringen under faserna ligger i en info-knapp vid rubriken. */
 function fasInfo(){
   var v=fasVarst();
@@ -1751,6 +1766,10 @@ function dayChart(series,fonster){
   var t1=fen?fen.t1:(Math.max.apply(null,segs.map(function(o){return o.seg[o.seg.length-1].t;}))||now);
   var tr=(t1-t0)||1,W=300,H=132,padT=8,padB=6;
   var vs=[];segs.forEach(function(o){o.seg.forEach(function(p){vs.push(p.v);});});
+  /* v929: REFERENSLINJE (fonster.ref = {v, col, label}) – t.ex. säkringens
+     gräns i fasgrafen. Den ska alltid synas, så skalan tar med den. */
+  var ref=(fonster&&fonster.ref&&isFinite(fonster.ref.v))?fonster.ref:null;
+  if(ref)vs.push(ref.v);
   var vmax=niceMax(Math.max.apply(null,vs)),vmin=niceMin(Math.min.apply(null,vs));
   /* v882: TÄT SKALA (rummens temperaturer): från lägsta till högsta med lite
      luft, inte från noll – annars blir 23–25 °C ett platt streck. */
@@ -1854,13 +1873,17 @@ function dayChart(series,fonster){
     if(ton)avlSer.push({namn:es.label,farg:es.col,pts:tseg,Y:YT,fmt:es.fmt||function(v){return num(v,1);}});
     segs.push({s:es,seg:tseg});
   });
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+areas+lines+pctLinje+tempLinje+'</svg>';
+  var refLinje='';
+  if(ref){var yr=Y(ref.v).toFixed(1);
+    refLinje='<line x1="0" y1="'+yr+'" x2="'+W+'" y2="'+yr+'" stroke="'+(ref.col||'var(--hot)')+'" stroke-width="1.2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" opacity="0.85"/>';}
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" class="mchart" preserveAspectRatio="none"><defs>'+defs+'</defs>'+gridLines(ticks,vmin,vmax,H,padT,padB,dromNoll)+refLinje+areas+lines+pctLinje+tempLinje+'</svg>';
   svg=avlLager(cid,svg,{W:W,H:H,X:X,t0:t0,t1:t1,ser:avlSer});
   /* v928: VÄXLINGSKNAPPAR (fonster.vaxla) – serier som kan slås på och av,
      t.ex. utetemperaturen i batterigrafen. De står sist i förklaringen; ett
      tryck växlar i stället för att markera. */
   var vx=(fonster&&fonster.vaxla)||[],vxK=vx.map(function(v){return v.k;});
   var lg='<div class="mchart-lg2">'+segs.filter(function(o){return vxK.indexOf(o.s.key)<0;}).map(function(o){var k=o.s.key;return '<span data-lk="'+k+'"'+(sel[k]?' class="on"':(active?' class="dim"':''))+' onclick="chartSel(\''+cid+'\',\''+k+'\')"><i class="mc-sw" style="background:'+(o.s.col2?('linear-gradient(90deg,'+o.s.col+' 50%,'+o.s.col2+' 50%)'):o.s.col)+'"></i>'+esc(o.s.label)+'</span>';}).join('')
+    +(ref&&ref.label?'<span class="ref" style="cursor:default"><i class="mc-sw" style="background:repeating-linear-gradient(90deg,'+(ref.col||'var(--hot)')+' 0 4px,transparent 4px 7px)"></i>'+esc(ref.label)+'</span>':'')
     +vx.map(function(v){return '<span class="vx'+(v.on?'':' dim')+'" role="switch" aria-checked="'+(v.on?'true':'false')+'" onclick="'+v.klick+'"><i class="mc-sw" style="background:'+v.col+'"></i>'+esc(v.label)+'</span>';}).join('')+'</div>';
   return '<div class="g2" id="'+cid+'"><div class="g2-main"><div class="g2-plot">'+svg+'</div></div>'+lg+'</div>';
 }
