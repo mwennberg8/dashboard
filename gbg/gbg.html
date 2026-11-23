@@ -978,9 +978,16 @@ body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .h3-knapp path{stroke:var(--faint);stroke-width:4.5px;stroke-linecap:round}
 .h3-knapp.on circle{fill:var(--gold);stroke:none}
 .h3-knapp.on path{stroke:#2e3440}
-.h3-vrid{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:50%;border:1px solid var(--line);
-  background:var(--inset);color:var(--dim);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
-.h3-vrid svg{width:18px;height:18px}
+.h3-yta{touch-action:pan-y;cursor:grab}
+.h3-yta:active{cursor:grabbing}
+.hus3d.h3-fri .h3-yta{touch-action:none}
+.h3-svg{aspect-ratio:5/4}
+.h3-knappar{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px}
+.h3-k{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--dim);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.h3-k svg{width:18px;height:18px}
+.h3-k.on{background:var(--gold);color:#2e3440;border-color:var(--gold)}
+.h3-tips{position:absolute;left:10px;bottom:8px;right:56px;font-size:11.5px;font-weight:700;color:var(--dim);pointer-events:none}
 </style>
 </head>
 <body>
@@ -1135,7 +1142,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.96.0';
+const APP_VERSION = 'v1.97.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2624,6 +2631,7 @@ function rumKompRad(zs,ut){
 const H3_KEY='gbghus3d_v1';
 const H3_VAGG=0.8, H3_T=0.12, H3_TY=0.2;   /* vägghöjd (kapad), innervägg, yttervägg */
 const H3_K=100;   /* ritningen i centimeter: text under 1 px ritas fel i webbläsarna */
+const H3_RAM_B=1180;   /* ramens bredd i ritningens enheter vid zoom 1 */
 const H3_RUM=[
   {namn:'Vardagsrum',ic:'couch',p:[[0.1,0.12],[5.17,0.12],[5.17,3.61],[0.33,3.61]]},
   {namn:'Klädkammare',kort:'Klk',ic:'lamp-pendant',p:[[5.29,0.12],[6.43,0.12],[6.43,1.83],[6.9,1.83],[6.9,3.61],[5.29,3.61]]},
@@ -2660,17 +2668,82 @@ const H3_INRED=[
   [2.35,8.2,2.85,0.6,0.7,'k'],
   [6.45,6.62,0.4,0.55,0.45,'t'],[6.5,7.35,0.38,0.5,0.6,'l'],[5.42,7.6,0.85,0.78,0.08,'s']
 ];
-function h3Vinkel(){try{const r=localStorage.getItem(H3_KEY);const v=Number(r);return (r!=null&&r!==''&&isFinite(v))?v:20;}catch(e){return 20;}}
-function h3Vrid(){
-  const v=(h3Vinkel()+45)%360;
-  try{localStorage.setItem(H3_KEY,String(v));}catch(e){}
-  renderHus3d(true);
+/* v1.97.0: VYN GÅR ATT VRIDA, LUTA, ZOOMA OCH FLYTTA.
+   _h3V = {yaw (°), tilt (° över horisonten), zoom, px, py (förskjutning i
+   ritningens enheter)}. Sparas per skärm. Mus: dra = vrid och luta, högerklick
+   eller skift + dra = flytta, hjulet = zooma. Pekskärm: dra i sidled = vrid;
+   med Utforska på (knappen) vrider och lutar ett finger, och två fingrar zoomar
+   och flyttar – annars ska sidan gå att skrolla förbi vyn som vanligt. */
+const H3_STD={yaw:20,tilt:48,zoom:1,px:0,py:0};
+let _h3V=null,_h3Fri=false,_h3Drog=0,_h3Pek={},_h3Ges=null,_h3Raf=0,_h3SparT=null;
+function h3Vy(){
+  if(_h3V)return _h3V;
+  let v=Object.assign({},H3_STD);
+  try{const r=localStorage.getItem(H3_KEY);
+    if(r!=null&&r!==''){if(/^-?\d+(\.\d+)?$/.test(r))v.yaw=Number(r);   /* v1.96.0 sparade bara vinkeln */
+      else{const o=JSON.parse(r);['yaw','tilt','zoom','px','py'].forEach(k=>{if(o&&isFinite(o[k]))v[k]=Number(o[k]);});}}}catch(e){}
+  return (_h3V=h3Klamp(v));
 }
-/* Projektionen: vrid planen runt mitten (yaw), luta (55° snett ovanifrån).
-   Ortografisk – inget perspektiv, så måtten och rutnätet förblir raka. */
-function h3Proj(yaw){
+function h3Klamp(v){
+  v.yaw=((v.yaw%360)+360)%360;
+  v.tilt=Math.max(15,Math.min(88,v.tilt));
+  v.zoom=Math.max(0.7,Math.min(5,v.zoom));
+  const g=650;v.px=Math.max(-g,Math.min(g,v.px));v.py=Math.max(-g,Math.min(g,v.py));
+  return v;
+}
+function h3Spara(){clearTimeout(_h3SparT);_h3SparT=setTimeout(function(){try{localStorage.setItem(H3_KEY,JSON.stringify(_h3V));}catch(e){}},400);}
+function h3Andra(f){const v=h3Vy();f(v);h3Klamp(v);h3Spara();
+  if(!_h3Raf)_h3Raf=requestAnimationFrame(function(){_h3Raf=0;renderHus3d(true,true);});}
+function h3Zooma(k){h3Andra(v=>{v.zoom*=k;});}
+function h3Aterstall(){h3Andra(v=>{Object.assign(v,H3_STD);});}
+function h3FriVaxla(){_h3Fri=!_h3Fri;const el=$('hus3d');if(el)el.classList.toggle('h3-fri',_h3Fri);renderHus3d(true);}
+/* Tryck på golv och knappar räknas inte direkt efter en dragning. */
+function h3Tryck(zid){if(Date.now()-_h3Drog<350)return;openRum(zid);}
+function h3Tand(zid){if(Date.now()-_h3Drog<350)return;zonTanda(zid);}
+/* Pixel på skärmen → ritningens enheter (för förskjutning med fingret). */
+function h3PxSkala(){const el=$('hus3d'),sv=el&&el.querySelector('.h3-svg');if(!sv)return 1;
+  const vb=sv.viewBox&&sv.viewBox.baseVal,r=sv.getBoundingClientRect();
+  return (vb&&r.width)?Math.max(vb.width/r.width,vb.height/r.height):1;}
+function h3Bind(el){
+  if(!el||el._h3Bunden)return;el._h3Bunden=true;
+  const yta=()=>el.querySelector('.h3-yta');
+  el.addEventListener('pointerdown',function(e){
+    if(!e.target.closest||!e.target.closest('.h3-yta'))return;
+    _h3Pek[e.pointerId]={x:e.clientX,y:e.clientY,x0:e.clientX,y0:e.clientY,typ:e.pointerType,knapp:e.button,skift:e.shiftKey};
+    const id=Object.keys(_h3Pek);
+    if(id.length===2){const a=_h3Pek[id[0]],b=_h3Pek[id[1]];
+      _h3Ges={d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};}
+  });
+  el.addEventListener('pointermove',function(e){
+    const q=_h3Pek[e.pointerId];if(!q)return;
+    const dx=e.clientX-q.x,dy=e.clientY-q.y;q.x=e.clientX;q.y=e.clientY;
+    const ids=Object.keys(_h3Pek),fri=_h3Fri||q.typ==='mouse';
+    if(Math.hypot(q.x-q.x0,q.y-q.y0)>6){_h3Drog=Date.now();
+      /* Fånga pekaren först när det blivit en dragning: bilden byts under
+         fingret, och ett vanligt tryck ska fortfarande nå golvet. */
+      if(!q.fangad&&(fri||Math.abs(q.x-q.x0)>Math.abs(q.y-q.y0))){q.fangad=true;try{el.setPointerCapture(e.pointerId);}catch(x){}}}
+    if(ids.length>=2&&fri){
+      const a=_h3Pek[ids[0]],b=_h3Pek[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      if(_h3Ges){const k=d/(_h3Ges.d||d),sk=h3PxSkala(),ddx=mx-_h3Ges.mx,ddy=my-_h3Ges.my;
+        h3Andra(v=>{v.zoom*=k;v.px-=ddx*sk;v.py-=ddy*sk;});}
+      _h3Ges={d:d,mx:mx,my:my};_h3Drog=Date.now();e.preventDefault();return;}
+    if(Date.now()-_h3Drog>50)return;   /* inte förbi tröskeln än */
+    if(q.typ==='mouse'&&(q.knapp===2||q.skift)){const sk=h3PxSkala();h3Andra(v=>{v.px-=dx*sk;v.py-=dy*sk;});return;}
+    if(fri)h3Andra(v=>{v.yaw-=dx*0.45;v.tilt+=dy*0.3;});
+    else if(Math.abs(q.x-q.x0)>Math.abs(q.y-q.y0))h3Andra(v=>{v.yaw-=dx*0.45;});
+  });
+  const slut=function(e){delete _h3Pek[e.pointerId];if(Object.keys(_h3Pek).length<2)_h3Ges=null;};
+  el.addEventListener('pointerup',slut);el.addEventListener('pointercancel',slut);el.addEventListener('pointerleave',function(e){if(e.pointerType==='mouse')slut(e);});
+  el.addEventListener('wheel',function(e){if(!e.target.closest||!e.target.closest('.h3-yta'))return;
+    e.preventDefault();h3Zooma(e.deltaY<0?1.12:1/1.12);},{passive:false});
+  el.addEventListener('contextmenu',function(e){if(e.target.closest&&e.target.closest('.h3-yta'))e.preventDefault();});
+  el.addEventListener('dblclick',function(e){if(e.target.closest&&e.target.closest('.h3-yta'))h3Aterstall();});
+}
+/* Projektionen: vrid planen runt mitten (yaw), luta (tilt över horisonten).
+   Ortografisk – inget perspektiv, så måtten förblir raka. */
+function h3Proj(yaw,tilt){
   const a=yaw*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),cx=3.5,cy=4.45;
-  const sinT=0.74,cosT=0.67;   /* ~48° snett ovanifrån */
+  const t=(tilt==null?48:tilt)*Math.PI/180,sinT=Math.sin(t),cosT=Math.cos(t);
   return function(x,y,z){
     const dx=x-cx,dy=y-cy,rx=dx*ca-dy*sa,ry=dx*sa+dy*ca;
     return {x:rx*H3_K,y:(ry*sinT-(z||0)*cosT)*H3_K,d:ry};
@@ -2754,10 +2827,11 @@ function h3Zon(namn){
 /* Fasadfönstrens rum: vilken zon ett fönsterstycke tillhör (för gardinerna). */
 function h3FonsterRum(cy){return cy<3.67?'Vardagsrum':(cy<6.47?'Sovrum':'Kök');}
 let _h3Sist='';
-function renderHus3d(tvinga){
+function renderHus3d(tvinga,baraVy){
   const el=$('hus3d');if(!el)return;
   if(el.style.display==='none')return;
-  const yaw=h3Vinkel(),P=h3Proj(yaw),F=h3Farger();
+  h3Bind(el);
+  const V=h3Vy(),yaw=V.yaw,P=h3Proj(V.yaw,V.tilt),F=h3Farger();
   const pt=p=>p.x.toFixed(3)+','+p.y.toFixed(3);
   /* Rummen: zon, ljus, temperatur, rörelse. */
   const rum=H3_RUM.map(r=>{
@@ -2770,16 +2844,16 @@ function renderHus3d(tvinga){
   });
   const dorr=(typeof DEV!=='undefined'&&DEV.dorr&&DATA[DEV.dorr])?capOf(DATA[DEV.dorr],'alarm_contact'):null;
   /* Nyckel för att slippa rita om när inget ändrats. */
-  const nyckel=[yaw,document.documentElement.getAttribute('data-theme'),dorr,
+  const nyckel=[yaw,V.tilt,V.zoom,V.px,V.py,_h3Fri,document.documentElement.getAttribute('data-theme'),dorr,
     rum.map(r=>[r.zid,r.lj?r.lj.rgb.join('.')+':'+r.lj.styrka.toFixed(2)+':'+r.lj.n:0,r.temp==null?'':r.temp.toFixed(1),r.ror,r.alla,r.gardin==null?'':r.gardin.toFixed(2)].join('|')).join(';')].join('#');
   if(!tvinga&&nyckel===_h3Sist&&el.firstChild)return;
   _h3Sist=nyckel;
-  /* Ramen: alla hörn projicerade, med luft runt. */
-  const hornen=[];
-  H3_VAGGAR.forEach(v=>{[[v[0],v[1]],[v[2],v[3]]].forEach(q=>{hornen.push(P(q[0],q[1],0),P(q[0],q[1],H3_VAGG));});});
-  const minx=Math.min(...hornen.map(p=>p.x))-35,maxx=Math.max(...hornen.map(p=>p.x))+35;
-  const miny=Math.min(...hornen.map(p=>p.y))-30,maxy=Math.max(...hornen.map(p=>p.y))+30;
-  let s='<svg class="h3-svg" viewBox="'+minx.toFixed(2)+' '+miny.toFixed(2)+' '+(maxx-minx).toFixed(2)+' '+(maxy-miny).toFixed(2)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Lägenheten i 3D">';
+  /* RAMEN har fast form (5:4), så att vyn inte hoppar i höjd när man vrider:
+     planens största utbredning åt alla håll, centrerad på mitten, delad med
+     zoomen och förskjuten. */
+  const RW=H3_RAM_B/V.zoom,RH=RW*0.8,mid=P(3.5,4.45,H3_VAGG/2);
+  const vx=mid.x+V.px-RW/2,vy=mid.y+V.py-RH/2;
+  let s='<svg class="h3-svg" viewBox="'+vx.toFixed(1)+' '+vy.toFixed(1)+' '+RW.toFixed(1)+' '+RH.toFixed(1)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Lägenheten i 3D">';
   s+='<defs><filter id="h3-sudd" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="35"/></filter></defs>';
   /* Skugga under huset. */
   const yttre=[[0,0],[6.5,0],[6.5,1.73],[7,1.73],[7,8.5],[5.3,8.5],[5.3,8.9],[0,8.9],[0.27,6.47],[0.27,3.67]];
@@ -2789,7 +2863,7 @@ function renderHus3d(tvinga){
   rum.forEach((r,i)=>{
     const pts=r.p.map(q=>pt(P(q[0],q[1],0))).join(' ');
     s+='<polygon class="h3-golv'+(r.zid?' h3-klick':'')+'" points="'+pts+'" fill="'+(i%2?F.golvK:F.golv)+'" stroke="'+F.kant+'" stroke-width="2"'
-      +(r.zid?' onclick="openRum(\''+r.zid+'\')"':'')+'/>';
+      +(r.zid?' onclick="h3Tryck(\''+r.zid+'\')"':'')+'/>';
     if(r.lj){
       const a=(0.18+0.5*r.lj.styrka).toFixed(2),c='rgb('+r.lj.rgb.join(',')+')';
       /* Skenet stannar inom rummets golv (klippt), annars läckte det ut genom väggarna. */
@@ -2828,7 +2902,7 @@ function renderHus3d(tvinga){
     const m=P(r.cx,r.cy,0.02),pa=!!r.lj;
     const namn=(r.p&&r.namn.length>9&&r.kort)?r.kort:r.namn;
     const rad2=[];if(r.temp!=null)rad2.push(num(r.temp,1)+'°');if(r.alla)rad2.push((r.lj?r.lj.n:0)+'/'+r.alla);
-    s+='<g class="h3-et'+(r.zid?' h3-klick':'')+'"'+(r.zid?' onclick="openRum(\''+r.zid+'\')"':'')+' transform="translate('+m.x.toFixed(3)+','+m.y.toFixed(3)+')">'
+    s+='<g class="h3-et'+(r.zid?' h3-klick':'')+'"'+(r.zid?' onclick="h3Tryck(\''+r.zid+'\')"':'')+' transform="translate('+m.x.toFixed(3)+','+m.y.toFixed(3)+')">'
       +'<text class="h3-namn" y="-8" text-anchor="middle">'+esc(namn)+'</text>'
       +(rad2.length?'<text class="h3-sub" y="28" text-anchor="middle">'+esc(rad2.join(' · '))+'</text>':'')
       +(r.ror?'<circle class="h3-ror" cx="'+(-(14+namn.length*8.6)).toFixed(1)+'" cy="-18" r="7"/>':'')
@@ -2836,14 +2910,21 @@ function renderHus3d(tvinga){
     if(r.zid&&r.alla){
       /* Knappen till höger om namnet – under det hamnade den på inredningen. */
       const k=P(r.cx,r.cy,0.02),kx=k.x+namn.length*8.6+36,ky=k.y-18;
-      s+='<g class="h3-knapp'+(pa?' on':'')+'" role="button" aria-label="Tänd eller släck '+esc(r.namn)+'" onclick="event.stopPropagation();zonTanda(\''+r.zid+'\')" transform="translate('+kx.toFixed(1)+','+ky.toFixed(1)+')">'
+      s+='<g class="h3-knapp'+(pa?' on':'')+'" role="button" aria-label="Tänd eller släck '+esc(r.namn)+'" onclick="event.stopPropagation();h3Tand(\''+r.zid+'\')" transform="translate('+kx.toFixed(1)+','+ky.toFixed(1)+')">'
         +'<circle r="25"/><path d="M0,-12 V0 M-8.5,-8.5 A12,12 0 1,0 8.5,-8.5" fill="none"/></g>';
     }
   });
   s+='</svg>';
-  s+='<button type="button" class="h3-vrid" onclick="h3Vrid()" aria-label="Vrid vyn" title="Vrid vyn 45°">'
-    +'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-  el.innerHTML=s;
+  /* Under en dragning byts bara bilden – knapparna står kvar. */
+  const yta=el.querySelector('.h3-yta');
+  if(baraVy&&yta){yta.innerHTML=s;return;}
+  const ik=function(d){return '<svg viewBox="0 0 24 24"><path d="'+d+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';};
+  el.innerHTML='<div class="h3-yta">'+s+'</div><div class="h3-knappar">'
+    +'<button type="button" class="h3-k'+(_h3Fri?' on':'')+'" onclick="h3FriVaxla()" aria-pressed="'+_h3Fri+'" title="Utforska: dra för att vrida och luta, nyp för att zooma">'+ik('M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3')+'</button>'
+    +'<button type="button" class="h3-k" onclick="h3Zooma(1.25)" title="Zooma in">'+ik('M12 6v12M6 12h12')+'</button>'
+    +'<button type="button" class="h3-k" onclick="h3Zooma(0.8)" title="Zooma ut">'+ik('M6 12h12')+'</button>'
+    +'<button type="button" class="h3-k" onclick="h3Aterstall()" title="Tillbaka till startvyn">'+ik('M4 12a8 8 0 1 0 2.34-5.66M4 4v5h5')+'</button>'
+    +'</div>'+(_h3Fri?'<div class="h3-tips">Ett finger vrider och lutar · två fingrar zoomar och flyttar</div>':'');
 }
 
 function renderRooms(){
