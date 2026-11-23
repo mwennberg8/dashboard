@@ -1142,7 +1142,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.97.0';
+const APP_VERSION = 'v1.98.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2780,6 +2780,11 @@ function h3VaggBitar(v){
     const e=0.006;
     ut.push({b:[[ax-ux*e+nx,ay-uy*e+ny],[bx+ux*e+nx,by+uy*e+ny],[bx+ux*e-nx,by+uy*e-ny],[ax-ux*e-nx,ay-uy*e-ny]],
       cx:(ax+bx)/2,cy:(ay+by)/2,typ:typ||''});
+    /* v1.98.0: fönsterkarm (post) mellan rutorna och i ändarna. */
+    if(typ==='f'){const k=0.03,pn=nx*1.15,pm=ny*1.15;
+      [[ax,ay]].concat(i===n-1?[[bx,by]]:[]).forEach(function(q){
+        ut.push({b:[[q[0]-ux*k+pn,q[1]-uy*k+pm],[q[0]+ux*k+pn,q[1]+uy*k+pm],[q[0]+ux*k-pn,q[1]+uy*k-pm],[q[0]-ux*k-pn,q[1]-uy*k-pm]],
+          cx:q[0],cy:q[1],typ:'fk'});});}
   }
   return ut;
 }
@@ -2788,14 +2793,16 @@ function h3Farger(){
   return ljust?{
     golv:'#e9e3d8',golvK:'#f1ece4',kant:'rgba(46,52,64,.28)',
     vagg:{top:'#3b4252',s1:'#d8d2c6',s2:'#c9c2b4'},ytter:{top:'#2e3440',s1:'#cfc8bb',s2:'#bdb5a6'},
-    glas:{top:'#5f8fb3',s1:'rgba(136,192,208,.55)',s2:'rgba(110,170,190,.55)'},
+    glas:{top:'#9fc6d6',s1:'rgba(136,192,208,.5)',s2:'rgba(110,170,190,.5)'},
+    vav:{top:'#c8bfae',s1:'rgba(214,204,186,.92)',s2:'rgba(196,186,168,.92)'},karm:{top:'#eceff4',s1:'#f4f1ea',s2:'#e2ddd2'},
     stang:{top:'#4c566a',s1:'#9aa3b5',s2:'#8a93a5'},
     inred:{top:'#f7f4ee',s1:'#ddd6c9',s2:'#cfc7b8'},vit:{top:'#ffffff',s1:'#e6e2da',s2:'#d8d3ca'},
     dorr:'#cf7551',skugga:'rgba(46,52,64,.10)'
   }:{
     golv:'#3a4152',golvK:'#3f4658',kant:'rgba(216,222,233,.16)',
     vagg:{top:'#d8dee9',s1:'#4c566a',s2:'#434c5e'},ytter:{top:'#eceff4',s1:'#4f596d',s2:'#454e61'},
-    glas:{top:'#88c0d0',s1:'rgba(136,192,208,.35)',s2:'rgba(129,161,193,.35)'},
+    glas:{top:'#88c0d0',s1:'rgba(136,192,208,.38)',s2:'rgba(129,161,193,.38)'},
+    vav:{top:'#8b8577',s1:'rgba(122,116,104,.9)',s2:'rgba(108,103,92,.9)'},karm:{top:'#eceff4',s1:'#d8dee9',s2:'#c5ccd8'},
     stang:{top:'#5e6779',s1:'#3b4252',s2:'#353c4a'},
     inred:{top:'#5b6478',s1:'#4a5266',s2:'#424a5c'},vit:{top:'#8f98aa',s1:'#6c7588',s2:'#626b7e'},
     dorr:'#d08770',skugga:'rgba(0,0,0,.22)'
@@ -2882,11 +2889,16 @@ function renderHus3d(tvinga,baraVy){
   block.sort((a,b)=>a.dj-b.dj);
   block.forEach(b=>{
     if(b.typ==='f'){
-      /* Fönster: bröstning, sedan glaset upp till kapningen – mörkare med
-         neddragna gardiner. */
-      const rn=h3FonsterRum(b.cy),rr=rum.find(r=>r.namn===rn),stang=rr&&rr.gardin!=null&&rr.gardin>0.6;
-      s+=h3Block(P,b.b,0,0.55,F.ytter);
-      s+=h3Block(P,b.b,0.55,H3_VAGG,stang?F.stang:F.glas);
+      /* v1.98.0: FÖNSTER LÄNGS HELA DEN KONKAVA FASADEN. Låg bröstning, glas
+         upp till kapningen, karmar emellan (typ fk). Rullgardinen dras ned
+         uppifrån: så stor del av glaset som gardinen är stängd blir väv. */
+      const rn=h3FonsterRum(b.cy),rr=rum.find(r=>r.namn===rn),g=(rr&&rr.gardin!=null)?Math.max(0,Math.min(1,rr.gardin)):0;
+      const sk=0.12,gh=sk+(H3_VAGG-sk)*(1-g);
+      s+=h3Block(P,b.b,0,sk,F.ytter);
+      if(gh>sk+0.01)s+=h3Block(P,b.b,sk,gh,F.glas);
+      if(gh<H3_VAGG-0.01)s+=h3Block(P,b.b,gh,H3_VAGG,F.vav);
+    }else if(b.typ==='fk'){
+      s+=h3Block(P,b.b,0,H3_VAGG+0.02,F.karm);
     }else if(b.typ==='d'){
       s+=h3Block(P,b.b,0,0.08,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
     }else if(b.typ&&b.typ[0]==='i'){
