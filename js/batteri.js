@@ -604,7 +604,7 @@ function regelHTML(){
   steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
   var p=R.forslag,knappar='';
   if(REGEL_AV){
-    h+='<div class="rg-forslag">Laddregeln är avstängd.</div>';
+    /* v932: ingen ruta – att laddregeln är avstängd är normalläget. */
   }else if(p&&p.v===2&&p.text){
     var t=regelTider(p,nu),bokat=(R.stopp>nu&&R.stopp===Number(p.stoppMs));
     h+='<div class="rg-forslag">'+esc(p.text)
@@ -617,7 +617,7 @@ function regelHTML(){
   }else{
     h+='<div class="rg-forslag">Laddregeln har inte lämnat något besked än.<small>Den kör var 30:e minut.</small></div>';
   }
-  if(L.fjarr||steg.length)knappar+='<button class="te-alt" onclick="regelNormal()">Normal drift nu</button>';
+  /* v932: Normal drift är en av de fyra knapparna överst. */
   if(knappar)h+='<div class="rg-btns">'+knappar+'</div>';
   return h;
 }
@@ -738,6 +738,39 @@ function battSparaKnapp(){
   else lbl='Spara';
   return '<button type="button" class="ctl'+(L.aktiv?' on':'')+(L.bokad?' bokad':'')+'" data-spara="1" onclick="battSparaTryck()">'
     +'<span class="ctl-ic">'+icon('lock-simple')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
+}
+/* v932: BATTERIETS FYRA KNAPPAR, två per rad: Ladda och Auto överst, Spara
+   och Normal under. Samma knappar i batteripopupen och El-popupen. Andra
+   knappar som hör till batteriet (knappTill) läggs på egna rader under –
+   utom en egen Ladda-knapp, som Ladda här ersätter. */
+function battLaddaKnapp(){
+  var l=null,bok=null;try{l=battLaddLage();}catch(e){}try{bok=battStartAktiv();}catch(e){}
+  var fram=bok!=null&&bok>Date.now();
+  var lbl=l?'Laddar max':(fram?'Ladda '+regelKl(bok):'Ladda');
+  return '<button type="button" class="ctl'+(l?' on':'')+(fram?' bokad':'')+'" data-ladda="1" onclick="openBattLadd()"><span class="ctl-ic">'+icon('battery-charging')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
+}
+function battNormalKnapp(){
+  var L=null;try{L=regelLage();}catch(e){}
+  var pa=!!(L&&L.lage==='normal')&&!battAutoPa();
+  return '<button type="button" class="ctl'+(pa?' on':'')+'" data-normal="1" onclick="regelNormal()"><span class="ctl-ic">'+icon('arrows-clockwise')+'</span><span class="ctl-l">Normal</span></button>';
+}
+function battKnapparHTML(){
+  var extra=[];
+  try{var c=$('controls');
+    if(c&&c.querySelectorAll)Array.prototype.forEach.call(c.querySelectorAll('.ctl[data-bi]'),function(b){
+      var bk=CONFIG.BUTTONS[+b.getAttribute('data-bi')];
+      if(bk&&knappTill(bk)==='batt'&&bk.type!=='battladd')extra.push(b.outerHTML);});}catch(e){}
+  var rader=[[battLaddaKnapp(),battAutoKnapp()],[battSparaKnapp(),battNormalKnapp()]];
+  for(var i=0;i<extra.length;i+=2)rader.push(extra.slice(i,i+2));
+  return '<div class="controls hem-pop" id="popk-batt">'+rader.map(function(r){return '<div class="ctl-row">'+r.join('')+'</div>';}).join('')+'</div>';
+}
+/* Läget i klartext för raden "Läge": det växelriktaren gör nu (sparar, laddar
+   från nätet, normal drift …). */
+function battLageKort(){
+  var L=null;try{L=regelLage();}catch(e){}
+  if(!L||L.lage==null)return (L&&L.txt)||'–';
+  var m={ladda:'Laddar från nätet',spara:'Sparar',normal:'Normal drift',fullt:'Fullt',egen:'Egenförbrukning'};
+  return (m[L.lage]||L.txt)+(battAutoPa()?' · auto':'');
 }
 function battSparaTryck(){_spFran=0;_spTill=0;_spVal='fran';openDetail('battspara');}
 function sparaPopHTML(){
@@ -954,9 +987,12 @@ function byggBatt(){
     +battGrafHTML('g2-batt')
     +grafTidsval('g2-batt')
     /* v719: Ladda och Spara direkt under tidsvalet. */
-    +((CFG&&CFG.paNu)?popKnappar('batt'):('<div class="controls hem-pop" id="popk-batt"><div class="ctl-row">'+battSparaKnapp()+battAutoKnapp()+'</div></div>'))
+    +battKnapparHTML()   /* v932: fyra knappar, två per rad */
     +dSec('Nu')
-    +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',bsx==='charging'?'laddar':bsx==='discharging'?'matar ut':'vilar')+dRow('Effekt',bw==null?'–':W(Math.abs(bw)))
+    /* v932: Läge = växelriktarens läge (sparar, laddar från nätet …); vad
+       batteriet gör just nu står vid effekten. */
+    +dRow('Laddnivå',bp==null?'–':Math.round(bp)+' %')+dRow('Läge',esc(battLageKort()))
+    +dRow('Effekt',bw==null?'–':((Math.abs(bw)<50||bsx==='idle')?'vilar':((bsx==='charging'?'laddar ':bsx==='discharging'?'matar ut ':'')+W(Math.abs(bw)))))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
     /* v841: batteriets temperatur bor här i stället för i temperaturgrafen. */
     +dRow('Temperatur',bTemp==null?'–':num(bTemp,1)+' °C')

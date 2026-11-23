@@ -1415,8 +1415,9 @@ function renderControls(){
   el.innerHTML=h;
   /* Hem-rutans popup visar samma knappar — rita om den när knapparna ändras. */
   try{if(_dlgWhich==='hem'){var hb=$('dlg-body');if(hb)hb.innerHTML=hemPopup();}
-    else{var pk=$('popk-'+({dish:'dish',pool:'pool',batt:'batt'}[_dlgWhich]||'x'));
-      if(pk){var ny=popKnappar(_dlgWhich==='dish'?'dish':_dlgWhich);var t=document.createElement('div');t.innerHTML=ny;
+    else{var pk=$('popk-'+({dish:'dish',pool:'pool',batt:'batt',el:'batt'}[_dlgWhich]||'x'));
+      /* v932: batteriets fyra knappar (batteri- och El-popupen) byggs av battKnapparHTML. */
+      if(pk){var ny=(_dlgWhich==='batt'||_dlgWhich==='el')?battKnapparHTML():popKnappar(_dlgWhich==='dish'?'dish':_dlgWhich);var t=document.createElement('div');t.innerHTML=ny;
         if(t.firstChild)pk.innerHTML=t.firstChild.innerHTML;}}}catch(e){}
 }
 async function btnTap(i){

@@ -58,21 +58,11 @@ function elPlanSteg(){
 }
 
 /* ---- Batteriet: läget i klartext och knapparna ---- */
-/* Ladda max: samma ruta som batteriets Ladda-knapp (openBattLadd). Den står
-   bara här om ingen egen Ladda-knapp redan hör till batteriet. */
-function elLaddaKnapp(){
-  var l=null,bok=null;try{l=battLaddLage();}catch(e){}try{bok=battStartAktiv();}catch(e){}
-  var fram=bok!=null&&bok>Date.now();
-  var lbl=l?'Laddar max':(fram?'Ladda '+regelKl(bok):'Ladda max');
-  return '<button type="button" class="ctl'+(l?' on':'')+(fram?' bokad':'')+'" onclick="openBattLadd()"><span class="ctl-ic">'+icon('battery-charging')+'</span><span class="ctl-l">'+esc(lbl)+'</span></button>';
-}
+/* v932: samma fyra knappar som batteripopupen (battKnapparHTML). */
 function elBattHTML(){
   var L=null;try{L=regelLage();}catch(e){}
   var bok=null;try{bok=battBokning();}catch(e){}
-  var knappar='';try{knappar=popKnappar('batt');}catch(e){}
-  var harLadda=false;try{harLadda=(CONFIG.BUTTONS||[]).some(function(b){return b&&b.type==='battladd'&&knappTill(b)==='batt';});}catch(e){}
-  if(!knappar)knappar='<div class="controls hem-pop"><div class="ctl-row">'+elLaddaKnapp()+battSparaKnapp()+battAutoKnapp()+'</div></div>';
-  else if(!harLadda)knappar=knappar.replace('<div class="ctl-row">','<div class="ctl-row">'+elLaddaKnapp());
+  var knappar='';try{knappar=battKnapparHTML();}catch(e){}
   return '<div class="el-rad"><span class="el-rad-k">Läge</span><b>'+esc((L&&L.txt)||'okänt')+'</b>'
     +(bok?'<span class="el-rad-s">'+esc(bok.txt)+'</span>':'')+'</div>'+knappar;
 }
