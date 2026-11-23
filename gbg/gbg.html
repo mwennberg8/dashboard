@@ -1161,7 +1161,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.100.0';
+const APP_VERSION = 'v1.101.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2648,12 +2648,14 @@ function rumKompRad(zs,ut){
    måttlinjer och bilden, på ett par decimeter när.
    Vyn kan vridas i steg om 45° (knappen i hörnet); valet sparas per skärm. */
 const H3_KEY='gbghus3d_v1';
-/* v1.100.0: väggarna i full höjd (2,4 m) – skalenligt. De som vetter mot
-   betraktaren blir genomskinliga, så att man ser in i rummen. */
+/* v1.100.0: väggarna i full höjd (2,4 m) – skalenligt. v1.101.0: de som
+   vetter mot betraktaren skärs ned efter vinkeln (se hojd i renderHus3d). */
 const H3_VAGG=2.4, H3_T=0.12, H3_TY=0.2;   /* vägghöjd, innervägg, yttervägg */
 const H3_FASAD=2.4, H3_BROST=0.95, H3_FTOPP=2.1;   /* fönstren från ~1 m till 2,1 m */
 const H3_K=100;   /* ritningen i centimeter: text under 1 px ritas fel i webbläsarna */
 const H3_RAM_B=1290;   /* ramens bredd i ritningens enheter vid zoom 1 */
+/* n fönster mellan a och b (meter längs väggen), med 0,22 m vägg emellan. */
+function h3Fon(a,b,n){const g=0.22,w=(b-a-(n-1)*g)/n,ut=[];for(let i=0;i<n;i++)ut.push([a+i*(w+g),a+i*(w+g)+w]);return ut;}
 const H3_RUM=[
   {namn:'Vardagsrum',ic:'couch',p:[[0.1,0.12],[5.17,0.12],[5.17,3.61],[0.33,3.61]]},
   {namn:'Klädkammare',kort:'Klk',ic:'lamp-pendant',p:[[5.29,0.12],[6.43,0.12],[6.43,1.83],[6.9,1.83],[6.9,3.61],[5.29,3.61]]},
@@ -2670,7 +2672,8 @@ const H3_VAGGAR=[
   [7,3.72,7,4.5,H3_TY,'d'],[7,4.5,7,8.5,H3_TY],[7,8.5,5.3,8.5,H3_TY],[5.3,8.5,5.3,8.9,H3_TY],[5.3,8.9,0,8.9,H3_TY],
   /* Fasaden mot gården, lätt konkav. v1.99.0: ett fönster i varje rum, med
      vägg vid rumsgränserna och i hörnen – [från, till] i meter längs väggen. */
-  [0,8.9,0.27,6.47,H3_TY,'f',[[0.3,2.15]]],[0.27,6.47,0.27,3.67,H3_TY,'f',[[0.35,2.45]]],[0.27,3.67,0,0,H3_TY,'f',[[0.35,3.35]]],
+  /* v1.101.0: två fönster i köket, tre i sovrummet, fyra i vardagsrummet. */
+  [0,8.9,0.27,6.47,H3_TY,'f',h3Fon(0.3,2.15,2)],[0.27,6.47,0.27,3.67,H3_TY,'f',h3Fon(0.35,2.45,3)],[0.27,3.67,0,0,H3_TY,'f',h3Fon(0.35,3.35,4)],
   /* vardagsrum / sovrum, dörr från hallen vid x 4,4–5,15 */
   [0.27,3.67,4.4,3.67,H3_T],[5.15,3.67,5.23,3.67,H3_T],
   /* klädkammaren: västvägg, sydvägg med dörr 5,25–5,95 */
@@ -2915,16 +2918,21 @@ function renderHus3d(tvinga,baraVy){
   /* Väggar och inredning, längst bort först. */
   const block=[];
   H3_VAGGAR.forEach(v=>h3VaggBitar(v).forEach(b=>block.push({b:b.b,cx:b.cx,cy:b.cy,typ:b.typ,n:b.n,ytter:v[4]===H3_TY})));
-  /* v1.100.0: HUR GENOMSKINLIG ÄR VÄGGEN? Normalens del mot betraktaren (nd).
-     Ytterväggar vars utsida vetter mot betraktaren blir nästan genomskinliga;
-     innerväggar tonas efter hur rakt de står mot betraktaren. Väggar som ses
-     från kanten och de bortre ytterväggarna förblir hela. */
+  /* v1.101.0: UTSKÄRNING. Väggar som står mellan betraktaren och rummen
+     skärs ned i stället för att bli genomskinliga – så mycket som behövs från
+     det hållet man tittar. f = hur rakt väggen vetter mot betraktaren (0–1):
+     ytterväggar vars utsida vänder sig mot en, innerväggar från båda håll.
+     k = hur snett man tittar: rakt uppifrån (lutning 80°+) skärs inget, och
+     ju lägre lutning, desto djupare utskärning – ned till 0,35 m. */
   const ya=V.yaw*Math.PI/180,sya=Math.sin(ya),cya=Math.cos(ya);
-  const alfaFor=function(b){if(!b.n)return 1;
-    const nd=b.n[0]*sya+b.n[1]*cya;
-    if(b.ytter){const ut=Math.sign(b.n[0]*(b.cx-3.5)+b.n[1]*(b.cy-4.45))||1,v=ut*nd;
-      return v>0?Math.max(0.12,1-0.95*v):1;}
-    return Math.max(0.3,1-0.72*Math.abs(nd));};
+  const kSnett=Math.max(0,Math.min(1,(80-V.tilt)/55));
+  const hojd=function(b,H){if(!b.n)return H;
+    const nd=b.n[0]*sya+b.n[1]*cya;let f;
+    if(b.ytter){const ut=Math.sign(b.n[0]*(b.cx-3.5)+b.n[1]*(b.cy-4.45))||1;f=Math.max(0,ut*nd);}
+    else f=Math.abs(nd)*0.8;
+    return Math.max(0.35,H-(H-0.35)*Math.min(1,f*1.25)*kSnett);};
+  /* Ett stycke mellan h0 och h1, kapat vid utskärningen ht. */
+  const del=function(b,h0,h1,ht,farg){const t=Math.min(h1,ht);return t>h0+0.005?h3Block(P,b.b,h0,t,farg):'';};
   H3_INRED.forEach(m=>{const [x,y,w,d,h,typ]=m;
     block.push({b:[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],cx:x+w/2,cy:y+d/2,h:h,typ:'i'+typ});});
   block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d;});
@@ -2936,23 +2944,23 @@ function renderHus3d(tvinga,baraVy){
          uppifrån: så stor del av glaset som gardinen är stängd blir väv. */
       const rn=h3FonsterRum(b.cy),rr=rum.find(r=>r.namn===rn),g=(rr&&rr.gardin!=null)?Math.max(0,Math.min(1,rr.gardin)):0;
       /* v1.99.0: bröstning till ~1 m, glaset därifrån upp; gardinen nedifrån toppen. */
-      const al=alfaFor(b),sk=H3_BROST,ft=H3_FTOPP,gh=ft-(ft-sk)*g;
-      s+=h3Block(P,b.b,0,sk,F.ytter,al);
-      if(gh>sk+0.01)s+=h3Block(P,b.b,sk,gh,F.glas,Math.min(1,al+0.2));
-      if(gh<ft-0.01)s+=h3Block(P,b.b,gh,ft,F.vav,al);
-      s+=h3Block(P,b.b,ft,H3_FASAD,F.ytter,al);
+      const ht=hojd(b,H3_FASAD),sk=H3_BROST,ft=H3_FTOPP,gh=ft-(ft-sk)*g;
+      s+=del(b,0,sk,ht,F.ytter);
+      if(gh>sk+0.01)s+=del(b,sk,gh,ht,F.glas);
+      if(gh<ft-0.01)s+=del(b,gh,ft,ht,F.vav);
+      s+=del(b,ft,H3_FASAD,ht,F.ytter);
     }else if(b.typ==='fk'){
-      s+=h3Block(P,b.b,H3_BROST,H3_FTOPP,F.karm,Math.min(1,alfaFor(b)+0.25));
+      s+=del(b,H3_BROST,H3_FTOPP,hojd(b,H3_FASAD),F.karm);
     }else if(b.typ==='fv'){
-      s+=h3Block(P,b.b,0,H3_FASAD,F.ytter,alfaFor(b));
+      s+=del(b,0,H3_FASAD,hojd(b,H3_FASAD),F.ytter);
     }else if(b.typ==='d'){
       /* Ytterdörren: tröskel (orange när den står öppen) och överstycke. */
       s+=h3Block(P,b.b,0,0.06,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
-      s+=h3Block(P,b.b,2.05,H3_VAGG,F.ytter,alfaFor(b));
+      s+=del(b,2.05,H3_VAGG,hojd(b,H3_VAGG),F.ytter);
     }else if(b.typ&&b.typ[0]==='i'){
       const t=b.typ[1],f=(t==='t'||t==='l'||t==='v')?F.vit:F.inred;
       s+=h3Block(P,b.b,0,b.h,f);
-    }else s+=h3Block(P,b.b,0,H3_VAGG,b.ytter?F.ytter:F.vagg,alfaFor(b));
+    }else s+=del(b,0,H3_VAGG,hojd(b,H3_VAGG),b.ytter?F.ytter:F.vagg);
   });
   /* Ytterdörren öppen: en markering vid dörren. */
   if(dorr===true){const m=P(7.25,4.11,0.2);
