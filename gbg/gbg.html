@@ -998,16 +998,14 @@ body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .h3-knapp path{stroke:var(--faint);stroke-width:4.5px;stroke-linecap:round}
 .h3-knapp.on circle{fill:var(--gold);stroke:none}
 .h3-knapp.on path{stroke:#2e3440}
-.h3-yta{touch-action:pan-y;cursor:grab}
+.h3-yta{touch-action:none;cursor:grab}
 .h3-yta:active{cursor:grabbing}
-.hus3d.h3-fri .h3-yta{touch-action:none}
 .h3-svg{aspect-ratio:5/4}
 .h3-knappar{position:absolute;top:8px;right:8px;display:flex;flex-direction:column;gap:6px}
 .h3-k{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--dim);
   display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .h3-k svg{width:18px;height:18px}
-.h3-k.on{background:var(--gold);color:#2e3440;border-color:var(--gold)}
-.h3-tips{position:absolute;left:10px;top:10px;right:56px;font-size:11.5px;font-weight:700;color:var(--dim);pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -1163,7 +1161,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.99.0';
+const APP_VERSION = 'v1.100.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2650,10 +2648,12 @@ function rumKompRad(zs,ut){
    måttlinjer och bilden, på ett par decimeter när.
    Vyn kan vridas i steg om 45° (knappen i hörnet); valet sparas per skärm. */
 const H3_KEY='gbghus3d_v1';
-const H3_VAGG=0.8, H3_T=0.12, H3_TY=0.2;   /* vägghöjd (kapad), innervägg, yttervägg */
-const H3_FASAD=1.55, H3_BROST=0.95;   /* v1.99.0: fasaden högre, så fönstren (från ~1 m) syns */
+/* v1.100.0: väggarna i full höjd (2,4 m) – skalenligt. De som vetter mot
+   betraktaren blir genomskinliga, så att man ser in i rummen. */
+const H3_VAGG=2.4, H3_T=0.12, H3_TY=0.2;   /* vägghöjd, innervägg, yttervägg */
+const H3_FASAD=2.4, H3_BROST=0.95, H3_FTOPP=2.1;   /* fönstren från ~1 m till 2,1 m */
 const H3_K=100;   /* ritningen i centimeter: text under 1 px ritas fel i webbläsarna */
-const H3_RAM_B=1180;   /* ramens bredd i ritningens enheter vid zoom 1 */
+const H3_RAM_B=1290;   /* ramens bredd i ritningens enheter vid zoom 1 */
 const H3_RUM=[
   {namn:'Vardagsrum',ic:'couch',p:[[0.1,0.12],[5.17,0.12],[5.17,3.61],[0.33,3.61]]},
   {namn:'Klädkammare',kort:'Klk',ic:'lamp-pendant',p:[[5.29,0.12],[6.43,0.12],[6.43,1.83],[6.9,1.83],[6.9,3.61],[5.29,3.61]]},
@@ -2685,11 +2685,11 @@ const H3_VAGGAR=[
 /* Inredning ur ritningen: [x,y,b,d,höjd,typ]. g = garderob, k = köksskåp,
    v = vitvaror (K/F, U/M, SF), t = toalett, l = handfat, s = duschhörna. */
 const H3_INRED=[
-  [6.3,1.95,0.58,0.55,0.8,'g'],[6.3,2.52,0.58,0.55,0.8,'g'],[6.3,3.08,0.58,0.53,0.8,'g'],
-  [6.1,4.62,0.55,0.58,0.8,'g'],[6.1,5.2,0.55,0.58,0.8,'g'],[6.1,5.78,0.55,0.58,0.8,'g'],
-  [2.35,6.55,0.62,0.6,0.8,'v'],[2.97,6.55,0.62,0.6,0.8,'v'],[3.59,6.55,0.62,0.6,0.8,'v'],
-  [2.35,8.2,2.85,0.6,0.7,'k'],
-  [6.45,6.62,0.4,0.55,0.45,'t'],[6.5,7.35,0.38,0.5,0.6,'l'],[5.42,7.6,0.85,0.78,0.08,'s']
+  [6.3,1.95,0.58,0.55,2.1,'g'],[6.3,2.52,0.58,0.55,2.1,'g'],[6.3,3.08,0.58,0.53,2.1,'g'],
+  [6.1,4.62,0.55,0.58,2.1,'g'],[6.1,5.2,0.55,0.58,2.1,'g'],[6.1,5.78,0.55,0.58,2.1,'g'],
+  [2.35,6.55,0.62,0.6,2.1,'v'],[2.97,6.55,0.62,0.6,2.1,'v'],[3.59,6.55,0.62,0.6,2.1,'v'],
+  [2.35,8.2,2.85,0.6,0.9,'k'],
+  [6.45,6.62,0.4,0.55,0.45,'t'],[6.5,7.35,0.38,0.5,0.85,'l'],[5.42,7.6,0.85,0.78,0.08,'s']
 ];
 /* v1.97.0: VYN GÅR ATT VRIDA, LUTA, ZOOMA OCH FLYTTA.
    _h3V = {yaw (°), tilt (° över horisonten), zoom, px, py (förskjutning i
@@ -2698,7 +2698,7 @@ const H3_INRED=[
    med Utforska på (knappen) vrider och lutar ett finger, och två fingrar zoomar
    och flyttar – annars ska sidan gå att skrolla förbi vyn som vanligt. */
 const H3_STD={yaw:20,tilt:48,zoom:1,px:0,py:0};
-let _h3V=null,_h3Fri=false,_h3Drog=0,_h3Pek={},_h3Ges=null,_h3Raf=0,_h3SparT=null;
+let _h3V=null,_h3Fri=true,_h3Drog=0,_h3Pek={},_h3Ges=null,_h3Raf=0,_h3SparT=null;
 function h3Vy(){
   if(_h3V)return _h3V;
   let v=Object.assign({},H3_STD);
@@ -2719,7 +2719,6 @@ function h3Andra(f){const v=h3Vy();f(v);h3Klamp(v);h3Spara();
   if(!_h3Raf)_h3Raf=requestAnimationFrame(function(){_h3Raf=0;renderHus3d(true,true);});}
 function h3Zooma(k){h3Andra(v=>{v.zoom*=k;});}
 function h3Aterstall(){h3Andra(v=>{Object.assign(v,H3_STD);});}
-function h3FriVaxla(){_h3Fri=!_h3Fri;const el=$('hus3d');if(el)el.classList.toggle('h3-fri',_h3Fri);renderHus3d(true);}
 /* Tryck på golv och knappar räknas inte direkt efter en dragning. */
 function h3Tryck(zid){if(Date.now()-_h3Drog<350)return;openRum(zid);}
 function h3Tand(zid){if(Date.now()-_h3Drog<350)return;zonTanda(zid);}
@@ -2774,7 +2773,8 @@ function h3Proj(yaw,tilt){
 }
 /* Ett rätblock som sidor och tak, de sidor som vetter mot betraktaren.
    b = 4 hörn i planet (moturs eller medurs), h0..h1 höjd. */
-function h3Block(P,b,h0,h1,farg){
+function h3Block(P,b,h0,h1,farg,alfa){
+  const op=(alfa!=null&&alfa<0.999)?' fill-opacity="'+alfa.toFixed(2)+'"':'';
   const top=b.map(q=>P(q[0],q[1],h1));
   let s='';
   for(let i=0;i<4;i++){
@@ -2787,7 +2787,7 @@ function h3Block(P,b,h0,h1,farg){
     if(pm.d<=pk.d+1e-6)continue;
     const ljus=pm.x<pk.x?farg.s1:farg.s2;   /* vänster sida ljusare, höger mörkare */
     const q=[P(a[0],a[1],h0),P(c[0],c[1],h0),P(c[0],c[1],h1),P(a[0],a[1],h1)];
-    s+='<polygon points="'+q.map(p=>p.x.toFixed(3)+','+p.y.toFixed(3)).join(' ')+'" fill="'+ljus+'"/>';
+    s+='<polygon points="'+q.map(p=>p.x.toFixed(3)+','+p.y.toFixed(3)).join(' ')+'" fill="'+ljus+'"'+op+'/>';
   }
   s+='<polygon points="'+top.map(p=>p.x.toFixed(3)+','+p.y.toFixed(3)).join(' ')+'" fill="'+farg.top+'"/>';
   return s;
@@ -2810,12 +2810,12 @@ function h3VaggBitar(v){
     /* lite överlapp i ändarna, så att hörnen sluter tätt */
     const e=0.006;
     ut.push({b:[[ax-ux*e+nx,ay-uy*e+ny],[bx+ux*e+nx,by+uy*e+ny],[bx+ux*e-nx,by+uy*e-ny],[ax-ux*e-nx,ay-uy*e-ny]],
-      cx:(ax+bx)/2,cy:(ay+by)/2,typ:typ||''});
+      cx:(ax+bx)/2,cy:(ay+by)/2,typ:typ||'',n:[-uy,ux]});
     /* v1.98.0: fönsterkarm (post) mellan rutorna och i ändarna. */
     if(typ==='f'){const k=0.03,pn=nx*1.15,pm=ny*1.15;
       [[ax,ay]].concat(i===n-1?[[bx,by]]:[]).forEach(function(q){
         ut.push({b:[[q[0]-ux*k+pn,q[1]-uy*k+pm],[q[0]+ux*k+pn,q[1]+uy*k+pm],[q[0]+ux*k-pn,q[1]+uy*k-pm],[q[0]-ux*k-pn,q[1]-uy*k-pm]],
-          cx:q[0],cy:q[1],typ:'fk'});});}
+          cx:q[0],cy:q[1],typ:'fk',n:[-uy,ux]});});}
   }
   return ut;
 }
@@ -2914,7 +2914,17 @@ function renderHus3d(tvinga,baraVy){
   });
   /* Väggar och inredning, längst bort först. */
   const block=[];
-  H3_VAGGAR.forEach(v=>h3VaggBitar(v).forEach(b=>block.push({b:b.b,cx:b.cx,cy:b.cy,typ:b.typ,ytter:v[4]===H3_TY})));
+  H3_VAGGAR.forEach(v=>h3VaggBitar(v).forEach(b=>block.push({b:b.b,cx:b.cx,cy:b.cy,typ:b.typ,n:b.n,ytter:v[4]===H3_TY})));
+  /* v1.100.0: HUR GENOMSKINLIG ÄR VÄGGEN? Normalens del mot betraktaren (nd).
+     Ytterväggar vars utsida vetter mot betraktaren blir nästan genomskinliga;
+     innerväggar tonas efter hur rakt de står mot betraktaren. Väggar som ses
+     från kanten och de bortre ytterväggarna förblir hela. */
+  const ya=V.yaw*Math.PI/180,sya=Math.sin(ya),cya=Math.cos(ya);
+  const alfaFor=function(b){if(!b.n)return 1;
+    const nd=b.n[0]*sya+b.n[1]*cya;
+    if(b.ytter){const ut=Math.sign(b.n[0]*(b.cx-3.5)+b.n[1]*(b.cy-4.45))||1,v=ut*nd;
+      return v>0?Math.max(0.12,1-0.95*v):1;}
+    return Math.max(0.3,1-0.72*Math.abs(nd));};
   H3_INRED.forEach(m=>{const [x,y,w,d,h,typ]=m;
     block.push({b:[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],cx:x+w/2,cy:y+d/2,h:h,typ:'i'+typ});});
   block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d;});
@@ -2926,20 +2936,23 @@ function renderHus3d(tvinga,baraVy){
          uppifrån: så stor del av glaset som gardinen är stängd blir väv. */
       const rn=h3FonsterRum(b.cy),rr=rum.find(r=>r.namn===rn),g=(rr&&rr.gardin!=null)?Math.max(0,Math.min(1,rr.gardin)):0;
       /* v1.99.0: bröstning till ~1 m, glaset därifrån upp; gardinen nedifrån toppen. */
-      const sk=H3_BROST,gh=H3_FASAD-(H3_FASAD-sk)*g;
-      s+=h3Block(P,b.b,0,sk,F.ytter);
-      if(gh>sk+0.01)s+=h3Block(P,b.b,sk,gh,F.glas);
-      if(gh<H3_FASAD-0.01)s+=h3Block(P,b.b,gh,H3_FASAD,F.vav);
+      const al=alfaFor(b),sk=H3_BROST,ft=H3_FTOPP,gh=ft-(ft-sk)*g;
+      s+=h3Block(P,b.b,0,sk,F.ytter,al);
+      if(gh>sk+0.01)s+=h3Block(P,b.b,sk,gh,F.glas,Math.min(1,al+0.2));
+      if(gh<ft-0.01)s+=h3Block(P,b.b,gh,ft,F.vav,al);
+      s+=h3Block(P,b.b,ft,H3_FASAD,F.ytter,al);
     }else if(b.typ==='fk'){
-      s+=h3Block(P,b.b,0,H3_FASAD+0.02,F.karm);
+      s+=h3Block(P,b.b,H3_BROST,H3_FTOPP,F.karm,Math.min(1,alfaFor(b)+0.25));
     }else if(b.typ==='fv'){
-      s+=h3Block(P,b.b,0,H3_FASAD,F.ytter);
+      s+=h3Block(P,b.b,0,H3_FASAD,F.ytter,alfaFor(b));
     }else if(b.typ==='d'){
-      s+=h3Block(P,b.b,0,0.08,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
+      /* Ytterdörren: tröskel (orange när den står öppen) och överstycke. */
+      s+=h3Block(P,b.b,0,0.06,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
+      s+=h3Block(P,b.b,2.05,H3_VAGG,F.ytter,alfaFor(b));
     }else if(b.typ&&b.typ[0]==='i'){
       const t=b.typ[1],f=(t==='t'||t==='l'||t==='v')?F.vit:F.inred;
       s+=h3Block(P,b.b,0,b.h,f);
-    }else s+=h3Block(P,b.b,0,H3_VAGG,b.ytter?F.ytter:F.vagg);
+    }else s+=h3Block(P,b.b,0,H3_VAGG,b.ytter?F.ytter:F.vagg,alfaFor(b));
   });
   /* Ytterdörren öppen: en markering vid dörren. */
   if(dorr===true){const m=P(7.25,4.11,0.2);
@@ -2966,12 +2979,10 @@ function renderHus3d(tvinga,baraVy){
   const yta=el.querySelector('.h3-yta');
   if(baraVy&&yta){yta.innerHTML=s;return;}
   const ik=function(d){return '<svg viewBox="0 0 24 24"><path d="'+d+'" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';};
+  /* v1.100.0: dra och nyp gäller alltid; bara knappen för startvyn finns kvar. */
   el.innerHTML='<div class="h3-yta">'+s+'</div><div class="h3-knappar">'
-    +'<button type="button" class="h3-k'+(_h3Fri?' on':'')+'" onclick="h3FriVaxla()" aria-pressed="'+_h3Fri+'" title="Utforska: dra för att vrida och luta, nyp för att zooma">'+ik('M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3')+'</button>'
-    +'<button type="button" class="h3-k" onclick="h3Zooma(1.25)" title="Zooma in">'+ik('M12 6v12M6 12h12')+'</button>'
-    +'<button type="button" class="h3-k" onclick="h3Zooma(0.8)" title="Zooma ut">'+ik('M6 12h12')+'</button>'
     +'<button type="button" class="h3-k" onclick="h3Aterstall()" title="Tillbaka till startvyn">'+ik('M4 12a8 8 0 1 0 2.34-5.66M4 4v5h5')+'</button>'
-    +'</div>'+(_h3Fri?'<div class="h3-tips">Ett finger vrider och lutar · två fingrar zoomar och flyttar</div>':'');
+    +'</div>';
 }
 
 function renderRooms(){
