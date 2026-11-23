@@ -1363,9 +1363,6 @@ body.panu-pa .panu{display:flex;flex-wrap:wrap;margin:0 0 6px;min-height:30px;al
   background:rgba(163,190,140,.16);color:var(--ok);border:1px solid rgba(163,190,140,.45)}
 .panu-c.varn{background:rgba(191,97,106,.16);color:var(--hot,#d0707a);border-color:rgba(191,97,106,.55);gap:5px}
 .panu-c.varn .ic{width:14px;height:14px}
-.rg-varn{display:flex;align-items:flex-start;gap:8px;margin:6px 0 2px;padding:8px 10px;border-radius:10px;
-  background:rgba(191,97,106,.14);border:1px solid rgba(191,97,106,.45);color:var(--ink);font-size:13px;font-weight:700}
-.rg-varn .ic{flex:0 0 auto;width:17px;height:17px;color:var(--hot,#d0707a);margin-top:1px}
 .panu-c.gul{background:rgba(235,203,139,.18);color:var(--gold);border-color:rgba(235,203,139,.5)}
 .panu-tom{font-size:12px;font-weight:700;color:var(--faint);margin:0 0 6px 2px}
 body.panu-pa #view-flode>[data-sec="buttons"]{display:none!important}
@@ -1391,66 +1388,6 @@ body.panu-pa .fl-tiles{display:grid!important;grid-template-columns:repeat(3,min
 body.panu-pa .panu{padding-bottom:0!important;margin-bottom:0!important;gap:calc(8px*var(--kk,1));min-height:0!important}
 body.panu-pa .panu-c{margin:0!important}
 body.panu-pa .panu.panu-tomt{display:none!important}
-/* LADDREGELNS RAD (v696) under Sol nu / Batteri / Elnät. Ikon, en kort
-   mening och två knappar på en rad; meningen får två rader på smal skärm. */
-.regelrad{display:none}
-/* Laddregelns logg (v697) */
-.rl-graf{margin:10px 0 4px}
-/* v699: plot + segmentrader i ett rutnät med gemensamma marginaler, så att
-   tiderna i grafen och i raderna står exakt under varandra. */
-.rl-r{display:flex;align-items:stretch}
-.rl-gl{flex:0 0 44px;font-size:10.5px;font-weight:800;color:var(--dim);display:flex;align-items:center;padding-right:6px}
-.rl-gr{flex:0 0 40px}
-.rl-tr{flex:1 1 auto;min-width:0;position:relative}
-.rl-plot .rl-svg{display:block;width:100%;height:170px}
-body.kiosk .rl-plot .rl-svg{height:220px}
-.rl-ax{position:relative;padding:0}
-.rl-ax span{position:absolute;transform:translateY(-50%);font-size:10px;font-weight:700;color:var(--faint);white-space:nowrap;line-height:1}
-.rl-gl.rl-ax span{right:6px}
-.rl-gr.rl-ax span{left:5px}
-.rl-etr{height:16px;margin-bottom:2px}
-.rl-lbl{position:absolute;top:0;height:16px;line-height:16px;text-align:center;font-size:10.5px;font-weight:800;white-space:nowrap;overflow:hidden}
-.rl-lbl.spara{color:var(--blue)}
-.rl-lbl.ladda{color:var(--ok)}
-.rl-x{display:block;height:13px;margin-top:3px;padding:0}
-.rl-x span{position:absolute;top:0;transform:translateX(-50%)}
-.rl-x span:nth-child(1){left:0}.rl-x span:nth-child(2){left:25%}.rl-x span:nth-child(3){left:50%}.rl-x span:nth-child(4){left:75%}.rl-x span:nth-child(5){left:100%}
-.rl-li{display:inline-block;width:14px;height:9px;border-radius:3px;border:1.5px solid currentColor;position:relative;box-sizing:border-box;vertical-align:middle}
-.rl-li::before{content:'';position:absolute;inset:0;background:currentColor;opacity:.38}
-.rl-li.spara{color:var(--blue)}
-.rl-li.ladda{color:var(--ok)}
-.rl-leg{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11.5px;font-weight:700;color:var(--dim);margin:4px 0 8px}
-.rl-leg span{display:inline-flex;align-items:center;gap:5px}
-.rl-leg i{display:inline-block;width:14px;height:3px;border-radius:2px}
-.rl-leg i.rl-li{height:9px;border-radius:3px}
-.rl-leg i.str{height:0;border-top:2px dashed;border-radius:0}
-.rl-leg .rl-not{font-weight:600;color:var(--faint)}
-.rl-rad{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
-.rl-rad:last-child{border-bottom:0}
-.rl-kl{flex:0 0 auto;font-weight:800;color:var(--dim);min-width:40px}
-.rl-txt{flex:1 1 auto;min-width:0;font-weight:700}
-.rl-txt small{display:block;font-size:11.5px;font-weight:600;color:var(--dim);margin-top:1px}
-.rl-ok{color:var(--ok)}
-.regelrad.visa{display:flex;align-items:center;gap:10px;margin:8px 0 2px;padding:8px 8px 8px 11px;border-radius:14px;
-  background:rgba(235,203,139,.13);border:1px solid rgba(235,203,139,.45)}
-.regelrad .rr-ic{flex:0 0 auto;width:20px;height:20px;color:var(--gold);display:flex}
-.regelrad .rr-ic svg{width:100%;height:100%}
-.regelrad .rr-t{flex:1 1 auto;min-width:0;font-size:13px;line-height:1.3;font-weight:800;color:var(--ink)}
-/* Två rader, var och en på en rad med … — rubriken är kort nog att alltid synas. */
-.regelrad .rr-t>span,.regelrad .rr-t small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.regelrad .rr-t small{font-size:11px;font-weight:650;color:var(--dim)}
-.regelrad .rr-b{flex:0 0 auto;display:flex;gap:6px}
-.regelrad button{height:30px;padding:0 12px;border-radius:999px;font:inherit;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap}
-.regelrad .rr-ja{background:var(--gold);color:#2e3440;border:1px solid var(--gold)}
-.regelrad .rr-nej{background:none;color:var(--dim);border:1px solid var(--line)}
-/* Telefonen: Ignorera blir ett ✕ — annars får meningen bara ~90 px på en
-   360 px-skärm och rubriken klipps. */
-.regelrad .rr-kort{display:none}
-body.mobile .regelrad .rr-lang{display:none}
-body.mobile .regelrad .rr-kort{display:inline}
-body.mobile .regelrad .rr-nej{width:30px;padding:0;font-size:13px}
-body.kiosk .regelrad .rr-t{font-size:13.5px}
-body.kiosk .regelrad button{height:34px;font-size:13px}
 /* ⋯ i belysningsrutans nedre hörn: Auto, Skivspelare och resten. Nere i
    stället för uppe, så rubriken "BELYSNING" får plats på en smal telefon;
    lägesraden slutar före knappen. */
@@ -3339,11 +3276,6 @@ body.mobile .fc-grid{grid-template-columns:1fr 1fr}
 .pchip-k{font-size:10.5px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.04em}
 .pchip-v{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pchip-s{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2em}
-/* Laddregeln i batteripopupen */
-.rg-forslag{margin:8px 0 2px;padding:10px 12px;border-radius:12px;background:var(--inset);font-size:13px;line-height:1.45}
-.rg-forslag small{display:block;margin-top:4px;color:var(--dim);font-size:11.5px}
-.rg-btns{display:flex;flex-wrap:wrap;margin:10px 0 2px}
-.rg-btns button{margin:0 8px 6px 0;min-height:40px}
 
 /* AVLÄSNINGEN ÖVER GRAFEN. Talet är stort och färgat efter hur dyrt det är;
    raden under säger vad man tittar på — hur länge timmen har kvar, eller
@@ -4308,9 +4240,6 @@ body.vaggplatta .hus-flod{animation:none!important}
              läses som en. -->
         <div class="pn-del" id="en-del"></div>
         <div class="grid stats st3 en-stats pn-tiles" id="stats-energy" data-grid="energy"></div>
-        <!-- Laddregelns förslag (v696): syns bara när det finns ett att ta
-             ställning till. -->
-        <div class="regelrad" id="regelrad" aria-live="polite"></div>
         <!-- Spotprisbandet flyttas hit av applySecOrder. Det hör till energin
              och blir ett kort mindre på startsidan. -->
         <div class="pn-del" id="sp-del"></div>

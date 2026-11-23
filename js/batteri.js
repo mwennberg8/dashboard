@@ -1,4 +1,4 @@
-/* js/batteri.js — Batteriet: laddregelns logg, raden i energirutan, På nu-raden, laddregeln i popupen och sparandet till den dyra perioden.
+/* js/batteri.js — Batteriet: På nu-raden, bokningarna (Ladda, Spara, Normal, Auto), batteripopupen, batteriplanen och sparandet till den dyra perioden.
  *
  * Filen innehåller BARA funktionsdeklarationer. Konstanter, tillstånd och allt
  * som körs direkt vid laddning ligger i js/start.js, som laddas sist, under
@@ -7,240 +7,8 @@
  * hunnit laddas. Lägg den därför aldrig här.
  */
 
-function rlDemo(){
-  var dag=function(off){var d=svDatum(Date.now()-off*86400000);return {y:d.y,m:d.m,d:d.d,ms:svMidnatt(d.y,d.m,d.d),k:d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0')};};
-  var L={v:1,d:{},f:[]},H=3600000;
-  for(var o=0;o<4;o++){var D=dag(o);
-    L.d[D.k]=Array.from({length:24},function(_,h){return Math.round((0.95+0.35*Math.sin((h-4)/24*Math.PI*2)+(h>=17&&h<21?0.9:0)+(h>=7&&h<9?0.4:0)+o*0.05)*1000)/1000;});
-    L.f.push({t0:D.ms+10.5*H,t1:D.ms+14*H,typ:'spara',start:0,spara:D.ms+10.5*H,stopp:D.ms+17*H,kwh:0,vinst:5.8-o,soc:40+o*5,fragad:true,bokad:o!==1});
-    if(o===2)L.f.push({t0:D.ms+1*H,t1:D.ms+2*H,typ:'ladda',start:D.ms+2*H,spara:D.ms+5*H,stopp:D.ms+7*H,kwh:9.5,vinst:7.4,soc:22,fragad:true,bokad:false});}
-  return L;
-}
-async function rlHamta(tvinga){
-  if(_rlLaddar)return;
-  if(!tvinga&&_rl&&Date.now()-_rlAt<120000)return;
-  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){_rl=rlDemo();_rlAt=Date.now();return;}
-  _rlLaddar=true;
-  try{var L=await logicList();var v=logicArr(L).find(function(x){return x&&x.name==='battladd_logg';});
-    _rl=v&&v.value?JSON.parse(String(v.value)):{v:1,d:{},f:[],tom:true};_rlAt=Date.now();}
-  catch(e){_rl={v:1,d:{},f:[],fel:(e&&e.message)||'kunde inte läsa loggen'};}
-  finally{_rlLaddar=false;try{if(_dlgWhich==='regellogg'){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();}}catch(e){}}
-}
-function rlValjDag(o){_rlDag=o;var b=$('dlg-body');if(b)b.innerHTML=rlPopup();}
-/* Ett dygn: {k, ms (midnatt), slut (nästa midnatt)} för o dygn bakåt. */
-function rlDygn(o){var d=svDatum(Date.now()-o*86400000),ms=svMidnatt(d.y,d.m,d.d),n=svMidnatt(d.y,d.m,d.d+1);
-  return {k:d.y+'-'+String(d.m).padStart(2,'0')+'-'+String(d.d).padStart(2,'0'),ms:ms,slut:n};}
-/* Batteriets laddnivå under dygnet: sjudygnsloggen från Insights, och för idag
-   även den lokala historiken (tätare, och den senaste timmen). */
-function rlSoc(D){
-  var ut=[];
-  [(typeof HIST7!=='undefined'&&HIST7.battpct)||[],(D.slut>Date.now()-3600000)?(HIST.batt||[]):[]].forEach(function(a){
-    a.forEach(function(p){if(p&&p.t>=D.ms&&p.t<=D.slut&&isFinite(p.v))ut.push({t:p.t,v:p.v});});});
-  ut.sort(function(a,b){return a.t-b.t;});
-  return ut;
-}
-/* v699: bokat och föreslaget som egna segmentrader under grafen, i stället
-   för band över hela grafen. Ett förslag ger en eller två delar. */
-function rlDelar(e){
-  var d=[],b=Number(e.stopp)||0;
-  if(e.start)d.push({typ:'ladda',a:+e.start,b:+(e.spara||b)||0});
-  if(e.spara)d.push({typ:'spara',a:+e.spara,b:b});
-  else if(!e.start&&e.t0)d.push({typ:'spara',a:+e.t0,b:b});
-  return d;
-}
-/* Delarna klipps mot dygnet och läggs i rader så att överlappande inte ritas
-   ovanpå varandra. Saknas slut (en ren starttid) ritas en timme, öppen. */
-function rlSpar(lista,D){
-  var ut=[],sett={};
-  lista.forEach(function(q){
-    var oppen=!(q.b>q.a),b=oppen?q.a+3600000:q.b,k=q.typ+'|'+q.a+'|'+(oppen?0:q.b);
-    if(sett[k])return;sett[k]=1;
-    var a2=Math.max(D.ms,q.a),b2=Math.min(D.slut,b);if(b2<=a2)return;
-    ut.push({typ:q.typ,a:q.a,b:b,a2:a2,b2:b2,oppen:oppen,kalla:q.kalla||'',e:q.e||null});});
-  ut.sort(function(x,y){return x.a2-y.a2||x.b2-y.b2;});
-  var slut=[];
-  ut.forEach(function(q){var r=0;while(r<slut.length&&slut[r]>q.a2)r++;slut[r]=q.b2;q.rad=r;});
-  return {lista:ut,rader:Math.max(1,slut.length)};
-}
-/* Det som var bokat: förslag som bokades, plus den bokning som ligger i
-   Homey just nu (Starta-knappen, Ladda max eller ett ja i notisen). */
-function rlBokat(D,L){
-  var q=[];
-  (L.f||[]).forEach(function(e){if(e&&e.bokad)rlDelar(e).forEach(function(x){x.kalla='förslaget '+avlKl(e.t0);x.e=e;q.push(x);});});
-  var R=(typeof _regel!=='undefined'&&_regel)||null;
-  if(R&&(R.start||R.spara)&&(!R.stopp||R.stopp>Date.now()-86400000*4))
-    rlDelar({start:R.start,spara:R.spara,stopp:R.stopp}).forEach(function(x){x.kalla='bokat i Homey';q.push(x);});
-  return rlSpar(q,D);
-}
-function rlForslag(D,L){
-  var q=[];
-  (L.f||[]).forEach(function(e){if(e)rlDelar(e).forEach(function(x){x.kalla='förslaget '+avlKl(e.t0);x.e=e;q.push(x);});});
-  return rlSpar(q,D);
-}
-function rlTid(q){return avlKl(q.a)+((q.oppen||q.b>=SPARA_TV_MS)?'→':'–'+avlKl(q.b));}
-/* v920: "till 17:00" eller "tills vidare". */
+/* Klockslag för ett stopp: "till 17:00", eller "tills vidare" (v920). */
 function tillKl(ms){return Number(ms)>=SPARA_TV_MS?'tills vidare':'till '+regelKl(ms);}
-/* Längsta etikett som ryms, mätt i webbläsaren. Utan layout (jsdom) står
-   procentgissningen från rlEtikett kvar. */
-function rlSegPassa(){
-  try{document.querySelectorAll('#dlg-body .rl-lbl[data-k]').forEach(function(g){
-    var sp=g,bredd=g.clientWidth;if(!(g.clientWidth>0))return;   /* scrollWidth = clientWidth när texten ryms */
-    var alt=g.getAttribute('data-k').split('|').concat(['']);
-    for(var i=0;i<alt.length;i++){sp.textContent=alt[i];if(sp.scrollWidth<=bredd)break;}});}catch(e){}
-}
-/* v700: bokade perioder ritas i själva grafen — ett lodrätt streck i början
-   och ett i slutet, skuggat emellan, och en etikett ovanför. Förslag som inte
-   bokades får bara streckade lodräta linjer. */
-function rlEtikett(q,D){
-  var span=D.slut-D.ms,l=(q.a2-D.ms)/span*100,w=(q.b2-q.a2)/span*100;
-  var namn=q.typ==='ladda'?'Ladda':'Spara',full=namn+' '+rlTid(q);
-  var txt=w>=38?full:(w>=12?namn:(w>=5?namn.charAt(0):''));
-  return '<span class="rl-lbl '+q.typ+'" data-k="'+esc(full)+'|'+namn+'|'+namn.charAt(0)+'" style="left:'+l.toFixed(2)+'%;width:'+w.toFixed(2)+'%" title="'+esc(full)+'">'+esc(txt)+'</span>';
-}
-/* Priser för dygnet: loggens i första hand (det laddregeln såg), annars
-   dashboardens egen prisserie (tibber_pris) — den har även morgondagen. */
-function rlPriser(D,L){
-  var pr=(L.d&&L.d[D.k])||null;
-  if(!pr&&typeof _prisJ!=='undefined'&&_prisJ&&_prisJ.d&&Array.isArray(_prisJ.d[D.k]))pr=_prisJ.d[D.k];
-  return (pr&&pr.some(function(v){return typeof v==='number'&&isFinite(v);}))?pr:null;
-}
-function rlGraf(D,L){
-  var W=300,H=150,pT=6,pB=4,X=function(t){return (t-D.ms)/(D.slut-D.ms)*W;};
-  var pr=rlPriser(D,L),max=0;(pr||[]).forEach(function(v){if(isFinite(v)&&v>max)max=v;});
-  max=max>0?Math.ceil(max*2)/2:3;
-  var YP=function(v){return H-pB-(v/max)*(H-pT-pB);},YS=function(v){return H-pB-(v/100)*(H-pT-pB);};
-  var B=rlBokat(D,L),F=rlForslag(D,L),bset={};
-  B.lista.forEach(function(q){bset[q.typ+'|'+q.a+'|'+q.b]=1;});
-  var s='<svg class="rl-svg" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img" aria-label="Pris, batteri och bokade perioder">';
-  /* bokat: skuggning under allt annat */
-  B.lista.forEach(function(q){var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
-    s+='<rect class="rl-bok '+q.typ+'" x="'+X(q.a2).toFixed(1)+'" y="0" width="'+(X(q.b2)-X(q.a2)).toFixed(1)+'" height="'+(H-pB)+'" fill="'+col+'" opacity="0.18"/>';});
-  /* rutnät + nollinje */
-  [0.5,1].forEach(function(f){var y=YP(max*f);s+='<line x1="0" x2="'+W+'" y1="'+y.toFixed(1)+'" y2="'+y.toFixed(1)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
-  [6,12,18].forEach(function(t){var x=X(D.ms+t*3600000);s+='<line x1="'+x.toFixed(1)+'" x2="'+x.toFixed(1)+'" y1="'+pT+'" y2="'+(H-pB)+'" stroke="var(--line)" stroke-width="0.5" vector-effect="non-scaling-stroke"/>';});
-  s+=nollLinje(YP(0),0,W);
-  /* förslag som inte bokades: streckade lodräta linjer */
-  F.lista.forEach(function(q){if(bset[q.typ+'|'+q.a+'|'+q.b])return;var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
-    [q.a,q.oppen?null:q.b].forEach(function(t){if(t==null||t<D.ms||t>D.slut)return;var x=X(t).toFixed(1);
-      s+='<line class="rl-ej" x1="'+x+'" x2="'+x+'" y1="0" y2="'+(H-pB)+'" stroke="'+col+'" stroke-width="1.2" stroke-dasharray="3 3" opacity="0.8" vector-effect="non-scaling-stroke"/>';});});
-  /* batteriet: linje med svag yta under */
-  var so=rlSoc(D);
-  if(so.length>1){var d=so.map(function(p,i){return (i?'L':'M')+X(p.t).toFixed(1)+' '+YS(p.v).toFixed(1);}).join('');
-    s+='<path d="'+d+'L'+X(so[so.length-1].t).toFixed(1)+' '+YS(0).toFixed(1)+'L'+X(so[0].t).toFixed(1)+' '+YS(0).toFixed(1)+'Z" fill="var(--cyan)" opacity="0.08"/>';
-    s+='<path class="rl-soc" d="'+d+'" fill="none" stroke="var(--cyan)" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';}
-  /* priset: trappa (24 timmar eller 96 kvartar) */
-  if(pr){var d2='',st=(D.slut-D.ms)/pr.length;pr.forEach(function(v,h){if(typeof v!=='number'||!isFinite(v))return;var x0=X(D.ms+h*st),x1=X(D.ms+(h+1)*st),y=YP(v);
-      d2+=(d2?'L':'M')+x0.toFixed(1)+' '+y.toFixed(1)+'L'+x1.toFixed(1)+' '+y.toFixed(1);});
-    s+='<path class="rl-pris" d="'+d2+'" fill="none" stroke="var(--gold)" stroke-width="2" vector-effect="non-scaling-stroke"/>';}
-  /* bokat: heldragna lodräta streck i början och slutet, överst */
-  B.lista.forEach(function(q){var col=q.typ==='ladda'?'var(--ok)':'var(--blue)';
-    [q.a,q.oppen?null:q.b].forEach(function(t){if(t==null||t<D.ms||t>D.slut)return;var x=X(t).toFixed(1);
-      s+='<line class="rl-kant '+q.typ+'" x1="'+x+'" x2="'+x+'" y1="0" y2="'+(H-pB)+'" stroke="'+col+'" stroke-width="2" vector-effect="non-scaling-stroke"/>';});});
-  /* nu */
-  var nu=Date.now();if(nu>D.ms&&nu<D.slut)s+='<line x1="'+X(nu).toFixed(1)+'" x2="'+X(nu).toFixed(1)+'" y1="0" y2="'+(H-pB)+'" stroke="var(--dim)" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>';
-  s+='</svg>';
-  /* Axelvärden som HTML (svg:en sträcks, text i den skulle förvrängas). */
-  var top=function(y){return (y/H*100).toFixed(1)+'%';};
-  var vl='<span style="top:'+top(YP(max))+'">'+num(max,1)+' kr</span><span style="top:'+top(YP(max/2))+'">'+num(max/2,max/2%1?2:1)+'</span><span style="top:'+top(YP(0))+'">0</span>';
-  var hl='<span style="top:'+top(YS(100))+'">100 %</span><span style="top:'+top(YS(50))+'">50 %</span><span style="top:'+top(YS(0))+'">0 %</span>';
-  var dagens=(L.f||[]).filter(function(e){var a=e.start||e.spara||e.t0,b=e.stopp;return b>D.ms&&a<D.slut;});
-  var et=B.lista.map(function(q){return rlEtikett(q,D);}).join('');
-  var h='<div class="rl-r"><span class="rl-gl"></span><div class="rl-tr rl-etr">'+et+'</div><span class="rl-gr"></span></div>'
-    +'<div class="rl-r"><span class="rl-gl rl-ax">'+vl+'</span><div class="rl-tr rl-plot">'+s+'</div><span class="rl-gr rl-ax">'+hl+'</span></div>'
-    +'<div class="rl-r"><span class="rl-gl"></span><div class="rl-tr pgraph-x rl-x"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div><span class="rl-gr"></span></div>';
-  return {html:h,svg:s,max:max,dagens:dagens,bokat:B,forslag:F,pris:!!pr,soc:so.length>1};
-}
-/* Vilket dygn popupen öppnar på: där bokningen gäller (pågående eller nästa),
-   annars idag. Ett tryck på en flik tar över. */
-function rlAutoDag(){
-  var R=(typeof _regel!=='undefined'&&_regel)||null,nu=Date.now();
-  if(!R)return 0;
-  var del=rlDelar({start:R.start,spara:R.spara,stopp:R.stopp}).filter(function(q){return !(q.b>q.a)||q.b>nu;});
-  if(!del.length)return 0;
-  var t=Math.max(nu,Math.min.apply(null,del.map(function(q){return q.a;})));
-  return t>=rlDygn(0).slut?-1:0;
-}
-function rlHarImorgon(){
-  var D=rlDygn(-1),L=_rl||{d:{},f:[]};
-  return !!(rlPriser(D,L)||rlBokat(D,L).lista.length||rlForslag(D,L).lista.length);
-}
-function rlPopup(){
-  var L=_rl,h='';
-  var flikar=[[0,'Idag'],[1,'Igår'],[2,'2 d sedan'],[3,'3 d sedan']];
-  var dag=(_rlDag==null)?rlAutoDag():_rlDag;
-  if(dag===-1||(L&&rlHarImorgon()))flikar.unshift([-1,'Imorgon']);
-  h+='<div class="graf-lage">'+flikar.map(function(f){return '<button type="button" class="graf-lage-b'+(f[0]===dag?' on':'')+'" onclick="rlValjDag('+f[0]+')">'+f[1]+'</button>';}).join('')+'</div>';
-  if(!L)return h+'<div class="det-note">Hämtar loggen…</div>';
-  if(L.fel)return h+'<div class="det-note">Kunde inte läsa loggen: '+esc(L.fel)+'</div>';
-  var D=rlDygn(dag),G=rlGraf(D,L);
-  h+='<div class="rl-graf">'+G.html+'</div>';
-  setTimeout(rlSegPassa,0);
-  h+='<div class="rl-leg"><span><i style="background:var(--gold)"></i>Pris</span><span><i style="background:var(--cyan)"></i>Batteri %</span>'
-    +'<span><i class="rl-li spara"></i>Spara</span><span><i class="rl-li ladda"></i>Ladda</span><span class="rl-not">skuggat = bokat · streckad linje = förslag som inte bokades</span></div>';
-  if(!G.pris&&!G.dagens.length&&!G.bokat.lista.length)h+='<div class="det-note">Inget loggat det här dygnet. Loggen började med laddregeln 1.3.1'+(L.tom?' och är tom än så länge':'')+'.</div>';
-  if(G.bokat.lista.length){
-    h+=dSec('Bokat');
-    G.bokat.lista.forEach(function(q){
-      var nu=Date.now(),st=q.oppen?(nu<q.a?'kommande':''):(nu>=q.b?'klart':(nu>=q.a?'<b class="rl-ok">pågår</b>':'kommande'));
-      h+='<div class="rl-rad"><span class="rl-kl"><i class="rl-li '+q.typ+'"></i></span><span class="rl-txt">'+(q.typ==='ladda'?'Ladda ':'Spara ')+esc(rlTid(q))
-        +'<small>'+esc(q.kalla)+(st?' · '+st:'')+'</small></span></div>';});
-  }
-  if(G.dagens.length){
-    h+=dSec('Förslag');
-    G.dagens.forEach(function(e){
-      /* Klockslag utan datum — dygnet står i valet ovanför. */
-      var tider=(e.start?'Ladda '+avlKl(e.start)+'–'+avlKl(e.spara||e.stopp)+(e.spara?', spara till '+avlKl(e.stopp):''):'Spara '+avlKl(e.spara||e.t0)+'–'+avlKl(e.stopp));
-      var status=(e.bokad?'<b class="rl-ok">bokat</b>':(e.fragad?'frågat, inte bokat':'inte frågat'));
-      h+='<div class="rl-rad"><span class="rl-kl">'+avlKl(e.t0)+'</span><span class="rl-txt">'+esc(tider)
-        +'<small>'+(e.kwh?num(e.kwh,1)+' kWh · ':'')+'beräknat ca '+Math.round(e.vinst||0)+' kr · batteri '+(e.soc!=null?e.soc+' %':'–')+' · '+status+'</small></span></div>';});
-  }
-  if(!G.soc&&D.ms<Date.now())h+='<div class="det-note">Batteriets laddnivå saknas för dygnet (hämtas från Insights).</div>';
-  if(dag===0&&!G.bokat.lista.length&&rlBokat(rlDygn(-1),L).lista.length)h+='<div class="det-note">Bokningen gäller imorgon – se fliken Imorgon.</div>';
-  return h;
-}
-function regelDemo(){
-  var nu=Date.now(),h=3600000,t0=Math.ceil(nu/h)*h;
-  return {v:2,nyckel:'demo',text:'Spara batteriet till kvällen',startMs:0,sparaMs:nu-60000,stoppMs:t0+3*h,kwh:0,vinst:6.2,satt:nu-10*60000};
-}
-function regelKort(p,nu){
-  var t=regelTider(p,nu);if(t.fel)return null;
-  var kl=function(ms){return regelKl(ms);};
-  /* Kort, så raden ryms på en 360 px-telefon: rubrik + en underrad. Hela
-     motiveringen finns i husbatteriets popup. */
-  var v=(Number(p.vinst)>=0.5)?('sparar ca '+Math.round(Number(p.vinst))+' kr'):'';
-  if(t.start)return {txt:'Ladda '+kl(t.start)+'–'+kl(t.spara||t.stopp),sub:'batteriet'+(p.kwh?' · '+num(p.kwh,1)+' kWh':'')+(t.spara?' · spara till '+kl(t.stopp):'')+(v?' · '+v:'')};
-  return {txt:'Spara '+(t.spara<=nu?'till '+kl(t.stopp):kl(t.spara)+'–'+kl(t.stopp)),sub:'batteriet'+(v?' · '+v:' · ingen urladdning')};
-}
-function regelRadRita(){
-  var el=$('regelrad');if(!el)return;
-  if(REGEL_AV){el.classList.remove('visa');el.innerHTML='';return;}
-  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
-  var R=_regel,nu=Date.now(),p=demo?regelDemo():(R&&R.forslag);
-  var ign='';try{ign=localStorage.getItem(REGEL_IGN_KEY)||'';}catch(e){}
-  var bokat=!demo&&R&&R.stopp>nu&&p&&R.stopp===Number(p.stoppMs);
-  var k=(p&&p.v===2&&!bokat&&String(p.nyckel||p.stoppMs)!==ign)?regelKort(p,nu):null;
-  /* v707: står batteriet i spara för att bilen laddar billigt (verkställarens
-     eget spara) visas ett förslag som LADDAR ändå — batteriet får laddas medan
-     bilen laddar (battnotis 1.3.2 frågar då också). */
-  if(!demo&&(typeof regelLage==='function')){try{var Lr=regelLage();
-    var bilSpara=Lr.lage==='spara'&&R&&String(R.bil||'').split('|')[0]==='billig'&&p&&Number(p.startMs)>0;
-    if(Lr.fjarr&&Lr.lage!=='egen'&&!bilSpara)k=null;}catch(e){}}
-  el.classList.toggle('visa',!!k);
-  el.innerHTML=k?('<span class="rr-ic">'+icon('battery-charging')+'</span>'
-    +'<div class="rr-t"><span>'+esc(k.txt)+'</span>'+(k.sub?'<small>'+esc(k.sub)+'</small>':'')+'</div>'
-    +'<div class="rr-b"><button type="button" class="rr-nej" onclick="regelIgnorera()" aria-label="Ignorera förslaget"><span class="rr-lang">Ignorera</span><span class="rr-kort">✕</span></button>'
-    +'<button type="button" class="rr-ja" onclick="regelRadStarta()">Starta</button></div>'):'';
-}
-function regelIgnorera(){
-  var demo=(typeof SOURCE!=='undefined'&&SOURCE==='demo-data');
-  var p=demo?regelDemo():(_regel&&_regel.forslag);
-  try{localStorage.setItem(REGEL_IGN_KEY,String((p&&(p.nyckel||p.stoppMs))||''));}catch(e){}
-  regelRadRita();try{fitScreen();}catch(e){}
-}
-function regelRadStarta(){
-  if(typeof SOURCE!=='undefined'&&SOURCE==='demo-data'){toast('Demoläge – inget bokas');regelIgnorera();return;}
-  Promise.resolve(regelStarta()).then(function(){regelRadRita();});
-}
 
 /* ===== MANUELLT ELLER AUTO (v888) =====
    Dashboarden skriver battladd_kalla när du själv trycker Ladda, Spara eller
@@ -448,7 +216,7 @@ function regelSpara(R){try{localStorage.setItem(REGEL_LS,JSON.stringify({start:R
 function regelLasLokal(){
   try{var o=JSON.parse(localStorage.getItem(REGEL_LS)||'null');
     if(!o||!(Date.now()-Number(o.at)<REGEL_LS_MAX))return null;
-    return {forslag:null,start:Number(o.start)||0,spara:Number(o.spara)||0,stopp:Number(o.stopp)||0,lista:null,bil:'',
+    return {start:Number(o.start)||0,spara:Number(o.spara)||0,stopp:Number(o.stopp)||0,lista:null,bil:'',
       bilBokad:Number(o.bilBokad)||0,bilStrom:Number(o.bilStrom)||0,
       /* v752: läget sparas inte över omladdningen – bara klockslagen. Färskt
          läge kommer ur battMax_v1 (högst 10 min) eller registret. */
@@ -460,11 +228,10 @@ function regelHamta(tvinga){
   return _regelP=Promise.resolve().then(logicList).then(function(list){
     var r={};
     logicArr(list).forEach(function(v){if(v&&REGEL_VARS.indexOf(v.name)>=0)r[v.name]=v.value;});
-    var p=null;try{p=JSON.parse(String(r.battladd_forslag||'')||'null');}catch(e){}
     var kalla=null;try{kalla=JSON.parse(String(r.battladd_kalla||'')||'null');}catch(e){}
     var tl=null;try{tl=JSON.parse(String(r.energi_tidslinje||'')||'null');}catch(e){}   /* v894 */
     var bplan=null;try{bplan=JSON.parse(String(r.battplan||'')||'null');}catch(e){}   /* v896 */
-    _regel={forslag:p,bplan:(bplan&&Array.isArray(bplan.h))?bplan:null,tl:(tl&&Array.isArray(tl.h))?tl:null,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
+    _regel={bplan:(bplan&&Array.isArray(bplan.h))?bplan:null,tl:(tl&&Array.isArray(tl.h))?tl:null,kalla:(kalla&&typeof kalla==='object')?kalla:null,start:Number(r.battladd_start)||0,spara:Number(r.battladd_spara)||0,
       stopp:Number(r.battladd_stopp)||0,lista:list,
       /* v694: verkställarens bilstyrning, "läge|förklaring" (energistyr 2.0.0). */
       bil:String(r.energi_bil||''),
@@ -483,26 +250,13 @@ function regelHamta(tvinga){
       if(('strom' in _bilLokal)&&_regel.bilStrom===_bilLokal.strom)delete _bilLokal.strom;}}catch(e){}
     if(_dlgWhich==='cars'||_dlgWhich==='billadd'){try{bilStyrOm();}catch(e){}}
     try{var vn=document.getElementById('view-notiser');if(_tlOppen&&vn&&!vn.classList.contains('hidden'))renderNotiser();}catch(e){}   /* v894 */
-    try{regelRadRita();}catch(e){}
     /* v751: På nu ritas om direkt när bokningarna kommit, inte först vid nästa
        uppdatering 15 s senare. */
     try{paNuRita();}catch(e){}
     if(_dlgWhich==='batt'&&typeof _grafOmRita==='function'){try{_grafOmRita();}catch(e){}}
     /* Prisgrafens batteriprognos använder bokningarna — rita om när de kommit. */
     else if(_dlgWhich==='cost'){try{var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();}catch(e){}}
-    else if(_dlgWhich==='regellogg'){try{var b2=$('dlg-body');if(b2)b2.innerHTML=rlPopup();}catch(e){}}
   });
-}
-/* Samma regler som battsvar 1.2.0: inget bokas efter fönstret, och är
-   laddfönstret passerat bokas bara sparandet. */
-function regelTider(p,nuMs){
-  if(!p||p.v!==2)return {fel:'inget förslag'};
-  var start=Number(p.startMs)||0,spara=Number(p.sparaMs)||0,stopp=Number(p.stoppMs);
-  if(!start&&!spara)return {fel:'inget förslag'};
-  if(!isFinite(stopp)||stopp<=Math.max(start,spara))return {fel:'ogiltig stopptid'};
-  if(nuMs>=stopp)return {fel:'fönstret har passerat'};
-  if(start&&spara&&nuMs>=spara)start=0;
-  return {start:start,spara:spara,stopp:stopp};
 }
 function regelKl(ms){
   if(Number(ms)>=SPARA_TV_MS)return 'tills vidare';   /* v920 */
@@ -585,58 +339,6 @@ function regelLageReg(){
   else L={txt:'Styrs – '+(BATT_DM_TXT[dm]||('läge '+dm)),lage:'annat'};
   L.fjarr=true;L.varn=null;
   return L;
-}
-function regelHTML(){
-  regelHamta(false);
-  var R=_regel,nu=Date.now(),h=dSec('Laddregeln'),L=regelLage();
-  h+=dRow('Just nu',esc(L.txt)+(L.bedomd?' <small>(bedömt av effekten)</small>':'')
-    +(L.regLadda?' <small>(registret säger 4/3, men Ladda är inte startat)</small>':''));
-  if(L.varn)h+='<div class="rg-varn">'+icon('warning')+'<span>Läget säger '+(L.lage==='spara'?'spara':'ladda')+', men batteriet '+esc(L.varn)+'.</span></div>';
-  if(!R)return h+'<div class="det-note">'+(REGEL_AV?'Hämtar bokningarna…':'Hämtar laddregelns förslag…')+'</div>';
-  var steg=[];
-  if(R.start>nu)steg.push(['Laddar från',R.start]);
-  if(R.spara>nu)steg.push(['Sparar från',R.spara]);
-  /* v749: med Ladda på betyder stoppet "spara när fullt, normal drift från
-     stopptiden" – "Normal drift 06:00" såg ut som att inget spara var bokat. */
-  var lp=false;try{lp=battMaxMark()===1||battLaddLage()===true||R.start>nu;}catch(e){}
-  if(R.stopp>=SPARA_TV_MS)steg.push([lp?'Fullt sparas':'Sparar',R.stopp]);   /* v920: tills vidare */
-  else if(R.stopp>nu)steg.push([lp?'Fullt sparas till':'Normal drift',R.stopp]);
-  steg.forEach(function(x){h+=dRow(x[0],regelKl(x[1]));});
-  var p=R.forslag,knappar='';
-  if(REGEL_AV){
-    /* v932: ingen ruta – att laddregeln är avstängd är normalläget. */
-  }else if(p&&p.v===2&&p.text){
-    var t=regelTider(p,nu),bokat=(R.stopp>nu&&R.stopp===Number(p.stoppMs));
-    h+='<div class="rg-forslag">'+esc(p.text)
-      +'<small>'+(bokat?'Bokat.':(t.fel?('Gäller inte längre: '+esc(t.fel)+'.'):'Inte bokat – svara på notisen eller starta här.'))
-      +(p.satt?' Förslaget från '+regelKl(Number(p.satt))+'.':'')+'</small></div>';
-    if(!bokat&&!t.fel)knappar+='<button class="te-use" onclick="regelStarta()">Starta förslaget</button>';
-  }else if(p&&p.ingen){
-    h+='<div class="rg-forslag">Inget förslag: '+esc(p.skal||'okänt skäl')
-      +(p.satt?'<small>Kontrollerat '+regelKl(Number(p.satt))+'. Laddregeln kör var 30:e minut.</small>':'')+'</div>';
-  }else{
-    h+='<div class="rg-forslag">Laddregeln har inte lämnat något besked än.<small>Den kör var 30:e minut.</small></div>';
-  }
-  /* v932: Normal drift är en av de fyra knapparna överst. */
-  if(knappar)h+='<div class="rg-btns">'+knappar+'</div>';
-  return h;
-}
-async function regelStarta(){
-  var R=_regel,p=R&&R.forslag,t=regelTider(p,Date.now());
-  if(t.fel){toast('Förslaget gäller inte längre');regelHamta(true);return;}
-  try{
-    var list=await logicList();
-    /* Stoppet först: battboka kör varje minut och ska aldrig se en start
-       utan sitt slut. */
-    await logicWrite(list,'battladd_stopp',t.stopp);
-    await logicWrite(list,'battladd_spara',t.spara);
-    await logicWrite(list,'battladd_start',t.start);
-    _regel.start=t.start;_regel.spara=t.spara;_regel.stopp=t.stopp;
-    try{if(t.start)localStorage.setItem(BATT_START_KEY,String(t.start));else localStorage.removeItem(BATT_START_KEY);}catch(e){}
-    toast('Förslaget bokat');
-  }catch(e){toast('Kunde inte boka: '+((e&&e.message)||'okänt'));}
-  regelHamta(true);
-  try{if(typeof _grafOmRita==='function')_grafOmRita();}catch(e){}
 }
 async function regelNormal(){
   try{
@@ -995,12 +697,10 @@ function byggBatt(){
     +dRow('Effekt',bw==null?'–':((Math.abs(bw)<50||bsx==='idle')?'vilar':((bsx==='charging'?'laddar ':bsx==='discharging'?'matar ut ':'')+W(Math.abs(bw)))))
     +(bt?dRow(bsx==='charging'?'Fulladdat':'Räcker',bt):'')
     /* v841: batteriets temperatur bor här i stället för i temperaturgrafen. */
-    +dRow('Temperatur',bTemp==null?'–':num(bTemp,1)+' °C')
-    /* v843: temperaturgrafen är borta – kurvan ligger i batterigrafen ovan. */
-    +regelHTML();
-    /* Ladda bor i batteriets popup när knappavsnittet är gömt (v688).
-       v708: Spara ligger bredvid; utan Ladda i popupen står den ensam.
-       v719: båda ligger under tidsvalet, se ovan. */
+    +dRow('Temperatur',bTemp==null?'–':num(bTemp,1)+' °C');
+    /* v843: temperaturgrafen är borta – kurvan ligger i batterigrafen ovan.
+       v933: laddregelns avsnitt är borta – laddregeln används inte längre;
+       batteriplanen och bokningarna styr. */
 }
 /* Utbruten så _popupRebuild kan rita om den när Tibbers prisserie landar.
    Symtom före v624: första gången rutan öppnades efter uppstart hade
@@ -1307,11 +1007,6 @@ function openDetailKarna(which){
       +(rt!=null?dRow('Trend',(rt>=0?'+':'')+num(rt,1)+' °/h'):'')
       +prog
       +dRow('Poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_temperature'),1)+' °C')+dRow('Luftfukt poolrum',num(cap('261bb3cf-1d26-4aba-8f36-f5858b40cc20','measure_humidity'),0)+' %');
-  }else if(which==='regellogg'){title='Laddregelns förslag';
-    _popupRebuild=rlPopup;_grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=rlPopup();};
-    /* Hämtningen först: i demoläget sätts loggen direkt, utan att vänta. */
-    _dlgWide=true;_rlDag=null;                       /* v699: bredd · v700: dygnet väljs efter bokningen */
-    rlHamta(false);try{hist7Hamta(false);}catch(e){}try{regelHamta(false);}catch(e){}body=rlPopup();
   }else if(which==='tv'){title='TV';
     /* v713: samma innehåll som den gamla TV-rutans fjärrkontroll. */
     _popupRebuild=gtvHTML;
