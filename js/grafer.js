@@ -1402,7 +1402,7 @@ function periodLabel(s){if(!s||s.first==null)return '';return MABBR[s.first-1]+(
 function yearLabel(s,isCur){if(!s)return '';if(isCur)return (s.first!=null?periodLabel(s):'');if(!s.partial)return 'helår';return (s.first!=null?periodLabel(s):'');}
 function chartSel(cid,key){var s=_chartSel[cid]=_chartSel[cid]||{};if(s[key])delete s[key];else s[key]=1;applyChartSel(cid);}
 function applyChartSel(cid){var el=document.getElementById(cid);if(!el)return;var s=_chartSel[cid]||{},active=Object.keys(s).length>0;
-  var ps=el.querySelectorAll('path[data-k]');Array.prototype.forEach.call(ps,function(p){var k=p.getAttribute('data-k'),on=(!active||s[k]),bw=parseFloat(p.getAttribute('data-bw'))||2;if(p.style){p.style.opacity=on?'1':'0.09';}p.setAttribute('stroke-width',(s[k]?(bw+0.8):bw).toFixed(1));});
+  var ps=el.querySelectorAll('path[data-k]');Array.prototype.forEach.call(ps,function(p){var k=p.getAttribute('data-k'),on=(!active||s[k]||p.getAttribute('data-vx')==='1'),bw=parseFloat(p.getAttribute('data-bw'))||2;if(p.style){p.style.opacity=on?'1':'0.09';}p.setAttribute('stroke-width',(s[k]?(bw+0.8):bw).toFixed(1));});
   var ls=el.querySelectorAll('[data-lk]');Array.prototype.forEach.call(ls,function(it){var k=it.getAttribute('data-lk');if(it.classList){it.classList.toggle('dim',active&&!s[k]);it.classList.toggle('on',!!s[k]);}});}
 function niceMax(v){if(v<=0)return 1;var p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p,m=n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10;return m*p;}
 function niceMin(v){if(v>=0)return 0;return -niceMax(-v);}
@@ -1856,6 +1856,11 @@ function dayChart(series,fonster){
   /* v928: serier med samma grupp (batteriets och utomhusets temperatur) delar
      skala, så att de går att jämföra direkt. */
   var grpV={};
+  /* v931: växlingsbara serier (fonster.vaxla, t.ex. Ute °C) syns alltid när de
+     är på – en markering i förklaringen tonar inte ned dem. Förut tonades Ute
+     ned till 9 % så fort Batteri °C eller Effekt var markerad, medan knappen
+     såg påslagen ut: "visas ibland, och inte igen efter att ha dolts". */
+  var vxAlltid=((fonster&&fonster.vaxla)||[]).map(function(v){return v.k;});
   extra.forEach(function(es){if(!es||!es.grupp||!es.pts)return;var g=klipp(es.pts);if(!g)return;
     (grpV[es.grupp]=grpV[es.grupp]||[]).push.apply(grpV[es.grupp],g.map(function(q){return q.v;}));});
   extra.forEach(function(es){
@@ -1866,8 +1871,8 @@ function dayChart(series,fonster){
     if(thi-tlo<msp){var tm=(thi+tlo)/2;tlo=tm-msp/2;thi=tm+msp/2;}
     var tpad=(thi-tlo)*0.12;tlo-=tpad;thi+=tpad;
     var YT=function(v){return H-padB-((v-tlo)/((thi-tlo)||1))*(H-padT-padB);};
-    var tk=es.key,ton=(!active||sel[tk]);
-    tempLinje+='<path data-k="'+tk+'" data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+es.col
+    var tk=es.key,vxa=vxAlltid.indexOf(tk)>=0,ton=(!active||sel[tk]||vxa);
+    tempLinje+='<path data-k="'+tk+'"'+(vxa?' data-vx="1"':'')+' data-bw="1.6" d="'+smoothPath(tseg.map(function(q){return [X(q.t),YT(q.v)];}))+'" fill="none" stroke="'+es.col
       +'" stroke-width="'+(sel[tk]?2.4:1.6)+'" stroke-linejoin="round" stroke-linecap="round"'   /* v910: heldragen */
       +' vector-effect="non-scaling-stroke" style="opacity:'+(ton?0.95:0.09)+'"/>';
     if(ton)avlSer.push({namn:es.label,farg:es.col,pts:tseg,Y:YT,fmt:es.fmt||function(v){return num(v,1);}});
