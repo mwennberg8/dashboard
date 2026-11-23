@@ -1667,35 +1667,11 @@ var TEMPS=[
 ];
 
 /* ---------- [batteri.js] ---------- */
-/* ===== LADDREGELNS LOGG (v697) =====
-   Planeraren (battnotis 1.3.1) loggar varje förslag i battladd_logg:
-   {v:1, d:{datum:[24 timpriser]}, f:[{t0,t1,typ,start,spara,stopp,kwh,vinst,
-   soc,fragad,bokad,...}]}. Här visas ett dygn i taget — idag och tre bakåt —
-   med priset, batteriets laddnivå (Insights, Husbatteri) och förslagen som
-   band: grönt = ladda från nätet, blått = spara. Fyllt band = bokat, streckat
-   = inte bokat. En triangel överst = när förslaget kom. */
-var _rl=null,_rlAt=0,_rlDag=null,_rlLaddar=false;   /* null = dygnet väljs efter bokningen (v700) */
-
-/* ===== LADDREGELNS RAD I ENERGIRUTAN (v696) =====
-   Förslaget från laddregeln (battladd_forslag) som en rad med Starta och
-   Ignorera. Starta = samma som Ja i notisen (regelStarta). Ignorera döljer
-   just det förslaget på den här enheten; ett nytt förslag (ny nyckel) syns igen.
-   I demoläget visas ett exempel. */
-var REGEL_IGN_KEY='regelIgnorera_v1';
-
-/* ===== LADDREGELN I BATTERIPOPUPEN =====
-   Visar vad laddregeln (battnotis) föreslår och vad battboka har bokat, och
-   låter man starta förslaget härifrån om push-notisen missades — samma
-   skrivning som Ja-knappen gör (battsvar): stopp, spara, start i den
-   ordningen. "Normal drift nu" nollar alla tre och startar normal drift.
-
-   Läget just nu läses ur växelriktaren, inte ur bokningen: läge 4 + 3 =
-   laddar från nätet, 4 + 1 = sparar (bara solöverskott laddar), annat =
-   normal drift. */
-/* v708: laddregeln (planeraren) och all automatik för bil och batteri är
-   avstängd i Homey. Förslagsraden döljs och popupen säger det. */
-var REGEL_AV=true, BATT_AUTO_AV=true;
-var REGEL_VARS=['battplan','energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_forslag','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom','battplan_auto'];   /* v921: battplan_auto */
+/* v708: all automatik för bil och batteri i dashboarden är avstängd (energistyr
+   och batteriplanen sköter den i Homey). v933: laddregeln (förslagen,
+   raden i energirutan och avsnittet i batteripopupen) är borttagen. */
+var BATT_AUTO_AV=true;
+var REGEL_VARS=['battplan','energi_tidslinje','battladd_kalla','billadd_typ','battladd_max','battladd_start','battladd_spara','battladd_stopp','energi_bil','billadd_bokad','billadd_strom','battplan_auto'];   /* v921: battplan_auto */
 var _regel=null,_regelAt=0,_regelLaddar=false,_regelFel='';
 var SAKVAKT={
   max:{v:'sakring_max_a',std:23,min:10,max:35,steg:1,enh:' A',namn:'gränsen'},   /* v918: taken som i energistyr */
@@ -2692,7 +2668,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v932';
+const APP_VERSION='v933';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

@@ -173,12 +173,11 @@ function spotIn(){
     if(hus){if(pb&&pb.parentElement!==hus)hus.appendChild(pb);
       if(pb)pb.classList.add('sp-inne','sp-hus');
       if(plats)plats.style.display='none';if(del)del.style.display='none';
-      /* Energipanelen under husbilden har då bara laddregelns rad kvar – den
-         göms när raden är tom, i stället för att stå som ett tomt kort. */
+      /* Energipanelen under husbilden har då inget kvar att visa (v933:
+         laddregelns rad är borttagen) – den göms i stället för att stå tom.
+         Startsidan före husbilden (index-backup.html) har kvar sin rad. */
       var ep=document.querySelector('#view-flode .enpanel'),rr=$('regelrad');
-      var koll=function(){if(ep)ep.style.display=(rr&&rr.children.length)?'':'none';};
-      koll();
-      if(rr&&!rr._husObs&&typeof MutationObserver!=='undefined'){rr._husObs=new MutationObserver(koll);rr._husObs.observe(rr,{childList:true});}
+      if(ep)ep.style.display=(rr&&rr.children.length)?'':'none';
       return;}
     if(!pb||!plats)return;
     if(pb.parentElement!==plats)plats.appendChild(pb);

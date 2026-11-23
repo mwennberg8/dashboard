@@ -1717,8 +1717,6 @@ function openConfig(){
      ingen letar efter en exportfunktion där. Hit hör den: det är energidata. */
   h+='<div class="cfg-sec">Solprognos</div>';
   h+=cfgMi('openProgLogg()','sun','Solprognos · träffsäkerhet','Hur mycket prognosen brukar bomma, och export per dygn och per timme');
-  /* v697: uppföljning av laddregelns förslag, bredvid solprognosens. */
-  h+=cfgMi('openDetail(\'regellogg\')','battery-charging','Laddregelns förslag','Förslagen mot pris och batteri – idag och tre dygn bakåt');
   h+='<div class="cfg-sec">Energimätning</div>';
   h+=stepRow('Batteri kWh','cfgnum-batt',((CFG.battkwh||10))+'','cfgBatt');
   h+='<div class="cfg-row"><span class="cfg-row-l">Köpt i år (kWh)</span><div class="cfg-step"><input id="cfg-boughtyear" class="cfg-inp" type="number" inputmode="numeric" value="'+(boughtYear()!=null?Math.round(boughtYear()):'')+'"><button class="cfg-pm wide" onclick="calibBoughtYear()">Kalibrera</button></div></div>';
@@ -1990,7 +1988,7 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{paNuRita();}catch(e){}
-  try{regelHamta(false);regelRadRita();}catch(e){}
+  try{regelHamta(false);}catch(e){}
   /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
      från Insights (högst var femte minut). */
   try{if(histLucka('battpow')||histLucka('house'))seedFyll();}catch(e){}
