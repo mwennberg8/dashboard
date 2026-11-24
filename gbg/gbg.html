@@ -1277,7 +1277,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.105.0';
+const APP_VERSION = 'v1.106.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2802,59 +2802,71 @@ const H3_VAGGAR=[
   /* badrum: norrvägg med dörr 5,35–6,05, västvägg mot köket */
   [6.05,6.47,7,6.47,H3_T],[5.3,6.47,5.3,8.5,H3_T]
 ];
-/* Inredning ur ritningen: [x,y,b,d,höjd,typ]. g = garderob, k = köksskåp,
-   v = vitvaror (K/F, U/M, SF), t = toalett, l = handfat, s = duschhörna. */
-const H3_INRED=[
-  /* v1.102.0: klädkammaren – bänk i ståhöjd längs östväggen, överskåp ovanför. */
-  [6.3,1.9,0.58,1.71,0.95,'b'],[6.52,1.9,0.36,1.71,2.3,'g',1.55],
-  /* Hallen – den vänstra (norra) sektionen hög, sedan överskåp vid taket och
-     under dem en bänk med skohylla. */
-  [6.1,4.62,0.55,0.58,2.1,'g'],[6.25,5.2,0.4,1.16,2.38,'g',1.8],[6.1,5.2,0.55,1.16,0.5,'b'],
-  [2.35,6.55,0.62,0.6,2.1,'v'],[2.97,6.55,0.62,0.6,2.1,'v'],[3.59,6.55,0.62,0.6,2.1,'v'],
-  [2.35,8.2,2.85,0.6,0.9,'k'],
-  [6.45,6.62,0.4,0.55,0.45,'t'],[6.5,7.35,0.38,0.5,0.85,'l'],[5.42,7.6,0.85,0.78,0.08,'s'],
-  /* v1.103.0: möblerna kring de placerade enheterna. m = tyg, q = sängkläder,
-     x = svart (tv, skrivare). Delarna överlappar inte i planet, så att
-     målarordningen blir rätt från alla håll. */
-  /* Vardagsrummet: soffan längs norrväggen (sits + rygg), tv-bänk och tv mot söderväggen. */
-  [0.38,0.37,2.07,0.73,0.45,'m'],[0.38,0.15,2.07,0.22,0.85,'m'],
-  [0.6,3.12,1.25,0.4,0.5,'b'],[0.68,3.53,1.08,0.05,1.3,'x',0.62],
-  /* Sovrummet: dubbelsäng med huvudänden mot norrväggen, sänggavel. */
-  [0.76,3.85,1.6,2.0,0.5,'q'],[0.76,3.75,1.6,0.1,1.0,'b'],
-  /* Hallen: hallbordet mot västväggen. Klädkammaren: 3D-skrivaren på bänken. */
-  [4.36,5.07,0.4,0.8,0.8,'b'],[6.34,3.12,0.5,0.47,1.4,'x',0.95]
-].concat(h3Bardisk());
-/* v1.102.0: KÖKETS BARDISK längs fönsterväggen (som är snedställd), med
-   tre barstolar. Räknas ut längs väggens linje, så den följer vinkeln. */
-function h3Bardisk(){
-  const A=[0.27,6.47],B=[0,8.9],L=Math.hypot(B[0]-A[0],B[1]-A[1]),u=[(B[0]-A[0])/L,(B[1]-A[1])/L],n=[-u[1],u[0]];
-  const nn=n[0]>0?n:[-n[0],-n[1]];   /* inåt, mot köket */
-  const pt=(t,o)=>[A[0]+u[0]*t+nn[0]*o,A[1]+u[1]*t+nn[1]*o];
-  const ut=[{p:[pt(0.25,0.14),pt(2.2,0.14),pt(2.2,0.58),pt(0.25,0.58)],h:1.05,typ:'b'}];
-  [0.65,1.22,1.8].forEach(function(t){ut.push({p:[pt(t-0.17,0.72),pt(t+0.17,0.72),pt(t+0.17,1.06),pt(t-0.17,1.06)],h:0.72,typ:'k'});});
-  return ut;
-}
-/* v1.105.0: MÖBLERNA GÅR ATT FLYTTA. H3_INRED ovan är det inbyggda; i
-   redigeraren blir varje möbel en vriden rektangel {cx, cy (mitt, m), b, d
-   (bredd längs vinkeln, djup), v (vinkel °), h (överkant), h0 (underkant),
-   typ, n (namn)}. Det som ändrats sparas på skärmen (H3_MOB_KEY) och gäller
+/* ===== MÖBLERNA (v1.106.0) =====
+   Varje möbel är en vriden rektangel: {cx, cy (mitt, m), b (bredd längs
+   vinkeln), d (djup), v (vinkel °), h (överkant), h0 (underkant), typ (färg),
+   n (namn), f (form)}. Formerna ritas som flera delar (h3MobDelar):
+     rund     – cylinder (puff, plafond)
+     eket     – trappa av 5+4+3+2+1 kuber, högst vid -b/2
+     toalett  – vägghängd: inbyggd cistern mot väggen (-d/2) och skål ut i rummet
+     garderob – stomme med två skjutdörrar på framsidan (+d/2)
+   Typerna (färgerna): b trä, L ljust trä, g skåp, k ljus, v vit/vitvara,
+   m tyg, q säng, x svart, y grå, r röd, t toalett, l handfat, s dusch.
+   Det som ändras i redigeraren sparas på skärmen (H3_MOB_KEY) och gäller
    tills H3_MOB_BAS höjs – det görs när en redigering byggs in här. */
-const H3_MOB_KEY='gbgmob_v1',H3_MOB_BAS=1;
-const H3_MOB_NAMN=['Bänk','Överskåp','Högskåp','Överskåp','Skobänk','Vitvara K/F','Vitvara U/M','Vitvara SF','Köksbänk',
-  'Toalett','Handfat','Dusch','Soffa, sits','Soffa, rygg','Tv-bänk','Tv','Säng','Sänggavel','Hallbord','3D-skrivare','Bardisk','Barstol','Barstol','Barstol'];
-const H3_MOB_TYPER=[['b','Trä (bänk, bord)'],['g','Skåp'],['k','Ljus (köksskåp)'],['v','Vitvara'],['m','Tyg (soffa)'],['q','Säng'],['x','Svart (tv, skrivare)'],['t','Toalett'],['l','Handfat'],['s','Dusch']];
+const H3_MOB_KEY='gbgmob_v1',H3_MOB_BAS=2;
+const H3_MOB_TYPER=[['b','Trä'],['L','Ljust trä'],['g','Skåp'],['k','Ljus (köksskåp)'],['v','Vit (vitvara)'],['m','Tyg (soffa)'],['q','Säng'],
+  ['x','Svart (tv, skrivare)'],['y','Grå'],['r','Röd'],['t','Toalett'],['l','Handfat'],['s','Dusch']];
+const H3_MOB_FORMER=[['','Rätblock'],['rund','Rund'],['eket','Eket-trappa'],['toalett','Vägghängd toalett'],['garderob','Garderob med skjutdörrar']];
+/* Markus redigering 2026-11-24 17:53 och beskrivningen till den. */
+const H3_MOB_STD=[
+  /* Klädkammaren: bänk i ståhöjd med överskåp, 3D-skrivaren på bänken, takskena med tre spottar. */
+  {cx:6.59,cy:2.755,b:0.58,d:1.71,v:0,h:0.95,h0:0,typ:'b',n:'Bänk'},
+  {cx:6.7,cy:2.755,b:0.36,d:1.71,v:0,h:2.3,h0:1.55,typ:'g',n:'Överskåp'},
+  {cx:6.59,cy:3.355,b:0.5,d:0.47,v:0,h:1.4,h0:0.95,typ:'x',n:'3D-skrivare'},
+  {cx:5.86,cy:1.87,b:1.1,d:0.05,v:90,h:2.39,h0:2.35,typ:'x',n:'Takskena'},
+  /* Hallen: högskåp, överskåp och skobänk, hallbordet, plafond. */
+  {cx:6.6,cy:4.91,b:0.55,d:0.58,v:0,h:2.1,h0:0,typ:'g',n:'Högskåp'},
+  {cx:6.68,cy:5.8,b:0.4,d:1.16,v:0,h:2.38,h0:1.8,typ:'g',n:'Överskåp'},
+  {cx:6.61,cy:5.8,b:0.55,d:1.16,v:0,h:0.5,h0:0,typ:'b',n:'Skobänk'},
+  {cx:4.62,cy:4.95,b:0.51,d:1.06,v:0,h:0.8,h0:0,typ:'b',n:'Hallbord'},
+  {cx:5.615,cy:5.07,b:0.35,d:0.35,v:0,h:2.39,h0:2.32,typ:'v',n:'Plafond',f:'rund'},
+  /* Köket: vitvaror, köksbänk, bardisk med tre stolar, takskena med fem spottar. */
+  {cx:2.66,cy:6.85,b:0.62,d:0.6,v:0,h:2.1,h0:0,typ:'v',n:'Vitvara K/F'},
+  {cx:3.28,cy:6.85,b:0.62,d:0.6,v:0,h:2.1,h0:0,typ:'v',n:'Vitvara U/M'},
+  {cx:3.9,cy:6.85,b:0.62,d:0.6,v:0,h:2.1,h0:0,typ:'v',n:'Vitvara SF'},
+  {cx:3.775,cy:8.5,b:2.85,d:0.6,v:0,h:0.9,h0:0,typ:'k',n:'Köksbänk'},
+  {cx:0.493,cy:7.727,b:1.95,d:0.44,v:96.3,h:1.05,h0:0,typ:'b',n:'Bardisk'},
+  {cx:1.083,cy:7.214,b:0.34,d:0.34,v:96.3,h:0.72,h0:0,typ:'k',n:'Barstol'},
+  {cx:1.02,cy:7.781,b:0.34,d:0.34,v:96.3,h:0.72,h0:0,typ:'k',n:'Barstol'},
+  {cx:0.956,cy:8.357,b:0.34,d:0.34,v:96.3,h:0.72,h0:0,typ:'k',n:'Barstol'},
+  {cx:2.73,cy:7.665,b:1.7,d:0.05,v:0,h:2.39,h0:2.35,typ:'x',n:'Takskena'},
+  /* Badrummet: handfat, dusch, vägghängd toalett mot östväggen, plafond. */
+  {cx:6.69,cy:7.35,b:0.38,d:0.5,v:0,h:0.85,h0:0,typ:'l',n:'Handfat'},
+  {cx:5.845,cy:7.99,b:0.85,d:0.78,v:0,h:0.08,h0:0,typ:'s',n:'Dusch'},
+  {cx:6.55,cy:6.79,b:0.5,d:0.7,v:90,h:1.1,h0:0,typ:'t',n:'Toalett',f:'toalett'},
+  {cx:6.13,cy:7.47,b:0.3,d:0.3,v:0,h:2.39,h0:2.33,typ:'v',n:'Plafond',f:'rund'},
+  /* Vardagsrummet: soffan, soffbordet, puffen, tv-bänken med tv, bänken,
+     Eket-trappan på östväggen 30 cm över golvet, takskena med fyra spottar. */
+  {cx:1.81,cy:0.74,b:2.06,d:0.73,v:0,h:0.45,h0:0,typ:'m',n:'Soffa, sits'},
+  {cx:1.81,cy:0.25,b:2.07,d:0.22,v:0,h:0.85,h0:0,typ:'m',n:'Soffa, rygg'},
+  {cx:1.81,cy:1.63,b:0.9,d:0.45,v:0,h:0.42,h0:0,typ:'b',n:'Soffbord'},
+  {cx:2.75,cy:1.6,b:0.45,d:0.45,v:0,h:0.35,h0:0,typ:'r',n:'Puff',f:'rund'},
+  {cx:1.74,cy:3.4,b:1.54,d:0.4,v:0,h:0.4,h0:0,typ:'b',n:'Tv-bänk'},
+  {cx:1.8,cy:3.56,b:1.08,d:0.05,v:0,h:1.3,h0:0.62,typ:'x',n:'Tv'},
+  {cx:3.42,cy:3.41,b:1.76,d:0.41,v:0,h:0.75,h0:0,typ:'b',n:'Bänk'},
+  {cx:4.995,cy:1.17,b:1.75,d:0.35,v:90,h:2.05,h0:0.3,typ:'v',n:'Eket trapphylla',f:'eket'},
+  {cx:2.69,cy:1.87,b:1.35,d:0.05,v:0,h:2.39,h0:2.35,typ:'x',n:'Takskena'},
+  /* Sovrummet: säng med gavel, sängbordet som vägghylla, garderoben nästan
+     upp till taket (ljus stomme, grå skjutdörrar), plafond. */
+  {cx:1.97,cy:4.85,b:1.6,d:2,v:0,h:0.5,h0:0,typ:'q',n:'Säng'},
+  {cx:1.97,cy:3.8,b:1.6,d:0.1,v:0,h:1,h0:0,typ:'b',n:'Sänggavel'},
+  {cx:0.8,cy:3.93,b:0.55,d:0.28,v:0,h:0.6,h0:0.55,typ:'b',n:'Sängbord'},
+  {cx:3.87,cy:4.47,b:1.45,d:0.65,v:90,h:2.3,h0:0,typ:'L',n:'Garderob',f:'garderob'},
+  {cx:2.27,cy:5.07,b:0.42,d:0.42,v:0,h:2.39,h0:2.32,typ:'v',n:'Plafond',f:'rund'}
+];
+function h3MoblerStd(){return H3_MOB_STD.map(m=>Object.assign({},m));}
 let _h3Mob=null;
-function h3MobelFran(m,i){
-  let o;
-  if(m.p){const p=m.p,cx=p.reduce((a,q)=>a+q[0],0)/p.length,cy=p.reduce((a,q)=>a+q[1],0)/p.length;
-    o={cx:cx,cy:cy,b:Math.hypot(p[1][0]-p[0][0],p[1][1]-p[0][1]),d:Math.hypot(p[3][0]-p[0][0],p[3][1]-p[0][1]),
-      v:Math.atan2(p[1][1]-p[0][1],p[1][0]-p[0][0])*180/Math.PI,h:m.h,h0:m.h0||0,typ:m.typ};}
-  else{const [x,y,w,d,h,typ,h0]=m;o={cx:x+w/2,cy:y+d/2,b:w,d:d,v:0,h:h,h0:h0||0,typ:typ};}
-  ['cx','cy','b','d'].forEach(k=>{o[k]=Math.round(o[k]*1000)/1000;});o.v=Math.round(((o.v%360)+360)%360*10)/10;
-  if(H3_MOB_NAMN.length===H3_INRED.length&&H3_MOB_NAMN[i])o.n=H3_MOB_NAMN[i];
-  return o;
-}
-function h3MoblerStd(){return H3_INRED.map(h3MobelFran);}
 function h3MoblerLokal(){try{const o=JSON.parse(localStorage.getItem(H3_MOB_KEY)||'null');return !!(o&&o.bas===H3_MOB_BAS&&Array.isArray(o.l));}catch(e){return false;}}
 function h3Mobler(){
   if(_h3Mob)return _h3Mob;
@@ -2874,8 +2886,37 @@ function h3MobelHorn(m){
   const a=m.v*Math.PI/180,c=Math.cos(a),s=Math.sin(a),hb=m.b/2,hd=m.d/2;
   return [[-hb,-hd],[hb,-hd],[hb,hd],[-hb,hd]].map(q=>[m.cx+q[0]*c-q[1]*s,m.cy+q[0]*s+q[1]*c]);
 }
-/* Det 3D-vyn ritar: hörnen, höjderna och typen. */
-function h3Inred(){return h3eMob().map(m=>({p:h3MobelHorn(m),h:m.h,h0:m.h0||0,typ:m.typ}));}
+/* Möbelns delar som 3D-vyn och planen ritar: [{p (hörn), h, h0, typ}]. */
+function h3MobDelar(m){
+  const a=m.v*Math.PI/180,c=Math.cos(a),s=Math.sin(a),h0=m.h0||0;
+  const W=(x,y)=>[m.cx+x*c-y*s,m.cy+x*s+y*c];
+  const ruta=(x0,y0,x1,y1)=>[W(x0,y0),W(x1,y0),W(x1,y1),W(x0,y1)];
+  const hb=m.b/2,hd=m.d/2;
+  if(m.f==='rund'){const p=[];for(let i=0;i<20;i++){const t=i/20*Math.PI*2;p.push(W(Math.cos(t)*hb,Math.sin(t)*hd));}
+    return [{p:p,h:m.h,h0:h0,typ:m.typ}];}
+  if(m.f==='eket'){
+    /* 15 kuber: fem pelare, 5–4–3–2–1 kuber höga, med en fog mellan kuberna. */
+    const w=m.b/5,ch=(m.h-h0)/5,ut=[];
+    for(let i=0;i<5;i++)for(let j=0;j<5-i;j++)
+      ut.push({p:ruta(-hb+i*w+0.006,-hd,-hb+(i+1)*w-0.006,hd),h:h0+(j+1)*ch-0.008,h0:h0+j*ch,typ:m.typ});
+    return ut;}
+  if(m.f==='toalett'){
+    /* Inbyggd cistern mot väggen (-d/2), skålen med rundad front ut i rummet. */
+    const lad=Math.min(0.2,m.d*0.3),y0=-hd+lad,bw=Math.min(0.36,m.b),r=bw/2,yc=hd-r,skal=[W(-r,y0),W(r,y0)];
+    for(let i=0;i<=10;i++){const t=i/10*Math.PI;skal.push(W(Math.cos(t)*r,yc+Math.sin(t)*r));}
+    return [{p:ruta(-hb,-hd,hb,y0),h:m.h,h0:h0,typ:m.typ},{p:skal,h:h0+0.42,h0:h0+0.26,typ:m.typ}];}
+  if(m.f==='garderob'){
+    /* Stommen och två grå skjutdörrar på framsidan (+d/2), den ena framför den andra. */
+    const f=0.035;
+    return [{p:ruta(-hb,-hd,hb,hd-f),h:m.h,h0:h0,typ:m.typ},
+      {p:ruta(-hb+0.02,hd-f,0.03,hd-f+0.018),h:m.h-0.04,h0:h0+0.04,typ:'y'},
+      {p:ruta(-0.03,hd-f+0.018,hb-0.02,hd),h:m.h-0.04,h0:h0+0.04,typ:'y'}];}
+  return [{p:ruta(-hb,-hd,hb,hd),h:m.h,h0:h0,typ:m.typ}];
+}
+/* Det 3D-vyn ritar: alla delar, med vilken möbel de hör till (i). */
+function h3Inred(){const ut=[];h3eMob().forEach((m,i)=>h3MobDelar(m).forEach(d=>{d.i=i;ut.push(d);}));return ut;}
+/* Färgen för en typ. */
+function h3TypFarg(F,t){return ({t:F.vit,l:F.vit,v:F.vit,b:F.tra,L:F.ljustra,m:F.tyg,q:F.sang,x:F.svart,y:F.gra,r:F.rod})[t]||F.inred;}
 /* v1.97.0: VYN GÅR ATT VRIDA, LUTA, ZOOMA OCH FLYTTA.
    _h3V = {yaw (°), tilt (° över horisonten), zoom, px, py (förskjutning i
    ritningens enheter)}. Sparas per skärm. Mus: dra = vrid och luta, högerklick
@@ -2962,12 +3003,13 @@ function h3Block(P,b,h0,h1,farg,alfa){
   const op=(alfa!=null&&alfa<0.999)?' fill-opacity="'+alfa.toFixed(2)+'"':'';
   const top=b.map(q=>P(q[0],q[1],h1));
   let s='';
-  for(let i=0;i<4;i++){
-    const a=b[i],c=b[(i+1)%4];
+  /* v1.106.0: valfritt antal hörn (runda möbler), konvext. */
+  const n=b.length,cen=[b.reduce((x,q)=>x+q[0],0)/n,b.reduce((x,q)=>x+q[1],0)/n];
+  for(let i=0;i<n;i++){
+    const a=b[i],c=b[(i+1)%n];
     const pa=P(a[0],a[1],0),pc=P(c[0],c[1],0);
     /* Sidan syns om den vetter mot betraktaren: normalen pekar mot +djup. */
     const mx=(a[0]+c[0])/2,my=(a[1]+c[1])/2;
-    const cen=[(b[0][0]+b[2][0])/2,(b[0][1]+b[2][1])/2];
     const pm=P(mx,my,0),pk=P(cen[0],cen[1],0);
     if(pm.d<=pk.d+1e-6)continue;
     const ljus=pm.x<pk.x?farg.s1:farg.s2;   /* vänster sida ljusare, höger mörkare */
@@ -3015,6 +3057,7 @@ function h3Farger(){
     inred:{top:'#f7f4ee',s1:'#ddd6c9',s2:'#cfc7b8'},vit:{top:'#ffffff',s1:'#e6e2da',s2:'#d8d3ca'},
     tra:{top:'#d2b48c',s1:'#bf9f76',s2:'#ad8e67'},lampAv:'#9aa3b5',
     tyg:{top:'#8e9bb0',s1:'#7a879c',s2:'#6c788c'},sang:{top:'#f3efe8',s1:'#ddd7cc',s2:'#cfc8bc'},svart:{top:'#3b4049',s1:'#2b2f37',s2:'#23262d'},
+    ljustra:{top:'#ead8b8',s1:'#dcc7a2',s2:'#cdb68f'},gra:{top:'#a3a9b4',s1:'#959ba6',s2:'#878d98'},rod:{top:'#d0574f',s1:'#b94840',s2:'#a63e37'},
     dorr:'#cf7551',skugga:'rgba(46,52,64,.10)'
   }:{
     golv:'#3a4152',golvK:'#3f4658',kant:'rgba(216,222,233,.16)',
@@ -3025,6 +3068,7 @@ function h3Farger(){
     inred:{top:'#5b6478',s1:'#4a5266',s2:'#424a5c'},vit:{top:'#8f98aa',s1:'#6c7588',s2:'#626b7e'},
     tra:{top:'#9c8261',s1:'#7d6850',s2:'#6e5b46'},lampAv:'#6c7588',
     tyg:{top:'#6b7a8f',s1:'#56647a',s2:'#4b586c'},sang:{top:'#a9b1c0',s1:'#8a93a5',s2:'#7c8597'},svart:{top:'#1f232a',s1:'#181b21',s2:'#14171c'},
+    ljustra:{top:'#c2a985',s1:'#a38c6a',s2:'#917b5b'},gra:{top:'#7d8492',s1:'#6a7180',s2:'#5f6574'},rod:{top:'#c4544c',s1:'#a3433c',s2:'#8f3a34'},
     dorr:'#d08770',skugga:'rgba(0,0,0,.22)'
   };
 }
@@ -3087,7 +3131,9 @@ function renderHus3d(tvinga,baraVy,mal){
   const vx=mid.x+V.px-RW/2,vy=mid.y+V.py-RH/2+RH*0.07;
   let s='<svg class="h3-svg" viewBox="'+vx.toFixed(1)+' '+vy.toFixed(1)+' '+RW.toFixed(1)+' '+RH.toFixed(1)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Lägenheten i 3D">';
   s+='<defs><filter id="h3-sudd" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="35"/></filter>'
-    +'<filter id="h3-sudd-l" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter></defs>';
+    +'<filter id="h3-sudd-l" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter>'
+    /* Ledlisternas sken: en linje kan ha nästan ingen bredd, så filtret räknas i bildens egna mått. */
+    +'<filter id="h3-sudd-b" filterUnits="userSpaceOnUse" x="-4000" y="-4000" width="8000" height="8000"><feGaussianBlur stdDeviation="22"/></filter></defs>';
   /* Skugga under huset. */
   const yttre=[[0,0],[6.5,0],[6.5,1.73],[7,1.73],[7,8.5],[5.3,8.5],[5.3,8.9],[0,8.9],[0.27,6.47],[0.27,3.67]];
   s+='<polygon points="'+yttre.map(q=>{const p=P(q[0]+0.12,q[1]+0.16,0);return pt(p);}).join(' ')+'" fill="'+F.skugga+'" filter="url(#h3-sudd)"/>';
@@ -3103,11 +3149,13 @@ function renderHus3d(tvinga,baraVy,mal){
       s+='<clipPath id="h3-k'+i+'"><polygon points="'+pts+'"/></clipPath>';
       /* v1.102.0: med placerade lampor faller skenet där lamporna sitter –
          en svag ton över golvet och ett sken under varje tänd lampa. */
-      const egna=r.zid?Object.keys(plac).filter(id=>{const d=DATA[id];return d&&d.zone===r.zid&&arLampa(d)&&capOf(d,'onoff')===true;}):[];
+      const egna=r.zid?Object.keys(plac).filter(id=>{const d=DATA[id];return d&&d.zone===r.zid&&arLampa(d)&&capOf(d,'onoff')===true&&!h3Dold(id,plac);}):[];
       s+='<polygon class="h3-ljus" points="'+pts+'" fill="'+c+'" opacity="'+(egna.length?(0.08+0.15*r.lj.styrka).toFixed(2):a)+'"/>';
       if(egna.length){
         s+='<g clip-path="url(#h3-k'+i+')">'+egna.map(id=>{const d=DATA[id],v=plac[id],m=P(v[0],v[1],0),rgb=fargVisning(d).rgb;
           const dim=har(d,'dim')&&capOf(d,'dim')!=null?Math.max(0.1,capOf(d,'dim')):1,rr=(60+70*dim)*(v[2]>2?1.25:0.9);
+          /* v1.106.0: en ledlist lyser längs sin linje. */
+          if(H3_LEDLIST[id])return '<polyline class="h3-ljus" points="'+H3_LEDLIST[id].map(q=>pt(P(q[0],q[1],0))).join(' ')+'" fill="none" stroke="rgb('+rgb.join(',')+')" stroke-width="'+(45+35*dim).toFixed(0)+'" stroke-linecap="round" stroke-linejoin="round" opacity="'+(0.3+0.4*dim).toFixed(2)+'" filter="url(#h3-sudd-b)"/>';
           return '<ellipse class="h3-ljus" cx="'+m.x.toFixed(1)+'" cy="'+m.y.toFixed(1)+'" rx="'+rr.toFixed(0)+'" ry="'+(rr*0.78).toFixed(0)+'" fill="rgb('+rgb.join(',')+')" opacity="'+(0.3+0.45*dim).toFixed(2)+'" filter="url(#h3-sudd)"/>';}).join('')+'</g>';
       }else{
         const m=P(r.cx,r.cy,0);
@@ -3134,8 +3182,8 @@ function renderHus3d(tvinga,baraVy,mal){
   /* Ett stycke mellan h0 och h1, kapat vid utskärningen ht. */
   const del=function(b,h0,h1,ht,farg){const t=Math.min(h1,ht);return t>h0+0.005?h3Block(P,b.b,h0,t,farg):'';};
   /* v1.105.0: möblerna ur h3Inred – det inbyggda eller det som flyttats i redigeraren. */
-  h3Inred().forEach((m,i)=>{const cx=m.p.reduce((a,q)=>a+q[0],0)/4,cy=m.p.reduce((a,q)=>a+q[1],0)/4;
-    block.push({b:m.p,cx:cx,cy:cy,h:m.h,h0:m.h0||0,typ:'i'+m.typ,vald:!!(mal&&mal.mob===i)});});
+  h3Inred().forEach(m=>{const cx=m.p.reduce((a,q)=>a+q[0],0)/m.p.length,cy=m.p.reduce((a,q)=>a+q[1],0)/m.p.length;
+    block.push({b:m.p,cx:cx,cy:cy,h:m.h,h0:m.h0||0,typ:'i'+m.typ,vald:!!(mal&&mal.mob===m.i)});});
   /* Överskåp efter bänken under dem (samma mitt): höjden bryter likheten. */
   block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d+(b.h0||0)*1e-4;});
   block.sort((a,b)=>a.dj-b.dj);
@@ -3160,13 +3208,14 @@ function renderHus3d(tvinga,baraVy,mal){
       s+=h3Block(P,b.b,0,0.06,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
       s+=del(b,2.05,H3_VAGG,hojd(b,H3_VAGG),F.ytter);
     }else if(b.typ&&b.typ[0]==='i'){
-      const t=b.typ[1],f=b.vald?{top:'#ebcb8b',s1:'#d4b06a',s2:'#c09c58'}:((t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:(t==='m'?F.tyg:(t==='q'?F.sang:(t==='x'?F.svart:F.inred)))));
+      const t=b.typ[1],f=b.vald?{top:'#ebcb8b',s1:'#d4b06a',s2:'#c09c58'}:h3TypFarg(F,t);
       s+=h3Block(P,b.b,b.h0||0,b.h,f);
     }else s+=del(b,0,H3_VAGG,hojd(b,H3_VAGG),b.ytter?F.ytter:F.vagg);
   });
   /* v1.102.0: DE PLACERADE ENHETERNA. Lampor som punkter i sin färg (tryck =
      tänd/släck just den), andra enheter som små grå rutor. */
   Object.keys(plac).forEach(id=>{const d=DATA[id],v=plac[id];if(!d||!v)return;
+    if(h3Dold(id,plac)&&!(mal&&mal.enh===id))return;
     const m=P(v[0],v[1],v[2]);
     /* Redigeraren: den valda enheten med en guldring och en lodlinje ned till golvet. */
     if(mal&&mal.enh===id){const g=P(v[0],v[1],0);
@@ -3223,16 +3272,55 @@ function renderHus3d(tvinga,baraVy,mal){
    (fylls i när du skickat din placering); det du placerar själv i verktyget
    sparas på skärmen (H3_PLAC_KEY) och går före, så att det syns direkt. */
 const H3_ENHETER={
-  /* v1.103.0: Markus placering 2026-11-24 06:48. */
-  '176647d4-0d7d-4203-b7a0-c556d8f49ec1':[6.13,7.53,2.35],   /* Badrum tak */
-  '6285734d-4ae8-477f-83c1-d9512b29851a':[6.69,7.51,1.6],    /* Badrum tvättställ */
-  '3f04f804-0a50-4957-a9e2-1f2f9a668d18':[4.39,5.47,0.85],   /* Hallbord */
+  /* v1.106.0: Markus redigering 2026-11-24 17:53. Taklamporna mitt i rummen:
+     plafond i hall, sovrum och badrum, skenor med spottar i vardagsrum, kök
+     och klädkammare (varje spot för sig). Ledlisterna (H3_LEDLIST) under
+     Eket-hyllan och under sängen. */
+  '176647d4-0d7d-4203-b7a0-c556d8f49ec1':[6.13,7.47,2.3],    /* Badrum tak – plafond */
+  '6285734d-4ae8-477f-83c1-d9512b29851a':[6.83,7.32,1.6],    /* Badrum tvättställ */
+  '8144c65f-a41a-4ac6-a195-361f9b961ce3':[6.81,7.34,1.6],    /* Badrumsskåp */
+  '3f04f804-0a50-4957-a9e2-1f2f9a668d18':[4.48,5.33,0.85],   /* Hallbord */
+  '87209c2e-3b84-4744-ba2a-dd6089722b3a':[5.615,5.07,2.3],   /* Hall tak – plafond */
   '67d7df7a-5d6f-4de6-a8ae-0d2b45b596f4':[6.51,3.36,1.2],    /* Bambu P1P */
-  '9e8d9dc0-4872-41b8-b088-b2098ccb8a8e':[1.56,4.23,0.85],   /* Säng */
-  '795b615a-9545-4fd2-a264-f3513107c523':[0.73,0.34,0.85],   /* Soffa */
-  'a34d1cf0-e658-4443-a808-4c55b9fabfd6':[1.22,3.29,0.85]    /* TV */
+  '9e8d9dc0-4872-41b8-b088-b2098ccb8a8e':[1.93,4.67,0.08],   /* Säng – ledlist under sängen */
+  'f9a75214-947c-490b-b20a-cbfc4cf93b4e':[0.63,3.91,0.85],   /* Sängbord */
+  '4a39dbce-5038-4394-a12c-02d91ca2d4ae':[2.27,5.07,2.3],    /* Sovrum tak – plafond */
+  '0e68713c-8fe9-4550-87f4-92fa3a308485':[4.91,1.41,0.25],   /* Bloom */
+  '795b615a-9545-4fd2-a264-f3513107c523':[0.82,0.2,1.6],     /* Soffa */
+  '2e6016c0-ee9b-429e-8c0b-6e27c535a65a':[4.16,3.45,0.85],   /* Vardagsrum bänk */
+  '8c857078-5f4d-4645-9e6c-b9bf26b1b2e8':[5.0,1.17,0.28],    /* Vardagsrum golv – ledlist under Eket */
+  '30cd27cc-82b8-4aa9-a7a6-05f3728c6eb2':[3.91,3.45,1.2],    /* ARC */
+  'a34d1cf0-e658-4443-a808-4c55b9fabfd6':[1.79,3.5,0.85],    /* TV */
+  '27b6439a-73fd-417d-bab9-2749258b09c1':[2.69,1.87,2.36],   /* Vardagsrum tak – skenan (gruppen) */
+  'a12769f3-fe23-40c1-892f-f0d17fa2a999':[2.165,1.87,2.31],   /* Vardagsrum tak 1 */
+  '474833e0-7740-4ecf-b636-68d768bfe406':[2.515,1.87,2.31],   /* Vardagsrum tak 2 */
+  'b519b401-0cbe-43a3-a972-ecb32d957210':[2.865,1.87,2.31],   /* Vardagsrum tak 3 */
+  'fc4c47b7-10a3-4db0-aee7-1b77df4d8fe7':[3.215,1.87,2.31],   /* Vardagsrum tak 4 */
+  'ff4f5f57-af47-427b-9868-494bab9bd8f4':[2.73,7.665,2.36],  /* Kök tak – skenan (gruppen) */
+  '7668afdf-f367-4c8b-9a39-3fce58cdeb03':[2.03,7.665,2.31],   /* Kök tak 1 */
+  '2d9af2c4-27ed-43e6-84f0-43e59c61b240':[2.38,7.665,2.31],   /* Kök tak 2 */
+  'a3a92e5c-8336-41e2-af50-30e595820b83':[2.73,7.665,2.31],   /* Kök tak 3 */
+  'c30528a4-0425-4213-9057-303749a55122':[3.08,7.665,2.31],   /* Kök tak 4 */
+  '8b8117a5-cac3-4155-b9fa-fc7f837581b3':[3.43,7.665,2.31],   /* Kök tak 5 */
+  '0f3dbcea-f59b-4eea-8735-b5c0abb0d6c7':[5.86,1.87,2.36],   /* Klädkammare tak – skenan */
+  '441f8fba-b8b6-43fc-a570-4501d6804f3a':[5.86,1.47,2.31],   /* Klk1 */
+  'd49b0294-8a10-4d64-8f79-b59afbaef0da':[5.86,1.87,2.31],   /* Klk2 */
+  'd75ea39b-47da-4ec0-8c05-09294ef77bfe':[5.86,2.27,2.31]    /* Klk3 */
 };
-const H3_PLAC_KEY='gbgplac_v1';
+/* Skenornas egna enheter: styr alla spottarna men ritas inte i 3D – spottarna gör det. */
+const H3_SKENOR=['27b6439a-73fd-417d-bab9-2749258b09c1','ff4f5f57-af47-427b-9868-494bab9bd8f4','0f3dbcea-f59b-4eea-8735-b5c0abb0d6c7'];
+/* Ledlister: skenet följer linjen på golvet i stället för en punkt. */
+const H3_LEDLIST={
+  '8c857078-5f4d-4645-9e6c-b9bf26b1b2e8':[[5.1,0.33],[5.1,2.02]],                     /* under Eket-hyllan */
+  '9e8d9dc0-4872-41b8-b088-b2098ccb8a8e':[[1.12,3.9],[1.12,5.9],[2.82,5.9],[2.82,3.9]]  /* runt sängen */
+};
+/* En lampa som inte ritas i 3D: skenornas enheter, och grupper vars lampor är utplacerade. */
+function h3Dold(id,plac){
+  if(H3_SKENOR.indexOf(id)>=0)return true;
+  try{const d=DATA[id];return !!(d&&arGrupp(d)&&grpMedlemmar(d).some(m=>plac[m.id]));}catch(e){return false;}
+}
+/* v1.106.0: ny nyckel – det som placerats på skärmen är inbyggt nu. */
+const H3_PLAC_KEY='gbgplac_v2';
 const H3_HOJDER=[['tak',2.35,'Tak'],['vagg',1.6,'Vägg'],['bord',0.85,'Bord'],['golv',0.25,'Golv']];
 function h3PlacLokal(){try{const o=JSON.parse(localStorage.getItem(H3_PLAC_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
 /* v1.105.0: _h3e är redigerarens tillstånd. En plats som är null döljer en
@@ -3367,7 +3455,7 @@ function h3eAterstall(){
 }
 function h3eSattEnh(id,v,tagg){h3eMinne(tagg);const o=h3PlacLokal();o[id]=v;h3PlacSpara(o);}
 function h3eSattMob(i,m,tagg){h3eMinne(tagg);const l=h3Mobler().map(x=>Object.assign({},x));if(m)l[i]=m;else l.splice(i,1);h3MoblerSpara(l);}
-const h3eR2=x=>Math.round(x*100)/100;
+const h3eR2=x=>Math.round(x*1000)/1000;
 function h3eRundaMob(m){['cx','cy','b','d','h','h0'].forEach(k=>{m[k]=h3eR2(m[k]||0);});m.b=Math.max(0.05,m.b);m.d=Math.max(0.03,m.d);
   m.v=Math.round(((m.v%360)+360)%360*10)/10;if(m.v>=360)m.v=0;return m;}
 /* ----- Namn och rum ----- */
@@ -3380,7 +3468,7 @@ function h3MobTyp(t){const x=H3_MOB_TYPER.find(q=>q[0]===t);return x?x[1]:'Möbe
 function h3MobNamn(m){return m.n||h3MobTyp(m.typ).replace(/ \(.*\)$/,'');}
 function h3eHojdNamn(h){const x=H3_HOJDER.find(q=>Math.abs(q[1]-h)<0.01);return x?x[2]:num(h,2)+' m';}
 /* ----- Planen ----- */
-function h3eTypFarg(F,t){return (t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:(t==='m'?F.tyg:(t==='q'?F.sang:(t==='x'?F.svart:F.inred))));}
+function h3eTypFarg(F,t){return h3TypFarg(F,t);}
 function h3ePlan(){
   const g=$('h3e-inn'),sv=$('h3e-plan');if(!g||!sv)return;
   sv.setAttribute('viewBox',_h3e.vb.map(x=>x.toFixed(1)).join(' '));
@@ -3392,7 +3480,10 @@ function h3ePlan(){
   s+='<g class="h3e-rut">';for(let x=0;x<=700;x+=50)s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="890"/>';
   for(let y=0;y<=890;y+=50)s+='<line x1="0" y1="'+y+'" x2="700" y2="'+y+'"/>';s+='</g>';
   M.forEach((m,i)=>{const ar=!!(V&&V.t==='mob'&&V.id===i),f=h3eTypFarg(F,m.typ);
-    s+='<g class="h3e-mob'+(ar?' vald':'')+'" data-m="'+i+'"><title>'+esc(h3MobNamn(m))+'</title><polygon points="'+h3MobelHorn(m).map(c).join(' ')+'" fill="'+f.top+'" stroke="'+(ar?'var(--gold)':F.kant)+'" stroke-width="'+((ar?5:2.5)*k).toFixed(2)+'"/></g>';});
+    /* Delarna (Eket-kuberna, toalettens skål, garderobens dörrar …), den yttre ramen bara när den är vald. */
+    s+='<g class="h3e-mob'+(ar?' vald':'')+'" data-m="'+i+'"><title>'+esc(h3MobNamn(m))+'</title>'
+      +h3MobDelar(m).map(dl=>'<polygon points="'+dl.p.map(c).join(' ')+'" fill="'+h3eTypFarg(F,dl.typ).top+'" stroke="'+F.kant+'" stroke-width="'+(2*k).toFixed(2)+'"/>').join('')
+      +'<polygon points="'+h3MobelHorn(m).map(c).join(' ')+'" fill="transparent" stroke="'+(ar?'var(--gold)':'none')+'" stroke-width="'+(5*k).toFixed(2)+'"/></g>';});
   H3_VAGGAR.forEach(v=>{const fon=v[5]==='f';
     s+='<line class="h3e-vagg" x1="'+v[0]*100+'" y1="'+v[1]*100+'" x2="'+v[2]*100+'" y2="'+v[3]*100+'" stroke="'+(fon?'#88c0d0':'var(--ink)')+'" stroke-width="'+(v[4]*100).toFixed(0)+'" stroke-linecap="square"/>';});
   H3_RUM.forEach(r=>{const cx=r.p.reduce((a,q)=>a+q[0],0)/r.p.length,cy=r.p.reduce((a,q)=>a+q[1],0)/r.p.length;
@@ -3560,6 +3651,7 @@ function h3eInsp(){
     const m=h3eMob()[V.id];
     h='<h4>'+esc(h3MobNamn(m))+'</h4><div class="h3e-sub">'+esc(h3RumVid(m.cx,m.cy)||'Utanför rummen')+'</div>'
       +'<label class="h3e-hel">Namn<input type="text" value="'+esc(m.n||'')+'" placeholder="'+esc(h3MobTyp(m.typ))+'" onchange="h3eFalt(\'n\',this.value)"></label>'
+      +'<label class="h3e-hel">Form<select onchange="h3eFalt(\'f\',this.value)">'+H3_MOB_FORMER.map(t=>'<option value="'+t[0]+'"'+(t[0]===(m.f||'')?' selected':'')+'>'+esc(t[1])+'</option>').join('')+'</select></label>'
       +'<label class="h3e-hel">Material<select onchange="h3eFalt(\'typ\',this.value)">'+H3_MOB_TYPER.map(t=>'<option value="'+t[0]+'"'+(t[0]===m.typ?' selected':'')+'>'+esc(t[1])+'</option>').join('')+'</select></label>'
       +'<div class="h3e-falt">'+falt('Bredd','b',Math.round(m.b*100),1,'cm')+falt('Djup','d',Math.round(m.d*100),1,'cm')
         +falt('Höjd (överkant)','h',Math.round(m.h*100),1,'cm')+falt('Från golvet','h0',Math.round((m.h0||0)*100),1,'cm')
@@ -3578,6 +3670,7 @@ function h3eFalt(k,val){
   else{const m=Object.assign({},h3Mobler()[V.id]);
     if(k==='n')m.n=String(val).trim().slice(0,40);
     else if(k==='typ')m.typ=val;
+    else if(k==='f'){if(val)m.f=val;else delete m.f;}
     else{const n=Number(String(val).replace(',','.'));if(!isFinite(n))return;m[k]=k==='v'?n:n/100;}
     if(m.h0>m.h-0.01)m.h=m.h0+0.05;
     h3eSattMob(V.id,h3eRundaMob(m));}
@@ -3657,8 +3750,8 @@ function h3PlacText(){
   const o=h3Plac(),rad=['redigering Mandolingatan v2 · '+new Date().toISOString().slice(0,16),'# enheter: id;x;y;höjd;namn;rum'];
   h3PlacEnheter().forEach(d=>{const v=o[d.id];if(v)rad.push(d.id+';'+v[0]+';'+v[1]+';'+v[2]+';'+(namn(d)||'').replace(/;/g,',')+';'+zonNamn(d.zone));});
   if(h3MoblerLokal()){
-    rad.push('# möbler: möbel;typ;mitt x;mitt y;bredd;djup;vinkel;höjd;från golvet;namn');
-    h3Mobler().forEach(m=>rad.push(['möbel',m.typ,m.cx,m.cy,m.b,m.d,m.v,m.h,m.h0||0,(m.n||'').replace(/;/g,',')].join(';')));
+    rad.push('# möbler: möbel;typ;mitt x;mitt y;bredd;djup;vinkel;höjd;från golvet;namn;form');
+    h3Mobler().forEach(m=>rad.push(['möbel',m.typ,m.cx,m.cy,m.b,m.d,m.v,m.h,m.h0||0,(m.n||'').replace(/;/g,','),m.f||''].join(';')));
   }else rad.push('# möblerna oförändrade');
   return rad.join('\n');
 }
