@@ -978,6 +978,37 @@ body.mobile .flikrad .en-top{max-width:540px}
 /* Plats för raden under sista rutan, så inget hamnar bakom den. */
 body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+/* v1.102.0: placerade enheter i 3D och placeringsverktyget. */
+.h3-lampa{cursor:pointer}
+.h3-enh{pointer-events:none}
+body.h3p-oppen{overflow:hidden}
+.h3p{position:fixed;inset:0;z-index:300;background:var(--bg,#2e3440);display:flex;flex-direction:column;gap:8px;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px));overflow-y:auto}
+.h3p[hidden]{display:none}
+.h3p-top{display:flex;align-items:center;gap:10px}
+.h3p-top b{font-size:16px}.h3p-top span{flex:1;font-size:12px;color:var(--dim)}
+.h3p-x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--ink);font-size:15px;cursor:pointer}
+.h3p-val{background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:9px 11px;display:flex;flex-direction:column;gap:8px}
+.h3p-namn{font-size:14px;line-height:1.3}.h3p-namn small{color:var(--dim);font-size:11.5px}
+.h3p-hojd{display:flex;gap:6px;flex-wrap:wrap}
+.h3p-hojd button.pri{margin-left:auto}
+.h3p-hojd button,.h3p-knappar button{font:inherit;font-size:12.5px;font-weight:700;border-radius:11px;border:1px solid var(--line);background:var(--panel-a,#3b4252);color:var(--ink);padding:7px 11px;cursor:pointer}
+.h3p-hojd button.on,.h3p-hojd button.pri,.h3p-knappar button.pri{background:var(--gold);border-color:var(--gold);color:#2e3440}
+.h3p-hojd button:disabled{opacity:.4}
+.h3p-plan{flex:0 0 auto;width:100%;height:min(52vh,118vw);background:rgba(0,0,0,.12);border-radius:14px;touch-action:manipulation;cursor:crosshair}
+.h3p-rum{font-size:28px;font-weight:800;fill:var(--faint);pointer-events:none}
+.h3p-et{font-size:20px;font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--bg,#2e3440);stroke-width:5px;pointer-events:none}
+.h3p-et.inb{fill:var(--dim)}
+.h3p-pkt{cursor:pointer}
+.h3p-knappar{display:flex;gap:8px}.h3p-knappar button{flex:1}
+.h3p-text{width:100%;min-height:120px;font:12px/1.4 ui-monospace,monospace;background:var(--inset);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;box-sizing:border-box}
+.h3p-lista{display:flex;flex-direction:column;gap:4px;padding-bottom:20px}
+.h3p-z{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:8px 2px 2px}
+.h3p-e{display:flex;justify-content:space-between;align-items:center;gap:8px;font:inherit;font-size:13px;font-weight:650;text-align:left;
+  background:var(--inset);border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px;color:var(--ink);cursor:pointer}
+.h3p-e small{color:var(--faint);font-size:11.5px;flex:0 0 auto}
+.h3p-e.klar small{color:var(--ok)}
+.h3p-e.vald{border-color:var(--gold);background:rgba(235,203,139,.15)}
 /* v1.96.0: LÄGENHETEN I 3D. v1.99.0: ingen ram – bilden ligger direkt på
    sidan, överst, och tonar ut nedåt bakom avsnittet under (som ligger ovanpå
    med negativ marginal), så att de flyter ihop. */
@@ -1161,7 +1192,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.101.0';
+const APP_VERSION = 'v1.102.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -1923,6 +1954,7 @@ function render(){
   try{renderTVtopp();}catch(e){}
 
   try{renderHus3d();}catch(e){}
+  try{if(!_plAuto&&/[?&]placera=1/.test(location.search)&&Object.keys(DATA).length){_plAuto=true;h3PlacOppna();}}catch(e){}
   try{renderControls();}catch(e){}
   try{renderRooms();}catch(e){}
   try{renderCar();}catch(e){}
@@ -2688,19 +2720,32 @@ const H3_VAGGAR=[
 /* Inredning ur ritningen: [x,y,b,d,höjd,typ]. g = garderob, k = köksskåp,
    v = vitvaror (K/F, U/M, SF), t = toalett, l = handfat, s = duschhörna. */
 const H3_INRED=[
-  [6.3,1.95,0.58,0.55,2.1,'g'],[6.3,2.52,0.58,0.55,2.1,'g'],[6.3,3.08,0.58,0.53,2.1,'g'],
-  [6.1,4.62,0.55,0.58,2.1,'g'],[6.1,5.2,0.55,0.58,2.1,'g'],[6.1,5.78,0.55,0.58,2.1,'g'],
+  /* v1.102.0: klädkammaren – bänk i ståhöjd längs östväggen, överskåp ovanför. */
+  [6.3,1.9,0.58,1.71,0.95,'b'],[6.52,1.9,0.36,1.71,2.3,'g',1.55],
+  /* Hallen – den vänstra (norra) sektionen hög, sedan överskåp vid taket och
+     under dem en bänk med skohylla. */
+  [6.1,4.62,0.55,0.58,2.1,'g'],[6.25,5.2,0.4,1.16,2.38,'g',1.8],[6.1,5.2,0.55,1.16,0.5,'b'],
   [2.35,6.55,0.62,0.6,2.1,'v'],[2.97,6.55,0.62,0.6,2.1,'v'],[3.59,6.55,0.62,0.6,2.1,'v'],
   [2.35,8.2,2.85,0.6,0.9,'k'],
   [6.45,6.62,0.4,0.55,0.45,'t'],[6.5,7.35,0.38,0.5,0.85,'l'],[5.42,7.6,0.85,0.78,0.08,'s']
-];
+].concat(h3Bardisk());
+/* v1.102.0: KÖKETS BARDISK längs fönsterväggen (som är snedställd), med
+   tre barstolar. Räknas ut längs väggens linje, så den följer vinkeln. */
+function h3Bardisk(){
+  const A=[0.27,6.47],B=[0,8.9],L=Math.hypot(B[0]-A[0],B[1]-A[1]),u=[(B[0]-A[0])/L,(B[1]-A[1])/L],n=[-u[1],u[0]];
+  const nn=n[0]>0?n:[-n[0],-n[1]];   /* inåt, mot köket */
+  const pt=(t,o)=>[A[0]+u[0]*t+nn[0]*o,A[1]+u[1]*t+nn[1]*o];
+  const ut=[{p:[pt(0.25,0.14),pt(2.2,0.14),pt(2.2,0.58),pt(0.25,0.58)],h:1.05,typ:'b'}];
+  [0.65,1.22,1.8].forEach(function(t){ut.push({p:[pt(t-0.17,0.72),pt(t+0.17,0.72),pt(t+0.17,1.06),pt(t-0.17,1.06)],h:0.72,typ:'k'});});
+  return ut;
+}
 /* v1.97.0: VYN GÅR ATT VRIDA, LUTA, ZOOMA OCH FLYTTA.
    _h3V = {yaw (°), tilt (° över horisonten), zoom, px, py (förskjutning i
    ritningens enheter)}. Sparas per skärm. Mus: dra = vrid och luta, högerklick
    eller skift + dra = flytta, hjulet = zooma. Pekskärm: dra i sidled = vrid;
    med Utforska på (knappen) vrider och lutar ett finger, och två fingrar zoomar
    och flyttar – annars ska sidan gå att skrolla förbi vyn som vanligt. */
-const H3_STD={yaw:20,tilt:48,zoom:1,px:0,py:0};
+const H3_STD={yaw:257,tilt:42,zoom:1,px:0,py:0};   /* v1.102.0: fasaden närmast, vardagsrummet till vänster */
 let _h3V=null,_h3Fri=true,_h3Drog=0,_h3Pek={},_h3Ges=null,_h3Raf=0,_h3SparT=null;
 function h3Vy(){
   if(_h3V)return _h3V;
@@ -2831,6 +2876,7 @@ function h3Farger(){
     vav:{top:'#c8bfae',s1:'rgba(214,204,186,.92)',s2:'rgba(196,186,168,.92)'},karm:{top:'#eceff4',s1:'#f4f1ea',s2:'#e2ddd2'},
     stang:{top:'#4c566a',s1:'#9aa3b5',s2:'#8a93a5'},
     inred:{top:'#f7f4ee',s1:'#ddd6c9',s2:'#cfc7b8'},vit:{top:'#ffffff',s1:'#e6e2da',s2:'#d8d3ca'},
+    tra:{top:'#d2b48c',s1:'#bf9f76',s2:'#ad8e67'},lampAv:'#9aa3b5',
     dorr:'#cf7551',skugga:'rgba(46,52,64,.10)'
   }:{
     golv:'#3a4152',golvK:'#3f4658',kant:'rgba(216,222,233,.16)',
@@ -2839,6 +2885,7 @@ function h3Farger(){
     vav:{top:'#8b8577',s1:'rgba(122,116,104,.9)',s2:'rgba(108,103,92,.9)'},karm:{top:'#eceff4',s1:'#d8dee9',s2:'#c5ccd8'},
     stang:{top:'#5e6779',s1:'#3b4252',s2:'#353c4a'},
     inred:{top:'#5b6478',s1:'#4a5266',s2:'#424a5c'},vit:{top:'#8f98aa',s1:'#6c7588',s2:'#626b7e'},
+    tra:{top:'#9c8261',s1:'#7d6850',s2:'#6e5b46'},lampAv:'#6c7588',
     dorr:'#d08770',skugga:'rgba(0,0,0,.22)'
   };
 }
@@ -2884,8 +2931,10 @@ function renderHus3d(tvinga,baraVy){
     return Object.assign({},r,{zid,lj,temp:t.length?t[0]:null,ror,alla,cx,cy,gardin:h3Gardin(zid)});
   });
   const dorr=(typeof DEV!=='undefined'&&DEV.dorr&&DATA[DEV.dorr])?capOf(DATA[DEV.dorr],'alarm_contact'):null;
+  const plac=h3Plac();
+  const placNyckel=Object.keys(plac).map(id=>{const d=DATA[id];return id+':'+(d?[capOf(d,'onoff'),capOf(d,'dim'),capOf(d,'light_hue'),capOf(d,'light_temperature'),capOf(d,'alarm_motion')].join(','):'')+':'+plac[id].join(',');}).join(';');
   /* Nyckel för att slippa rita om när inget ändrats. */
-  const nyckel=[yaw,V.tilt,V.zoom,V.px,V.py,_h3Fri,document.documentElement.getAttribute('data-theme'),dorr,
+  const nyckel=[yaw,V.tilt,V.zoom,V.px,V.py,_h3Fri,placNyckel,document.documentElement.getAttribute('data-theme'),dorr,
     rum.map(r=>[r.zid,r.lj?r.lj.rgb.join('.')+':'+r.lj.styrka.toFixed(2)+':'+r.lj.n:0,r.temp==null?'':r.temp.toFixed(1),r.ror,r.alla,r.gardin==null?'':r.gardin.toFixed(2)].join('|')).join(';')].join('#');
   if(!tvinga&&nyckel===_h3Sist&&el.firstChild)return;
   _h3Sist=nyckel;
@@ -2896,7 +2945,8 @@ function renderHus3d(tvinga,baraVy){
   /* v1.99.0: huset en bit upp i ramen – nedersta delen tonar ut bakom avsnittet under. */
   const vx=mid.x+V.px-RW/2,vy=mid.y+V.py-RH/2+RH*0.07;
   let s='<svg class="h3-svg" viewBox="'+vx.toFixed(1)+' '+vy.toFixed(1)+' '+RW.toFixed(1)+' '+RH.toFixed(1)+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Lägenheten i 3D">';
-  s+='<defs><filter id="h3-sudd" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="35"/></filter></defs>';
+  s+='<defs><filter id="h3-sudd" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="35"/></filter>'
+    +'<filter id="h3-sudd-l" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="8"/></filter></defs>';
   /* Skugga under huset. */
   const yttre=[[0,0],[6.5,0],[6.5,1.73],[7,1.73],[7,8.5],[5.3,8.5],[5.3,8.9],[0,8.9],[0.27,6.47],[0.27,3.67]];
   s+='<polygon points="'+yttre.map(q=>{const p=P(q[0]+0.12,q[1]+0.16,0);return pt(p);}).join(' ')+'" fill="'+F.skugga+'" filter="url(#h3-sudd)"/>';
@@ -2910,9 +2960,18 @@ function renderHus3d(tvinga,baraVy){
       const a=(0.18+0.5*r.lj.styrka).toFixed(2),c='rgb('+r.lj.rgb.join(',')+')';
       /* Skenet stannar inom rummets golv (klippt), annars läckte det ut genom väggarna. */
       s+='<clipPath id="h3-k'+i+'"><polygon points="'+pts+'"/></clipPath>';
-      s+='<polygon class="h3-ljus" points="'+pts+'" fill="'+c+'" opacity="'+a+'"/>';
-      const m=P(r.cx,r.cy,0);
-      s+='<g clip-path="url(#h3-k'+i+')"><ellipse class="h3-ljus" cx="'+m.x.toFixed(3)+'" cy="'+m.y.toFixed(3)+'" rx="125" ry="95" fill="'+c+'" opacity="'+(0.25+0.45*r.lj.styrka).toFixed(2)+'" filter="url(#h3-sudd)"/></g>';
+      /* v1.102.0: med placerade lampor faller skenet där lamporna sitter –
+         en svag ton över golvet och ett sken under varje tänd lampa. */
+      const egna=r.zid?Object.keys(plac).filter(id=>{const d=DATA[id];return d&&d.zone===r.zid&&arLampa(d)&&capOf(d,'onoff')===true;}):[];
+      s+='<polygon class="h3-ljus" points="'+pts+'" fill="'+c+'" opacity="'+(egna.length?(0.08+0.15*r.lj.styrka).toFixed(2):a)+'"/>';
+      if(egna.length){
+        s+='<g clip-path="url(#h3-k'+i+')">'+egna.map(id=>{const d=DATA[id],v=plac[id],m=P(v[0],v[1],0),rgb=fargVisning(d).rgb;
+          const dim=har(d,'dim')&&capOf(d,'dim')!=null?Math.max(0.1,capOf(d,'dim')):1,rr=(60+70*dim)*(v[2]>2?1.25:0.9);
+          return '<ellipse class="h3-ljus" cx="'+m.x.toFixed(1)+'" cy="'+m.y.toFixed(1)+'" rx="'+rr.toFixed(0)+'" ry="'+(rr*0.78).toFixed(0)+'" fill="rgb('+rgb.join(',')+')" opacity="'+(0.3+0.45*dim).toFixed(2)+'" filter="url(#h3-sudd)"/>';}).join('')+'</g>';
+      }else{
+        const m=P(r.cx,r.cy,0);
+        s+='<g clip-path="url(#h3-k'+i+')"><ellipse class="h3-ljus" cx="'+m.x.toFixed(3)+'" cy="'+m.y.toFixed(3)+'" rx="125" ry="95" fill="'+c+'" opacity="'+(0.25+0.45*r.lj.styrka).toFixed(2)+'" filter="url(#h3-sudd)"/></g>';
+      }
     }
   });
   /* Väggar och inredning, längst bort först. */
@@ -2933,9 +2992,13 @@ function renderHus3d(tvinga,baraVy){
     return Math.max(0.35,H-(H-0.35)*Math.min(1,f*1.25)*kSnett);};
   /* Ett stycke mellan h0 och h1, kapat vid utskärningen ht. */
   const del=function(b,h0,h1,ht,farg){const t=Math.min(h1,ht);return t>h0+0.005?h3Block(P,b.b,h0,t,farg):'';};
-  H3_INRED.forEach(m=>{const [x,y,w,d,h,typ]=m;
-    block.push({b:[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],cx:x+w/2,cy:y+d/2,h:h,typ:'i'+typ});});
-  block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d;});
+  H3_INRED.forEach(m=>{
+    if(m.p){const cx=m.p.reduce((a,q)=>a+q[0],0)/4,cy=m.p.reduce((a,q)=>a+q[1],0)/4;
+      block.push({b:m.p,cx:cx,cy:cy,h:m.h,h0:m.h0||0,typ:'i'+m.typ});return;}
+    const [x,y,w,d,h,typ,h0]=m;
+    block.push({b:[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],cx:x+w/2,cy:y+d/2,h:h,h0:h0||0,typ:'i'+typ});});
+  /* Överskåp efter bänken under dem (samma mitt): höjden bryter likheten. */
+  block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d+(b.h0||0)*1e-4;});
   block.sort((a,b)=>a.dj-b.dj);
   block.forEach(b=>{
     if(b.typ==='f'){
@@ -2958,10 +3021,23 @@ function renderHus3d(tvinga,baraVy){
       s+=h3Block(P,b.b,0,0.06,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
       s+=del(b,2.05,H3_VAGG,hojd(b,H3_VAGG),F.ytter);
     }else if(b.typ&&b.typ[0]==='i'){
-      const t=b.typ[1],f=(t==='t'||t==='l'||t==='v')?F.vit:F.inred;
-      s+=h3Block(P,b.b,0,b.h,f);
+      const t=b.typ[1],f=(t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:F.inred);
+      s+=h3Block(P,b.b,b.h0||0,b.h,f);
     }else s+=del(b,0,H3_VAGG,hojd(b,H3_VAGG),b.ytter?F.ytter:F.vagg);
   });
+  /* v1.102.0: DE PLACERADE ENHETERNA. Lampor som punkter i sin färg (tryck =
+     tänd/släck just den), andra enheter som små grå rutor. */
+  Object.keys(plac).forEach(id=>{const d=DATA[id],v=plac[id];if(!d||!v)return;
+    const m=P(v[0],v[1],v[2]);
+    if(arLampa(d)&&har(d,'onoff')){const pa=capOf(d,'onoff')===true,rgb=pa?fargVisning(d).rgb:null;
+      s+='<g class="h3-lampa'+(pa?' on':'')+'" onclick="h3Lampa(\''+id+'\')" transform="translate('+m.x.toFixed(1)+','+m.y.toFixed(1)+')">'
+        +(pa?'<circle r="20" fill="rgb('+rgb.join(',')+')" opacity=".35" filter="url(#h3-sudd-l)"/>':'')
+        +'<circle r="16" fill="transparent"/>'
+        +'<circle r="'+(pa?7:6)+'" fill="'+(pa?'rgb('+rgb.map(x=>Math.min(255,x+40)).join(',')+')':F.lampAv)+'" stroke="'+(pa?'rgba(255,255,255,.7)':'rgba(0,0,0,.25)')+'" stroke-width="1.5"/></g>';
+    }else{
+      const akt=capOf(d,'alarm_motion')===true||capOf(d,'onoff')===true||capOf(d,'alarm_contact')===true;
+      s+='<rect class="h3-enh" x="'+(m.x-5).toFixed(1)+'" y="'+(m.y-5).toFixed(1)+'" width="10" height="10" rx="2.5" fill="'+(akt?'var(--warm)':F.lampAv)+'"/>';
+    }});
   /* Ytterdörren öppen: en markering vid dörren. */
   if(dorr===true){const m=P(7.25,4.11,0.2);
     s+='<g class="h3-dorr"><circle cx="'+m.x.toFixed(3)+'" cy="'+m.y.toFixed(3)+'" r="22" fill="'+F.dorr+'"/></g>';}
@@ -2991,6 +3067,136 @@ function renderHus3d(tvinga,baraVy){
   el.innerHTML='<div class="h3-yta">'+s+'</div><div class="h3-knappar">'
     +'<button type="button" class="h3-k" onclick="h3Aterstall()" title="Tillbaka till startvyn">'+ik('M4 12a8 8 0 1 0 2.34-5.66M4 4v5h5')+'</button>'
     +'</div>';
+}
+
+/* ===== ENHETERNAS PLATSER I 3D (v1.102.0) =====
+   Var lamporna och de andra enheterna sitter: id → [x, y, höjd] i meter, i
+   samma koordinater som planen (H3_RUM). H3_ENHETER är det som är inbyggt
+   (fylls i när du skickat din placering); det du placerar själv i verktyget
+   sparas på skärmen (H3_PLAC_KEY) och går före, så att det syns direkt. */
+const H3_ENHETER={};
+const H3_PLAC_KEY='gbgplac_v1';
+const H3_HOJDER=[['tak',2.35,'Tak'],['vagg',1.6,'Vägg'],['bord',0.85,'Bord'],['golv',0.25,'Golv']];
+function h3PlacLokal(){try{const o=JSON.parse(localStorage.getItem(H3_PLAC_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
+function h3Plac(){return Object.assign({},H3_ENHETER,h3PlacLokal());}
+function h3PlacSpara(o){try{localStorage.setItem(H3_PLAC_KEY,JSON.stringify(o));}catch(e){}_h3Sist='';}
+/* Tryck på en placerad lampa i 3D-vyn: tänd/släck just den. */
+async function h3Lampa(id){
+  if(Date.now()-_h3Drog<350)return;
+  const d=DATA[id];if(!d||!har(d,'onoff'))return;
+  const ny=capOf(d,'onoff')!==true;
+  try{await satt(id,'onoff',ny);if(d.capabilitiesObj&&d.capabilitiesObj.onoff)d.capabilitiesObj.onoff.value=ny;
+    renderHus3d(true);renderRooms();setTimeout(load,900);}catch(e){toast('Kunde inte nå Homey');}
+}
+/* Standardhöjd ur namnet: "tak" i namnet = tak, golvlampa = golv … */
+function h3StdHojd(d){
+  const n=(namn(d)||'').toLowerCase();
+  if(/tak|klk\d|htak|btak|stak/.test(n))return 2.35;
+  if(/golv|lavalamp|bloom/.test(n))return 0.25;
+  if(/bord|bänk|säng|vitrin|soffa|tv|ambilight|gradient|sync|förstärk|switch/.test(n))return 0.85;
+  if(arLampa(d))return 1.6;
+  return 1.2;
+}
+
+/* ===== VERKTYGET: PLACERA ENHETERNA (tillfälligt) =====
+   Planen rakt uppifrån och listan över enheter. Välj en enhet i listan, tryck
+   där den sitter på planen och välj höjd. Nästa oplacerade enhet väljs av sig
+   själv. "Kopiera" ger en text att skicka till Claude, som bygger in
+   placeringen i dashboarden. Öppnas från inställningarna eller med ?placera=1. */
+let _plVald=null,_plFilter='',_plAuto=false;
+function h3PlacEnheter(){
+  const rot=rotZon();
+  return devs().filter(d=>{
+    if(!d||d.id===DEV.car)return false;
+    const z=ZONES[d.zone];if(z&&arModesZon(z))return false;
+    const kl=String(d.class||'');
+    if(/^(button|remote|bridge)$/.test(kl))return false;
+    return true;})
+    /* Rum för rum, lamporna först – det är dem 3D-vyn behöver mest. */
+    .sort((a,b)=>(zonNamn(a.zone)||'').localeCompare(zonNamn(b.zone)||'','sv')||((arLampa(b)?1:0)-(arLampa(a)?1:0))||(namn(a)||'').localeCompare(namn(b)||'','sv'));
+}
+function h3PlacOppna(){
+  let el=$('h3-plac');
+  if(!el){el=document.createElement('div');el.id='h3-plac';el.className='h3p';document.body.appendChild(el);}
+  el.hidden=false;document.body.classList.add('h3p-oppen');
+  if(!_plVald){const o=h3Plac(),f=h3PlacEnheter().find(d=>!o[d.id]);_plVald=f?f.id:null;}
+  h3PlacRita();
+}
+function h3PlacStang(){const el=$('h3-plac');if(el)el.hidden=true;document.body.classList.remove('h3p-oppen');_h3Sist='';renderHus3d(true);
+  try{const q=new URLSearchParams(location.search);if(q.get('placera')){q.delete('placera');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:''));}}catch(e){}}
+function h3PlacValj(id){_plVald=id;h3PlacRita();}
+function h3PlacHojd(h){const o=h3PlacLokal(),v=o[_plVald]||h3Plac()[_plVald];if(!v)return;
+  o[_plVald]=[v[0],v[1],h];h3PlacSpara(o);h3PlacRita();}
+function h3PlacTaBort(){const o=h3PlacLokal();delete o[_plVald];h3PlacSpara(o);h3PlacRita();}
+/* Nästa oplacerade – i samma rum först, sedan vidare i listan. */
+function h3PlacNasta(){const o=h3Plac(),l=h3PlacEnheter(),i=l.findIndex(d=>d.id===_plVald),z=DATA[_plVald]&&DATA[_plVald].zone;
+  const rest=l.slice(i+1).concat(l.slice(0,i+1));
+  const f=rest.find(d=>d.zone===z&&!o[d.id])||rest.find(d=>!o[d.id]);
+  if(f)_plVald=f.id;else toast('Alla enheter är placerade');h3PlacRita(null,true);}
+function h3PlacTryck(ev){
+  if(!_plVald)return;
+  const sv=ev.currentTarget,pt=sv.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;
+  const m=sv.getScreenCTM();if(!m)return;const q=pt.matrixTransform(m.inverse());
+  const x=Math.round(q.x)/100,y=Math.round(q.y)/100;
+  if(x<-0.2||x>7.3||y<-0.2||y>9.1)return;
+  const o=h3PlacLokal(),fore=h3Plac()[_plVald],d=DATA[_plVald];
+  o[_plVald]=[x,y,fore?fore[2]:(d?h3StdHojd(d):1.2)];h3PlacSpara(o);
+  /* Enheten förblir vald, så att höjden går att välja; Nästa går vidare. */
+  h3PlacRita(null,_plVald);
+}
+function h3PlacText(){
+  const o=h3Plac(),rad=['placering Mandolingatan v1 · '+new Date().toISOString().slice(0,16)];
+  h3PlacEnheter().forEach(d=>{const v=o[d.id];if(v)rad.push(d.id+';'+v[0]+';'+v[1]+';'+v[2]+';'+(namn(d)||'').replace(/;/g,',')+';'+zonNamn(d.zone));});
+  return rad.join('\n');
+}
+async function h3PlacKopiera(){
+  const t=h3PlacText();
+  try{await navigator.clipboard.writeText(t);toast('Kopierat – klistra in till Claude');}
+  catch(e){const a=$('h3p-text');if(a){a.hidden=false;a.value=t;a.select();}toast('Markera texten och kopiera');}
+}
+function h3PlacVisaText(){const a=$('h3p-text');if(a){a.hidden=!a.hidden;a.value=h3PlacText();if(!a.hidden)a.select();}}
+function h3PlacRita(nyVald,senast){
+  if(nyVald!==undefined&&nyVald!==null)_plVald=nyVald;
+  const el=$('h3-plac');if(!el)return;
+  const o=h3Plac(),lok=h3PlacLokal(),alla=h3PlacEnheter(),F=h3Farger();
+  const vald=_plVald&&DATA[_plVald],vp=vald&&o[_plVald];
+  /* Planen rakt uppifrån, i centimeter. */
+  let s='<svg class="h3p-plan" viewBox="-40 -40 790 970" onclick="h3PlacTryck(event)">';
+  H3_RUM.forEach((r,i)=>{s+='<polygon points="'+r.p.map(q=>(q[0]*100).toFixed(0)+','+(q[1]*100).toFixed(0)).join(' ')+'" fill="'+(i%2?F.golvK:F.golv)+'"/>';});
+  H3_INRED.forEach(m=>{const pts=m.p||[[m[0],m[1]],[m[0]+m[2],m[1]],[m[0]+m[2],m[1]+m[3]],[m[0],m[1]+m[3]]];
+    s+='<polygon points="'+pts.map(q=>(q[0]*100).toFixed(0)+','+(q[1]*100).toFixed(0)).join(' ')+'" fill="none" stroke="'+F.kant+'" stroke-width="3"/>';});
+  H3_VAGGAR.forEach(v=>{const fon=v[5]==='f';
+    s+='<line x1="'+v[0]*100+'" y1="'+v[1]*100+'" x2="'+v[2]*100+'" y2="'+v[3]*100+'" stroke="'+(fon?'#88c0d0':'var(--ink)')+'" stroke-width="'+(v[4]*100).toFixed(0)+'" stroke-linecap="square"/>';});
+  H3_RUM.forEach(r=>{const cx=r.p.reduce((a,q)=>a+q[0],0)/r.p.length,cy=r.p.reduce((a,q)=>a+q[1],0)/r.p.length;
+    s+='<text x="'+(cx*100).toFixed(0)+'" y="'+(cy*100).toFixed(0)+'" class="h3p-rum" text-anchor="middle">'+esc(r.namn)+'</text>';});
+  alla.forEach(d=>{const v=o[d.id];if(!v)return;const ar=d.id===_plVald,ln=arLampa(d);
+    const fg=ln&&capOf(d,'onoff')===true?fargCss(fargVisning(d).rgb):(ln?'#d8dee9':'#81a1c1');
+    s+='<g class="h3p-pkt'+(ar?' vald':'')+'" onclick="event.stopPropagation();h3PlacValj(\''+d.id+'\')">'
+      +'<circle cx="'+(v[0]*100).toFixed(0)+'" cy="'+(v[1]*100).toFixed(0)+'" r="'+(ar?16:11)+'" fill="'+fg+'" stroke="'+(ar?'var(--gold)':'#2e3440')+'" stroke-width="'+(ar?6:3)+'"/>'
+      +'<text x="'+(v[0]*100+15).toFixed(0)+'" y="'+(v[1]*100-12).toFixed(0)+'" class="h3p-et'+(lok[d.id]?'':' inb')+'">'+esc(namn(d))+'</text></g>';});
+  s+='</svg>';
+  const klara=alla.filter(d=>o[d.id]).length;
+  let h='<div class="h3p-top"><b>Placera enheter</b><span>'+klara+' av '+alla.length+' placerade</span>'
+    +'<button class="h3p-x" onclick="h3PlacStang()" aria-label="Stäng">✕</button></div>'
+    +'<div class="h3p-val">'+(vald
+      ?('<div class="h3p-namn"><b>'+esc(namn(vald))+'</b> <small>'+esc(zonNamn(vald.zone))+'</small><br><small>'+(vp?'Tryck på planen för att flytta':'Tryck på planen där den sitter')+'</small></div>'
+        +'<div class="h3p-hojd">'+H3_HOJDER.map(x=>'<button class="'+(vp&&Math.abs(vp[2]-x[1])<0.01?'on':'')+'" '+(vp?'':'disabled ')+'onclick="h3PlacHojd('+x[1]+')">'+x[2]+'</button>').join('')
+        +(lok[_plVald]?'<button onclick="h3PlacTaBort()">Ta bort</button>':'')+'<button class="pri" onclick="h3PlacNasta()">'+(vp?'Nästa \u2192':'Hoppa över')+'</button></div>')
+      :'<div class="h3p-namn"><b>Alla enheter är placerade.</b><br><small>Tryck på en punkt eller i listan för att ändra.</small></div>')
+    +'</div>'
+    +s
+    +'<div class="h3p-knappar"><button class="pri" onclick="h3PlacKopiera()">Kopiera till Claude</button><button onclick="h3PlacVisaText()">Visa texten</button></div>'
+    +'<textarea id="h3p-text" class="h3p-text" hidden readonly></textarea>'
+    +'<div class="h3p-lista">';
+  let zon='';
+  alla.forEach(d=>{const zn=zonNamn(d.zone)||'Utan rum';
+    if(zn!==zon){zon=zn;h+='<div class="h3p-z">'+esc(zn)+'</div>';}
+    const v=o[d.id];
+    h+='<button class="h3p-e'+(d.id===_plVald?' vald':'')+(v?' klar':'')+'" onclick="h3PlacValj(\''+d.id+'\')">'
+      +'<span>'+esc(namn(d))+'</span><small>'+(v?((H3_HOJDER.find(x=>Math.abs(x[1]-v[2])<0.01)||[0,0,num(v[2],1)+' m'])[2]):'–')+'</small></button>';});
+  h+='</div>';
+  el.innerHTML=h;
+  /* Ingen automatisk rullning: planen ska stå kvar där fingret är. */
 }
 
 function renderRooms(){
@@ -5495,6 +5701,9 @@ function openInst(){
   h+=dSec('Lampgrupper')
     +'<div class="setup-t">Lampor som ing\u00e5r i en grupp d\u00f6ljs i rumsrutan \u2014 gruppen styr dem \u00e4nd\u00e5. H\u00e4r ser du vad som r\u00e4knas som vad.</div>'
     +'<button class="dbtn wide" data-sekt="grupper" onclick="openGrupper()">Visa grupper</button>';
+  h+=dSec('Lägenheten i 3D')
+    +'<div class="setup-t">Tillfälligt: placera ut var lamporna och de andra enheterna sitter, och skicka placeringen till Claude.</div>'
+    +'<button class="dbtn wide" data-placera="1" onclick="stangDlg();h3PlacOppna()">Placera enheter</button>';
   h+=dSec('Avsnitt')
     +'<div class="setup-t">Ordningen p\u00e5 sidan, och vad som visas.</div>'
     +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>'
@@ -5781,6 +5990,10 @@ function knBind(){
         _sistTryck=(el.getAttribute('data-knapp')||el.getAttribute('data-sekt'))+' · '+hhmm(new Date());
         knDeleg(e);sektDeleg(e);
       });
+    });
+    b.querySelectorAll('[data-placera]').forEach(function(el){
+      if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
+      el.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();stangDlg();h3PlacOppna();});
     });
     b.querySelectorAll('[data-varn]').forEach(function(el){
       if(el.dataset.bunden==='1')return;el.dataset.bunden='1';
