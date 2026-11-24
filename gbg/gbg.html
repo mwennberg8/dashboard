@@ -981,34 +981,83 @@ body,body.mobile{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}
 /* v1.102.0: placerade enheter i 3D och placeringsverktyget. */
 .h3-lampa{cursor:pointer}
 .h3-enh{pointer-events:none}
-body.h3p-oppen{overflow:hidden}
-.h3p{position:fixed;inset:0;z-index:300;background:var(--bg,#2e3440);display:flex;flex-direction:column;gap:8px;
-  padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px));overflow-y:auto}
-.h3p[hidden]{display:none}
-.h3p-top{display:flex;align-items:center;gap:10px}
-.h3p-top b{font-size:16px}.h3p-top span{flex:1;font-size:12px;color:var(--dim)}
-.h3p-x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--ink);font-size:15px;cursor:pointer}
-.h3p-val{background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:9px 11px;display:flex;flex-direction:column;gap:8px}
-.h3p-namn{font-size:14px;line-height:1.3}.h3p-namn small{color:var(--dim);font-size:11.5px}
-.h3p-hojd{display:flex;gap:6px;flex-wrap:wrap}
-.h3p-hojd button.pri{margin-left:auto}
-.h3p-hojd button,.h3p-knappar button{font:inherit;font-size:12.5px;font-weight:700;border-radius:11px;border:1px solid var(--line);background:var(--panel-a,#3b4252);color:var(--ink);padding:7px 11px;cursor:pointer}
-.h3p-hojd button.on,.h3p-hojd button.pri,.h3p-knappar button.pri{background:var(--gold);border-color:var(--gold);color:#2e3440}
-.h3p-hojd button:disabled{opacity:.4}
-.h3p-plan{flex:0 0 auto;width:100%;height:min(52vh,118vw);background:rgba(0,0,0,.12);border-radius:14px;touch-action:manipulation;cursor:crosshair}
-.h3p-rum{font-size:28px;font-weight:800;fill:var(--faint);pointer-events:none}
-.h3p-et{font-size:20px;font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--bg,#2e3440);stroke-width:5px;pointer-events:none}
-.h3p-et.inb{fill:var(--dim)}
-.h3p-pkt{cursor:pointer}
-.h3p-knappar{display:flex;gap:8px}.h3p-knappar button{flex:1}
-.h3p-text{width:100%;min-height:120px;font:12px/1.4 ui-monospace,monospace;background:var(--inset);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;box-sizing:border-box}
-.h3p-lista{display:flex;flex-direction:column;gap:4px;padding-bottom:20px}
-.h3p-z{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:8px 2px 2px}
-.h3p-e{display:flex;justify-content:space-between;align-items:center;gap:8px;font:inherit;font-size:13px;font-weight:650;text-align:left;
-  background:var(--inset);border:1px solid var(--line-soft);border-radius:10px;padding:8px 10px;color:var(--ink);cursor:pointer}
-.h3p-e small{color:var(--faint);font-size:11.5px;flex:0 0 auto}
-.h3p-e.klar small{color:var(--ok)}
-.h3p-e.vald{border-color:var(--gold);background:rgba(235,203,139,.15)}
+/* v1.105.0: REDIGERAREN – enheter och möbler (h3eOppna). Tre spalter på
+   datorn: listan, planen och 3D-bilden med det valda. Smalt: under varandra. */
+body.h3e-oppen{overflow:hidden}
+body.h3e-drar,body.h3e-drar *{cursor:grabbing!important;user-select:none}
+.h3e{position:fixed;inset:0;z-index:300;background:var(--bg,#2e3440);display:grid;grid-template-columns:270px minmax(0,1fr) 340px;
+  grid-template-rows:auto minmax(0,1fr);gap:10px;padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px));box-sizing:border-box}
+.h3e[hidden]{display:none}
+.h3e-top{grid-column:1 / -1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.h3e-top b{font-size:17px}
+.h3e-info{flex:1;font-size:12px;color:var(--dim);min-width:140px}
+.h3e-k{font:inherit;font-size:12.5px;font-weight:700;border-radius:11px;border:1px solid var(--line);background:var(--panel-a,#3b4252);color:var(--ink);padding:7px 12px;cursor:pointer}
+.h3e-k:hover{border-color:var(--faint)}
+.h3e-k.pri,.h3e-k.on{background:var(--gold);border-color:var(--gold);color:#2e3440}
+.h3e-k:disabled{opacity:.4;cursor:default}
+.h3e-x{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--ink);font-size:15px;cursor:pointer}
+.h3e-vanster,.h3e-hoger{display:flex;flex-direction:column;gap:8px;min-height:0;min-width:0}
+.h3e-flikar{display:flex;gap:4px;background:var(--inset);border-radius:12px;padding:3px;flex:0 0 auto}
+.h3e-flikar button{flex:1;font:inherit;border:0;background:none;color:var(--dim);font-weight:700;font-size:13px;padding:7px;border-radius:9px;cursor:pointer}
+.h3e-flikar button.on{background:var(--panel-a,#434c5e);color:var(--ink)}
+.h3e-sok,.h3e-insp input,.h3e-insp select{font:inherit;font-size:13px;padding:7px 9px;border-radius:10px;border:1px solid var(--line);background:var(--inset);color:var(--ink);width:100%;box-sizing:border-box;min-width:0}
+.h3e-lista{flex:1 1 auto;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:3px;padding:0 2px 10px 0}
+.h3e-z{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);margin:9px 2px 2px}
+.h3e-hj{font-size:12px;line-height:1.45;color:var(--dim);margin:0}
+.h3e-rad{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:10px;background:var(--inset);border:1px solid var(--line-soft);
+  font-size:13px;font-weight:650;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.h3e-rad:hover{border-color:var(--line)}
+.h3e-rad.ny{cursor:grab;border-style:dashed}
+.h3e-rad .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h3e-rad small{color:var(--faint);font-size:11.5px;flex:0 0 auto}
+.h3e-rad.klar small{color:var(--ok)}
+.h3e-rad.vald{border-color:var(--gold);background:rgba(235,203,139,.15)}
+.h3e-prick{width:10px;height:10px;border-radius:50%;flex:0 0 auto;background:#81a1c1}
+.h3e-prick.lampa{background:#ebcb8b}
+.h3e-prick.mob{border-radius:3px}
+.h3e-ny{align-self:flex-start;margin-bottom:2px}
+.h3e-mitt{position:relative;min-height:0;min-width:0;background:rgba(0,0,0,.12);border-radius:16px;overflow:hidden;border:1px solid var(--line-soft)}
+.h3e-plan{width:100%;height:100%;display:block;touch-action:none;user-select:none;-webkit-user-select:none}
+.h3e-plan.over{outline:3px dashed var(--gold);outline-offset:-8px}
+.h3e-zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:6px}
+.h3e-zoom button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--inset);color:var(--ink);font-size:17px;font-weight:700;cursor:pointer;padding:0}
+.h3e-tips{position:absolute;left:12px;bottom:9px;right:60px;font-size:11.5px;color:var(--faint);pointer-events:none}
+.h3e-rut line{stroke:var(--line-soft);stroke-width:1;pointer-events:none}
+.h3e-vagg,.h3e-rum,.h3e-et{pointer-events:none}
+.h3e-rum{font-weight:800;fill:var(--faint)}
+.h3e-mob{cursor:move}
+.h3e-mob:hover polygon{stroke:var(--gold)}
+.h3e-enh{cursor:move}
+.h3e-et{font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--bg,#2e3440);stroke-linejoin:round}
+.h3e-et.vald{fill:var(--gold)}
+.h3e-hand{fill:var(--bg,#2e3440);stroke:var(--gold);stroke-width:3px;vector-effect:non-scaling-stroke;cursor:pointer}
+.h3e-hand.rot{fill:var(--gold);cursor:grab}
+.h3e-3d{position:relative;flex:0 0 auto;aspect-ratio:5/4;border-radius:14px;border:1px solid var(--line);overflow:hidden;cursor:grab;touch-action:none;
+  background:radial-gradient(120% 90% at 50% 40%,var(--panel-a),var(--panel-b))}
+.h3e-3d:active{cursor:grabbing}
+.h3e-3d .h3-svg{width:100%;height:100%;max-height:none;aspect-ratio:auto;pointer-events:none}
+.h3e-insp{flex:1 1 auto;min-height:0;overflow-y:auto;background:var(--inset);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.h3e-insp h4{margin:0;font-size:15.5px;line-height:1.25}
+.h3e-sub{font-size:12px;color:var(--dim);margin-top:-6px}
+.h3e-lbl{font-size:11px;color:var(--dim);font-weight:700;margin-bottom:-4px}
+.h3e-falt{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.h3e-falt label,.h3e-hel{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim);font-weight:700}
+.h3e-falt label span{display:flex;align-items:center;gap:5px}
+.h3e-falt em{font-style:normal;font-weight:600;color:var(--faint);flex:0 0 auto}
+.h3e-insp input,.h3e-insp select{background:var(--bg,#2e3440)}
+.h3e-rad2{display:flex;gap:6px;flex-wrap:wrap}
+.h3e-text{width:100%;min-height:110px;flex:0 0 auto;font:12px/1.4 ui-monospace,monospace;background:var(--inset);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px;box-sizing:border-box}
+.h3e-spoke{position:fixed;z-index:400;pointer-events:none;padding:5px 10px;border-radius:9px;background:var(--gold);color:#2e3440;font-weight:700;font-size:12.5px;
+  transform:translate(14px,10px);box-shadow:0 6px 18px rgba(0,0,0,.35);white-space:nowrap}
+body:not(.dator) .h3-red{display:none}
+@media (max-width:900px){
+  .h3e{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;grid-auto-rows:auto;overflow-y:auto}
+  .h3e-mitt{order:1;height:58vh}.h3e-hoger{order:2}.h3e-vanster{order:3}
+  .h3e-3d{display:none}
+  .h3e-vanster,.h3e-hoger{min-height:auto}
+  .h3e-lista,.h3e-insp{overflow:visible;flex:none}
+  .h3e-tips{display:none}
+}
 /* v1.96.0: LÄGENHETEN I 3D. v1.99.0: ingen ram – bilden ligger direkt på
    sidan, överst, och tonar ut nedåt bakom avsnittet under (som ligger ovanpå
    med negativ marginal), så att de flyter ihop. */
@@ -1228,7 +1277,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.104.0';
+const APP_VERSION = 'v1.105.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -2785,6 +2834,48 @@ function h3Bardisk(){
   [0.65,1.22,1.8].forEach(function(t){ut.push({p:[pt(t-0.17,0.72),pt(t+0.17,0.72),pt(t+0.17,1.06),pt(t-0.17,1.06)],h:0.72,typ:'k'});});
   return ut;
 }
+/* v1.105.0: MÖBLERNA GÅR ATT FLYTTA. H3_INRED ovan är det inbyggda; i
+   redigeraren blir varje möbel en vriden rektangel {cx, cy (mitt, m), b, d
+   (bredd längs vinkeln, djup), v (vinkel °), h (överkant), h0 (underkant),
+   typ, n (namn)}. Det som ändrats sparas på skärmen (H3_MOB_KEY) och gäller
+   tills H3_MOB_BAS höjs – det görs när en redigering byggs in här. */
+const H3_MOB_KEY='gbgmob_v1',H3_MOB_BAS=1;
+const H3_MOB_NAMN=['Bänk','Överskåp','Högskåp','Överskåp','Skobänk','Vitvara K/F','Vitvara U/M','Vitvara SF','Köksbänk',
+  'Toalett','Handfat','Dusch','Soffa, sits','Soffa, rygg','Tv-bänk','Tv','Säng','Sänggavel','Hallbord','3D-skrivare','Bardisk','Barstol','Barstol','Barstol'];
+const H3_MOB_TYPER=[['b','Trä (bänk, bord)'],['g','Skåp'],['k','Ljus (köksskåp)'],['v','Vitvara'],['m','Tyg (soffa)'],['q','Säng'],['x','Svart (tv, skrivare)'],['t','Toalett'],['l','Handfat'],['s','Dusch']];
+let _h3Mob=null;
+function h3MobelFran(m,i){
+  let o;
+  if(m.p){const p=m.p,cx=p.reduce((a,q)=>a+q[0],0)/p.length,cy=p.reduce((a,q)=>a+q[1],0)/p.length;
+    o={cx:cx,cy:cy,b:Math.hypot(p[1][0]-p[0][0],p[1][1]-p[0][1]),d:Math.hypot(p[3][0]-p[0][0],p[3][1]-p[0][1]),
+      v:Math.atan2(p[1][1]-p[0][1],p[1][0]-p[0][0])*180/Math.PI,h:m.h,h0:m.h0||0,typ:m.typ};}
+  else{const [x,y,w,d,h,typ,h0]=m;o={cx:x+w/2,cy:y+d/2,b:w,d:d,v:0,h:h,h0:h0||0,typ:typ};}
+  ['cx','cy','b','d'].forEach(k=>{o[k]=Math.round(o[k]*1000)/1000;});o.v=Math.round(((o.v%360)+360)%360*10)/10;
+  if(H3_MOB_NAMN.length===H3_INRED.length&&H3_MOB_NAMN[i])o.n=H3_MOB_NAMN[i];
+  return o;
+}
+function h3MoblerStd(){return H3_INRED.map(h3MobelFran);}
+function h3MoblerLokal(){try{const o=JSON.parse(localStorage.getItem(H3_MOB_KEY)||'null');return !!(o&&o.bas===H3_MOB_BAS&&Array.isArray(o.l));}catch(e){return false;}}
+function h3Mobler(){
+  if(_h3Mob)return _h3Mob;
+  let l=null;
+  try{const o=JSON.parse(localStorage.getItem(H3_MOB_KEY)||'null');
+    if(o&&o.bas===H3_MOB_BAS&&Array.isArray(o.l))l=o.l.filter(m=>m&&isFinite(m.cx)&&isFinite(m.cy)&&m.b>0&&m.d>0&&isFinite(m.h));}catch(e){}
+  return (_h3Mob=l||h3MoblerStd());
+}
+function h3MoblerSpara(l){
+  _h3Mob=l;
+  try{if(l)localStorage.setItem(H3_MOB_KEY,JSON.stringify({bas:H3_MOB_BAS,l:l}));else localStorage.removeItem(H3_MOB_KEY);}catch(e){}
+  _h3Sist='';
+}
+/* Möblerna med en pågående dragning i redigeraren (som inte är sparad än). */
+function h3eMob(){const l=h3Mobler(),t=_h3e.tmp;return (t&&t.t==='mob')?l.map((m,i)=>i===t.id?t.m:m):l;}
+function h3MobelHorn(m){
+  const a=m.v*Math.PI/180,c=Math.cos(a),s=Math.sin(a),hb=m.b/2,hd=m.d/2;
+  return [[-hb,-hd],[hb,-hd],[hb,hd],[-hb,hd]].map(q=>[m.cx+q[0]*c-q[1]*s,m.cy+q[0]*s+q[1]*c]);
+}
+/* Det 3D-vyn ritar: hörnen, höjderna och typen. */
+function h3Inred(){return h3eMob().map(m=>({p:h3MobelHorn(m),h:m.h,h0:m.h0||0,typ:m.typ}));}
 /* v1.97.0: VYN GÅR ATT VRIDA, LUTA, ZOOMA OCH FLYTTA.
    _h3V = {yaw (°), tilt (° över horisonten), zoom, px, py (förskjutning i
    ritningens enheter)}. Sparas per skärm. Mus: dra = vrid och luta, högerklick
@@ -2963,11 +3054,13 @@ function h3Zon(namn){
 /* Fasadfönstrens rum: vilken zon ett fönsterstycke tillhör (för gardinerna). */
 function h3FonsterRum(cy){return cy<3.67?'Vardagsrum':(cy<6.47?'Sovrum':'Kök');}
 let _h3Sist='';
-function renderHus3d(tvinga,baraVy){
-  const el=$('hus3d');if(!el)return;
-  if(el.style.display==='none')return;
-  h3Bind(el);
-  const V=h3Vy(),yaw=V.yaw,P=h3Proj(V.yaw,V.tilt),F=h3Farger();
+/* v1.105.0: mal = {el, V, enh, mob} ritar en egen bild (redigerarens 3D):
+   egen vy, det valda markerat i guld, inga klick och ingen cache. */
+function renderHus3d(tvinga,baraVy,mal){
+  const el=mal?mal.el:$('hus3d');if(!el)return;
+  if(!mal&&el.style.display==='none')return;
+  if(!mal)h3Bind(el);
+  const V=mal?mal.V:h3Vy(),yaw=V.yaw,P=h3Proj(V.yaw,V.tilt),F=h3Farger();
   const pt=p=>p.x.toFixed(3)+','+p.y.toFixed(3);
   /* Rummen: zon, ljus, temperatur, rörelse. */
   const rum=H3_RUM.map(r=>{
@@ -2984,8 +3077,8 @@ function renderHus3d(tvinga,baraVy){
   /* Nyckel för att slippa rita om när inget ändrats. */
   const nyckel=[yaw,V.tilt,V.zoom,V.px,V.py,_h3Fri,placNyckel,document.documentElement.getAttribute('data-theme'),dorr,
     rum.map(r=>[r.zid,r.lj?r.lj.rgb.join('.')+':'+r.lj.styrka.toFixed(2)+':'+r.lj.n:0,r.temp==null?'':r.temp.toFixed(1),r.ror,r.alla,r.gardin==null?'':r.gardin.toFixed(2)].join('|')).join(';')].join('#');
-  if(!tvinga&&nyckel===_h3Sist&&el.firstChild)return;
-  _h3Sist=nyckel;
+  if(!mal){if(!tvinga&&nyckel===_h3Sist&&el.firstChild)return;
+    _h3Sist=nyckel;}
   /* RAMEN har fast form (5:4), så att vyn inte hoppar i höjd när man vrider:
      planens största utbredning åt alla håll, centrerad på mitten, delad med
      zoomen och förskjuten. */
@@ -3040,11 +3133,9 @@ function renderHus3d(tvinga,baraVy){
     return Math.max(0.35,H-(H-0.35)*Math.min(1,f*1.25)*kSnett);};
   /* Ett stycke mellan h0 och h1, kapat vid utskärningen ht. */
   const del=function(b,h0,h1,ht,farg){const t=Math.min(h1,ht);return t>h0+0.005?h3Block(P,b.b,h0,t,farg):'';};
-  H3_INRED.forEach(m=>{
-    if(m.p){const cx=m.p.reduce((a,q)=>a+q[0],0)/4,cy=m.p.reduce((a,q)=>a+q[1],0)/4;
-      block.push({b:m.p,cx:cx,cy:cy,h:m.h,h0:m.h0||0,typ:'i'+m.typ});return;}
-    const [x,y,w,d,h,typ,h0]=m;
-    block.push({b:[[x,y],[x+w,y],[x+w,y+d],[x,y+d]],cx:x+w/2,cy:y+d/2,h:h,h0:h0||0,typ:'i'+typ});});
+  /* v1.105.0: möblerna ur h3Inred – det inbyggda eller det som flyttats i redigeraren. */
+  h3Inred().forEach((m,i)=>{const cx=m.p.reduce((a,q)=>a+q[0],0)/4,cy=m.p.reduce((a,q)=>a+q[1],0)/4;
+    block.push({b:m.p,cx:cx,cy:cy,h:m.h,h0:m.h0||0,typ:'i'+m.typ,vald:!!(mal&&mal.mob===i)});});
   /* Överskåp efter bänken under dem (samma mitt): höjden bryter likheten. */
   block.forEach(b=>{b.dj=P(b.cx,b.cy,0).d+(b.h0||0)*1e-4;});
   block.sort((a,b)=>a.dj-b.dj);
@@ -3069,7 +3160,7 @@ function renderHus3d(tvinga,baraVy){
       s+=h3Block(P,b.b,0,0.06,{top:dorr===true?F.dorr:F.ytter.top,s1:F.ytter.s1,s2:F.ytter.s2});
       s+=del(b,2.05,H3_VAGG,hojd(b,H3_VAGG),F.ytter);
     }else if(b.typ&&b.typ[0]==='i'){
-      const t=b.typ[1],f=(t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:(t==='m'?F.tyg:(t==='q'?F.sang:(t==='x'?F.svart:F.inred))));
+      const t=b.typ[1],f=b.vald?{top:'#ebcb8b',s1:'#d4b06a',s2:'#c09c58'}:((t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:(t==='m'?F.tyg:(t==='q'?F.sang:(t==='x'?F.svart:F.inred)))));
       s+=h3Block(P,b.b,b.h0||0,b.h,f);
     }else s+=del(b,0,H3_VAGG,hojd(b,H3_VAGG),b.ytter?F.ytter:F.vagg);
   });
@@ -3077,6 +3168,11 @@ function renderHus3d(tvinga,baraVy){
      tänd/släck just den), andra enheter som små grå rutor. */
   Object.keys(plac).forEach(id=>{const d=DATA[id],v=plac[id];if(!d||!v)return;
     const m=P(v[0],v[1],v[2]);
+    /* Redigeraren: den valda enheten med en guldring och en lodlinje ned till golvet. */
+    if(mal&&mal.enh===id){const g=P(v[0],v[1],0);
+      s+='<line x1="'+g.x.toFixed(1)+'" y1="'+g.y.toFixed(1)+'" x2="'+m.x.toFixed(1)+'" y2="'+m.y.toFixed(1)+'" stroke="#ebcb8b" stroke-width="3" stroke-dasharray="7 6"/>'
+        +'<ellipse cx="'+g.x.toFixed(1)+'" cy="'+g.y.toFixed(1)+'" rx="9" ry="5" fill="#ebcb8b" opacity=".7"/>'
+        +'<circle cx="'+m.x.toFixed(1)+'" cy="'+m.y.toFixed(1)+'" r="15" fill="none" stroke="#ebcb8b" stroke-width="4"/>';}
     if(arLampa(d)&&har(d,'onoff')){const pa=capOf(d,'onoff')===true,rgb=pa?fargVisning(d).rgb:null;
       s+='<g class="h3-lampa'+(pa?' on':'')+'" onclick="h3Lampa(\''+id+'\')" transform="translate('+m.x.toFixed(1)+','+m.y.toFixed(1)+')">'
         +(pa?'<circle r="20" fill="rgb('+rgb.join(',')+')" opacity=".35" filter="url(#h3-sudd-l)"/>':'')
@@ -3107,6 +3203,8 @@ function renderHus3d(tvinga,baraVy){
     }
   });
   s+='</svg>';
+  /* Redigerarens bild: egna id för suddet och klippen, och inga klick. */
+  if(mal){el.innerHTML=s.replace(/h3-(k\d+|sudd-l|sudd)\b/g,'h3e-$1').replace(/ onclick="[^"]*"/g,'');return;}
   /* Under en dragning byts bara bilden – knapparna står kvar. */
   const yta=el.querySelector('.h3-yta');
   if(baraVy&&yta){yta.innerHTML=s;return;}
@@ -3114,6 +3212,8 @@ function renderHus3d(tvinga,baraVy){
   /* v1.100.0: dra och nyp gäller alltid; bara knappen för startvyn finns kvar. */
   el.innerHTML='<div class="h3-yta">'+s+'</div><div class="h3-knappar">'
     +'<button type="button" class="h3-k" onclick="h3Aterstall()" title="Tillbaka till startvyn">'+ik('M4 12a8 8 0 1 0 2.34-5.66M4 4v5h5')+'</button>'
+    /* v1.105.0: pennan öppnar redigeraren (bara på datorn, se CSS). */
+    +'<button type="button" class="h3-k h3-red" onclick="h3eOppna()" title="Redigera enheter och möbler">'+ik('M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4')+'</button>'
     +'</div>';
 }
 
@@ -3135,7 +3235,15 @@ const H3_ENHETER={
 const H3_PLAC_KEY='gbgplac_v1';
 const H3_HOJDER=[['tak',2.35,'Tak'],['vagg',1.6,'Vägg'],['bord',0.85,'Bord'],['golv',0.25,'Golv']];
 function h3PlacLokal(){try{const o=JSON.parse(localStorage.getItem(H3_PLAC_KEY)||'{}');return (o&&typeof o==='object')?o:{};}catch(e){return {};}}
-function h3Plac(){return Object.assign({},H3_ENHETER,h3PlacLokal());}
+/* v1.105.0: _h3e är redigerarens tillstånd. En plats som är null döljer en
+   inbyggd; en pågående dragning (_h3e.tmp) syns innan den sparas. */
+let _h3e={flik:'enh',vald:null,sok:'',vb:null,hist:[],V:null,tmp:null,rulla:false,sistTagg:'',sistT:0};
+function h3Plac(){
+  const o=Object.assign({},H3_ENHETER,h3PlacLokal()),t=_h3e.tmp;
+  if(t&&t.t==='enh')o[t.id]=t.v;
+  Object.keys(o).forEach(k=>{const v=o[k];if(!Array.isArray(v)||v.length<3||!v.every(isFinite))delete o[k];});
+  return o;
+}
 function h3PlacSpara(o){try{localStorage.setItem(H3_PLAC_KEY,JSON.stringify(o));}catch(e){}_h3Sist='';}
 /* Tryck på en placerad lampa i 3D-vyn: tänd/släck just den. */
 async function h3Lampa(id){
@@ -3155,14 +3263,24 @@ function h3StdHojd(d){
   return 1.2;
 }
 
-/* ===== VERKTYGET: PLACERA ENHETERNA (tillfälligt) =====
-   Planen rakt uppifrån och listan över enheter. Välj en enhet i listan, tryck
-   där den sitter på planen och välj höjd. Nästa oplacerade enhet väljs av sig
-   själv. "Kopiera" ger en text att skicka till Claude, som bygger in
-   placeringen i dashboarden. Öppnas från inställningarna eller med ?placera=1. */
-let _plVald=null,_plFilter='',_plAuto=false;
+/* ===== REDIGERAREN: ENHETER OCH MÖBLER (v1.105.0) =====
+   Ersätter placeringsverktyget. Byggd för datorn, men fungerar med finger.
+   - I mitten planen rakt uppifrån. Dra en enhet eller en möbel dit den ska.
+     Den valda möbeln får handtag: det runda vrider (15° i taget, med skift
+     fritt), de fyrkantiga ändrar bredd och djup. Hjulet zoomar, dra i golvet
+     flyttar planen och dubbelklick på golvet visar hela planen.
+   - Till vänster listan: enheterna rum för rum och möblerna. En oplacerad
+     enhet dras ut på planen, eller väljs och placeras med ett klick på planen.
+   - Till höger lägenheten i 3D som den blir (dra = vrid, hjulet = zooma) och
+     det som är valt: höjd, mått, vinkel och namn.
+   - Tangenter: pilarna flyttar 1 cm (med skift 10 cm), R vrider 90°, Delete
+     tar bort, Ctrl+Z ångrar, Ctrl+D kopierar en möbel, Esc avmarkerar.
+   Allt sparas på skärmen (H3_PLAC_KEY, H3_MOB_KEY) och syns direkt i 3D-vyn.
+   "Kopiera till Claude" ger texten som byggs in i dashboarden.
+   Öppnas med pennan i 3D-vyn (datorn), från inställningarna eller ?placera=1. */
+const H3E_VB=[-40,-40,790,970];
+let _plAuto=false,_h3eDrag=null,_h3eRaf=0,_h3eLDrag=null,_h3e3dPek=null;
 function h3PlacEnheter(){
-  const rot=rotZon();
   return devs().filter(d=>{
     if(!d||d.id===DEV.car)return false;
     const z=ZONES[d.zone];if(z&&arModesZon(z))return false;
@@ -3172,38 +3290,376 @@ function h3PlacEnheter(){
     /* Rum för rum, lamporna först – det är dem 3D-vyn behöver mest. */
     .sort((a,b)=>(zonNamn(a.zone)||'').localeCompare(zonNamn(b.zone)||'','sv')||((arLampa(b)?1:0)-(arLampa(a)?1:0))||(namn(a)||'').localeCompare(namn(b)||'','sv'));
 }
-function h3PlacOppna(){
-  let el=$('h3-plac');
-  if(!el){el=document.createElement('div');el.id='h3-plac';el.className='h3p';document.body.appendChild(el);}
-  el.hidden=false;document.body.classList.add('h3p-oppen');
-  if(!_plVald){const o=h3Plac(),f=h3PlacEnheter().find(d=>!o[d.id]);_plVald=f?f.id:null;}
-  h3PlacRita();
+function h3PlacOppna(){h3eOppna();}
+function h3eOppna(){
+  let el=$('h3-red');
+  if(!el){el=document.createElement('div');el.id='h3-red';el.className='h3e';el.innerHTML=h3eSkal();document.body.appendChild(el);h3eBind(el);}
+  el.hidden=false;document.body.classList.add('h3e-oppen');
+  if(!_h3e.V){_h3e.V=Object.assign({},h3Vy());_h3e.V.zoom=Math.max(_h3e.V.zoom,1.2);}
+  if(!_h3e.vb)_h3e.vb=H3E_VB.slice();
+  h3eRita();
 }
-function h3PlacStang(){const el=$('h3-plac');if(el)el.hidden=true;document.body.classList.remove('h3p-oppen');_h3Sist='';renderHus3d(true);
-  try{const q=new URLSearchParams(location.search);if(q.get('placera')){q.delete('placera');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:''));}}catch(e){}}
-function h3PlacValj(id){_plVald=id;h3PlacRita();}
-function h3PlacHojd(h){const o=h3PlacLokal(),v=o[_plVald]||h3Plac()[_plVald];if(!v)return;
-  o[_plVald]=[v[0],v[1],h];h3PlacSpara(o);h3PlacRita();}
-function h3PlacTaBort(){const o=h3PlacLokal();delete o[_plVald];h3PlacSpara(o);h3PlacRita();}
-/* Nästa oplacerade – i samma rum först, sedan vidare i listan. */
-function h3PlacNasta(){const o=h3Plac(),l=h3PlacEnheter(),i=l.findIndex(d=>d.id===_plVald),z=DATA[_plVald]&&DATA[_plVald].zone;
+function h3eStang(){
+  const el=$('h3-red');if(el)el.hidden=true;document.body.classList.remove('h3e-oppen');
+  _h3e.tmp=null;_h3eDrag=null;_h3Sist='';try{renderHus3d(true);}catch(e){}
+  try{const q=new URLSearchParams(location.search);if(q.get('placera')){q.delete('placera');history.replaceState(null,'',location.pathname+(q.toString()?'?'+q:''));}}catch(e){}
+}
+function h3eOppen(){const el=$('h3-red');return !!(el&&!el.hidden);}
+function h3eSkal(){
+  const kn=(t,f,x)=>'<button type="button" class="h3e-k'+(x||'')+'" onclick="'+f+'">'+t+'</button>';
+  return '<div class="h3e-top"><b>Redigera lägenheten</b><span class="h3e-info" id="h3e-info"></span>'
+      +kn('Ångra','h3eAngra()',' h3e-angra')+kn('Återställ','h3eAterstall()')+kn('Visa texten','h3PlacVisaText()')
+      +kn('Kopiera till Claude','h3PlacKopiera()',' pri')
+      +'<button type="button" class="h3e-x" onclick="h3eStang()" aria-label="Stäng" title="Stäng (Esc)">✕</button></div>'
+    +'<aside class="h3e-vanster"><div class="h3e-flikar"><button type="button" data-f="enh" onclick="h3eFlik(\'enh\')">Enheter</button>'
+      +'<button type="button" data-f="mob" onclick="h3eFlik(\'mob\')">Möbler</button></div>'
+      +'<input id="h3e-sok" class="h3e-sok" type="search" placeholder="Sök" autocomplete="off" oninput="_h3e.sok=this.value;h3eLista()">'
+      +'<div class="h3e-lista" id="h3e-lista"></div></aside>'
+    +'<div class="h3e-mitt"><svg id="h3e-plan" class="h3e-plan" viewBox="'+H3E_VB.join(' ')+'" preserveAspectRatio="xMidYMid meet"><g id="h3e-inn"></g></svg>'
+      +'<div class="h3e-zoom"><button type="button" onclick="h3eZoom(1/1.25)" title="Zooma in">+</button><button type="button" onclick="h3eZoom(1.25)" title="Zooma ut">−</button>'
+      +'<button type="button" onclick="h3eHela()" title="Hela planen">⤢</button></div>'
+      +'<div class="h3e-tips">Dra för att flytta · runda handtaget vrider · hjulet zoomar · dra i golvet för att flytta planen</div></div>'
+    +'<aside class="h3e-hoger"><div class="h3e-3d" id="h3e-3d" title="Dra för att vrida, hjulet zoomar, dubbelklick = startvyn"></div>'
+      +'<div class="h3e-insp" id="h3e-insp"></div>'
+      +'<textarea id="h3p-text" class="h3e-text" hidden readonly></textarea></aside>';
+}
+function h3eRita(){h3ePlan();h3eLista();h3eInsp();h3e3d();h3eTopp();}
+/* Under en dragning: bara planen och 3D-bilden, högst en gång per bildruta. */
+function h3eRitaSnart(){if(_h3eRaf)return;_h3eRaf=requestAnimationFrame(function(){_h3eRaf=0;h3ePlan();h3e3d();});}
+function h3eTopp(){
+  const alla=h3PlacEnheter(),o=h3Plac(),n=alla.filter(d=>o[d.id]).length,lok=Object.keys(h3PlacLokal()).length;
+  const t=n+' av '+alla.length+' enheter placerade · '+h3Mobler().length+' möbler'
+    +((lok||h3MoblerLokal())?' · ändrat på den här skärmen, inte inbyggt än':'');
+  setT('h3e-info',t);
+  const a=document.querySelector('.h3e-angra');if(a)a.disabled=!_h3e.hist.length;
+}
+function h3eFlik(f){if(_h3e.flik!==f){_h3e.flik=f;h3eLista();const l=$('h3e-lista');if(l)l.scrollTop=0;}}
+function h3eValj(t,id,rulla){
+  _h3e.vald=(t==null)?null:{t:t,id:id};
+  if(t)_h3e.flik=t;
+  _h3e.rulla=!!rulla;
+  h3eRita();
+}
+function h3eVald(){
+  const v=_h3e.vald;if(!v)return null;
+  if(v.t==='enh'&&!DATA[v.id]){_h3e.vald=null;return null;}
+  if(v.t==='mob'&&!h3Mobler()[v.id]){_h3e.vald=null;return null;}
+  return v;
+}
+/* ----- Ändringar och ångra ----- */
+function h3eMinne(tagg){
+  const nu=Date.now();
+  if(tagg&&tagg===_h3e.sistTagg&&nu-_h3e.sistT<1200){_h3e.sistT=nu;return;}
+  _h3e.sistTagg=tagg||'';_h3e.sistT=nu;
+  let m=null;try{m=localStorage.getItem(H3_MOB_KEY);}catch(e){}
+  _h3e.hist.push({p:JSON.stringify(h3PlacLokal()),m:m});
+  if(_h3e.hist.length>80)_h3e.hist.shift();
+}
+function h3eAngra(){
+  const h=_h3e.hist.pop();if(!h){toast('Inget att ångra');return;}
+  try{localStorage.setItem(H3_PLAC_KEY,h.p);if(h.m)localStorage.setItem(H3_MOB_KEY,h.m);else localStorage.removeItem(H3_MOB_KEY);}catch(e){}
+  _h3Mob=null;_h3Sist='';_h3e.sistTagg='';h3eVald();h3eRita();
+}
+function h3eAterstall(){
+  if(!confirm('Ta bort det som ändrats på den här skärmen – enheternas platser och möblerna – och gå tillbaka till det som är inbyggt?'))return;
+  h3eMinne();try{localStorage.removeItem(H3_PLAC_KEY);localStorage.removeItem(H3_MOB_KEY);}catch(e){}
+  _h3Mob=null;_h3Sist='';h3eVald();h3eRita();toast('Återställt – Ångra tar tillbaka');
+}
+function h3eSattEnh(id,v,tagg){h3eMinne(tagg);const o=h3PlacLokal();o[id]=v;h3PlacSpara(o);}
+function h3eSattMob(i,m,tagg){h3eMinne(tagg);const l=h3Mobler().map(x=>Object.assign({},x));if(m)l[i]=m;else l.splice(i,1);h3MoblerSpara(l);}
+const h3eR2=x=>Math.round(x*100)/100;
+function h3eRundaMob(m){['cx','cy','b','d','h','h0'].forEach(k=>{m[k]=h3eR2(m[k]||0);});m.b=Math.max(0.05,m.b);m.d=Math.max(0.03,m.d);
+  m.v=Math.round(((m.v%360)+360)%360*10)/10;if(m.v>=360)m.v=0;return m;}
+/* ----- Namn och rum ----- */
+function h3RumVid(x,y){
+  const r=H3_RUM.find(r=>{let inne=false;const p=r.p;for(let i=0,j=p.length-1;i<p.length;j=i++){
+    if(((p[i][1]>y)!==(p[j][1]>y))&&(x<(p[j][0]-p[i][0])*(y-p[i][1])/(p[j][1]-p[i][1])+p[i][0]))inne=!inne;}return inne;});
+  return r?r.namn:'';
+}
+function h3MobTyp(t){const x=H3_MOB_TYPER.find(q=>q[0]===t);return x?x[1]:'Möbel';}
+function h3MobNamn(m){return m.n||h3MobTyp(m.typ).replace(/ \(.*\)$/,'');}
+function h3eHojdNamn(h){const x=H3_HOJDER.find(q=>Math.abs(q[1]-h)<0.01);return x?x[2]:num(h,2)+' m';}
+/* ----- Planen ----- */
+function h3eTypFarg(F,t){return (t==='t'||t==='l'||t==='v')?F.vit:(t==='b'?F.tra:(t==='m'?F.tyg:(t==='q'?F.sang:(t==='x'?F.svart:F.inred))));}
+function h3ePlan(){
+  const g=$('h3e-inn'),sv=$('h3e-plan');if(!g||!sv)return;
+  sv.setAttribute('viewBox',_h3e.vb.map(x=>x.toFixed(1)).join(' '));
+  const F=h3Farger(),o=h3Plac(),M=h3eMob(),V=h3eVald(),k=_h3e.vb[2]/H3E_VB[2];
+  const c=q=>(q[0]*100).toFixed(1)+','+(q[1]*100).toFixed(1);
+  let s='<rect data-bg="1" x="-3000" y="-3000" width="7000" height="7000" fill="transparent"/>';
+  H3_RUM.forEach((r,i)=>{s+='<polygon data-bg="1" points="'+r.p.map(c).join(' ')+'" fill="'+(i%2?F.golvK:F.golv)+'"/>';});
+  /* Rutnät var 50:e cm, bara över golvet. */
+  s+='<g class="h3e-rut">';for(let x=0;x<=700;x+=50)s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="890"/>';
+  for(let y=0;y<=890;y+=50)s+='<line x1="0" y1="'+y+'" x2="700" y2="'+y+'"/>';s+='</g>';
+  M.forEach((m,i)=>{const ar=!!(V&&V.t==='mob'&&V.id===i),f=h3eTypFarg(F,m.typ);
+    s+='<g class="h3e-mob'+(ar?' vald':'')+'" data-m="'+i+'"><title>'+esc(h3MobNamn(m))+'</title><polygon points="'+h3MobelHorn(m).map(c).join(' ')+'" fill="'+f.top+'" stroke="'+(ar?'var(--gold)':F.kant)+'" stroke-width="'+((ar?5:2.5)*k).toFixed(2)+'"/></g>';});
+  H3_VAGGAR.forEach(v=>{const fon=v[5]==='f';
+    s+='<line class="h3e-vagg" x1="'+v[0]*100+'" y1="'+v[1]*100+'" x2="'+v[2]*100+'" y2="'+v[3]*100+'" stroke="'+(fon?'#88c0d0':'var(--ink)')+'" stroke-width="'+(v[4]*100).toFixed(0)+'" stroke-linecap="square"/>';});
+  H3_RUM.forEach(r=>{const cx=r.p.reduce((a,q)=>a+q[0],0)/r.p.length,cy=r.p.reduce((a,q)=>a+q[1],0)/r.p.length;
+    s+='<text x="'+(cx*100).toFixed(0)+'" y="'+(cy*100).toFixed(0)+'" class="h3e-rum" text-anchor="middle" font-size="'+(26*Math.min(1,k*1.4)*(r.namn.length>9?0.72:1)).toFixed(1)+'">'+esc(r.namn)+'</text>';});
+  /* Den valda möbelns handtag: vrid (runt) och bredd/djup (fyrkantiga). Överst, efter enheterna. */
+  let hand='';
+  if(V&&V.t==='mob'&&M[V.id]){const m=M[V.id],a=m.v*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a);
+    const L=(x,y)=>[(m.cx+x*ca-y*sa)*100,(m.cy+x*sa+y*ca)*100],kant=L(0,-m.d/2),rot=L(0,-m.d/2-0.34*k),hb=L(m.b/2,0),hd=L(0,m.d/2),r=9*k;
+    hand+='<line class="h3e-vagg" x1="'+kant[0].toFixed(1)+'" y1="'+kant[1].toFixed(1)+'" x2="'+rot[0].toFixed(1)+'" y2="'+rot[1].toFixed(1)+'" stroke="var(--gold)" stroke-width="'+(2.5*k).toFixed(2)+'"/>'
+      +'<circle class="h3e-hand rot" data-h="rot" cx="'+rot[0].toFixed(1)+'" cy="'+rot[1].toFixed(1)+'" r="'+(r*1.15).toFixed(1)+'"><title>Vrid (skift = fritt)</title></circle>'
+      +[['b',hb],['d',hd]].map(q=>'<rect class="h3e-hand" data-h="'+q[0]+'" x="'+(q[1][0]-r).toFixed(1)+'" y="'+(q[1][1]-r).toFixed(1)+'" width="'+(2*r).toFixed(1)+'" height="'+(2*r).toFixed(1)+'" rx="'+(2.5*k).toFixed(1)+'" transform="rotate('+m.v+' '+q[1][0].toFixed(1)+' '+q[1][1].toFixed(1)+')"><title>'+(q[0]==='b'?'Bredd':'Djup')+'</title></rect>').join('');}
+  /* Enheterna överst: lampor som runda prickar, andra som rutor. */
+  const alla=h3PlacEnheter();
+  alla.forEach(d=>{const v=o[d.id];if(!v)return;const ar=!!(V&&V.t==='enh'&&V.id===d.id),ln=arLampa(d);
+    const fg=ln&&capOf(d,'onoff')===true?fargCss(fargVisning(d).rgb):(ln?'#d8dee9':'#81a1c1'),r=(ar?14:9.5)*k,sw=((ar?5:2.5)*k).toFixed(2);
+    s+='<g class="h3e-enh'+(ar?' vald':'')+'" data-e="'+esc(d.id)+'" transform="translate('+(v[0]*100).toFixed(1)+','+(v[1]*100).toFixed(1)+')"><title>'+esc(namn(d))+' · '+h3eHojdNamn(v[2])+'</title>'
+      +'<circle r="'+(r*2).toFixed(1)+'" fill="transparent"/>'
+      +(ln?'<circle r="'+r.toFixed(1)+'" fill="'+fg+'" stroke="'+(ar?'var(--gold)':'#2e3440')+'" stroke-width="'+sw+'"/>'
+        :'<rect x="'+(-r).toFixed(1)+'" y="'+(-r).toFixed(1)+'" width="'+(2*r).toFixed(1)+'" height="'+(2*r).toFixed(1)+'" rx="'+(r*0.3).toFixed(1)+'" fill="'+fg+'" stroke="'+(ar?'var(--gold)':'#2e3440')+'" stroke-width="'+sw+'"/>')
+      +'<text class="h3e-et'+(ar?' vald':'')+'" x="'+(r+5*k).toFixed(1)+'" y="'+(-r*0.6).toFixed(1)+'" font-size="'+((ar?19:15)*k).toFixed(1)+'" stroke-width="'+(5*k).toFixed(1)+'">'+esc(namn(d))+'</text></g>';});
+  g.innerHTML=s+hand;
+}
+function h3eSvgPt(e){
+  const sv=$('h3e-plan');if(!sv)return null;const pt=sv.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;
+  const m=sv.getScreenCTM();if(!m)return null;const q=pt.matrixTransform(m.inverse());return {x:q.x,y:q.y};
+}
+function h3eZoom(f,p){
+  const vb=_h3e.vb,nw=Math.max(120,Math.min(2400,vb[2]*f)),k=nw/vb[2];
+  const cx=p?p.x:vb[0]+vb[2]/2,cy=p?p.y:vb[1]+vb[3]/2;
+  _h3e.vb=[cx-(cx-vb[0])*k,cy-(cy-vb[1])*k,vb[2]*k,vb[3]*k];h3ePlan();
+}
+function h3eHela(){_h3e.vb=H3E_VB.slice();h3ePlan();}
+function h3eNed(e){
+  if(e.button!=null&&e.button>0&&e.button!==1&&e.button!==2)return;
+  const p=h3eSvgPt(e);if(!p)return;const t=e.target;
+  const hand=t.closest&&t.closest('[data-h]'),en=t.closest&&t.closest('[data-e]'),mo=t.closest&&t.closest('[data-m]');
+  let d;
+  if(e.button===1||e.button===2)d={typ:'pan',vb0:_h3e.vb.slice()};
+  else if(hand&&_h3e.vald&&_h3e.vald.t==='mob'){const m=h3Mobler()[_h3e.vald.id];d={typ:hand.getAttribute('data-h'),id:_h3e.vald.id,orig:Object.assign({},m)};}
+  else if(en){const id=en.getAttribute('data-e'),v=h3Plac()[id];if(!v)return;
+    if(!_h3e.vald||_h3e.vald.id!==id)h3eValj('enh',id,true);d={typ:'enh',id:id,orig:v.slice()};}
+  else if(mo){const i=Number(mo.getAttribute('data-m')),m=h3Mobler()[i];if(!m)return;
+    if(!_h3e.vald||_h3e.vald.t!=='mob'||_h3e.vald.id!==i)h3eValj('mob',i,true);d={typ:'mob',id:i,orig:Object.assign({},m)};}
+  else d={typ:'bg',vb0:_h3e.vb.slice()};
+  d.s=p;d.x0=e.clientX;d.y0=e.clientY;d.flyttad=false;d.pek=e.pointerId;
+  _h3eDrag=d;try{$('h3e-plan').setPointerCapture(e.pointerId);}catch(x){}
+  e.preventDefault();
+}
+function h3eFlytta(e){
+  const d=_h3eDrag;if(!d||d.pek!==e.pointerId)return;
+  if(!d.flyttad&&Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<4)return;
+  d.flyttad=true;
+  if(d.typ==='bg'||d.typ==='pan'){
+    const sv=$('h3e-plan'),r=sv.getBoundingClientRect(),k=Math.max(d.vb0[2]/r.width,d.vb0[3]/r.height);
+    _h3e.vb=[d.vb0[0]-(e.clientX-d.x0)*k,d.vb0[1]-(e.clientY-d.y0)*k,d.vb0[2],d.vb0[3]];
+    sv.setAttribute('viewBox',_h3e.vb.map(x=>x.toFixed(1)).join(' '));return;}
+  const p=h3eSvgPt(e);if(!p)return;
+  const dx=(p.x-d.s.x)/100,dy=(p.y-d.s.y)/100;
+  if(d.typ==='enh'){_h3e.tmp={t:'enh',id:d.id,v:[h3eR2(d.orig[0]+dx),h3eR2(d.orig[1]+dy),d.orig[2]]};}
+  else{
+    const m=Object.assign({},d.orig);
+    if(d.typ==='mob'){m.cx=d.orig.cx+dx;m.cy=d.orig.cy+dy;}
+    else if(d.typ==='rot'){let v=Math.atan2(p.y/100-d.orig.cy,p.x/100-d.orig.cx)*180/Math.PI+90;
+      if(!e.shiftKey)v=Math.round(v/15)*15;m.v=v;}
+    else{const a=d.orig.v*Math.PI/180,u=d.typ==='b'?[Math.cos(a),Math.sin(a)]:[-Math.sin(a),Math.cos(a)];
+      const pr=dx*u[0]+dy*u[1],gl=d.typ==='b'?d.orig.b:d.orig.d,ny=Math.max(0.05,h3eR2(gl+pr)),fl=(ny-gl)/2;
+      m[d.typ]=ny;m.cx=d.orig.cx+u[0]*fl;m.cy=d.orig.cy+u[1]*fl;}
+    _h3e.tmp={t:'mob',id:d.id,m:h3eRundaMob(m)};
+  }
+  h3eRitaSnart();
+}
+function h3eUpp(e){
+  const d=_h3eDrag;if(!d||d.pek!==e.pointerId)return;
+  _h3eDrag=null;const tmp=_h3e.tmp;_h3e.tmp=null;
+  if(e.type==='pointercancel'){h3eRita();return;}
+  if(d.flyttad){
+    if(tmp&&tmp.t==='enh')h3eSattEnh(tmp.id,tmp.v);
+    else if(tmp&&tmp.t==='mob')h3eSattMob(tmp.id,tmp.m);
+    h3eRita();return;}
+  if(d.typ==='bg'){
+    /* Ett klick på golvet: placera den valda enheten om den inte står någonstans, annars avmarkera. */
+    const v=h3eVald();
+    if(v&&v.t==='enh'&&!h3Plac()[v.id]){const p=d.s,dd=DATA[v.id];h3eSattEnh(v.id,[h3eR2(p.x/100),h3eR2(p.y/100),dd?h3StdHojd(dd):1.2]);h3eRita();}
+    else if(v)h3eValj(null);
+  }
+}
+/* ----- Listan ----- */
+function h3eLista(){
+  const el=$('h3e-lista');if(!el)return;
+  document.querySelectorAll('.h3e-flikar button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-f')===_h3e.flik));
+  const sok=(_h3e.sok||'').trim().toLowerCase(),V=h3eVald();let h='',zon=null;
+  if(_h3e.flik==='enh'){
+    const o=h3Plac(),lok=h3PlacLokal();
+    const alla=h3PlacEnheter().filter(d=>!sok||(namn(d)||'').toLowerCase().includes(sok)||(zonNamn(d.zone)||'').toLowerCase().includes(sok));
+    const kvar=alla.filter(d=>!o[d.id]).length;
+    h+='<div class="h3e-hj">'+(kvar?'Dra en enhet till planen, eller välj den och klicka där den sitter.':'Alla enheter i listan är placerade.')+'</div>';
+    alla.forEach(d=>{const zn=zonNamn(d.zone)||'Utan rum';
+      if(zn!==zon){zon=zn;h+='<div class="h3e-z">'+esc(zn)+'</div>';}
+      const v=o[d.id],ar=!!(V&&V.t==='enh'&&V.id===d.id);
+      h+='<div class="h3e-rad'+(ar?' vald':'')+(v?' klar':' ny')+'" data-le="'+esc(d.id)+'"><i class="h3e-prick'+(arLampa(d)?' lampa':'')+'"></i>'
+        +'<span class="n">'+esc(namn(d))+'</span><small>'+(v?h3eHojdNamn(v[2])+(lok[d.id]?' •':''):'dra ut')+'</small></div>';});
+  }else{
+    const M=h3Mobler();
+    h+='<button type="button" class="h3e-k h3e-ny" onclick="h3eNyMobel()">+ Ny möbel</button>';
+    M.map((m,i)=>({m:m,i:i,rum:h3RumVid(m.cx,m.cy)||'Utanför'}))
+      .filter(x=>!sok||h3MobNamn(x.m).toLowerCase().includes(sok)||x.rum.toLowerCase().includes(sok))
+      .sort((a,b)=>a.rum.localeCompare(b.rum,'sv')||h3MobNamn(a.m).localeCompare(h3MobNamn(b.m),'sv'))
+      .forEach(x=>{if(x.rum!==zon){zon=x.rum;h+='<div class="h3e-z">'+esc(x.rum)+'</div>';}
+        const ar=!!(V&&V.t==='mob'&&V.id===x.i);
+        h+='<div class="h3e-rad klar'+(ar?' vald':'')+'" data-lm="'+x.i+'"><i class="h3e-prick mob" style="background:'+h3eTypFarg(h3Farger(),x.m.typ).top+'"></i>'
+          +'<span class="n">'+esc(h3MobNamn(x.m))+'</span><small>'+Math.round(x.m.b*100)+'×'+Math.round(x.m.d*100)+'</small></div>';});
+  }
+  el.innerHTML=h;
+  if(_h3e.rulla){_h3e.rulla=false;const r=el.querySelector('.h3e-rad.vald');if(r&&r.scrollIntoView)r.scrollIntoView({block:'nearest'});}
+}
+/* Dra från listan: musen drar ut en etikett; släpps den över planen hamnar
+   enheten där. Ett vanligt klick väljer bara. */
+function h3eListNed(e){
+  const r=e.target.closest&&e.target.closest('[data-le],[data-lm]');if(!r||e.button>0)return;
+  _h3eLDrag={le:r.getAttribute('data-le'),lm:r.getAttribute('data-lm'),x0:e.clientX,y0:e.clientY,pek:e.pointerId,typ:e.pointerType,spoke:null};
+}
+function h3eListFlytta(e){
+  const d=_h3eLDrag;if(!d||d.pek!==e.pointerId||!d.le)return;
+  if(d.typ==='touch')return;
+  if(!d.spoke){if(Math.hypot(e.clientX-d.x0,e.clientY-d.y0)<6)return;
+    const dd=DATA[d.le];d.spoke=document.createElement('div');d.spoke.className='h3e-spoke';d.spoke.textContent=dd?namn(dd):'Enhet';document.body.appendChild(d.spoke);
+    try{document.body.classList.add('h3e-drar');}catch(x){}}
+  d.spoke.style.left=e.clientX+'px';d.spoke.style.top=e.clientY+'px';
+  const sv=$('h3e-plan'),ov=document.elementFromPoint(e.clientX,e.clientY);
+  if(sv)sv.classList.toggle('over',!!(ov&&sv.contains(ov)));
+  e.preventDefault();
+}
+function h3eListUpp(e){
+  const d=_h3eLDrag;if(!d||d.pek!==e.pointerId)return;_h3eLDrag=null;
+  const sv=$('h3e-plan');if(sv)sv.classList.remove('over');document.body.classList.remove('h3e-drar');
+  if(d.spoke){d.spoke.remove();
+    const ov=document.elementFromPoint(e.clientX,e.clientY);
+    if(sv&&ov&&sv.contains(ov)){const p=h3eSvgPt(e),dd=DATA[d.le],fore=h3Plac()[d.le];
+      if(p){h3eSattEnh(d.le,[h3eR2(p.x/100),h3eR2(p.y/100),fore?fore[2]:(dd?h3StdHojd(dd):1.2)]);h3eValj('enh',d.le);}}
+    return;}
+  if(Math.hypot(e.clientX-d.x0,e.clientY-d.y0)>8)return;
+  if(d.le)h3eValj('enh',d.le);else if(d.lm!=null)h3eValj('mob',Number(d.lm));
+}
+/* ----- Det valda ----- */
+function h3eInsp(){
+  const el=$('h3e-insp');if(!el)return;const V=h3eVald();
+  const falt=(lbl,k,val,steg,enh)=>'<label>'+lbl+'<span><input type="number" step="'+(steg||1)+'" value="'+val+'" onchange="h3eFalt(\''+k+'\',this.value)">'+(enh?'<em>'+enh+'</em>':'')+'</span></label>';
+  let h='';
+  if(!V){
+    h='<h4>Inget valt</h4><p class="h3e-hj">Klicka på en enhet eller en möbel på planen eller i listan. Dra en oplacerad enhet från listan och släpp den där den sitter.</p>'
+      +'<p class="h3e-hj"><b>Tangenter:</b> pilarna flyttar 1 cm (skift 10 cm) · R vrider 90° · Delete tar bort · Ctrl+Z ångrar · Ctrl+D kopierar en möbel · Esc avmarkerar.</p>'
+      +'<div class="h3e-rad2"><button type="button" class="h3e-k" onclick="h3eNyMobel()">+ Ny möbel</button><button type="button" class="h3e-k" onclick="h3eNasta()">Nästa oplacerade enhet</button></div>';
+  }else if(V.t==='enh'){
+    const d=DATA[V.id],v=h3Plac()[V.id],lok=h3PlacLokal()[V.id];
+    h='<h4>'+esc(namn(d))+'</h4><div class="h3e-sub">'+esc(zonNamn(d.zone)||'Utan rum')+' · '+(arLampa(d)?'lampa':esc(String(d.class||'enhet')))
+      +(v?(lok?' · ändrad här':' · inbyggd'):' · inte placerad')+'</div>';
+    if(v){
+      h+='<div class="h3e-falt">'+falt('Från vänster','x',Math.round(v[0]*100),1,'cm')+falt('Uppifrån','y',Math.round(v[1]*100),1,'cm')+'</div>'
+        +'<div class="h3e-lbl">Höjd</div><div class="h3e-rad2">'+H3_HOJDER.map(x=>'<button type="button" class="h3e-k'+(Math.abs(v[2]-x[1])<0.01?' on':'')+'" onclick="h3eFalt(\'h\','+Math.round(x[1]*100)+')">'+x[2]+'</button>').join('')+'</div>'
+        +'<div class="h3e-falt">'+falt('Höjd över golvet','h',Math.round(v[2]*100),5,'cm')+'</div>'
+        +'<div class="h3e-rad2"><button type="button" class="h3e-k" onclick="h3eTaBort()">Ta bort från planen</button><button type="button" class="h3e-k pri" onclick="h3eNasta()">Nästa oplacerade →</button></div>';
+    }else h+='<p class="h3e-hj">Dra den från listan till planen, eller klicka på planen där den sitter.</p>'
+      +'<div class="h3e-rad2"><button type="button" class="h3e-k" onclick="h3eNasta()">Hoppa över →</button></div>';
+  }else{
+    const m=h3eMob()[V.id];
+    h='<h4>'+esc(h3MobNamn(m))+'</h4><div class="h3e-sub">'+esc(h3RumVid(m.cx,m.cy)||'Utanför rummen')+'</div>'
+      +'<label class="h3e-hel">Namn<input type="text" value="'+esc(m.n||'')+'" placeholder="'+esc(h3MobTyp(m.typ))+'" onchange="h3eFalt(\'n\',this.value)"></label>'
+      +'<label class="h3e-hel">Material<select onchange="h3eFalt(\'typ\',this.value)">'+H3_MOB_TYPER.map(t=>'<option value="'+t[0]+'"'+(t[0]===m.typ?' selected':'')+'>'+esc(t[1])+'</option>').join('')+'</select></label>'
+      +'<div class="h3e-falt">'+falt('Bredd','b',Math.round(m.b*100),1,'cm')+falt('Djup','d',Math.round(m.d*100),1,'cm')
+        +falt('Höjd (överkant)','h',Math.round(m.h*100),1,'cm')+falt('Från golvet','h0',Math.round((m.h0||0)*100),1,'cm')
+        +falt('Mitt från vänster','cx',Math.round(m.cx*100),1,'cm')+falt('Mitt uppifrån','cy',Math.round(m.cy*100),1,'cm')
+        +falt('Vinkel','v',Math.round(m.v*10)/10,1,'°')+'</div>'
+      +'<div class="h3e-rad2"><button type="button" class="h3e-k" onclick="h3eVrid(-90)" title="R med skift">⟲ 90°</button><button type="button" class="h3e-k" onclick="h3eVrid(90)" title="R">⟳ 90°</button>'
+        +'<button type="button" class="h3e-k" onclick="h3eKopia()" title="Ctrl+D">Kopiera</button><button type="button" class="h3e-k" onclick="h3eTaBort()" title="Delete">Ta bort</button></div>'
+      +'<div class="h3e-rad2"><button type="button" class="h3e-k" onclick="h3eNyMobel()">+ Ny möbel</button></div>';
+  }
+  el.innerHTML=h;
+}
+function h3eFalt(k,val){
+  const V=h3eVald();if(!V)return;
+  if(V.t==='enh'){const v=(h3Plac()[V.id]||[3.5,4.45,1.2]).slice(),n=Number(String(val).replace(',','.'));if(!isFinite(n))return;
+    v[{x:0,y:1,h:2}[k]]=h3eR2(n/100);h3eSattEnh(V.id,v);}
+  else{const m=Object.assign({},h3Mobler()[V.id]);
+    if(k==='n')m.n=String(val).trim().slice(0,40);
+    else if(k==='typ')m.typ=val;
+    else{const n=Number(String(val).replace(',','.'));if(!isFinite(n))return;m[k]=k==='v'?n:n/100;}
+    if(m.h0>m.h-0.01)m.h=m.h0+0.05;
+    h3eSattMob(V.id,h3eRundaMob(m));}
+  h3eRita();
+}
+function h3eFlyttaVald(dx,dy){
+  const V=h3eVald();if(!V)return;
+  if(V.t==='enh'){const v=h3Plac()[V.id];if(!v)return;h3eSattEnh(V.id,[h3eR2(v[0]+dx),h3eR2(v[1]+dy),v[2]],'pil');}
+  else{const m=Object.assign({},h3Mobler()[V.id]);m.cx+=dx;m.cy+=dy;h3eSattMob(V.id,h3eRundaMob(m),'pil');}
+  h3ePlan();h3eInsp();h3e3d();h3eTopp();
+}
+function h3eVrid(g){const V=h3eVald();if(!V||V.t!=='mob')return;const m=Object.assign({},h3Mobler()[V.id]);m.v+=g;h3eSattMob(V.id,h3eRundaMob(m));h3eRita();}
+function h3eKopia(){const V=h3eVald();if(!V||V.t!=='mob')return;const m=Object.assign({},h3Mobler()[V.id]);m.cx+=0.2;m.cy+=0.2;
+  const l=h3Mobler().length;h3eMinne();h3MoblerSpara(h3Mobler().map(x=>Object.assign({},x)).concat([h3eRundaMob(m)]));h3eValj('mob',l,true);}
+function h3eNyMobel(){
+  /* Mitt i det som syns av planen, som en bänk – byt mått och material till höger. */
+  const vb=_h3e.vb,cx=Math.max(0.5,Math.min(6.5,(vb[0]+vb[2]/2)/100)),cy=Math.max(0.5,Math.min(8.4,(vb[1]+vb[3]/2)/100));
+  const l=h3Mobler().length;h3eMinne();
+  h3MoblerSpara(h3Mobler().map(x=>Object.assign({},x)).concat([h3eRundaMob({cx:cx,cy:cy,b:1,d:0.5,v:0,h:0.75,h0:0,typ:'b',n:'Ny möbel'})]));
+  h3eValj('mob',l,true);
+}
+function h3eTaBort(){
+  const V=h3eVald();if(!V)return;
+  if(V.t==='enh'){h3eMinne();const o=h3PlacLokal();
+    /* Inbyggda platser döljs med null; egna tas bort. */
+    if(H3_ENHETER[V.id])o[V.id]=null;else delete o[V.id];h3PlacSpara(o);}
+  else{h3eSattMob(V.id,null);_h3e.vald=null;}
+  h3eRita();
+}
+function h3eNasta(){
+  const o=h3Plac(),l=h3PlacEnheter(),V=h3eVald(),i=V&&V.t==='enh'?l.findIndex(d=>d.id===V.id):-1,z=i>=0?l[i].zone:null;
   const rest=l.slice(i+1).concat(l.slice(0,i+1));
   const f=rest.find(d=>d.zone===z&&!o[d.id])||rest.find(d=>!o[d.id]);
-  if(f)_plVald=f.id;else toast('Alla enheter är placerade');h3PlacRita(null,true);}
-function h3PlacTryck(ev){
-  if(!_plVald)return;
-  const sv=ev.currentTarget,pt=sv.createSVGPoint();pt.x=ev.clientX;pt.y=ev.clientY;
-  const m=sv.getScreenCTM();if(!m)return;const q=pt.matrixTransform(m.inverse());
-  const x=Math.round(q.x)/100,y=Math.round(q.y)/100;
-  if(x<-0.2||x>7.3||y<-0.2||y>9.1)return;
-  const o=h3PlacLokal(),fore=h3Plac()[_plVald],d=DATA[_plVald];
-  o[_plVald]=[x,y,fore?fore[2]:(d?h3StdHojd(d):1.2)];h3PlacSpara(o);
-  /* Enheten förblir vald, så att höjden går att välja; Nästa går vidare. */
-  h3PlacRita(null,_plVald);
+  if(f)h3eValj('enh',f.id,true);else toast('Alla enheter är placerade');
 }
+function h3eTangent(e){
+  if(!h3eOppen())return;
+  const t=e.target,skriv=t&&/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
+  if(skriv){if(e.key==='Escape')t.blur();return;}
+  const ctrl=e.ctrlKey||e.metaKey,V=h3eVald();
+  if(ctrl&&(e.key==='z'||e.key==='Z')){e.preventDefault();h3eAngra();return;}
+  if(ctrl&&(e.key==='d'||e.key==='D')){e.preventDefault();h3eKopia();return;}
+  if(e.key==='Escape'){e.preventDefault();if(V)h3eValj(null);else h3eStang();return;}
+  if(!V)return;
+  const st=e.shiftKey?0.1:0.01,pil={ArrowLeft:[-st,0],ArrowRight:[st,0],ArrowUp:[0,-st],ArrowDown:[0,st]}[e.key];
+  if(pil){e.preventDefault();h3eFlyttaVald(pil[0],pil[1]);return;}
+  if(e.key==='Delete'||e.key==='Backspace'){e.preventDefault();h3eTaBort();return;}
+  if((e.key==='r'||e.key==='R')&&!ctrl){e.preventDefault();h3eVrid(e.shiftKey?-90:90);}
+}
+/* ----- 3D-bilden till höger ----- */
+function h3e3d(){
+  const el=$('h3e-3d');if(!el||!el.offsetWidth)return;const V=h3eVald();
+  try{renderHus3d(true,false,{el:el,V:_h3e.V,enh:V&&V.t==='enh'?V.id:null,mob:V&&V.t==='mob'?V.id:null});}catch(e){}
+}
+function h3eBind(el){
+  const sv=el.querySelector('#h3e-plan');
+  sv.addEventListener('pointerdown',h3eNed);sv.addEventListener('pointermove',h3eFlytta);
+  sv.addEventListener('pointerup',h3eUpp);sv.addEventListener('pointercancel',h3eUpp);
+  sv.addEventListener('wheel',function(e){e.preventDefault();h3eZoom(e.deltaY<0?1/1.15:1.15,h3eSvgPt(e));},{passive:false});
+  sv.addEventListener('dblclick',function(e){if(e.target.closest&&e.target.closest('[data-bg]'))h3eHela();});
+  sv.addEventListener('contextmenu',function(e){e.preventDefault();});
+  const li=el.querySelector('#h3e-lista');li.addEventListener('pointerdown',h3eListNed);
+  document.addEventListener('pointermove',h3eListFlytta);document.addEventListener('pointerup',h3eListUpp);
+  document.addEventListener('pointercancel',function(e){if(_h3eLDrag&&_h3eLDrag.pek===e.pointerId){if(_h3eLDrag.spoke)_h3eLDrag.spoke.remove();_h3eLDrag=null;document.body.classList.remove('h3e-drar');}});
+  document.addEventListener('keydown',h3eTangent);
+  const p3=el.querySelector('#h3e-3d');
+  p3.addEventListener('pointerdown',function(e){_h3e3dPek={x:e.clientX,y:e.clientY,id:e.pointerId};try{p3.setPointerCapture(e.pointerId);}catch(x){}e.preventDefault();});
+  p3.addEventListener('pointermove',function(e){const q=_h3e3dPek;if(!q||q.id!==e.pointerId)return;
+    const V=_h3e.V;V.yaw-=(e.clientX-q.x)*0.45;V.tilt+=(e.clientY-q.y)*0.3;q.x=e.clientX;q.y=e.clientY;h3Klamp(V);h3eRitaSnart();});
+  const slut=function(){_h3e3dPek=null;};p3.addEventListener('pointerup',slut);p3.addEventListener('pointercancel',slut);
+  p3.addEventListener('wheel',function(e){e.preventDefault();_h3e.V.zoom*=e.deltaY<0?1.12:1/1.12;h3Klamp(_h3e.V);h3eRitaSnart();},{passive:false});
+  p3.addEventListener('dblclick',function(){_h3e.V=Object.assign({},h3Vy());h3e3d();});
+  window.addEventListener('resize',function(){if(h3eOppen())h3e3d();});
+}
+/* ----- Texten till Claude ----- */
 function h3PlacText(){
-  const o=h3Plac(),rad=['placering Mandolingatan v1 · '+new Date().toISOString().slice(0,16)];
+  const o=h3Plac(),rad=['redigering Mandolingatan v2 · '+new Date().toISOString().slice(0,16),'# enheter: id;x;y;höjd;namn;rum'];
   h3PlacEnheter().forEach(d=>{const v=o[d.id];if(v)rad.push(d.id+';'+v[0]+';'+v[1]+';'+v[2]+';'+(namn(d)||'').replace(/;/g,',')+';'+zonNamn(d.zone));});
+  if(h3MoblerLokal()){
+    rad.push('# möbler: möbel;typ;mitt x;mitt y;bredd;djup;vinkel;höjd;från golvet;namn');
+    h3Mobler().forEach(m=>rad.push(['möbel',m.typ,m.cx,m.cy,m.b,m.d,m.v,m.h,m.h0||0,(m.n||'').replace(/;/g,',')].join(';')));
+  }else rad.push('# möblerna oförändrade');
   return rad.join('\n');
 }
 async function h3PlacKopiera(){
@@ -3212,49 +3668,6 @@ async function h3PlacKopiera(){
   catch(e){const a=$('h3p-text');if(a){a.hidden=false;a.value=t;a.select();}toast('Markera texten och kopiera');}
 }
 function h3PlacVisaText(){const a=$('h3p-text');if(a){a.hidden=!a.hidden;a.value=h3PlacText();if(!a.hidden)a.select();}}
-function h3PlacRita(nyVald,senast){
-  if(nyVald!==undefined&&nyVald!==null)_plVald=nyVald;
-  const el=$('h3-plac');if(!el)return;
-  const o=h3Plac(),lok=h3PlacLokal(),alla=h3PlacEnheter(),F=h3Farger();
-  const vald=_plVald&&DATA[_plVald],vp=vald&&o[_plVald];
-  /* Planen rakt uppifrån, i centimeter. */
-  let s='<svg class="h3p-plan" viewBox="-40 -40 790 970" onclick="h3PlacTryck(event)">';
-  H3_RUM.forEach((r,i)=>{s+='<polygon points="'+r.p.map(q=>(q[0]*100).toFixed(0)+','+(q[1]*100).toFixed(0)).join(' ')+'" fill="'+(i%2?F.golvK:F.golv)+'"/>';});
-  H3_INRED.forEach(m=>{const pts=m.p||[[m[0],m[1]],[m[0]+m[2],m[1]],[m[0]+m[2],m[1]+m[3]],[m[0],m[1]+m[3]]];
-    s+='<polygon points="'+pts.map(q=>(q[0]*100).toFixed(0)+','+(q[1]*100).toFixed(0)).join(' ')+'" fill="none" stroke="'+F.kant+'" stroke-width="3"/>';});
-  H3_VAGGAR.forEach(v=>{const fon=v[5]==='f';
-    s+='<line x1="'+v[0]*100+'" y1="'+v[1]*100+'" x2="'+v[2]*100+'" y2="'+v[3]*100+'" stroke="'+(fon?'#88c0d0':'var(--ink)')+'" stroke-width="'+(v[4]*100).toFixed(0)+'" stroke-linecap="square"/>';});
-  H3_RUM.forEach(r=>{const cx=r.p.reduce((a,q)=>a+q[0],0)/r.p.length,cy=r.p.reduce((a,q)=>a+q[1],0)/r.p.length;
-    s+='<text x="'+(cx*100).toFixed(0)+'" y="'+(cy*100).toFixed(0)+'" class="h3p-rum" text-anchor="middle">'+esc(r.namn)+'</text>';});
-  alla.forEach(d=>{const v=o[d.id];if(!v)return;const ar=d.id===_plVald,ln=arLampa(d);
-    const fg=ln&&capOf(d,'onoff')===true?fargCss(fargVisning(d).rgb):(ln?'#d8dee9':'#81a1c1');
-    s+='<g class="h3p-pkt'+(ar?' vald':'')+'" onclick="event.stopPropagation();h3PlacValj(\''+d.id+'\')">'
-      +'<circle cx="'+(v[0]*100).toFixed(0)+'" cy="'+(v[1]*100).toFixed(0)+'" r="'+(ar?16:11)+'" fill="'+fg+'" stroke="'+(ar?'var(--gold)':'#2e3440')+'" stroke-width="'+(ar?6:3)+'"/>'
-      +'<text x="'+(v[0]*100+15).toFixed(0)+'" y="'+(v[1]*100-12).toFixed(0)+'" class="h3p-et'+(lok[d.id]?'':' inb')+'">'+esc(namn(d))+'</text></g>';});
-  s+='</svg>';
-  const klara=alla.filter(d=>o[d.id]).length;
-  let h='<div class="h3p-top"><b>Placera enheter</b><span>'+klara+' av '+alla.length+' placerade</span>'
-    +'<button class="h3p-x" onclick="h3PlacStang()" aria-label="Stäng">✕</button></div>'
-    +'<div class="h3p-val">'+(vald
-      ?('<div class="h3p-namn"><b>'+esc(namn(vald))+'</b> <small>'+esc(zonNamn(vald.zone))+'</small><br><small>'+(vp?'Tryck på planen för att flytta':'Tryck på planen där den sitter')+'</small></div>'
-        +'<div class="h3p-hojd">'+H3_HOJDER.map(x=>'<button class="'+(vp&&Math.abs(vp[2]-x[1])<0.01?'on':'')+'" '+(vp?'':'disabled ')+'onclick="h3PlacHojd('+x[1]+')">'+x[2]+'</button>').join('')
-        +(lok[_plVald]?'<button onclick="h3PlacTaBort()">Ta bort</button>':'')+'<button class="pri" onclick="h3PlacNasta()">'+(vp?'Nästa \u2192':'Hoppa över')+'</button></div>')
-      :'<div class="h3p-namn"><b>Alla enheter är placerade.</b><br><small>Tryck på en punkt eller i listan för att ändra.</small></div>')
-    +'</div>'
-    +s
-    +'<div class="h3p-knappar"><button class="pri" onclick="h3PlacKopiera()">Kopiera till Claude</button><button onclick="h3PlacVisaText()">Visa texten</button></div>'
-    +'<textarea id="h3p-text" class="h3p-text" hidden readonly></textarea>'
-    +'<div class="h3p-lista">';
-  let zon='';
-  alla.forEach(d=>{const zn=zonNamn(d.zone)||'Utan rum';
-    if(zn!==zon){zon=zn;h+='<div class="h3p-z">'+esc(zn)+'</div>';}
-    const v=o[d.id];
-    h+='<button class="h3p-e'+(d.id===_plVald?' vald':'')+(v?' klar':'')+'" onclick="h3PlacValj(\''+d.id+'\')">'
-      +'<span>'+esc(namn(d))+'</span><small>'+(v?((H3_HOJDER.find(x=>Math.abs(x[1]-v[2])<0.01)||[0,0,num(v[2],1)+' m'])[2]):'–')+'</small></button>';});
-  h+='</div>';
-  el.innerHTML=h;
-  /* Ingen automatisk rullning: planen ska stå kvar där fingret är. */
-}
 
 function renderRooms(){
   const el=$('rooms');if(!el)return;
@@ -5792,8 +6205,8 @@ function openInst(){
     +'<div class="setup-t">Lampor som ing\u00e5r i en grupp d\u00f6ljs i rumsrutan \u2014 gruppen styr dem \u00e4nd\u00e5. H\u00e4r ser du vad som r\u00e4knas som vad.</div>'
     +'<button class="dbtn wide" data-sekt="grupper" onclick="openGrupper()">Visa grupper</button>';
   h+=dSec('Lägenheten i 3D')
-    +'<div class="setup-t">Tillfälligt: placera ut var lamporna och de andra enheterna sitter, och skicka placeringen till Claude.</div>'
-    +'<button class="dbtn wide" data-placera="1" onclick="stangDlg();h3PlacOppna()">Placera enheter</button>';
+    +'<div class="setup-t">Placera ut var lamporna och de andra enheterna sitter och flytta möblerna. Skicka sedan texten till Claude, som bygger in det.</div>'
+    +'<button class="dbtn wide" data-placera="1" onclick="stangDlg();h3PlacOppna()">Redigera enheter och möbler</button>';
   h+=dSec('Avsnitt')
     +'<div class="setup-t">Ordningen p\u00e5 sidan, och vad som visas.</div>'
     +'<button class="dbtn wide" data-sekt="meny" onclick="openSekt()">Ordna avsnitt</button>'
