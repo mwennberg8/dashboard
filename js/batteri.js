@@ -1190,6 +1190,9 @@ function flikradBygg(){
   mobilTopp(mob);
   /* v833: med husbilden glider menyn undan vid skrollning även på plattorna. */
   if(mob||document.body.classList.contains('hus-sida'))flikSkroll();
+  /* v934: datorläget har Inställningar sist i listen – läggs till igen efter
+     varje omritning (t.ex. när Göteborg-knappen dyker upp). */
+  try{if(document.body.classList.contains('dator'))datorMeny(true);}catch(e){}
 }
 /* TOPPRADEN BORT I MOBILLÄGET (v676). Vyerna finns i flikraden; klockan och
    liveprickan flyttar in i energirutan, till höger om brickorna Självförsörjt

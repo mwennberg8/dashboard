@@ -21,7 +21,7 @@
  *  färska eller misslyckas — en cachad temperatur är värre än ingen.
  */
 
-const CACHE = 'dashboard-v6';
+const CACHE = 'dashboard-v7';
 
 /* Det som behövs för att sidan ska kunna starta. Ikonerna har versionslösa
    namn men byts sällan; blir de fel räcker en avinstallation. */
@@ -50,6 +50,7 @@ const SKAL = [
   './js/styrning.js',
   './js/huset.js',
   './js/el.js',
+  './js/dator.js',
   './js/start.js',
   './manifest.webmanifest',
   './icon-192.png',

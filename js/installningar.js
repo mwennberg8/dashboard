@@ -1847,7 +1847,9 @@ function openConfig(){
      hamnade dar av misstag nar menyn delades upp i v193. Flyttade till ratt sidor. */
   }else{
   h+='<div class="cfg-sec">Tema</div><div class="cfg-btns">'+['light','dark','auto'].map(t=>'<button class="cfg-opt'+(CFG.theme===t?' on':'')+'" onclick="cfgTheme(\''+t+'\')">'+(t==='light'?'Ljust':t==='dark'?'Mörkt':'Auto')+'</button>').join('')+'</div>';
-  h+='<div class="cfg-row"><span class="cfg-row-l">Visa som</span><div class="cfg-modeslot"><button class="'+(MOBILE?'on':'')+'" onclick="setViewMode(\'phone\')">Telefon</button><button class="'+(!MOBILE?'on':'')+'" onclick="setViewMode(\'tablet\')">Platta</button></div></div>';
+  h+='<div class="cfg-row"><span class="cfg-row-l">Visa som</span><div class="cfg-modeslot"><button class="'+(MOBILE?'on':'')+'" onclick="setViewMode(\'phone\')">Telefon</button><button class="'+(!MOBILE&&!document.body.classList.contains('dator')?'on':'')+'" onclick="setViewMode(\'tablet\')">Platta</button>'
+    /* v934: datorläget (js/dator.js) – väljs av sig självt med mus och bred skärm. */
+    +'<button class="'+(document.body.classList.contains('dator')?'on':'')+'" onclick="setViewMode(\'desktop\')">Dator</button></div></div>';
   if(demo){h+='<div class="cfg-sec">Demo-scenario</div><div class="cfg-btns">'+SCENARIOS.map((s,i)=>'<button class="cfg-opt'+(curScenario===i?' on':'')+'" onclick="cfgScenario('+i+')">'+esc(s.name)+'</button>').join('')+'</div>';}
     h+='<div class="cfg-sec">Mer</div><div class="cfg-menu">';
     CFG_SECS.forEach(function(x){h+=cfgMi('cfgGo(\''+x[0]+'\')',x[2],x[1],x[3]);});
@@ -1988,6 +1990,7 @@ function ncInfoHTML(){const items=(_warnList||[]).filter(w=>w&&w[0]!=='okc');
 
 function render(){
   try{paNuRita();}catch(e){}
+  try{datorPrisRita();}catch(e){}   /* v934: elpriskortet i datorläget */
   try{regelHamta(false);}catch(e){}
   /* Har batteri- eller förbrukningsserien en lucka på över tio minuter fylls den
      från Insights (högst var femte minut). */
