@@ -1037,6 +1037,42 @@ body.h3p-oppen{overflow:hidden}
   display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .h3-k svg{width:18px;height:18px}
 
+/* ===== DATORLÄGET (v1.104.0, gDatorTillampa) =====
+   Menyn som list till vänster, lägenheten i 3D i hela höjden till vänster,
+   avsnitten till höger, breda popuper i två spalter när de är långa. */
+body.dator{--rail:92px;padding:0 0 0 var(--rail)!important}
+body.dator .wrap{max-width:none;display:grid;grid-template-columns:var(--h3w) minmax(0,1fr);column-gap:16px;row-gap:var(--pg-gap);
+  align-items:start;padding:10px 14px 10px 10px;--h3w:min(60%,calc((100vh - 20px) * 1.25))}
+body.dator .wrap>*{grid-column:2;min-width:0;margin-top:0!important;margin-bottom:0!important}
+body.dator .wrap>#hus3d{grid-column:1;grid-row:1 / span 40;position:sticky;top:10px;height:calc(100vh - 20px);margin:0!important;
+  display:flex;flex-direction:column;box-sizing:border-box;padding:8px;border-radius:var(--r,24px);border:1px solid var(--line);
+  background:radial-gradient(120% 90% at 50% 40%,var(--panel-a),var(--panel-b))}
+body.dator #hus3d .h3-yta{flex:1 1 auto;min-height:0;-webkit-mask-image:none;mask-image:none}
+body.dator #hus3d .h3-svg{width:100%;height:100%;max-height:none;aspect-ratio:auto}
+body.dator #hus3d .h3-knappar{top:14px;right:14px}
+body.dator .foot{padding-bottom:6px}
+/* Menyn: list till vänster i hela höjden. Hem, vädret och växlingen överst,
+   statusen och Inställningar längst ned. Glider aldrig undan. */
+body.dator .flikrad{top:0;bottom:0;left:0;right:auto;width:var(--rail);padding:18px 10px 16px;border-top:0;border-right:1px solid var(--line);
+  background:linear-gradient(180deg,var(--panel-a),var(--panel-b));box-shadow:10px 0 30px -24px rgba(0,0,0,.5);transform:none!important}
+body.dator .flikrad.dold{transform:none!important}
+body.dator .flikrad .en-top{flex-direction:column;height:100%;max-width:none;gap:6px}
+body.dator .flik,body.dator .flikrad .wxi,body.dator #flikrad .husvakt-knapp{flex:0 0 auto;min-height:62px;border-radius:16px;font-size:11.5px;transition:background .15s,color .15s}
+body.dator .flik:hover,body.dator #flikrad .husvakt-knapp:hover{background:var(--inset);color:var(--ink)}
+body.dator .flik.akt{background:rgba(129,161,193,.16);color:var(--blue)}
+body.dator #flikrad .en-status{margin-top:auto}
+body.dator .toast{bottom:24px}
+/* Popuperna: centrerade i ytan till höger om menyn, lite bredare; långa i två spalter. */
+body.dator .dlg-back{padding:24px 24px 24px calc(var(--rail) + 24px)}
+body.dator .dlg{max-width:620px}
+body.dator .dlg.dlg-spalt{max-width:min(1040px,calc(100vw - var(--rail) - 72px))}
+body.dator .dlg .dlg-body{max-height:calc(100vh - 130px)}
+body.dator .dlg.dlg-spalt .dlg-body{column-count:2;column-gap:32px}
+body.dator .dlg.dlg-spalt .dlg-body>*{break-inside:avoid}
+body.dator .dlg.dlg-spalt .dlg-body>.dsec,body.dator .dlg.dlg-spalt .dlg-body>.setup-t,body.dator .dlg.dlg-spalt .dlg-body>.dv-row{break-after:avoid}
+body.dator .dlg.dlg-spalt .dlg-body>.rum-master{column-span:all;margin-bottom:12px}
+/* Musen: tydlig hovring. */
+body.dator .room:hover,body.dator .ctl:hover{border-color:var(--blue)}
 </style>
 </head>
 <body>
@@ -1192,7 +1228,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.103.0';
+const APP_VERSION = 'v1.104.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -4091,6 +4127,38 @@ function renderVarning(){
    30 s utan att man rör den. DLG_OM håller innehållet uppdaterat medan rutan
    står öppen — annars fryser den på värdena den öppnades med. */
 const DLG_OM={};
+/* ===== DATORLÄGET (v1.104.0) =====
+   Samma som Gottskärs (js/dator.js, v934): mus och bred liggande skärm, eller
+   ?mode=desktop. Menyn som list till vänster, lägenheten i 3D i hela höjden
+   till vänster och avsnitten till höger, och långa popuper i två spalter i
+   stället för att rulla. Telefonen och plattorna påverkas inte. */
+function gArDator(){
+  try{
+    const q=location.search||'';
+    if(q.indexOf('mode=desktop')>=0)return true;
+    if(q.indexOf('mode=tablet')>=0||q.indexOf('mode=mobile')>=0)return false;
+    if(document.body.classList.contains('mobile'))return false;
+    const w=window.innerWidth||0,h=window.innerHeight||0;
+    const fin=!!(window.matchMedia&&window.matchMedia('(hover:hover) and (pointer:fine)').matches);
+    return fin&&w>=1024&&w>=h*1.1;
+  }catch(e){return false;}
+}
+function gDatorTillampa(){
+  const on=gArDator();
+  if(document.body.classList.contains('dator')===on)return;
+  document.body.classList.toggle('dator',on);
+  try{renderHus3d(true);}catch(e){}
+  dlgDatorPassa();
+}
+/* En lång popup i datorläget: två spalter i stället för att rulla. Mäts i en
+   spalt; blir innehållet högre än ~560 px delas det. */
+function dlgDatorPassa(){
+  const d=$('dlg'),b=$('dlg-body');if(!d||!b)return;
+  const var2=d.classList.contains('dlg-spalt');
+  if(!document.body.classList.contains('dator')){if(var2)d.classList.remove('dlg-spalt');return;}
+  if(var2)d.classList.remove('dlg-spalt');
+  if(b.scrollHeight>560)d.classList.add('dlg-spalt');
+}
 function openDlg(titel,ic,html,key){
   _dlgKey=key||'';
   /* Ny ruta = ingen väg tillbaka, om inte fargOppna sätter en efteråt. */
@@ -4099,12 +4167,13 @@ function openDlg(titel,ic,html,key){
   const i=$('dlg-ic');if(i)i.innerHTML=icon(ic||'house');
   const b=$('dlg-body');if(b){b.innerHTML=html;initIcons(b);try{knBind();}catch(e){}}
   const back=$('dlg-back');if(back)back.classList.add('open');
+  dlgDatorPassa();
   dlgRorelse();
 }
 function dlgSatt(html){const b=$('dlg-body');if(b){
   /* Behåll rullpositionen: en ruta som hoppar till toppen var 15:e sekund går
      inte att läsa. */
-  const y=b.scrollTop;b.innerHTML=html;initIcons(b);b.scrollTop=y;try{knBind();}catch(e){}}}
+  const y=b.scrollTop;b.innerHTML=html;initIcons(b);dlgDatorPassa();b.scrollTop=y;try{knBind();}catch(e){}}}
 function dlgRorelse(){
   clearTimeout(_dlgTimer);
   _dlgTimer=setTimeout(()=>{stangDlg();},30000);}
@@ -6369,10 +6438,13 @@ function start(){
   if(dbo){dbo.addEventListener('click',knDeleg);dbo.addEventListener('click',sektDeleg);}
   applySekt();
   if(window.matchMedia&&window.matchMedia('(max-width:600px)').matches)document.body.classList.add('mobile');
+  gDatorTillampa();
 }
 zoomSparr();   /* v1.90.0: ingen zoom */
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);
 else start();
+/* v1.104.0: datorläget sätts här också – demoläget lämnar start() i förtid. */
+try{gDatorTillampa();window.addEventListener('resize',function(){try{gDatorTillampa();}catch(e){}});}catch(e){}
 </script>
 <script>
 /* ===== husvakt 1.10.1 =====
