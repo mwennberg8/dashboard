@@ -1666,6 +1666,11 @@ var TEMPS=[
   {k:'ute',       lab:'Ute',        c:'#8fb9d9', ser:function(c){return histV('t_ute',c);},      val:function(){return cap(DEV.outdoor,'measure_temperature');}}
 ];
 
+/* ---------- [dator.js] ---------- */
+/* v934: datorläget. _datorDag = dygnet i elpriskortet (-1, 0, 1). */
+var _datorDag=0,_datorPrisAt=0;
+try{window.addEventListener('resize',function(){try{datorPassa();}catch(e){}});}catch(e){}
+
 /* ---------- [batteri.js] ---------- */
 /* v708: all automatik för bil och batteri i dashboarden är avstängd (energistyr
    och batteriplanen sköter den i Homey). v933: laddregeln (förslagen,
@@ -2668,7 +2673,7 @@ var _beType='dev',_beIcon=null,_beLabel=null,_beDev=null,_beAct=null,_beFlow=nul
 var _beIdx=null;
 
 /* ===== konfiguration (kugghjulet uppe till höger, sedan v675) ===== */
-const APP_VERSION='v933';
+const APP_VERSION='v934';
 const CFG_DEF={paNu:true,wxRubrik:true,wxRubrikPl:false,theme:'auto',scenario:0,glowmul:0.2,glowsharp:0.25,sharpV:2,night:0,nclock:'on',nclockOffset:0,krcOp:0.42,battkwh:24,showspot:true,sync:true,autoreload:true,
   priceGreen:0.20,priceRed:0.80,priceMoms:0,prisPaslag:0,shareLayout:true,
   /* Nollvärdena är de inställningar som visat sig fungera på plattan, inte

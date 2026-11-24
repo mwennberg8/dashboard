@@ -3837,7 +3837,82 @@ body.hus-sida:not(.mobile) .flik .ic{width:22px;height:22px;margin-bottom:2px}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode>*{grid-column:2;min-width:0}
   body.hus-sida:not(.mobile):not(.kiosk) #view-flode>#huspanel{grid-column:1;grid-row:1 / span 40;
     position:sticky;top:7px;margin-bottom:0}
+  /* v934: en dold startsida ska vara dold. #view-flode{display:grid} ovan vann
+     över .view.hidden, så på liggande plattor och datorer låg startsidan kvar
+     och Väder, Insikter och Jämför hamnade under den, nedanför skärmkanten. */
+  body.hus-sida:not(.mobile):not(.kiosk) #view-flode.hidden{display:none}
 }
+/* ===== DATORLÄGET (v934, js/dator.js) =====
+   Mus och bred liggande skärm. Menyn är en list till vänster i stället för en
+   rad i botten, startsidan fyller fönstret och popuperna blir breda med större
+   grafer i stället för höga och rullande. Plattorna och telefonen påverkas inte. */
+body.dator{--rail:92px;--pg-gap:10px;--pg-gap-y:10px;padding:0 0 0 var(--rail)!important;
+  --hus-w:min(calc((100vh - 20px) * 1040 / 1120),58%)}
+body.dator .wrap{padding:10px 12px 10px 10px!important;max-width:none!important}
+/* Menyn: list till vänster, hela höjden. Glider aldrig undan. */
+body.dator .flikrad{display:flex!important;position:fixed;left:0;top:0;bottom:0;right:auto;width:var(--rail);z-index:45;
+  flex-direction:column;align-items:stretch;justify-content:flex-start;gap:6px;margin:0;
+  padding:18px 10px 16px;border:0;border-right:1px solid var(--line);border-radius:0;
+  background:linear-gradient(180deg,var(--panel-a),var(--panel-b));box-shadow:10px 0 30px -24px rgba(0,0,0,.5);transform:none!important}
+body.dator .flikrad.dold{transform:none!important}
+body.dator .flik{flex:0 0 auto;min-height:66px;border-radius:16px;font-size:11.5px;gap:4px;padding:8px 2px;transition:background .15s,color .15s}
+body.dator .flik .ic{width:24px;height:24px;margin-bottom:0}
+body.dator .flik:hover{background:var(--inset);color:var(--ink)}
+body.dator .flik.akt{background:rgba(129,161,193,.16);color:var(--blue)}
+body.dator .flikrad .flik-status{flex:0 0 auto;margin-top:auto}
+body.dator .flikrad .flik-inst{margin-top:0}
+body.dator .flikrad .flik-status .flik{width:100%}
+/* Startsidan: huset i hela höjden, högerkolumnen till höger. */
+body.dator #view-flode{min-height:calc(100vh - 20px);row-gap:var(--pg-gap)}
+body.dator #view-flode>#huspanel{top:10px}
+body.dator #view-flode>section:not(#huspanel){margin:0!important}
+/* Elpriskortet fyller det som blir kvar (höjden sätts av datorPassa). */
+.dator-pris{display:none}
+body.dator .dator-pris{display:flex;flex-direction:column;gap:10px;padding:16px 18px 14px;min-height:340px;box-sizing:border-box;overflow:hidden}
+.dp-huvud{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dp-titel{display:flex;align-items:center;gap:8px;font:inherit;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+  flex:1 1 auto;background:none;border:0;padding:4px 0;cursor:pointer;text-align:left}
+.dp-titel .ic{width:18px;height:18px;color:var(--gold)}
+.dp-titel .ic:last-child{width:14px;height:14px;color:var(--faint);transition:transform .15s}
+.dp-titel:hover{color:var(--ink)}.dp-titel:hover .ic:last-child{transform:translateX(3px);color:var(--blue)}
+.dp-dag{margin:0!important;flex:0 1 250px;min-width:200px}
+/* VYERNA i datorläget: Insikter och Jämför i spalter (korten flödar som ett
+   murverk), Väder med kartan till vänster och resten till höger, Notiser
+   centrerade. */
+body.dator #view-insikter,body.dator #view-jamfor{max-width:none!important}
+body.dator #ins-body,body.dator #cmp-body{column-width:430px;column-gap:14px;max-width:1500px;margin:0 auto}
+body.dator #ins-body>*,body.dator #cmp-body>*{break-inside:avoid;margin:0 0 14px!important;width:100%;box-sizing:border-box}
+body.dator #vdr-body{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:start}
+body.dator #vdr-body>*{margin:0!important;min-width:0}
+body.dator #vdr-body>:first-child{grid-column:1 / -1}
+body.dator #vdr-body>:nth-child(2){grid-column:1;grid-row:2 / span 20;position:sticky;top:10px}
+body.dator #vdr-body>:nth-child(n+3){grid-column:2}
+body.dator #view-notiser{max-width:1100px;margin:0 auto}
+.dp-graf{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;cursor:pointer}
+.dp-graf .pgraph-lager{flex:1 1 auto;min-height:120px}
+.dp-graf .pgraph-svg{height:100%!important;min-height:120px}
+.dp-rutor{flex:0 0 auto}
+.dp-rutor>*{margin-bottom:0!important}
+/* Rutorna i högerkolumnen lite luftigare. */
+body.dator #stats-flode{gap:10px}
+/* POPUPERNA: breda i stället för höga. Centrerade i ytan till höger om menyn. */
+body.dator .dlg-back{padding:24px 24px 24px calc(var(--rail) + 24px)}
+body.dator .dlg,body.dator .dlg.wide{max-width:min(1140px,calc(100vw - var(--rail) - 72px))!important;padding:24px 30px 14px;border-radius:26px}
+body.dator .dlg .dlg-body,body.dator .dlg.wide .dlg-body{max-height:calc(100vh - 130px)}
+body.dator .dlg-h{font-size:19px}
+/* Graferna större. */
+body.dator #dlg-body .mchart{height:300px}
+body.dator #dlg-body .pgraph-svg{height:270px}
+body.dator #dlg-body .pcurve svg{height:160px}
+/* Raderna: dubbelt så många kolumner i rutnätet – två rutor per rad blir fyra. */
+body.dator .dr-grid{grid-template-columns:repeat(12,minmax(0,1fr))!important}
+/* Knapparna i popuperna: fyra i bredd i stället för två. */
+body.dator #dlg-body .controls.hem-pop{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+body.dator #dlg-body .controls.hem-pop .ctl-row{display:contents}
+/* Musen: tydlig hovring på det som går att klicka. */
+body.dator .clickable:hover,body.dator .stat:hover{filter:brightness(1.06)}
+body.dator .ctl:hover{border-color:var(--blue)}
+
 /* Raden ovanför husbilden: väder och soltider till vänster, notisklockan och
    livepricken till höger (mobilTopp flyttar hit #en-hogra). */
 /* Raden ovanför huset (väder, soltider, klocka, prick) i en egen ruta – samma
@@ -4374,6 +4449,7 @@ body.vaggplatta .hus-flod{animation:none!important}
 <script src="js/styrning.js"></script>
 <script src="js/huset.js"></script>
 <script src="js/el.js"></script>
+<script src="js/dator.js"></script>
 <script src="js/start.js"></script>
 <script>
 /* ===== husvakt 1.10.1 =====

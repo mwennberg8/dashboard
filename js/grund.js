@@ -1565,6 +1565,9 @@ function applyKiosk(){
     try{const r=document.documentElement;if(r&&r.style)r.style.overflow='';}catch(e){}
     try{const wr=document.querySelector('.wrap');if(wr&&wr.style){wr.style.transform='';wr.style.width='';wr.style.height='';wr.style.zoom='';wr.style.margin='';}}catch(e){}
     return;}
+  /* v934: DATORLÄGET (js/dator.js) – mus och bred liggande skärm. Ingen
+     kioskram och ingen skalning; menyn som list till vänster. */
+  try{if(typeof datorTillampa==='function'&&datorTillampa())return;}catch(e){}
   let on=false;
   if(CONFIG.KIOSK==='on')on=true;else if(CONFIG.KIOSK==='auto'){
     const w=(typeof window!=='undefined'&&window.innerWidth)?window.innerWidth:0;

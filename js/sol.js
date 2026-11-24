@@ -1616,6 +1616,7 @@ function pgLagerTog(vilket){
   if(vilket==='batt')_pgVisaBatt=!_pgVisaBatt; else if(vilket==='plan'){_pgVisaPlan=!_pgVisaPlan;if(_pgVisaPlan){try{regelHamta(false);}catch(e){}}}
   else _pgVisaSol=!_pgVisaSol;
   var b=$('dlg-body');if(b&&_popupRebuild)b.innerHTML=_popupRebuild();
+  try{datorPrisRita(true);}catch(e){}   /* v934: elpriskortet följer valet */
 }
 function priceDaySet(o){_priceDay=o;openDetail('cost');}
 function priceCurveSVG(){let o=plogGet();const cur=elprisNow();
