@@ -1277,7 +1277,7 @@ ICONS['close']='<path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,2
    Dashboard — Göteborg ("Markus's Homey")
    En enda fil. Ingen byggkedja, inga externa beroenden.
    ================================================================== */
-const APP_VERSION = 'v1.106.0';
+const APP_VERSION = 'v1.107.0';
 
 const CONFIG = {
   /* Token och Homey-id ligger INTE i filen. De matas in en gång och sparas i
@@ -3234,23 +3234,8 @@ function renderHus3d(tvinga,baraVy,mal){
   /* Ytterdörren öppen: en markering vid dörren. */
   if(dorr===true){const m=P(7.25,4.11,0.2);
     s+='<g class="h3-dorr"><circle cx="'+m.x.toFixed(3)+'" cy="'+m.y.toFixed(3)+'" r="22" fill="'+F.dorr+'"/></g>';}
-  /* Etiketterna: namn, temperatur och lampknappen. */
-  rum.forEach(r=>{
-    const m=P(r.cx,r.cy,0.02),pa=!!r.lj;
-    const namn=(r.p&&r.namn.length>9&&r.kort)?r.kort:r.namn;
-    const rad2=[];if(r.temp!=null)rad2.push(num(r.temp,1)+'°');if(r.alla)rad2.push((r.lj?r.lj.n:0)+'/'+r.alla);
-    s+='<g class="h3-et'+(r.zid?' h3-klick':'')+'"'+(r.zid?' onclick="h3Tryck(\''+r.zid+'\')"':'')+' transform="translate('+m.x.toFixed(3)+','+m.y.toFixed(3)+')">'
-      +'<text class="h3-namn" y="-8" text-anchor="middle">'+esc(namn)+'</text>'
-      +(rad2.length?'<text class="h3-sub" y="28" text-anchor="middle">'+esc(rad2.join(' · '))+'</text>':'')
-      +(r.ror?'<circle class="h3-ror" cx="'+(-(14+namn.length*8.6)).toFixed(1)+'" cy="-18" r="7"/>':'')
-      +'</g>';
-    if(r.zid&&r.alla){
-      /* Knappen till höger om namnet – under det hamnade den på inredningen. */
-      const k=P(r.cx,r.cy,0.02),kx=k.x+namn.length*8.6+36,ky=k.y-18;
-      s+='<g class="h3-knapp'+(pa?' on':'')+'" role="button" aria-label="Tänd eller släck '+esc(r.namn)+'" onclick="event.stopPropagation();h3Tand(\''+r.zid+'\')" transform="translate('+kx.toFixed(1)+','+ky.toFixed(1)+')">'
-        +'<circle r="25"/><path d="M0,-12 V0 M-8.5,-8.5 A12,12 0 1,0 8.5,-8.5" fill="none"/></g>';
-    }
-  });
+  /* v1.107.0: inga etiketter i bilden – rummens namn, temperatur och
+     tänd/släck-knapp togs bort. Ett tryck på golvet öppnar fortfarande rummet. */
   s+='</svg>';
   /* Redigerarens bild: egna id för suddet och klippen, och inga klick. */
   if(mal){el.innerHTML=s.replace(/h3-(k\d+|sudd-l|sudd)\b/g,'h3e-$1').replace(/ onclick="[^"]*"/g,'');return;}
