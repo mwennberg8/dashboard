@@ -293,7 +293,7 @@ function battMaxMark(){
 }
 function battNatLaddar(w){
   if(w==null||!isFinite(w)||w<BATT_NAT_W)return false;
-  var g=cap(DEV.pulse,'measure_power'),sol=cap(DEV.solar,'measure_power');
+  var g=natW(),sol=cap(DEV.solar,'measure_power');
   if(g==null||!isFinite(g)||g<BATT_IMPORT_W)return false;
   return w>(Number(sol)||0)+BATT_IMPORT_W;
 }
@@ -921,10 +921,10 @@ function openDetailKarna(which){
        löstes löftet omedelbart varje gång. Resultatet var en oändlig loop som
        låste hela sidan; man kunde inte ens stänga popupen. */
     if(!_prog)progHamta().then(function(){progUppdatera();});
-  }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
+  }else if(which==='grid'){const pw=natW(),exp=pw!=null&&pw<0;title='Elnät · Förbrukning';
     /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
        kan rita om just den här vyn. */
-    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
+    _grafByggare['grid']={titel:'Elnät · Förbrukning',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
     _grafByggare['fas']={titel:'Ström per fas',full:function(cid){return fasGrafHTML(cid||'fas');}};   /* v929 */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
     body=byggGrid();   /* v847: raderna som stod här (ett fristående uttryck som räknades och kastades) finns redan i byggGrid */
@@ -932,7 +932,7 @@ function openDetailKarna(which){
     _grafByggare['g2-batt']={titel:'Husbatteri',full:function(cid){return battGrafHTML(cid||'g2-batt');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
     body=byggBatt();
-  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
+  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=natW(),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
     const gi=(pw!=null&&pw>0)?pw:0,bi=(bsx==='discharging')?Math.abs(bw):0,si=Math.max(0,(hW||0)-gi-bi);title='Självförsörjning';
     body=dRow('Förbrukning nu',hW==null?'–':W(hW))+dRow('Från sol',W(si))+dRow('Från batteri',W(bi))+dRow('Från nät',W(gi))+dRow('Egen el',(hW?Math.round((si+bi)/hW*100):(pw!=null&&pw<0?100:0))+' %');
   }else if(which==='kopt'){
@@ -1266,7 +1266,7 @@ function flikradAktiv(){
 /* ---- energipanel (källmix + kort) ---- */
 function renderEnergy(){
   const p=PAL[curTheme]||PAL.dark;
-  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
+  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=natW();
   const battPct=cap(DEV.battery,'measure_battery'),battW=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   const importing=pulseW!=null&&pulseW>0,exporting=pulseW!=null&&pulseW<0,charging=bs==='charging',discharging=bs==='discharging';
   setT('en-house',houseW==null?'–':W(houseW));

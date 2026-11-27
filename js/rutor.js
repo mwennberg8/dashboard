@@ -157,7 +157,11 @@ function fastaTillLayout(g,slot){
    under (sol + batteri + nät) visade 10,7 — det var skillnaden.
    Mätaren är facit; ingen post läggs till den. */
 function houseNowW(){const base=cap(DEV.consume,husCap());return (base==null)?null:base;}   /* v722: Husförbrukning */
-function selfData(){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
+/* v935: NÄTEFFEKTEN (köp +, sälj −) ur Förbrukning (NAT_CAP, "Näteffekt") i
+   stället för Pulse. Saknas den används Pulse som förut. */
+function natW(){const v=cap(DEV.consume,NAT_CAP);return (v!=null&&isFinite(v))?v:cap(DEV.pulse,'measure_power');}
+function natLive(){const v=capLive(DEV.consume,NAT_CAP);return (v!=null&&isFinite(v))?v:capLive(DEV.pulse,'measure_power');}
+function selfData(){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=natW(),bw=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   const gi=(pw!=null&&pw>0)?pw:0,bi=(bs==='discharging')?Math.abs(bw):0;
   const si=Math.max(0,Math.min(sW,(hW||0)-gi-bi)); /* taket: aldrig mer sol än panelerna ger */
   const of=(hW&&hW>0)?((si+bi)/hW):(pw!=null&&pw<0?1:0);return {of:Math.max(0,Math.min(1,of)),si,bi,gi,hW};}
@@ -461,7 +465,7 @@ function computeMetric(cfg){
         sub:(lo!=null&&hi!=null&&isFinite(lo)&&isFinite(hi))
           ?(Math.round(lo*100)+'–'+Math.round(hi*100)+' öre i dag'):'kr/kWh nu',
         meta:'kr/kWh nu',det:'cost'};}
-    case 'gridbal':{const pw=cap(DEV.pulse,'measure_power');return {label:'Nätbalans nu',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'säljer / köper':(pw<-5?'säljer till nätet':pw>5?'köper från nätet':'i balans'),det:'grid'};}
+    case 'gridbal':{const pw=natW();return {label:'Nätbalans nu',icon:'lightning',v:pw==null?'–':(pw<-5?'−':'')+W(Math.abs(pw)),meta:pw==null?'säljer / köper':(pw<-5?'säljer till nätet':pw>5?'köper från nätet':'i balans'),det:'grid'};}
     case 'krcmp': case 'krcmp2':
       return {label:'Köpt / sålt'+(cfg.key==='krcmp2'?' (bred)':''),icon:'coins',
         v:'<small>stapel</small>',meta:'tryck = byt period',det:'cost'};
@@ -580,7 +584,7 @@ function computeMetric(cfg){
       return {label:'Tomt',icon:'battery-low',
         icc:'var(--hot)',
         v:vv,sub:mm,meta:mm,det:'batttom'};}
-    case 'gridnow':{const pw=cap(DEV.pulse,'measure_power');
+    case 'gridnow':{const pw=natW();
       /* Overbelastad fas syns i rutan, inte bara i popupen: det ar da man vill
          veta, och rutan ar det man ser. Ikonen byter farg och den varsta fasen
          skrivs ut bredvid effekten. Under 75 % star ingenting extra - en varning

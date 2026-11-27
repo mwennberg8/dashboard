@@ -185,7 +185,7 @@ function lkConf(power,active,toward,color){return{power:power||0,active:!!active
 function updateFlow(){
   if(!FLOW.built)return;
   const p=PAL[curTheme]||PAL.dark;
-  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
+  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=natW();
   const battPct=cap(DEV.battery,'measure_battery'),battW=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   setT('fv-sun',W(solarW));setT('fv-house',houseW==null?'–':W(houseW));
   const importing=pulseW!=null&&pulseW>0,exporting=pulseW!=null&&pulseW<0;
@@ -363,7 +363,7 @@ function histLucka(k){var a=HIST[k];if(!a||!a.length)return true;return Date.now
 async function seedHistory(res,tvinga){if(seeded&&!tvinga)return;seeded=true;res=res||'today';const logs=await homeyGet('/api/manager/insights/log/');if(!logs)return;
   const want={solar:[DEV.solar,['energy_power','measure_power']],house:[DEV.consume,['energy_power','measure_power']],price:[DEV.tibber,['measure_price_total','price_total','price']],
     batt:[BATT_MB,['measure_battery']],t_ute:[DEV.outdoor,['measure_temperature']],t_kok:[DEV.vader,['measure_temperature']],co2:[DEV.vader,['measure_co2']],
-    grid:[DEV.pulse,['energy_power','measure_power']],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[BATT_MB,['netto']],
+    grid:[DEV.consume,[NAT_CAP]],pool:[DEV.pooltemp,['measure_temperature']],hum:[DEV.outdoor,['measure_humidity']],press:[DEV.vader,['measure_pressure']],battpow:[BATT_MB,['netto']],
     wind:[DEV.windMs,['measure_wind_strength']],gust:[DEV.windMs,['measure_gust_strength']],winddir:[DEV.windNet,['measure_wind_angle']],rain:[DEV.rain,['measure_rain.24h']],
     t_vard:[DEV.vard,['measure_temperature']],t_uterum:[DEV.uterum,['measure_temperature']],
     t_poolrum:[DEV.poolrum,['measure_temperature']],t_kallare:[DEV.kallare,['measure_temperature']],

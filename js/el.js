@@ -24,7 +24,7 @@ function elW(w){return (w==null||!isFinite(w))?'–':W(Math.abs(w));}
 
 /* ---- Flödet nu: fem rutor ---- */
 function elFlodeHTML(){
-  var sol=cap(DEV.solar,'measure_power'),hus=houseNowW(),nat=cap(DEV.pulse,'measure_power');
+  var sol=cap(DEV.solar,'measure_power'),hus=houseNowW(),nat=natW();
   var bw=null;try{bw=battEffektNu();}catch(e){}
   var soc=cap(DEV.battery,'measure_battery'),bil=chargerW();
   var ruta=function(ic,farg,v,k,sub,klick){
