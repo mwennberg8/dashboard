@@ -33,7 +33,7 @@ function buildInsState(){
   var bW=cap(DEV.battery,'measure_power'); S.battKw=(bW==null?null:bW/1000);
   S.battState=cap(DEV.battery,'battery_charging_state');
   /* nät (Pulse: export = negativt) */
-  var pW=cap(DEV.pulse,'measure_power');
+  var pW=natW();
   S.gridKw=(pW==null?null:pW/1000);
   S.exportKw=(pW==null?null:(pW<0?Math.abs(pW)/1000:0));
   /* självförsörjning – samma logik som energipanelen */
