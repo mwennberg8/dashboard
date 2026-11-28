@@ -1226,7 +1226,7 @@ function weatherInsightIsAI(){return false;}
 function energyInsight(){return energyInsightHeuristic();}
 function energyInsightIsAI(){return false;}
 function energyInsightHeuristic(){
-  const sol=cap(DEV.solar,'measure_power'),house=houseNowW(),grid=natW(),bpct=cap(DEV.battery,'measure_battery'),bstate=cap(DEV.battery,'battery_charging_state'),plevel=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_level');
+  const sol=cap(DEV.solar,'measure_power'),house=houseNowW(),grid=cap(DEV.pulse,'measure_power'),bpct=cap(DEV.battery,'measure_battery'),bstate=cap(DEV.battery,'battery_charging_state'),plevel=cap(DEV.tibber,'price_level')||cap(DEV.tibber,'measure_price_level');
   const parts=[];
   if(sol!=null&&house!=null){if(sol>house+300)parts.push('Solöverskott just nu ('+Math.round(sol-house)+' W över förbrukningen).');else if(sol>200&&sol<=house)parts.push('Solen täcker en del av förbrukningen.');}
   if(bstate==='charging'&&bpct!=null)parts.push('Batteriet laddas ('+Math.round(bpct)+' %).');

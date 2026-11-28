@@ -442,7 +442,7 @@ function buildEnergyPopup(){
   const house=houseNowW(),sol=cap(DEV.solar,'measure_power');
   const solDay=cap(DEV.solar,'meter_power.day'),solYear=cap(DEV.solar,'meter_power.year');
   const bpct=cap(DEV.battery,'measure_battery'),bpow=cap(DEV.battery,'measure_power'),bstate=cap(DEV.battery,'battery_charging_state'),bt=battTimeStr();
-  const grid=natW(),price=elprisNow();
+  const grid=cap(DEV.pulse,'measure_power'),price=elprisNow();
   const bought=boughtYear(),sold=soldYear();
   const _isAI=energyInsightIsAI();
   const P=(PAL&&PAL[curTheme])||{};
@@ -588,7 +588,7 @@ function spannTxt(ms){var h=Math.round(ms/3600000);
   if(h>=48)return '~'+Math.round(ms/86400000)+' dygn';
   return h>=1?('~'+h+' h'):'stunden';}
 function byggGrid(){
-  var pw=natW(),exp=pw!=null&&pw<0;
+  var pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;
   return grafRubrik('grid','Elnät',infoBlock('gridgraf',
       'Blå kurva och yta är effekt du köper från nätet, grön är effekt du '
       +'säljer. Nollinjen skiljer köp från sälj. Dra i grafen för att läsa av '

@@ -660,7 +660,7 @@ function learnTick(){
   const sp=cap(DEV.solar,'measure_power');if(sp!=null&&sp>LEARN_KEYS.solar.floor)learnSample('solar',sp);
   const pr=elprisNow();if(pr!=null)learnSample('price',pr);
   const bp=cap(DEV.battery,'measure_power');if(bp!=null&&Math.abs(bp)>LEARN_KEYS.battflow.floor)learnSample('battflow',Math.abs(bp));
-  const gp=natW();if(gp!=null&&Math.abs(gp)>LEARN_KEYS.gridflow.floor)learnSample('gridflow',Math.abs(gp));
+  const gp=cap(DEV.pulse,'measure_power');if(gp!=null&&Math.abs(gp)>LEARN_KEYS.gridflow.floor)learnSample('gridflow',Math.abs(gp));
   /* Pooltemperaturen samlas UTTRYCKLIGT. Raden under tar bara brickor som
      ligger på flöde/energi/väder — har man tagit bort poolbrickan därifrån
      slutade serien fyllas på, och grafen i poolrutan blev tom utan att något
@@ -700,7 +700,7 @@ function metricNumber(cfg){
   if(k==='seatemp')return (typeof FEED!=='undefined')?FEED.sea:null;
   if(k==='boughtyear')return yearKopt();if(k==='soldyear')return yearSald();
   const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],solyear:[DEV.solar,'meter_power.year'],house:[DEV.consume,husCap()],
-    cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.consume,NAT_CAP],gridnow:[DEV.consume,NAT_CAP],
+    cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.pulse,'measure_power'],gridnow:[DEV.pulse,'measure_power'],
     battnow:[DEV.battery,'measure_power'],battpow:[DEV.battery,'measure_power'],battpct:[DEV.battery,'measure_battery'],
     humidity:[DEV.outdoor,'measure_humidity'],rain:[DEV.rain,'measure_rain.24h'],pressure:[DEV.vader,'measure_pressure'],
     car1:[DEV.car,'measure_battery'],car2:[DEV.car2,'measure_battery'],charger:[DEV.laddbox,'measure_power'],poolrum:[DEV.pooltemp,'measure_temperature'],
@@ -814,7 +814,7 @@ function tileStatus(cfg){
   if(cfg.type==='computed'){const k=cfg.key;
     if(k==='solnow'||k==='solday'){const p=cap(DEV.solar,'measure_power')||0;if(p<=40)return null;return {icon:'sun',glow:'solar',lvl:glowLevel('solar',p)};}
     if(k==='battnow'){const pw=cap(DEV.battery,'measure_power'),s=cap(DEV.battery,'battery_charging_state'),b=cap(DEV.battery,'measure_battery');const lvl=glowLevel('battflow',Math.abs(pw||0));if(b!=null&&b<10)return{glow:'hot',lvl:Math.max(lvl,0.6)};if(s==='charging')return{icon:'lightning',glow:'green',lvl:lvl};if(s==='discharging')return{icon:'battery-low',glow:'gold',lvl:lvl};return null;}
-    if(k==='gridnow'){const pw=natW();if(pw==null)return null;const lvl=glowLevel('gridflow',Math.abs(pw));if(pw>5)return{icon:'lightning',glow:'hot',lvl:lvl};if(pw<-5)return{icon:'lightning',glow:'green',lvl:lvl};return null;}
+    if(k==='gridnow'){const pw=cap(DEV.pulse,'measure_power');if(pw==null)return null;const lvl=glowLevel('gridflow',Math.abs(pw));if(pw>5)return{icon:'lightning',glow:'hot',lvl:lvl};if(pw<-5)return{icon:'lightning',glow:'green',lvl:lvl};return null;}
     if(k==='rain'){const r=cap(DEV.rain,'measure_rain.24h');if(r==null||r<=0)return null;return{glow:'blue',lvl:Math.max(.15,Math.min(1,r/15))};}
     if(k==='humidity'){const hh=cap(DEV.outdoor,'measure_humidity');if(hh==null)return null;if(hh>=92||hh<=18)return{glow:'hot',icon:'warning'};if(hh>=85||hh<=25)return{glow:'warm'};return null;}
     if(k==='pressure'){const pr=cap(DEV.vader,'measure_pressure')||cap(DEV.smhi,'measure_air_pressure_cp'),tr=pressureTrend(pr);if(tr>0)return{glow:'warm'};if(tr<0)return{glow:'blue'};return null;}
@@ -1154,7 +1154,7 @@ function teDevChange(){const dv=$('te-dev'),cp=$('te-cap');if(!dv||!cp)return;co
 function tilePrimary(cfg){if(!cfg)return null;
   if(cfg.type==='sensor')return {dev:cfg.device,cap:cfg.cap,kind:'num'};
   const M={solnow:[DEV.solar,'measure_power'],solday:[DEV.solar,'meter_power.day'],house:[DEV.consume,husCap()],
-    cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.consume,NAT_CAP],gridnow:[DEV.consume,NAT_CAP],
+    cost:[DEV.pulse,'accumulatedCost'],spot:[DEV.tibber,'measure_price_total'],gridbal:[DEV.pulse,'measure_power'],gridnow:[DEV.pulse,'measure_power'],
     sold:[DEV.pulse,'meter_power.exported'],bought:[DEV.pulse,'meter_power.imported'],
     battpct:[DEV.battery,'measure_battery'],battpow:[DEV.battery,'measure_power'],battnow:[DEV.battery,'measure_power'],
     humidity:[DEV.outdoor,'measure_humidity'],rain:[DEV.rain,'measure_rain.24h'],pressure:[DEV.vader,'measure_pressure'],
@@ -2058,7 +2058,7 @@ function render(){
   }}
   renderKsBand();
 
-  const solarW=cap(DEV.solar,'measure_power'),houseW=houseNowW(),pulseW=natW();
+  const solarW=cap(DEV.solar,'measure_power'),houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battW=cap(DEV.battery,'measure_power'),bs=cap(DEV.battery,'battery_charging_state'),exporting=pulseW!=null&&pulseW<0;
   renderEnergy();
   /* v777: huset ovanifrån – bara där #huspanel finns (index.html sedan v826). */

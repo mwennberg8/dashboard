@@ -12,7 +12,7 @@
 function husVarden(){
   var sol=cap(DEV.solar,'measure_power');
   if(sol==null)sol=cap(DEV.consume,'measure_power.solar');
-  var nat=natW();
+  var nat=cap(DEV.pulse,'measure_power');
   var last=houseNowW();
   /* Batteriet: samma källa som resten av dashboarden (battVal i grund.js –
      Husbatteri, eller Modbus när Husbatteri hängt sig). Förut lästes Modbus
