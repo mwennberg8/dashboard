@@ -243,6 +243,7 @@ function regelHamta(tvinga){
       /* v921: Auto – batteriplanen styr (batteriplan 1.3.0). */
       auto:Number(r.battplan_auto)===1,at:Date.now()};
     try{if(_regel.max!=null)localStorage.setItem('battMax_v1',JSON.stringify({v:_regel.max,at:Date.now()}));}catch(e){}
+    battAutoMinns(_regel.auto);
     regelSpara(_regel);_regelFel='';
   }).catch(function(e){_regelFel=((e&&e.message)||String(e))+' ('+avlKl(Date.now())+')';}).then(function(){   /* v899: felet sparas för batteriplanen */
     _regelAt=Date.now();_regelLaddar=false;
@@ -293,7 +294,7 @@ function battMaxMark(){
 }
 function battNatLaddar(w){
   if(w==null||!isFinite(w)||w<BATT_NAT_W)return false;
-  var g=natW(),sol=cap(DEV.solar,'measure_power');
+  var g=cap(DEV.pulse,'measure_power'),sol=cap(DEV.solar,'measure_power');
   if(g==null||!isFinite(g)||g<BATT_IMPORT_W)return false;
   return w>(Number(sol)||0)+BATT_IMPORT_W;
 }
@@ -618,7 +619,14 @@ function spBoka(el){
    Knappen skriver battplan_auto (1/0). Batteriplanen 1.3.0 styr då batteriet
    efter planen varje minut; en bokning eller ditt eget Ladda max går före, och
    sparplanen (sparaigen 1.8.0) står still. */
-function battAutoPa(){return !!(_regel&&_regel.auto);}
+/* v936: Auto ur registret när det är hämtat (eller just ändrat), annars det
+   senast kända på skärmen – förut blev det provläge tills hämtningen var klar. */
+function battAutoPa(){
+  if(_regel&&typeof _regel.auto==='boolean')return _regel.auto;
+  try{var o=JSON.parse(localStorage.getItem(BATT_AUTO_LS)||'null');if(o&&Date.now()-Number(o.at)<BATT_AUTO_LS_MAX)return o.v===1;}catch(e){}
+  return false;
+}
+function battAutoMinns(pa){try{localStorage.setItem(BATT_AUTO_LS,JSON.stringify({v:pa?1:0,at:Date.now()}));}catch(e){}}
 function battAutoKnapp(){
   var pa=battAutoPa(),P=null;try{P=battPlanData();}catch(e){}
   var lbl=!pa?'Auto av':(P&&P.man==='bokat'?'Auto · väntar':(P&&P.man==='ladda'?'Auto · väntar':'Auto · plan'));
@@ -630,7 +638,7 @@ async function battAutoTryck(){
   var ny=battAutoPa()?0:1;
   try{var list=await logicList();await logicWrite(list,'battplan_auto',ny,'number');}
   catch(e){toast('Kunde inte ändra Auto: '+((e&&e.message)||'okänt'));return;}
-  _regel=_regel||{};_regel.auto=ny===1;
+  _regel=_regel||{};_regel.auto=ny===1;battAutoMinns(_regel.auto);
   toast(ny?'Auto på – batteriplanen styr batteriet. Dina bokningar och Ladda max går före.'
           :'Auto av – planen styr inte längre. Stod den i ladda eller spara går batteriet till normal drift.');
   try{renderControls();}catch(e){}
@@ -921,10 +929,10 @@ function openDetailKarna(which){
        löstes löftet omedelbart varje gång. Resultatet var en oändlig loop som
        låste hela sidan; man kunde inte ens stänga popupen. */
     if(!_prog)progHamta().then(function(){progUppdatera();});
-  }else if(which==='grid'){const pw=natW(),exp=pw!=null&&pw<0;title='Elnät · Förbrukning';
+  }else if(which==='grid'){const pw=cap(DEV.pulse,'measure_power'),exp=pw!=null&&pw<0;title='Elnät · Pulse';
     /* Tidsseriegraf: registrera byggare + omritning så tidsval och helskärm
        kan rita om just den här vyn. */
-    _grafByggare['grid']={titel:'Elnät · Förbrukning',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
+    _grafByggare['grid']={titel:'Elnät · Pulse',full:function(cid){return gridPowerSVG(histV('grid',cid||'grid'),cid||'grid');}};
     _grafByggare['fas']={titel:'Ström per fas',full:function(cid){return fasGrafHTML(cid||'fas');}};   /* v929 */
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggGrid();};
     body=byggGrid();   /* v847: raderna som stod här (ett fristående uttryck som räknades och kastades) finns redan i byggGrid */
@@ -932,7 +940,7 @@ function openDetailKarna(which){
     _grafByggare['g2-batt']={titel:'Husbatteri',full:function(cid){return battGrafHTML(cid||'g2-batt');}};
     _grafOmRita=function(){var b=$('dlg-body');if(b)b.innerHTML=byggBatt();};
     body=byggBatt();
-  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=natW(),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
+  }else if(which==='self'){const sW=cap(DEV.solar,'measure_power')||0,hW=houseNowW(),pw=cap(DEV.pulse,'measure_power'),bw=cap(DEV.battery,'measure_power')||0,bsx=cap(DEV.battery,'battery_charging_state');
     const gi=(pw!=null&&pw>0)?pw:0,bi=(bsx==='discharging')?Math.abs(bw):0,si=Math.max(0,(hW||0)-gi-bi);title='Självförsörjning';
     body=dRow('Förbrukning nu',hW==null?'–':W(hW))+dRow('Från sol',W(si))+dRow('Från batteri',W(bi))+dRow('Från nät',W(gi))+dRow('Egen el',(hW?Math.round((si+bi)/hW*100):(pw!=null&&pw<0?100:0))+' %');
   }else if(which==='kopt'){
@@ -1266,7 +1274,7 @@ function flikradAktiv(){
 /* ---- energipanel (källmix + kort) ---- */
 function renderEnergy(){
   const p=PAL[curTheme]||PAL.dark;
-  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=natW();
+  const solarW=cap(DEV.solar,'measure_power')||0,houseW=houseNowW(),pulseW=cap(DEV.pulse,'measure_power');
   const battPct=cap(DEV.battery,'measure_battery'),battW=cap(DEV.battery,'measure_power')||0,bs=cap(DEV.battery,'battery_charging_state');
   const importing=pulseW!=null&&pulseW>0,exporting=pulseW!=null&&pulseW<0,charging=bs==='charging',discharging=bs==='discharging';
   setT('en-house',houseW==null?'–':W(houseW));
